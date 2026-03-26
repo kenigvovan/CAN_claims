@@ -55,7 +55,7 @@ namespace claims.src
         static DatabaseHandler databaseHandler;
 
         //Because overwise on signleplayer it will collide
-        public static DataStorage dataStorage {  get; private set; }
+        public static DataStorage dataStorage { get; set; }
         public static DataStorage clientDataStorage {  get; private set; }
         public PlayerMovementListnerClient pmlc;
         public static PlayerMovementsListnerServer serverPlayerMovementListener;

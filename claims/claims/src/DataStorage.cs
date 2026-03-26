@@ -102,7 +102,7 @@ namespace claims.src
             }
             return true;
         }
-        public bool GetPlot(PlotPosition plotPosition, out Plot plot)
+        public virtual bool GetPlot(PlotPosition plotPosition, out Plot plot)
         {
             if (claimedPlots.TryGetValue(plotPosition, out plot))
             {
@@ -131,7 +131,7 @@ namespace claims.src
         /*==============================================================================================*/
         /*=====================================PLAYERS==================================================*/
         /*==============================================================================================*/
-        public bool GetPlayerByUid(string uid, out PlayerInfo playerInfo)
+        public virtual bool GetPlayerByUid(string uid, out PlayerInfo playerInfo)
         {
             if (uidToPlayerDict.TryGetValue(uid, out playerInfo))
             {
