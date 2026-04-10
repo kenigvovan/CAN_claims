@@ -41,6 +41,20 @@ namespace claims.tests
             _playerMock.Setup(p => p.PlayerUID).Returns(TestPlayerUid);
             _output = output;
             _output.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] New instance");
+
+            // Initialize Lang so Lang.Get returns the key as-is instead of crashing
+            if (!Vintagestory.API.Config.Lang.AvailableLanguages.ContainsKey("en"))
+            {
+                var langMock = new Mock<Vintagestory.API.Config.ITranslationService>();
+                langMock.Setup(t => t.Get(It.IsAny<string>(), It.IsAny<object[]>()))
+                    .Returns<string, object[]>((key, _) => key);
+                langMock.Setup(t => t.HasTranslation(It.IsAny<string>(), It.IsAny<bool>()))
+                    .Returns(false);
+                langMock.Setup(t => t.HasTranslation(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<bool>()))
+                    .Returns(false);
+                Vintagestory.API.Config.Lang.AvailableLanguages["en"] = langMock.Object;
+            }
+            Vintagestory.API.Config.Lang.ChangeLanguage("en");
         }
 
         // Creates a TextCommandCallingArgs with the given player as caller.

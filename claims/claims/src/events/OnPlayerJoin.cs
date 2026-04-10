@@ -60,7 +60,7 @@ namespace claims.src.events
                 UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, new Dictionary<string, object> { { "value", playerInfo.Alliance.Guid } }, EnumPlayerRelatedInfo.NEW_ALLIANCE_ALL);
 
                 List<ClientConflictLetterCellElement> li = new List<ClientConflictLetterCellElement>();
-                foreach(var it in ConflictHandler.GetAllLettersForAlliance(playerInfo.Alliance))
+                foreach(var it in ConflictHandler.GetAllLettersForParty(playerInfo.Alliance))
                 {
                     li.Add(new ClientConflictLetterCellElement(it.From.GetPartName(), it.From.Guid, it.To.GetPartName(), it.To.Guid,
                         it.Purpose, it.TimeStampExpire, it.Guid));
@@ -71,7 +71,7 @@ namespace claims.src.events
                 }
 
                 List<ClientConflictCellElement> lic = new List<ClientConflictCellElement>();
-                foreach (var it in ConflictHandler.GetAllConflictsForAlliance(playerInfo.Alliance))
+                foreach (var it in ConflictHandler.GetAllConflictsForParty(playerInfo.Alliance))
                 {
                     lic.Add(new ClientConflictCellElement(it.GetPartName(), it.First.GetPartName(), it.Second.GetPartName(),
                         it.StartedBy.GetPartName(), it.State, it.Guid,

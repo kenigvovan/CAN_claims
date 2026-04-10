@@ -1,4 +1,6 @@
 ﻿using claims.src.auxialiry;
+using claims.src.part;
+using claims.src.part.structure;
 using System;
 using System.Collections.Generic;
 
@@ -16,7 +18,7 @@ namespace claims.src.part.structure.conflict
         {
             return conflictLettersList.Add(letter);
         }
-        public static bool removeConflictLetter(Alliance from, Alliance to, LetterPurpose purpose)
+        public static bool removeConflictLetter(IConflictParty from, IConflictParty to, LetterPurpose purpose)
         {
             foreach (var it in conflictLettersList)
             {
@@ -49,7 +51,7 @@ namespace claims.src.part.structure.conflict
                 }
             }
         }
-        public static bool conflictAlreadyExist(Alliance firstSide, Alliance secondSide)
+        public static bool conflictAlreadyExist(IConflictParty firstSide, IConflictParty secondSide)
         {
             foreach (Conflict conflict in claims.dataStorage.conflicts)
             {
@@ -61,7 +63,7 @@ namespace claims.src.part.structure.conflict
             }
             return false;
         }
-        public static bool TryGetConflictWithSides(Alliance firstSide, Alliance secondSide, out Conflict conflict)
+        public static bool TryGetConflictWithSides(IConflictParty firstSide, IConflictParty secondSide, out Conflict conflict)
         {
             foreach (Conflict it in claims.dataStorage.conflicts)
             {
@@ -88,7 +90,7 @@ namespace claims.src.part.structure.conflict
             conflict = null;
             return false;
         }
-        public static List<Conflict> GetAllConflictsForAlliance(Alliance alliance)
+        public static List<Conflict> GetAllConflictsForParty(IConflictParty alliance)
         {
             List<Conflict> sentLetters = new List<Conflict>();
 
@@ -101,7 +103,7 @@ namespace claims.src.part.structure.conflict
             }
             return sentLetters;
         }
-        public static List<ConflictLetter> GetAllLettersForAlliance(Alliance alliance)
+        public static List<ConflictLetter> GetAllLettersForParty(IConflictParty alliance)
         {
             List<ConflictLetter> sentLetters = new List<ConflictLetter>();
 
@@ -114,7 +116,7 @@ namespace claims.src.part.structure.conflict
             }
             return sentLetters;
         }
-        public static List<ConflictLetter> getSentLettersForAlliance(Alliance alliance)
+        public static List<ConflictLetter> getSentLettersForParty(IConflictParty alliance)
         {
             List<ConflictLetter> sentLetters = new List<ConflictLetter>();
 
@@ -127,7 +129,7 @@ namespace claims.src.part.structure.conflict
             }
             return sentLetters;
         }
-        public static List<ConflictLetter> getReceivedLettersForAlliance(Alliance alliance)
+        public static List<ConflictLetter> getReceivedLettersForParty(IConflictParty alliance)
         {
             List<ConflictLetter> sentLetters = new List<ConflictLetter>();
 
@@ -140,7 +142,7 @@ namespace claims.src.part.structure.conflict
             }
             return sentLetters;
         }
-        public static List<ConflictLetter> getReceivedLettersForAllianceWithPurpose(Alliance alliance, LetterPurpose purpose)
+        public static List<ConflictLetter> getReceivedLettersForPartyWithPurpose(IConflictParty alliance, LetterPurpose purpose)
         {
             List<ConflictLetter> sentLetters = new List<ConflictLetter>();
 
@@ -153,7 +155,7 @@ namespace claims.src.part.structure.conflict
             }
             return sentLetters;
         }
-        public static bool TryGetConflictLetter(Alliance first, Alliance second, LetterPurpose purpose, out ConflictLetter letter)
+        public static bool TryGetConflictLetter(IConflictParty first, IConflictParty second, LetterPurpose purpose, out ConflictLetter letter)
         {
             foreach (var it in conflictLettersList)
             {
@@ -178,7 +180,7 @@ namespace claims.src.part.structure.conflict
                 }
             }
             letter = null;
-            return true;
+            return false;
         }
         public static bool GuidIsFree(Guid guid)
         {

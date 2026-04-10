@@ -29,14 +29,14 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
                 ImGui.BeginGroup();
 
-                ImGui.Text($"Sides: {Lang.Get("claims:gui_conflict_cell_first_line", conflict.FirstAllianceName, conflict.SecondAllianceName)}");
+                ImGui.Text($"Sides: {Lang.Get("claims:gui_conflict_cell_first_line", conflict.FirstPartyName, conflict.SecondPartyName)}");
                 ImGui.Text($"Started: {Lang.Get("claims:gui_conflict_cell_started_line", TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(conflict.TimeStampCreated, true))}");
 
                 if (ImGui.Button("Peace offer"))
                 {
                     capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.ALLIANCE_SEND_PEACE_OFFER_CONFIRM;
                     capi.ModLoader.GetModSystem<claimsGui>().textInput = conflict.Guid;
-                    string targetAlliance = conflict.FirstAllianceName.Equals(claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Name) ? conflict.SecondAllianceName : conflict.FirstAllianceName;
+                    string targetAlliance = conflict.FirstPartyName.Equals(claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Name) ? conflict.SecondPartyName : conflict.FirstPartyName;
                     capi.ModLoader.GetModSystem<claimsGui>().textInput2 = targetAlliance;
                 }
 

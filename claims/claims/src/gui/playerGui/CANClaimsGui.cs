@@ -1823,7 +1823,7 @@ namespace claims.src.gui.playerGui
                 }
                 else
                 {
-                    if (claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Name.Equals(cell.FirstAllianceName))
+                    if (claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Name.Equals(cell.FirstPartyName))
                     {
                         ConflictPage.FillTwoWarRangesArrays(cell.FirstWarRanges, cell.SecondWarRanges);
                     }

@@ -7,9 +7,9 @@ namespace claims.src.gui.playerGui.structures.cellElements
     public class ClientConflictCellElement
     {
         public string Name { get; set; }
-        public string FirstAllianceName { get; set; }
-        public string SecondAllianceName { get; set; }
-        public string StartedByAllianceName { get; set; }
+        public string FirstPartyName { get; set; }
+        public string SecondPartyName { get; set; }
+        public string StartedByPartyName { get; set; }
         public ConflictState State { get; set; }
         public string Guid { get; set; }
         public int MinimumDaysBetweenBattles { get; set; } = 6;
@@ -27,9 +27,9 @@ namespace claims.src.gui.playerGui.structures.cellElements
                                          List<SelectedWarRange> secondWarRanges, long timeStampCreated)
         {
             Name = name;
-            FirstAllianceName = firstAllianceName;
-            SecondAllianceName = secondAllianceName;
-            StartedByAllianceName = startedByAllianceName;
+            FirstPartyName = firstAllianceName;
+            SecondPartyName = secondAllianceName;
+            StartedByPartyName = startedByAllianceName;
             State = state;
             Guid = guid;
             WarRanges = warRanges ?? new List<SelectedWarRange>();

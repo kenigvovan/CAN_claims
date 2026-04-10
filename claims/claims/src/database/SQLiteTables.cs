@@ -123,7 +123,10 @@
              "lastbattledateend TEXT," +
              "nextbattledatestart TEXT," +
              "nextbattledateend TEXT," +
-             "timestampstarted INTEGER DEFAULT 0" +
+             "timestampstarted INTEGER DEFAULT 0," +
+             "firstside_type TEXT DEFAULT 'alliance'," +
+             "secondside_type TEXT DEFAULT 'alliance'," +
+             "startedby_type TEXT DEFAULT 'alliance'" +
              ");";
     }
 }

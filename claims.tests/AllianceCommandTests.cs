@@ -18,7 +18,6 @@ namespace claims.tests
         private readonly Mock<DataStorage> _storageMock;
         private readonly Mock<EconomyHandler> _economyMock;
         private readonly Mock<IServerPlayer> _playerMock;
-        private readonly Mock<ITranslationService> _lang;
 
         private const string TestPlayerUid = "alliance-test-uid";
         private const string ValidAllianceName = "TestAlliance";
@@ -28,7 +27,6 @@ namespace claims.tests
             _storageMock = new Mock<DataStorage>(false);
             _economyMock = new Mock<EconomyHandler>();
             _playerMock = new Mock<IServerPlayer>();
-            _lang = new Mock<ITranslationService>();
 
             claims.src.claims.dataStorage = _storageMock.Object;
             claims.src.claims.economyHandler = _economyMock.Object;
@@ -38,6 +36,20 @@ namespace claims.tests
             Settings.blockedNames = new HashSet<string>();
 
             _playerMock.Setup(p => p.PlayerUID).Returns(TestPlayerUid);
+
+            // Initialize Lang so Lang.Get returns the key as-is instead of crashing
+            if (!Lang.AvailableLanguages.ContainsKey("en"))
+            {
+                var langMock = new Mock<ITranslationService>();
+                langMock.Setup(t => t.Get(It.IsAny<string>(), It.IsAny<object[]>()))
+                    .Returns<string, object[]>((key, _) => key);
+                langMock.Setup(t => t.HasTranslation(It.IsAny<string>(), It.IsAny<bool>()))
+                    .Returns(false);
+                langMock.Setup(t => t.HasTranslation(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<bool>()))
+                    .Returns(false);
+                Lang.AvailableLanguages["en"] = langMock.Object;
+            }
+            Lang.ChangeLanguage("en");
         }
 
         // Creates args with a string parser returning the given name value.

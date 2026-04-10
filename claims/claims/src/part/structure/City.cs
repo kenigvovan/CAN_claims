@@ -5,6 +5,7 @@ using claims.src.delayed.invitations;
 using claims.src.gui.playerGui.structures;
 using claims.src.part.interfaces;
 using claims.src.part.structure;
+using claims.src.part.structure.conflict;
 using claims.src.part.structure.plots;
 using claims.src.perms;
 using System;
@@ -21,7 +22,7 @@ using Vintagestory.Client.NoObf;
 
 namespace claims.src.part
 {
-    public class City : Part, ISender, IReceiver, IGetStatus, ICooldown
+    public class City : Part, ISender, IReceiver, IGetStatus, ICooldown, IConflictParty
     {
         HashSet<PlayerInfo> cityCitizens = new HashSet<PlayerInfo>();
         PermsHandler permsHandler = new PermsHandler();
@@ -50,6 +51,8 @@ namespace claims.src.part
         public List<City> HostileCities { get; set; } = new List<City>();
         public List<City> ComradeCities { get; set; } = new List<City>();
         public bool Dirty { get; set; } = false;
+        public bool Neutral { get; set; } = false;
+        public HashSet<Conflict> RunningConflicts { get; } = new HashSet<Conflict>();
         public Dictionary<string, CustomCityRank> CustomCityRanks { get; set; } = new();
         public City(string valName, string guid, bool isTechnical = false) : base(valName, guid)
         {
@@ -497,7 +500,24 @@ namespace claims.src.part
             {
                 claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(plot.getPos());
                 claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
-            }            
+            }
         }
+
+        // IConflictParty
+        public List<City> GetCities() => new List<City> { this };
+        public void AddHostileParty(IConflictParty party)
+        {
+            foreach (City c in party.GetCities())
+            {
+                if (!HostileCities.Contains(c))
+                    HostileCities.Add(c);
+            }
+        }
+        public void RemoveHostileParty(IConflictParty party)
+        {
+            foreach (City c in party.GetCities())
+                HostileCities.Remove(c);
+        }
+        public IEnumerable<IConflictParty> GetHostileParties() => HostileCities.Cast<IConflictParty>();
     }
 }

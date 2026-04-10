@@ -125,7 +125,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             {
                 return;
             }
-            ImGui.Text(string.Format("{0} x {1}", cell.FirstAllianceName, cell.SecondAllianceName));
+            ImGui.Text(string.Format("{0} x {1}", cell.FirstPartyName, cell.SecondPartyName));
 
             ImGui.Text(Lang.Get("claims:gui_last_start_end_battle",
                 TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.LastBattleDateStart).ToUnixTimeSeconds()),
@@ -214,7 +214,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 {
                     if (capi.ModLoader.GetModSystem<claimsGui>().selectedWarrangeTab != 1)
                     {
-                        if (claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Name.Equals(cell.FirstAllianceName))
+                        if (claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Name.Equals(cell.FirstPartyName))
                         {
                             FillTwoWarRangesArrays(cell.FirstWarRanges, cell.SecondWarRanges);
                         }
@@ -441,7 +441,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 }
 
             searchedAll:
-                if (cell.FirstAllianceName.Equals(claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Name))
+                if (cell.FirstPartyName.Equals(claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Name))
                 {
                     cell.FirstWarRanges = selectedWarRanges;
                 }

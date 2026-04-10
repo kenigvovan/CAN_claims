@@ -164,7 +164,7 @@ namespace claims.src
         /*==============================================================================================*/
         /*=====================================CITY=====================================================*/
         /*==============================================================================================*/
-        public bool GetCityByName(string name, out City city)
+        public virtual bool GetCityByName(string name, out City city)
         {
             if (nameToCityDict.TryGetValue(name, out city))
             {
@@ -246,7 +246,7 @@ namespace claims.src
         {
             return guidToAllianceDict.ContainsKey(guid);
         }
-        public bool GetAllianceByName(string name, out Alliance alliance)
+        public virtual bool GetAllianceByName(string name, out Alliance alliance)
         {
             if (nameToAllianceDict.TryGetValue(name, out alliance))
             {
@@ -262,6 +262,19 @@ namespace claims.src
                 return true;
             }
             return false;
+        }
+        public bool GetConflictPartyByGuid(string guid, string type, out part.structure.conflict.IConflictParty party)
+        {
+            if (type == "city")
+            {
+                if (getCityByGUID(guid, out City c)) { party = c; return true; }
+                party = null; return false;
+            }
+            // default: alliance (backward compat)
+            if (GetAllianceByGUID(guid, out Alliance a)) { party = a; return true; }
+            // fallback: try city in case data is inconsistent
+            if (getCityByGUID(guid, out City c2)) { party = c2; return true; }
+            party = null; return false;
         }
         public bool RemoveAllianceByGUID(string allianceGUID)
         {

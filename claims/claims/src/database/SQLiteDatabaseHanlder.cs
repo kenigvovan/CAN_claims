@@ -279,6 +279,14 @@ namespace claims.src.database
                     command.ExecuteNonQuery();
                 }
 
+                //conflict party types
+                try { command.CommandText = "SELECT firstside_type FROM CONFLICTS LIMIT 1"; command.ExecuteScalar(); }
+                catch { command.CommandText = "ALTER TABLE CONFLICTS ADD COLUMN firstside_type TEXT DEFAULT 'alliance'"; command.ExecuteNonQuery(); }
+                try { command.CommandText = "SELECT secondside_type FROM CONFLICTS LIMIT 1"; command.ExecuteScalar(); }
+                catch { command.CommandText = "ALTER TABLE CONFLICTS ADD COLUMN secondside_type TEXT DEFAULT 'alliance'"; command.ExecuteNonQuery(); }
+                try { command.CommandText = "SELECT startedby_type FROM CONFLICTS LIMIT 1"; command.ExecuteScalar(); }
+                catch { command.CommandText = "ALTER TABLE CONFLICTS ADD COLUMN startedby_type TEXT DEFAULT 'alliance'"; command.ExecuteNonQuery(); }
+
             }
             catch (Exception ex)
             {
@@ -1197,7 +1205,7 @@ namespace claims.src.database
                 { "@guid", alliance.Guid },
                 { "@maincity", alliance.MainCity.Guid},
                 { "@cities", StringFunctions.concatStringsWithDelim(alliance.Cities, ';') },
-                { "@hostiles", StringFunctions.concatStringsWithDelim(alliance.Hostiles, ';') },
+                { "@hostiles", string.Join(";", alliance.HostileParties.Select(p => (p is City ? "c:" : "a:") + p.Guid)) },
                 { "@comrades", StringFunctions.concatStringsWithDelim(alliance.ComradAlliancies, ';') },
                 { "@alliancefee", alliance.AllianceFee },
                 { "@neutral", alliance.Neutral },
@@ -1238,11 +1246,14 @@ namespace claims.src.database
             {
                 if (str.Length == 0)
                     continue;
-
-                claims.dataStorage.GetAllianceByGUID(str, out Alliance alliance1);
-                alliance.Hostiles.Add(alliance1);
+                string type = "alliance";
+                string guid = str;
+                if (str.StartsWith("c:")) { type = "city"; guid = str.Substring(2); }
+                else if (str.StartsWith("a:")) { guid = str.Substring(2); }
+                claims.dataStorage.GetConflictPartyByGuid(guid, type, out IConflictParty hostile);
+                if (hostile != null)
+                    alliance.HostileParties.Add(hostile);
             }
-            //alliance.Hostiles = new List<Alliance>();
             foreach (string str in it["comrades"].ToString().Split(';'))
             {
                 if (str.Length == 0)
@@ -1294,6 +1305,9 @@ namespace claims.src.database
             return true;
         }
 
+        private static string GetPartyType(IConflictParty party)
+            => party is City ? "city" : "alliance";
+
         //CONFLICT
         public override bool saveConflict(Conflict conflict, bool update = true)
         {
@@ -1313,6 +1327,9 @@ namespace claims.src.database
                 { "@nextbattledatestart", JsonConvert.SerializeObject(conflict.NextBattleDateStart) },
                 { "@nextbattledateend", JsonConvert.SerializeObject(conflict.NextBattleDateEnd) },
                 { "@timestampstarted", conflict.TimeStampStarted },
+                { "@firstside_type", GetPartyType(conflict.First) },
+                { "@secondside_type", GetPartyType(conflict.Second) },
+                { "@startedby_type", GetPartyType(conflict.StartedBy) },
             };
 
             queryQueue.Enqueue(new QuerryInfo("CONFLICTS", update ? QuerryType.UPDATE : QuerryType.INSERT, tmpDict));
@@ -1320,8 +1337,12 @@ namespace claims.src.database
         }
         public override bool loadConflict(DataRow it)
         {
-            claims.dataStorage.GetAllianceByGUID(it["firstside"].ToString(), out Alliance firstSide);
-            claims.dataStorage.GetAllianceByGUID(it["secondside"].ToString(), out Alliance secondSide);
+            string firstType = it.Table.Columns.Contains("firstside_type") ? it["firstside_type"].ToString() : "alliance";
+            string secondType = it.Table.Columns.Contains("secondside_type") ? it["secondside_type"].ToString() : "alliance";
+            string startedByType = it.Table.Columns.Contains("startedby_type") ? it["startedby_type"].ToString() : "alliance";
+
+            claims.dataStorage.GetConflictPartyByGuid(it["firstside"].ToString(), firstType, out IConflictParty firstSide);
+            claims.dataStorage.GetConflictPartyByGuid(it["secondside"].ToString(), secondType, out IConflictParty secondSide);
 
             if (firstSide == null || secondSide == null)
             {
@@ -1332,18 +1353,17 @@ namespace claims.src.database
             tmpConflict.State = ((ConflictState)int.Parse(it["conflictstate"].ToString()));
             tmpConflict.First = firstSide;
             tmpConflict.Second = secondSide;
-            claims.dataStorage.GetAllianceByGUID(it["startedby"].ToString(), out Alliance startedBy);
+            claims.dataStorage.GetConflictPartyByGuid(it["startedby"].ToString(), startedByType, out IConflictParty startedBy);
             tmpConflict.StartedBy = startedBy;
             tmpConflict.WarRanges = JsonConvert.DeserializeObject<List<SelectedWarRange>>(it["warranges"].ToString());
             tmpConflict.FirstWarRanges = JsonConvert.DeserializeObject<List<SelectedWarRange>>(it["firstwarranges"].ToString());
             tmpConflict.SecondWarRanges = JsonConvert.DeserializeObject<List<SelectedWarRange>>(it["secondwarranges"].ToString());
-            //tmpConflict.SecondWarRanges = new List<SelectedWarRange>();
             tmpConflict.MinimumDaysBetweenBattles = int.Parse(it["minimumdaysbetweenbattles"].ToString());
             tmpConflict.LastBattleDateStart = JsonConvert.DeserializeObject<DateTime>(it["lastbattledatestart"].ToString());
             tmpConflict.LastBattleDateEnd = JsonConvert.DeserializeObject<DateTime>(it["lastbattledateend"].ToString());
             tmpConflict.NextBattleDateStart = JsonConvert.DeserializeObject<DateTime>(it["nextbattledatestart"].ToString());
             tmpConflict.NextBattleDateEnd = JsonConvert.DeserializeObject<DateTime>(it["nextbattledateend"].ToString());
-            
+
             tmpConflict.TimeStampStarted = long.Parse(it["timestampstarted"].ToString());
 
             tmpConflict.First.RunningConflicts.Add(tmpConflict);

@@ -179,9 +179,9 @@ namespace claims.src.commands
                 RightsHandler.reapplyRights(it);
             }
             //delete hostile cities
-            foreach (var it in alliance.Hostiles)
+            foreach (var it in alliance.HostileParties)
             {
-                foreach (var hosCity in it.Cities)
+                foreach (var hosCity in it.GetCities())
                 {
                     hosCity.HostileCities.Remove(city);
                     hosCity.saveToDatabase();
@@ -679,7 +679,7 @@ namespace claims.src.commands
                 return TextCommandResult.Success(Lang.Get("claims:conflict_already_started"));
             }
                       
-            var conflictLettersList = ConflictHandler.getReceivedLettersForAllianceWithPurpose(targetAlliance, LetterPurpose.START_CONFLICT);
+            var conflictLettersList = ConflictHandler.getReceivedLettersForPartyWithPurpose(targetAlliance, LetterPurpose.START_CONFLICT);
             ConflictLetter foundLetter = null;
             foreach(var it in conflictLettersList)
             {

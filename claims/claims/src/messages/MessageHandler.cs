@@ -1,6 +1,7 @@
 ﻿using claims.src.auxialiry;
 using claims.src.part;
 using claims.src.part.structure;
+using claims.src.part.structure.conflict;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -54,8 +55,12 @@ namespace claims.src.messages
                     ((IServerPlayer)player).SendMessage(claims.dataStorage.getModChatGroup().Uid, msg, EnumChatType.Notification);
                 else
                     ((IServerPlayer)player).SendMessage(GlobalConstants.GeneralChatGroup, msg, EnumChatType.Notification);
-                
             }
+        }
+        public static void SendMsgInAlliance(IConflictParty party, string msg)
+        {
+            foreach (City city in party.GetCities())
+                sendMsgInCity(city, msg, false);
         }
         public static void sendLocalMsg(Vec3d pos, string msg)
         {
@@ -101,6 +106,16 @@ namespace claims.src.messages
                 claims.sapi.SendIngameDiscovery(player as IServerPlayer, discoveryCode, text, args);
                 claims.sapi.World.PlaySoundAt(new AssetLocation("game:sounds/effect/deepbell"), player.Entity, null, false, 5f, 0.5f);
             }
+        }
+        public static void SendDiscoveryToAlliance(IConflictParty party, string discoveryCode, string text, object[] args)
+        {
+            if (party == null) return;
+            foreach (City city in party.GetCities())
+                foreach (IServerPlayer player in city.getOnlineCitizens())
+                {
+                    claims.sapi.SendIngameDiscovery(player, discoveryCode, text, args);
+                    claims.sapi.World.PlaySoundAt(new AssetLocation("game:sounds/effect/deepbell"), player.Entity, null, false, 5f, 0.5f);
+                }
         }
     }
 }

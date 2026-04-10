@@ -8,9 +8,9 @@ namespace claims.src.part.structure.conflict
         public Conflict(string val, string guid) : base(val, guid)
         {
         }
-        public Alliance First { get; set; }
-        public Alliance Second { get; set; }
-        public Alliance StartedBy { get; set; }
+        public IConflictParty First { get; set; }
+        public IConflictParty Second { get; set; }
+        public IConflictParty StartedBy { get; set; }
         public ConflictState State { get; set; }
         public List<SelectedWarRange> WarRanges { get; set; } = new List<SelectedWarRange>();
         public List<SelectedWarRange> FirstWarRanges { get; set; } = new List<SelectedWarRange>();
