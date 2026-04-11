@@ -73,23 +73,20 @@ namespace claims.src.part.structure.conflict
         }
         public bool GetNextDateForRange(SelectedWarRange range, out DateTime dateTime)
         {
-            DateTime startDate = DateTime.Now + (LastBattleDateEnd == DateTime.UnixEpoch 
-                                                                ? TimeSpan.Zero 
+            DateTime startDate = DateTime.Now + (LastBattleDateEnd == DateTime.UnixEpoch
+                                                                ? TimeSpan.Zero
                                                                 : TimeSpan.FromDays(MinimumDaysBetweenBattles));
-            if (LastBattleDateStart == DateTime.UnixEpoch)
+            for (int i = 0; i < 8; i++)
             {
-                for (int i = 0; i < 8; i++)
+                DateTime candidate = startDate.AddDays(i);
+                if (candidate.DayOfWeek == range.StartDay)
                 {
-                    DateTime candidate = startDate.AddDays(i);
-                    if (candidate.DayOfWeek == range.StartDay)
+                    dateTime = candidate.Date + range.StartTime;
+                    if (dateTime < DateTime.Now)
                     {
-                        dateTime = candidate.Date + range.StartTime;
-                        if(dateTime < DateTime.Now)
-                        {
-                            continue;
-                        }
-                        return true;
+                        continue;
                     }
+                    return true;
                 }
             }
             dateTime = DateTime.UnixEpoch;

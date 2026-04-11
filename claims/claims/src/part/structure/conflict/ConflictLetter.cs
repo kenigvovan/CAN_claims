@@ -44,11 +44,8 @@ namespace claims.src.part.structure.conflict
         }
         public override int GetHashCode()
         {
-            int hash = 13;
-            hash = (hash * 7) + this.From.GetHashCode();
-            hash = (hash * 7) + this.To.GetHashCode();
-            hash = (hash * 7) + this.Purpose.GetHashCode();
-            return hash;
+            // XOR of From/To so that A→B and B→A produce the same hash (matches symmetric Equals)
+            return this.From.GetHashCode() ^ this.To.GetHashCode() ^ this.Purpose.GetHashCode();
         }
         public static Guid GetUnusedGuid()
         {

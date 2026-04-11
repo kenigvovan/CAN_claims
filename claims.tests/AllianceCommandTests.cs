@@ -111,10 +111,6 @@ namespace claims.tests
                 .Setup(s => s.GetPlayerByUid(TestPlayerUid, out playerInfo))
                 .Returns(true);
 
-            _lang
-                .Setup(c => c.Get("claims:no_city", new object[] { }))
-                .Returns("claims:no_city");
-
             var result = AllianceCommand.CreateAlliance(MakeArgs(ValidAllianceName));
 
             Assert.Equal(EnumCommandStatus.Error, result.Status);

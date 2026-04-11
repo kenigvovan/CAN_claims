@@ -186,7 +186,7 @@ namespace claims.src.part.structure.conflict
         {
             foreach(var it in conflictLettersList)
             {
-                if (it.Guid.Equals(guid))
+                if (it.Guid.Equals(guid.ToString()))
                 {
                     return false;
                 }
