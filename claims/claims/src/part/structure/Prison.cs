@@ -18,6 +18,8 @@ namespace claims.src.part.structure
         } 
         public Vec3i getRandomRespawnPoint()
         {
+            if (prisonCells.Count < 1)
+                return null;
             return prisonCells[claims.dataStorage.r.Next() % prisonCells.Count].getSpawnPosition();
         }
         public bool TryGetRandomCell(out PrisonCellInfo cell)

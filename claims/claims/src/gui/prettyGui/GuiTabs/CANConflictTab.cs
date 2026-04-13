@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using claims.src.auxialiry;
+using claims.src.part.structure.conflict;
 using ImGuiNET;
 using Vintagestory.API.Client;
 using Vintagestory.API.Config;
@@ -29,7 +30,11 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
                 ImGui.BeginGroup();
 
-                ImGui.Text($"Sides: {Lang.Get("claims:gui_conflict_cell_first_line", conflict.FirstPartyName, conflict.SecondPartyName)}");
+                string firstType = conflict.FirstPartyType == WarTargetType.Alliance
+                    ? Lang.Get("claims:conflict_target_alliance") : Lang.Get("claims:conflict_target_city");
+                string secondType = conflict.SecondPartyType == WarTargetType.Alliance
+                    ? Lang.Get("claims:conflict_target_alliance") : Lang.Get("claims:conflict_target_city");
+                ImGui.Text($"Sides: {conflict.FirstPartyName} ({firstType}) x {conflict.SecondPartyName} ({secondType})");
                 ImGui.Text($"Started: {Lang.Get("claims:gui_conflict_cell_started_line", TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(conflict.TimeStampCreated, true))}");
 
                 if (ImGui.Button("Peace offer"))
@@ -69,7 +74,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
             if (ImGui.ImageButton("allianceinfo", this.iconHandler.GetOrLoadIcon("vertical-banner"), new Vector2(60)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.AllianceInfoPage;
+                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = capi.ModLoader.GetModSystem<claimsGui>().conflictSourceTab;
             }
             ImGui.SameLine();
             if (ImGui.ImageButton("conflictletters", this.iconHandler.GetOrLoadIcon("envelope"), new Vector2(60)))

@@ -1,4 +1,7 @@
-﻿namespace claims.src.gui.playerGui.structures.cellElements
+﻿using claims.src.part;
+using claims.src.part.structure;
+
+namespace claims.src.gui.playerGui.structures.cellElements
 {
     public class ClientCityInfoCellElement
     {
@@ -23,6 +26,32 @@
             Open = open;
             InvMsg = invMsg;
             Guid = guid;
+        }
+
+        public void UpdateFrom(City city)
+        {
+            AllianceName = city.Alliance?.GetPartName() ?? "";
+            MayorName = city.getMayor()?.GetPartName() ?? "";
+            Name = city.GetPartName();
+            InvMsg = city.invMsg;
+            TimeStampCreated = city.TimeStampCreated;
+            CitizensAmount = city.getCityCitizens().Count;
+            Open = city.openCity;
+            ClaimedPlotsAmount = city.getCityPlots().Count;
+        }
+
+        public static ClientCityInfoCellElement FromCity(City city)
+        {
+            return new ClientCityInfoCellElement(
+                city.getCityCitizens().Count,
+                city.getMayor()?.GetPartName() ?? "",
+                city.getCityPlots().Count,
+                city.Alliance?.GetPartName() ?? "",
+                city.TimeStampCreated,
+                city.GetPartName(),
+                city.openCity,
+                city.invMsg,
+                city.Guid);
         }
     }
 }

@@ -23,6 +23,9 @@ namespace claims.src.harmony
             //harmonyInstance.Patch(typeof(Vintagestory.Common.WorldMap).GetMethod("TryAccess"), postfix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Postfix_tryAccess")));
             //harmonyInstance.Patch(typeof(WorldMap).GetMethod("testBlockAccessInternal", BindingFlags.NonPublic | BindingFlags.Instance), prefix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Prefix_testBlockAccessInternal")));
 
+            harmonyInstance.Patch(
+                typeof(Vintagestory.Common.PlayerInventoryManager).GetMethod("DropMouseSlotItems"),
+                prefix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Prefix_DropMouseSlotItems")));
         }
         public static void ApplyServerPatches(Harmony harmonyInstance, string harmonyID)
         {

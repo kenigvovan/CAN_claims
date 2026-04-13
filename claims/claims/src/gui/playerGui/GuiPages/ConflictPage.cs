@@ -100,7 +100,7 @@ namespace claims.src.gui.playerGui.GuiPages
 
             compo.AddIconButton("claims:vertical-banner", new Action<bool>((b) =>
             {
-                gui.SelectedTab = EnumSelectedTab.AllianceInfoPage;
+                gui.SelectedTab = gui.ConflictSourceTab;
                 gui.BuildMainWindow();
                 return;
             }), nextIconBounds);
@@ -188,7 +188,7 @@ namespace claims.src.gui.playerGui.GuiPages
 
             compo.AddIconButton("claims:vertical-banner", new Action<bool>((b) =>
             {
-                gui.SelectedTab = EnumSelectedTab.AllianceInfoPage;
+                gui.SelectedTab = gui.ConflictSourceTab;
                 gui.BuildMainWindow();
                 return;
             }), nextIconBounds);

@@ -1080,6 +1080,7 @@ namespace claims.src.commands.register
                                        parsers.WordRange("state", "on", "off"))
                          .EndSub()
                          .EndSub()
+                      .EndSub()
                       // WAR (city-level conflict, no alliance required)
                       .BeginSub("war")
                         .WithAlias("w")
@@ -1121,8 +1122,7 @@ namespace claims.src.commands.register
                             .WithDesc("Deny the offer to stop a war.")
                             .WithArgs(parsers.Word("cityOrAllianceName"))
                           .EndSub()
-                      .EndSub()
-                     .EndSub();
+                      .EndSub();
         }
         public static void RegisterAllianceCommands(CommandArgumentParsers parsers, ICoreServerAPI sapi)
         {

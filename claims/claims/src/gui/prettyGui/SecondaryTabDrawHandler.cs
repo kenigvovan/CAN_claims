@@ -32,7 +32,7 @@ namespace claims.src.gui.prettyGui
             this.TabDictionary.Add(EnumSecondaryWindowTab.SELECT_NEW_ALLIANCE_NAME, new CANNeedNameTab(capi, iconHandler, "claims:gui-enter-alliance-name", "/a set name ", "claims:gui-set-button"));
             this.TabDictionary.Add(EnumSecondaryWindowTab.ALLIANCE_PREFIX_NEED_NAME, new CANNeedNameTab(capi, iconHandler, "claims:gui-enter-alliance-name", "/a set prefix ", "claims:gui-set-button"));
             this.TabDictionary.Add(EnumSecondaryWindowTab.LEAVE_ALLIANCE_CONFIRM, new CANYesNoTab(capi, iconHandler, "claims:gui-leave-alliance-confirm-button", "/alliance leave", "claims:gui-confirm-button", "claims:gui-decline-button"));
-            this.TabDictionary.Add(EnumSecondaryWindowTab.ALLIANCE_SEND_NEW_CONFLICT_LETTER_NEED_NAME, new CANNeedNameTab(capi, iconHandler, "claims:name_of_alliance_to_send_conflict_letter", "/a conflict declare ", "claims:gui-confirm-button"));
+            this.TabDictionary.Add(EnumSecondaryWindowTab.ALLIANCE_SEND_NEW_CONFLICT_LETTER_NEED_NAME, new CANDeclareConflictTab(capi, iconHandler, "/a conflict declare "));
             //this.TabDictionary.Add(EnumSecondaryWindowTab.ALLIANCE_SEND_PEACE_OFFER_CONFIRM, new CANYesNoTab(capi, iconHandler, "claims:gui_send_peace_offer", "/alliance conflict offerstop ", "claims:gui-confirm-button", "claims:gui-decline-button"));
             this.TabDictionary.Add(EnumSecondaryWindowTab.CITY_RANK_CREATION_NEED_NAME, new CANNeedNameTab(capi, iconHandler, "claims:gui-enter-rank-name", "/c rank create ", "claims:gui-add-button"));
             this.TabDictionary.Add(EnumSecondaryWindowTab.UNINVITE_TO_CITY, new CANNeedNameTab(capi, iconHandler, "claims:gui-enter-player-name", "/city uninvite ", "claims:gui-uninvite-button"));
@@ -60,6 +60,7 @@ namespace claims.src.gui.prettyGui
             this.TabDictionary.Add(EnumSecondaryWindowTab.CITY_PLOTS_PERMISSIONS, new CANCityPermissionsTab(capi, iconHandler, "claims:gui-city-permissions-title", "", "claims:gui-add-button"));
             this.TabDictionary.Add(EnumSecondaryWindowTab.ALLIANCE_CANCEL_UNION_SELECT, new CANSelectUnionToLeaveTab(capi, iconHandler, "claims:gui-select-union-to-leave-title", "/a union revoke", "claims:gui-confirm-button"));
             this.TabDictionary.Add(EnumSecondaryWindowTab.ALLIANCE_SEND_PEACE_OFFER_CONFIRM, new CANYesNoPieceOfferSendTab(capi, iconHandler, "claims:gui_send_peace_offer", "/alliance conflict offerstop ", "claims:gui-confirm-button", "claims:gui-decline-button"));
+            this.TabDictionary.Add(EnumSecondaryWindowTab.CITY_SEND_NEW_CONFLICT_LETTER_NEED_NAME, new CANDeclareConflictTab(capi, iconHandler, "/c war declare "));
             this.iconHandler = iconHandler;
         }
         public void DrawTab(EnumSecondaryWindowTab selectedTab)

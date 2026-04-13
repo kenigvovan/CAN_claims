@@ -292,11 +292,11 @@ namespace claims.src.perms
             }
             for (int i = 0; i < StrangerPerms.Length; i++)
             {
-                CitizenPerms[i] = val;
+                StrangerPerms[i] = val;
             }
             for (int i = 0; i < AlliancePerms.Length; i++)
             {
-                CitizenPerms[i] = val;
+                AlliancePerms[i] = val;
             }
             for (int i = 0; i < ComradePerms.Length; i++)
             {

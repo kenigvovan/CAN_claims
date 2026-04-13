@@ -62,7 +62,10 @@ namespace claims.src.events
                 List<ClientConflictLetterCellElement> li = new List<ClientConflictLetterCellElement>();
                 foreach(var it in ConflictHandler.GetAllLettersForParty(playerInfo.Alliance))
                 {
-                    li.Add(new ClientConflictLetterCellElement(it.From.GetPartName(), it.From.Guid, it.To.GetPartName(), it.To.Guid,
+                    li.Add(new ClientConflictLetterCellElement(it.From.GetPartName(), it.From.Guid,
+                        WarTargetTypeHelper.FromConflictParty(it.From),
+                        it.To.GetPartName(), it.To.Guid,
+                        WarTargetTypeHelper.FromConflictParty(it.To),
                         it.Purpose, it.TimeStampExpire, it.Guid));
                 }
                 if (li.Count > 0)
@@ -73,7 +76,8 @@ namespace claims.src.events
                 List<ClientConflictCellElement> lic = new List<ClientConflictCellElement>();
                 foreach (var it in ConflictHandler.GetAllConflictsForParty(playerInfo.Alliance))
                 {
-                    lic.Add(new ClientConflictCellElement(it.GetPartName(), it.First.GetPartName(), it.Second.GetPartName(),
+                    lic.Add(new ClientConflictCellElement(it.GetPartName(), it.First.GetPartName(), it.First.Guid, WarTargetTypeHelper.FromConflictParty(it.First),
+                        it.Second.GetPartName(), it.Second.Guid, WarTargetTypeHelper.FromConflictParty(it.Second),
                         it.StartedBy.GetPartName(), it.State, it.Guid,
                         it.MinimumDaysBetweenBattles, it.LastBattleDateStart, it.LastBattleDateEnd, it.NextBattleDateStart, it.NextBattleDateEnd,
                         it.WarRanges, it.FirstWarRanges, it.SecondWarRanges, it.TimeStampStarted));
@@ -94,12 +98,47 @@ namespace claims.src.events
                     UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, new Dictionary<string, object> { { "value", unionList } }, EnumPlayerRelatedInfo.ALLIANCE_UNION_LETTER_ALL);
                 }
             }
+            else if (playerInfo.hasCity())
+            {
+                List<ClientConflictLetterCellElement> li = new List<ClientConflictLetterCellElement>();
+                foreach (var it in ConflictHandler.GetAllLettersForParty(playerInfo.City))
+                {
+                    li.Add(new ClientConflictLetterCellElement(it.From.GetPartName(), it.From.Guid,
+                        WarTargetTypeHelper.FromConflictParty(it.From),
+                        it.To.GetPartName(), it.To.Guid,
+                        WarTargetTypeHelper.FromConflictParty(it.To),
+                        it.Purpose, it.TimeStampExpire, it.Guid));
+                }
+                if (li.Count > 0)
+                {
+                    UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, new Dictionary<string, object> { { "value", li } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_ALL);
+                }
+
+                List<ClientConflictCellElement> lic = new List<ClientConflictCellElement>();
+                foreach (var it in ConflictHandler.GetAllConflictsForParty(playerInfo.City))
+                {
+                    lic.Add(new ClientConflictCellElement(it.GetPartName(), it.First.GetPartName(), it.First.Guid, WarTargetTypeHelper.FromConflictParty(it.First),
+                        it.Second.GetPartName(), it.Second.Guid, WarTargetTypeHelper.FromConflictParty(it.Second),
+                        it.StartedBy.GetPartName(), it.State, it.Guid,
+                        it.MinimumDaysBetweenBattles, it.LastBattleDateStart, it.LastBattleDateEnd, it.NextBattleDateStart, it.NextBattleDateEnd,
+                        it.WarRanges, it.FirstWarRanges, it.SecondWarRanges, it.TimeStampStarted));
+                }
+                if (lic.Count > 0)
+                {
+                    UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, new Dictionary<string, object> { { "value", lic } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ALL);
+                }
+            }
 
             Dictionary<string, ClientCityInfoCellElement> CityStatsCashe =
                 ObjectCacheUtil.GetOrCreate<Dictionary<string, ClientCityInfoCellElement>>(claims.sapi,
                 "claims:cityinfocache", () => new Dictionary<string, ClientCityInfoCellElement>());
             UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT);
-            UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, new Dictionary<string, object> { { "value", CityStatsCashe.Values.ToList() } }, EnumPlayerRelatedInfo.CITY_LIST_ALL);         
+            UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, new Dictionary<string, object> { { "value", CityStatsCashe.Values.ToList() } }, EnumPlayerRelatedInfo.CITY_LIST_ALL);
+
+            Dictionary<string, ClientAllianceInfoCellElement> AllianceStatsCashe =
+                ObjectCacheUtil.GetOrCreate<Dictionary<string, ClientAllianceInfoCellElement>>(claims.sapi,
+                "claims:allianceinfocache", () => new Dictionary<string, ClientAllianceInfoCellElement>());
+            UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, new Dictionary<string, object> { { "value", AllianceStatsCashe.Values.ToList() } }, EnumPlayerRelatedInfo.ALLIANCE_LIST_ALL);
         }
         public static void processExistedPlayerInfoOnLogin(PlayerInfo playerInfo, IServerPlayer player)
         {

@@ -48,6 +48,19 @@ namespace claims.src.gui.prettyGui.GuiTabs
             {
                 capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.CITIESLISTPAGE;
             }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip(Lang.Get("claims:gui_city_list_title"));
+            }
+            ImGui.SameLine();
+            if (ImGui.ImageButton("alliancelist", this.iconHandler.GetOrLoadIcon("vertical-banner"), new Vector2(60)))
+            {
+                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.AllianceListPage;
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip(Lang.Get("claims:gui_alliance_list_title"));
+            }
         }
     }
 }

@@ -8,7 +8,11 @@ namespace claims.src.gui.playerGui.structures.cellElements
     {
         public string Name { get; set; }
         public string FirstPartyName { get; set; }
+        public string FirstPartyGuid { get; set; }
+        public WarTargetType FirstPartyType { get; set; }
         public string SecondPartyName { get; set; }
+        public string SecondPartyGuid { get; set; }
+        public WarTargetType SecondPartyType { get; set; }
         public string StartedByPartyName { get; set; }
         public ConflictState State { get; set; }
         public string Guid { get; set; }
@@ -21,14 +25,19 @@ namespace claims.src.gui.playerGui.structures.cellElements
         public List<SelectedWarRange> FirstWarRanges { get; set; } = new List<SelectedWarRange>();
         public List<SelectedWarRange> SecondWarRanges { get; set; } = new List<SelectedWarRange>();
         public long TimeStampCreated { get; set; }
-        public ClientConflictCellElement(string name, string firstAllianceName, string secondAllianceName,
+        public ClientConflictCellElement(string name, string firstAllianceName, string firstPartyGuid, WarTargetType firstPartyType,
+                                         string secondAllianceName, string secondPartyGuid, WarTargetType secondPartyType,
                                          string startedByAllianceName, ConflictState state, string guid, int minimumDaysBetweenBattles,
                                          DateTime lastBattleDateStart, DateTime lastBattleDateEnd, DateTime nextBattleDateStart, DateTime nextBattleDateEnd, List<SelectedWarRange> warRanges, List<SelectedWarRange> firtstWarRanges,
                                          List<SelectedWarRange> secondWarRanges, long timeStampCreated)
         {
             Name = name;
             FirstPartyName = firstAllianceName;
+            FirstPartyGuid = firstPartyGuid;
+            FirstPartyType = firstPartyType;
             SecondPartyName = secondAllianceName;
+            SecondPartyGuid = secondPartyGuid;
+            SecondPartyType = secondPartyType;
             StartedByPartyName = startedByAllianceName;
             State = state;
             Guid = guid;

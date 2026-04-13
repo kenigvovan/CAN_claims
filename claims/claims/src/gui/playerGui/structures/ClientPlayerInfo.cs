@@ -25,6 +25,7 @@ namespace claims.src.gui.playerGui.structures
         public AllianceInfo AllianceInfo { get; set; }
         public Dictionary<string, int> PlayerNextPayments = new();
         public List<ClientCityInfoCellElement> AllCitiesList { get; set; } = new List<ClientCityInfoCellElement>();
+        public List<ClientAllianceInfoCellElement> AllAlliancesList { get; set; } = new List<ClientAllianceInfoCellElement>();
         private Dictionary<EnumPlayerRelatedInfo, Action<string>> AcceptChangeHandlers = new();
         public ClientPlayerInfo()
         {
@@ -74,6 +75,7 @@ namespace claims.src.gui.playerGui.structures
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.OWN_ALLIANCE_REMOVE, OnAllianceRemove);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_LIST_ALL, OnCityListAll);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_LIST_UPDATE, OnCityListUpdate);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_LIST_ALL, OnAllianceListAll);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_NAME, OnAllianceName);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.TO_ALLIANCE_INVITE_ADD, OnAllianceInviteAdd);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_LETTER_ADD, OnAllianceLetterAdd);
@@ -93,6 +95,7 @@ namespace claims.src.gui.playerGui.structures
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_ALLY_ADDED, OnAllianceAllyAdd);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_ALLY_REMOVED, OnAllianceAllyRemove);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT, OnPlayerNextPaymentDict);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_GUID, OnCityGuid);
         }
         public ClientPlayerInfo(string cityName, string mayorName, long timeStampCreated, List<string> citizens, Dictionary<string, int> maxCountPlots, int countPlots, string prefix,
             string afterName, HashSet<string> cityTitles, EnumShowPlotMovement showPlotMovement, int PlotColor, double cityBalance, List<string> criminals)
@@ -166,6 +169,10 @@ namespace claims.src.gui.playerGui.structures
         private void OnMayorName(string val)
         {
             this.CityInfo.MayorName = val;
+        }
+        private void OnCityGuid(string val)
+        {
+            this.CityInfo.Guid = val;
         }
         private void OnCityName(string val)
         {
@@ -489,6 +496,11 @@ namespace claims.src.gui.playerGui.structures
                     AllCitiesList.Add(it);
                 }
             }
+        }
+        private void OnAllianceListAll(string val)
+        {
+            List<ClientAllianceInfoCellElement> ai = JsonConvert.DeserializeObject<List<ClientAllianceInfoCellElement>>(val);
+            claims.clientDataStorage.clientPlayerInfo.AllAlliancesList = ai;
         }
         private void OnAllianceName(string val)
         {

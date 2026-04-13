@@ -185,6 +185,26 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 {
                     ImGui.SetTooltip(Lang.Get("claims:gui-alliance"));
                 }
+                ImGui.SameLine();
+                if (ImGui.ImageButton("conflictletterscity", this.iconHandler.GetOrLoadIcon("envelope"), new Vector2(60)))
+                {
+                    capi.ModLoader.GetModSystem<claimsGui>().conflictSourceTab = EnumSelectedTab.CITY;
+                    capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.ConflictLettersPage;
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(Lang.Get("claims:gui-conflict-letters"));
+                }
+                ImGui.SameLine();
+                if (ImGui.ImageButton("conflictspagecity", this.iconHandler.GetOrLoadIcon("frog-mouth-helm"), new Vector2(60)))
+                {
+                    capi.ModLoader.GetModSystem<claimsGui>().conflictSourceTab = EnumSelectedTab.CITY;
+                    capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.ConflictsPage;
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(Lang.Get("claims:gui-conflicts-page"));
+                }
 
             }
             else

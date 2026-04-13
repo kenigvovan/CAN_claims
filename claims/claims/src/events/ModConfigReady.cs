@@ -121,20 +121,25 @@ namespace claims.src.events
             {
                 if (CityStatsCashe.TryGetValue(it.Guid, out var stat))
                 {
-                    stat.AllianceName = it?.Alliance.GetPartName() ?? "";
-                    stat.MayorName = it.getMayor()?.GetPartName() ?? "";
-                    stat.Name = it.GetPartName();
-                    stat.InvMsg = it.invMsg;
-                    stat.TimeStampCreated = it.TimeStampCreated;
-                    stat.CitizensAmount = it.getCityCitizens().Count;
-                    stat.Open = it.openCity;
-                    stat.ClaimedPlotsAmount = it.getCityPlots().Count;
+                    stat.UpdateFrom(it);
                 }
                 else
                 {
-                    CityStatsCashe.Add(it.Guid, new ClientCityInfoCellElement(it.getCityCitizens().Count, it.getMayor()?.GetPartName() ?? "",
-                        it.getCityPlots().Count, it.Alliance?.GetPartName() ?? "", it.TimeStampCreated, it.GetPartName(), it.openCity,
-                        it.invMsg, it.Guid));
+                    CityStatsCashe.Add(it.Guid, ClientCityInfoCellElement.FromCity(it));
+                }
+            }
+            Dictionary<string, ClientAllianceInfoCellElement> AllianceStatsCashe =
+                ObjectCacheUtil.GetOrCreate<Dictionary<string, ClientAllianceInfoCellElement>>(claims.sapi,
+                "claims:allianceinfocache", () => new Dictionary<string, ClientAllianceInfoCellElement>());
+            foreach (var it in claims.dataStorage.getAllAlliances())
+            {
+                if (AllianceStatsCashe.TryGetValue(it.Guid, out var stat))
+                {
+                    stat.UpdateFrom(it);
+                }
+                else
+                {
+                    AllianceStatsCashe.Add(it.Guid, ClientAllianceInfoCellElement.FromAlliance(it));
                 }
             }
             ReculculateNextBattleTimes();

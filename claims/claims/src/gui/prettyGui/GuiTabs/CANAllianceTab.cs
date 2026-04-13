@@ -109,6 +109,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SameLine();
                 if (ImGui.ImageButton("conflictletters", this.iconHandler.GetOrLoadIcon("envelope"), new Vector2(60)))
                 {
+                    capi.ModLoader.GetModSystem<claimsGui>().conflictSourceTab = EnumSelectedTab.AllianceInfoPage;
                     capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.ConflictLettersPage;
                 }
                 if (ImGui.IsItemHovered())
@@ -118,6 +119,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SameLine();
                 if (ImGui.ImageButton("conflictspage", this.iconHandler.GetOrLoadIcon("frog-mouth-helm"), new Vector2(60)))
                 {
+                    capi.ModLoader.GetModSystem<claimsGui>().conflictSourceTab = EnumSelectedTab.AllianceInfoPage;
                     capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.ConflictsPage;
                 }
                 if (ImGui.IsItemHovered())

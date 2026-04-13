@@ -8,6 +8,7 @@ namespace claims.src.gui.playerGui.structures
     public class CityInfo
     {
         public string Name { get; set; }
+        public string Guid { get; set; }
         public string MayorName { get; set; }
         public long TimeStampCreated { get; set; }
         public List<string> PlayersNames;

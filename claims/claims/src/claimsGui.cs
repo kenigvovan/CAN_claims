@@ -23,6 +23,7 @@ namespace claims.src
         private ImageHandler imageHandler;
         private SecondaryTabDrawHandler secondaryTabDrawHandler;
         public EnumSelectedTab selectedTab = EnumSelectedTab.CITY;
+        public EnumSelectedTab conflictSourceTab = EnumSelectedTab.AllianceInfoPage;
         public EnumSecondaryWindowTab _secondaryWindowTab;
         public EnumSecondaryWindowTab secondaryWindowTab { set { this.secondaryWindowOpen = true; this._secondaryWindowTab = value; } get { return _secondaryWindowTab;  } }
         public Vector2 mainWindowPos;
@@ -82,6 +83,9 @@ namespace claims.src
         }
         private CallbackGUIStatus Draw(float deltaSeconds)
         {
+            // Reset each frame — will be set to true by ImGuiInventoryGrid.Draw() if active
+            ImGuiInventoryGrid.SuppressMouseDrop = false;
+
             if(!this.prettyGuiState.IsOpen)
             {
                 return CallbackGUIStatus.Closed;

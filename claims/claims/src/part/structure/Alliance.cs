@@ -144,5 +144,19 @@ namespace claims.src.part.structure
         }
         public void RemoveHostileParty(IConflictParty party) => HostileParties.Remove(party);
         public IEnumerable<IConflictParty> GetHostileParties() => HostileParties;
+
+        public override int GetHashCode()
+        {
+            int hash = 13;
+            hash = (hash * 7) + Guid.GetHashCode();
+            return hash;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is Alliance other)
+                return this.Guid.Equals(other.Guid);
+            return false;
+        }
     }
 }

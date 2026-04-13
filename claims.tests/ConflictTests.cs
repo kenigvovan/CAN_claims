@@ -1,4 +1,5 @@
 using claims.src;
+using claims.src.part.structure;
 using claims.src.part.structure.conflict;
 using Moq;
 using Vintagestory.API.Config;
@@ -426,16 +427,18 @@ namespace claims.tests
         [Fact]
         public void GetAllConflictsForParty_ReturnsOnlyRelated()
         {
-            var partyC = new Mock<IConflictParty>();
-            partyC.Setup(p => p.Guid).Returns("party-c");
+            // Use real Alliance objects so Equals() works correctly by Guid
+            var a = new Alliance("AllianceA", "party-a-guid");
+            var b = new Alliance("AllianceB", "party-b-guid");
+            var c = new Alliance("AllianceC", "party-c-guid");
 
-            var conflictAB = MakeConflict(_partyA.Object, _partyB.Object, "ab");
-            var conflictBC = MakeConflict(_partyB.Object, partyC.Object,  "bc");
+            var conflictAB = MakeConflict(a, b, "ab");
+            var conflictBC = MakeConflict(b, c, "bc");
             _storageMock.Object.conflicts.Add(conflictAB);
             _storageMock.Object.conflicts.Add(conflictBC);
 
-            var forA = ConflictHandler.GetAllConflictsForParty(_partyA.Object);
-            var forB = ConflictHandler.GetAllConflictsForParty(_partyB.Object);
+            var forA = ConflictHandler.GetAllConflictsForParty(a);
+            var forB = ConflictHandler.GetAllConflictsForParty(b);
 
             Assert.Single(forA);
             Assert.Equal(2, forB.Count);

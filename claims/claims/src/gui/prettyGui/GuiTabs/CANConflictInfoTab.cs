@@ -125,7 +125,11 @@ namespace claims.src.gui.prettyGui.GuiTabs
             {
                 return;
             }
-            ImGui.Text(string.Format("{0} x {1}", cell.FirstPartyName, cell.SecondPartyName));
+            string firstTypeLabel = cell.FirstPartyType == WarTargetType.Alliance
+                ? Lang.Get("claims:conflict_target_alliance") : Lang.Get("claims:conflict_target_city");
+            string secondTypeLabel = cell.SecondPartyType == WarTargetType.Alliance
+                ? Lang.Get("claims:conflict_target_alliance") : Lang.Get("claims:conflict_target_city");
+            ImGui.Text(string.Format("{0} ({1}) x {2} ({3})", cell.FirstPartyName, firstTypeLabel, cell.SecondPartyName, secondTypeLabel));
 
             ImGui.Text(Lang.Get("claims:gui_last_start_end_battle",
                 TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.LastBattleDateStart).ToUnixTimeSeconds()),
@@ -214,7 +218,9 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 {
                     if (capi.ModLoader.GetModSystem<claimsGui>().selectedWarrangeTab != 1)
                     {
-                        if (claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Name.Equals(cell.FirstPartyName))
+                        string ourName = claims.clientDataStorage.clientPlayerInfo.AllianceInfo?.Name
+                            ?? claims.clientDataStorage.clientPlayerInfo.CityInfo?.Name ?? "";
+                        if (ourName.Equals(cell.FirstPartyName))
                         {
                             FillTwoWarRangesArrays(cell.FirstWarRanges, cell.SecondWarRanges);
                         }
@@ -347,6 +353,10 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     return;
                 }
 
+                string ourName = claims.clientDataStorage.clientPlayerInfo.AllianceInfo?.Name
+                    ?? claims.clientDataStorage.clientPlayerInfo.CityInfo?.Name ?? "";
+                string ourPartyGuid = ourName.Equals(cell.FirstPartyName) ? cell.FirstPartyGuid : cell.SecondPartyGuid;
+
                 List<SelectedWarRange> selectedWarRanges = new List<SelectedWarRange>();
                 int? startIndex = null;
                 int? savedStartIndex = null;
@@ -404,7 +414,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                                     }
                                     selectedWarRanges.Add(new SelectedWarRange((startDay ?? DayOfWeek.Sunday), it.DayOfWeek,
                                         new TimeSpan(hours: (i * 30) / 60, minutes: (i * 30) % 60, seconds: 0),
-                                        TimeSpan.FromMinutes(diff), claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Guid));
+                                        TimeSpan.FromMinutes(diff), ourPartyGuid));
                                 }
                                 goto searchedAll;
                             }
@@ -431,7 +441,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                                 }
                                 selectedWarRanges.Add(new SelectedWarRange((startDay ?? DayOfWeek.Sunday), it.DayOfWeek,
                                     new TimeSpan(hours: ((startIndex ?? 0) * 30) / 60, minutes: ((startIndex ?? 0) * 30) % 60, seconds: 0),
-                                    TimeSpan.FromMinutes(diff), claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Guid));
+                                    TimeSpan.FromMinutes(diff), ourPartyGuid));
                                 startIndex = null;
                                 //startDay = null;
                             }
@@ -441,7 +451,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 }
 
             searchedAll:
-                if (cell.FirstPartyName.Equals(claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Name))
+                if (cell.FirstPartyName.Equals(ourName))
                 {
                     cell.FirstWarRanges = selectedWarRanges;
                 }
@@ -473,7 +483,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
             if (ImGui.ImageButton("allianceinfo", this.iconHandler.GetOrLoadIcon("vertical-banner"), new Vector2(60)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.AllianceInfoPage;
+                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = capi.ModLoader.GetModSystem<claimsGui>().conflictSourceTab;
             }
             ImGui.SameLine();
             if (ImGui.ImageButton("conflictletters", this.iconHandler.GetOrLoadIcon("envelope"), new Vector2(60)))

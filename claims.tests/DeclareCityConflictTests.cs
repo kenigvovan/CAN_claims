@@ -1,8 +1,10 @@
+using System.Collections.Concurrent;
 using System.Reflection;
 using caneconomy.src.interfaces;
 using claims.src;
 using claims.src.auxialiry;
 using claims.src.commands;
+using claims.src.gui.playerGui.structures;
 using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
@@ -207,7 +209,8 @@ namespace claims.tests
 
             var result = CityCommand.DeclareCityConflict(MakeArgs("!@#$%"));
 
-            Assert.Equal(EnumCommandStatus.Error, result.Status);
+            Assert.True(result.Status == EnumCommandStatus.Error,
+                $"Expected Error but got {result.Status}: '{result.StatusMessage}'");
         }
 
         [Fact]
@@ -311,6 +314,145 @@ namespace claims.tests
             var result = CityCommand.DeclareCityConflict(MakeArgs(TargetName));
 
             Assert.Equal("claims:conflict_letter_sent", result.StatusMessage);
+        }
+
+        /*=====================================================================*/
+        /* ALLIANCE_LETTER_REMOVE sent on deny / revoke / accept                */
+        /*=====================================================================*/
+
+        private const string TargetPlayerUid = "target-player-uid";
+
+        /// <summary>
+        /// Helper: sets up a second player who is mayor of the target city,
+        /// and returns args for that player.
+        /// </summary>
+        private TextCommandCallingArgs MakeTargetMayorArgs(City targetCity, string targetName)
+        {
+            var targetPlayer = new Mock<IServerPlayer>();
+            targetPlayer.Setup(p => p.PlayerUID).Returns(TargetPlayerUid);
+
+            var targetPlayerInfo = new PlayerInfo("TargetPlayer", TargetPlayerUid);
+            SetPlayerCity(targetPlayerInfo, targetCity);
+            SetMayor(targetCity, targetPlayerInfo);
+            _storageMock.Setup(s => s.GetPlayerByUid(TargetPlayerUid, out targetPlayerInfo)).Returns(true);
+
+            var parser = new Mock<ICommandArgumentParser>();
+            parser.Setup(p => p.GetValue()).Returns(targetName);
+            return new TextCommandCallingArgs
+            {
+                Caller = new Caller { Player = targetPlayer.Object },
+                Parsers = { parser.Object }
+            };
+        }
+
+        private bool CityHasQueuedUpdate(string cityGuid, EnumPlayerRelatedInfo updateType)
+        {
+            return UsefullPacketsSend.cityDelayedInfoCollector.TryGetValue(cityGuid, out var dict)
+                && dict.ContainsKey(updateType);
+        }
+
+        [Fact]
+        public void Deny_CityConflict_SendsLetterRemoveToBothSides()
+        {
+            claims.src.claims.config.NEED_AGREE_FOR_CONFLICT = true;
+            UsefullPacketsSend.cityDelayedInfoCollector.Clear();
+
+            var player = MakeMayorWithCity("OurCity");
+            var targetCity = SetupStandaloneTargetCity();
+
+            // Attacker declares conflict
+            var declareResult = CityCommand.DeclareCityConflict(MakeArgs(TargetName));
+            Assert.Equal("claims:conflict_letter_sent", declareResult.StatusMessage);
+
+            // Retrieve the letter so we can wait on its OnDeny thread
+            Assert.True(ConflictHandler.TryGetConflictLetter(
+                player.City, targetCity, LetterPurpose.START_CONFLICT, out var letter));
+
+            // Clear the collector so we only see deny-triggered updates
+            UsefullPacketsSend.cityDelayedInfoCollector.Clear();
+
+            // Setup target city resolution for deny command (target looks up attacker's city)
+            City ourCity = player.City;
+            _storageMock.Setup(s => s.GetCityByName("OurCity", out ourCity)).Returns(true);
+            Alliance nullAlliance = null!;
+            _storageMock.Setup(s => s.GetAllianceByName("OurCity", out nullAlliance)).Returns(false);
+
+            // Target mayor denies the conflict
+            var denyArgs = MakeTargetMayorArgs(targetCity, "OurCity");
+            var denyResult = CityCommand.DenyStartCityConflict(denyArgs);
+
+            // Wait for the OnDeny thread to finish
+            letter.OnDeny.Join(5000);
+
+            // Both sides should have ALLIANCE_LETTER_REMOVE queued
+            Assert.True(CityHasQueuedUpdate(player.City.Guid, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE),
+                "Attacker city should receive ALLIANCE_LETTER_REMOVE");
+            Assert.True(CityHasQueuedUpdate(targetCity.Guid, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE),
+                "Target city should receive ALLIANCE_LETTER_REMOVE");
+        }
+
+        [Fact]
+        public void Revoke_CityConflict_SendsLetterRemoveToBothSides()
+        {
+            claims.src.claims.config.NEED_AGREE_FOR_CONFLICT = true;
+            UsefullPacketsSend.cityDelayedInfoCollector.Clear();
+
+            var player = MakeMayorWithCity("OurCity");
+            var targetCity = SetupStandaloneTargetCity();
+
+            // Attacker declares conflict
+            var declareResult = CityCommand.DeclareCityConflict(MakeArgs(TargetName));
+            Assert.Equal("claims:conflict_letter_sent", declareResult.StatusMessage);
+
+            // Clear so we only see revoke-triggered updates
+            UsefullPacketsSend.cityDelayedInfoCollector.Clear();
+
+            // Attacker revokes the conflict letter
+            var revokeResult = CityCommand.RevokeCityConflict(MakeArgs(TargetName));
+
+            Assert.True(CityHasQueuedUpdate(player.City.Guid, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE),
+                "Attacker city should receive ALLIANCE_LETTER_REMOVE on revoke");
+            Assert.True(CityHasQueuedUpdate(targetCity.Guid, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE),
+                "Target city should receive ALLIANCE_LETTER_REMOVE on revoke");
+        }
+
+        [Fact]
+        public void Accept_CityConflict_SendsLetterRemoveToBothSides()
+        {
+            claims.src.claims.config.NEED_AGREE_FOR_CONFLICT = true;
+            UsefullPacketsSend.cityDelayedInfoCollector.Clear();
+
+            var player = MakeMayorWithCity("OurCity");
+            var targetCity = SetupStandaloneTargetCity();
+
+            // Attacker declares conflict
+            var declareResult = CityCommand.DeclareCityConflict(MakeArgs(TargetName));
+            Assert.Equal("claims:conflict_letter_sent", declareResult.StatusMessage);
+
+            // Retrieve the letter so we can wait on its OnAccept thread
+            Assert.True(ConflictHandler.TryGetConflictLetter(
+                player.City, targetCity, LetterPurpose.START_CONFLICT, out var letter));
+
+            // Clear so we only see accept-triggered updates
+            UsefullPacketsSend.cityDelayedInfoCollector.Clear();
+
+            // Setup target city resolution for accept command
+            City ourCity = player.City;
+            _storageMock.Setup(s => s.GetCityByName("OurCity", out ourCity)).Returns(true);
+            Alliance nullAlliance = null!;
+            _storageMock.Setup(s => s.GetAllianceByName("OurCity", out nullAlliance)).Returns(false);
+
+            // Target mayor accepts the conflict
+            var acceptArgs = MakeTargetMayorArgs(targetCity, "OurCity");
+            var acceptResult = CityCommand.AcceptStartCityConflict(acceptArgs);
+
+            // Wait for the OnAccept thread to finish
+            letter.OnAccept.Join(5000);
+
+            Assert.True(CityHasQueuedUpdate(player.City.Guid, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE),
+                "Attacker city should receive ALLIANCE_LETTER_REMOVE on accept");
+            Assert.True(CityHasQueuedUpdate(targetCity.Guid, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE),
+                "Target city should receive ALLIANCE_LETTER_REMOVE on accept");
         }
     }
 }

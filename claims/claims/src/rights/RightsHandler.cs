@@ -324,19 +324,18 @@ namespace claims.src
                     newConflict.TimeStampStarted = TimeFunctions.getEpochSeconds();
                     newConflict.MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES;
 
-                    UsefullPacketsSend.AddToQueueAllianceInfoUpdate(first.Guid,
-                                new Dictionary<string, object> { { "value", new ClientConflictCellElement(newConflict.GetPartName(),
-                                newConflict.First.GetPartName(), newConflict.Second.GetPartName(), newConflict.First.GetPartName(),
+                    var allyConflictCell = new ClientConflictCellElement(newConflict.GetPartName(),
+                                newConflict.First.GetPartName(), newConflict.First.Guid, WarTargetTypeHelper.FromConflictParty(newConflict.First),
+                                newConflict.Second.GetPartName(), newConflict.Second.Guid, WarTargetTypeHelper.FromConflictParty(newConflict.Second),
+                                newConflict.First.GetPartName(),
                                 newConflict.State, newConflict.Guid,
                                 newConflict.MinimumDaysBetweenBattles, newConflict.LastBattleDateStart, newConflict.LastBattleDateEnd,
                                 newConflict.NextBattleDateStart, newConflict.NextBattleDateEnd, newConflict.WarRanges, newConflict.FirstWarRanges,
-                                newConflict.SecondWarRanges, newConflict.TimeStampStarted) } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
+                                newConflict.SecondWarRanges, newConflict.TimeStampStarted);
+                    UsefullPacketsSend.AddToQueueAllianceInfoUpdate(first.Guid,
+                                new Dictionary<string, object> { { "value", allyConflictCell } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
                     UsefullPacketsSend.AddToQueueAllianceInfoUpdate(second.Guid,
-                        new Dictionary<string, object> { { "value", new ClientConflictCellElement(newConflict.GetPartName(),
-                                newConflict.First.GetPartName(), newConflict.Second.GetPartName(), newConflict.First.GetPartName(),
-                                newConflict.State, newConflict.Guid, newConflict.MinimumDaysBetweenBattles, newConflict.LastBattleDateStart,
-                                newConflict.LastBattleDateEnd, newConflict.NextBattleDateStart, newConflict.NextBattleDateEnd,
-                                newConflict.WarRanges, newConflict.FirstWarRanges, newConflict.SecondWarRanges, newConflict.TimeStampStarted) } },
+                        new Dictionary<string, object> { { "value", allyConflictCell } },
                         EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
 
                     first.saveToDatabase();
