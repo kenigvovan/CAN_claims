@@ -493,16 +493,16 @@ namespace claims.src.events
             {
                 return PlotRelation.CITIZEN;
             }          
-            if(plot.hasCity() && plot.getCity().HasAlliance() && playerInfo.HasAlliance())
+            if (plot.hasCity() && playerInfo.hasCity())
             {
-                if(plot.getCity().Alliance.Hostiles.Contains(playerInfo.Alliance))
-                {
+                // Covers all war types: city vs city, city vs alliance, alliance vs city, alliance vs alliance
+                if (plot.getCity().HostileCities.Contains(playerInfo.City))
                     return PlotRelation.FOE;
-                }
-                else if(plot.getCity().Alliance.ComradAlliancies.Contains(playerInfo.Alliance))
-                {
+            }
+            if (plot.hasCity() && plot.getCity().HasAlliance() && playerInfo.HasAlliance())
+            {
+                if (plot.getCity().Alliance.ComradAlliancies.Contains(playerInfo.Alliance))
                     return PlotRelation.ALLY;
-                }
             }
             
             return PlotRelation.STRANGER;

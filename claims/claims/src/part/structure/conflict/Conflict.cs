@@ -8,9 +8,9 @@ namespace claims.src.part.structure.conflict
         public Conflict(string val, string guid) : base(val, guid)
         {
         }
-        public Alliance First { get; set; }
-        public Alliance Second { get; set; }
-        public Alliance StartedBy { get; set; }
+        public IConflictParty First { get; set; }
+        public IConflictParty Second { get; set; }
+        public IConflictParty StartedBy { get; set; }
         public ConflictState State { get; set; }
         public List<SelectedWarRange> WarRanges { get; set; } = new List<SelectedWarRange>();
         public List<SelectedWarRange> FirstWarRanges { get; set; } = new List<SelectedWarRange>();
@@ -73,23 +73,20 @@ namespace claims.src.part.structure.conflict
         }
         public bool GetNextDateForRange(SelectedWarRange range, out DateTime dateTime)
         {
-            DateTime startDate = DateTime.Now + (LastBattleDateEnd == DateTime.UnixEpoch 
-                                                                ? TimeSpan.Zero 
+            DateTime startDate = DateTime.Now + (LastBattleDateEnd == DateTime.UnixEpoch
+                                                                ? TimeSpan.Zero
                                                                 : TimeSpan.FromDays(MinimumDaysBetweenBattles));
-            if (LastBattleDateStart == DateTime.UnixEpoch)
+            for (int i = 0; i < 8; i++)
             {
-                for (int i = 0; i < 8; i++)
+                DateTime candidate = startDate.AddDays(i);
+                if (candidate.DayOfWeek == range.StartDay)
                 {
-                    DateTime candidate = startDate.AddDays(i);
-                    if (candidate.DayOfWeek == range.StartDay)
+                    dateTime = candidate.Date + range.StartTime;
+                    if (dateTime < DateTime.Now)
                     {
-                        dateTime = candidate.Date + range.StartTime;
-                        if(dateTime < DateTime.Now)
-                        {
-                            continue;
-                        }
-                        return true;
+                        continue;
                     }
+                    return true;
                 }
             }
             dateTime = DateTime.UnixEpoch;

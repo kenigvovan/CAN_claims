@@ -1080,7 +1080,49 @@ namespace claims.src.commands.register
                                        parsers.WordRange("state", "on", "off"))
                          .EndSub()
                          .EndSub()
-                     .EndSub();
+                      .EndSub()
+                      // WAR (city-level conflict, no alliance required)
+                      .BeginSub("war")
+                        .WithAlias("w")
+                          .BeginSub("declare")
+                            .WithAlias("d")
+                            .HandleWith(commands.CityCommand.DeclareCityConflict)
+                            .WithDesc("Declare war on a city or alliance (only for cities without an alliance).")
+                            .WithArgs(parsers.Word("cityOrAllianceName"))
+                          .EndSub()
+                          .BeginSub("revoke")
+                            .WithAlias("r")
+                            .HandleWith(commands.CityCommand.RevokeCityConflict)
+                            .WithDesc("Revoke a pending war declaration.")
+                            .WithArgs(parsers.Word("cityOrAllianceName"))
+                          .EndSub()
+                          .BeginSub("accept")
+                            .WithAlias("a")
+                            .HandleWith(commands.CityCommand.AcceptStartCityConflict)
+                            .WithDesc("Accept an incoming war declaration.")
+                            .WithArgs(parsers.Word("cityOrAllianceName"))
+                          .EndSub()
+                          .BeginSub("deny")
+                            .HandleWith(commands.CityCommand.DenyStartCityConflict)
+                            .WithDesc("Deny an incoming war declaration.")
+                            .WithArgs(parsers.Word("cityOrAllianceName"))
+                          .EndSub()
+                          .BeginSub("offerstop")
+                            .HandleWith(commands.CityCommand.OfferStopCityConflict)
+                            .WithDesc("Offer to end an ongoing war.")
+                            .WithArgs(parsers.Word("cityOrAllianceName"))
+                          .EndSub()
+                          .BeginSub("acceptstop")
+                            .HandleWith(commands.CityCommand.AcceptStopCityConflict)
+                            .WithDesc("Accept the offer to stop a war.")
+                            .WithArgs(parsers.Word("cityOrAllianceName"))
+                          .EndSub()
+                          .BeginSub("denystop")
+                            .HandleWith(commands.CityCommand.DenyStopCityConflict)
+                            .WithDesc("Deny the offer to stop a war.")
+                            .WithArgs(parsers.Word("cityOrAllianceName"))
+                          .EndSub()
+                      .EndSub();
         }
         public static void RegisterAllianceCommands(CommandArgumentParsers parsers, ICoreServerAPI sapi)
         {
@@ -2177,7 +2219,7 @@ namespace claims.src.commands.register
                     .HandleWith(commands.CAdminCommand.processBackup)
                 .EndSub()
                 .BeginSub("startwar")
-                    .WithArgs(parsers.Word("firstAlliance"), parsers.Word("secondAlliance"))
+                    .WithArgs(parsers.Word("firstParty"), parsers.Word("secondParty"))
                     .WithPreCondition((TextCommandCallingArgs args) => {
 
                         if (args.Caller.Player is IServerPlayer player)
@@ -2192,6 +2234,23 @@ namespace claims.src.commands.register
                         return TextCommandResult.Error("");
                     })
                     .HandleWith(commands.CAdminCommand.StartWarTime)
+                .EndSub()
+                .BeginSub("setbattledate")
+                    .WithArgs(parsers.Word("firstParty"), parsers.Word("secondParty"), parsers.OptionalInt("minutesUntilStart"), parsers.OptionalInt("battleDurationMinutes"))
+                    .WithPreCondition((TextCommandCallingArgs args) => {
+
+                        if (args.Caller.Player is IServerPlayer player)
+                        {
+                            if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
+                            {
+                                return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
+                            }
+                            return TextCommandResult.Success();
+
+                        }
+                        return TextCommandResult.Error("");
+                    })
+                    .HandleWith(commands.CAdminCommand.SetBattleDate)
                 .EndSub()
                 ;
         }            

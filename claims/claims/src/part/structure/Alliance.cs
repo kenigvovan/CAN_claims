@@ -13,14 +13,14 @@ using Vintagestory.GameContent;
 
 namespace claims.src.part.structure
 {
-    public class Alliance : Part, ISender, IGetStatus, ICooldown
+    public class Alliance : Part, ISender, IGetStatus, ICooldown, IConflictParty
     {
         public string MoneyAccountName => claims.config.CITY_ACCOUNT_STRING_PREFIX + Guid;
         public PlayerInfo Leader { get; set; }
         List<Invitation> ListSentInvitations = new List<Invitation>();
         public List<City> Cities { get; set; } = new List<City>(); 
         public City MainCity { get; set; }
-        public List<Alliance> Hostiles { get; set; } = new List<Alliance>();
+        public List<IConflictParty> HostileParties { get; set; } = new List<IConflictParty>();
         public List<Alliance> ComradAlliancies { get; set; } = new List<Alliance>();
         public int AllianceFee { get; set; } = 0;
         public long TimeStampCreated { get; set; }
@@ -109,10 +109,10 @@ namespace claims.src.part.structure
                 outList.Add(Lang.Get("claims:neutral") + "\n");
             }
             
-            if (this.Hostiles.Count > 0)
+            if (this.HostileParties.Count > 0)
             {
                 outList.Add(StringFunctions.makeFeasibleStringFromNames(StringFunctions.
-                getNamesOfPartReplaceUnder(Lang.Get("claims:hostiles"), new List<Part>(this.Hostiles))
+                getNamesOfPartReplaceUnder(Lang.Get("claims:hostiles"), HostileParties.Cast<Part>().ToList())
                 , ','));
             }
             if (this.ComradAlliancies.Count > 0)
@@ -133,6 +133,30 @@ namespace claims.src.part.structure
                     break;
             }
             return newGuid;
+        }
+
+        // IConflictParty
+        public List<City> GetCities() => Cities;
+        public void AddHostileParty(IConflictParty party)
+        {
+            if (!HostileParties.Contains(party))
+                HostileParties.Add(party);
+        }
+        public void RemoveHostileParty(IConflictParty party) => HostileParties.Remove(party);
+        public IEnumerable<IConflictParty> GetHostileParties() => HostileParties;
+
+        public override int GetHashCode()
+        {
+            int hash = 13;
+            hash = (hash * 7) + Guid.GetHashCode();
+            return hash;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is Alliance other)
+                return this.Guid.Equals(other.Guid);
+            return false;
         }
     }
 }

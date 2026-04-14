@@ -4,7 +4,7 @@
   "name": "Claims",
   "authors": [ "KenigVovan" ],
   "description": "Land protection mod",
-  "version": "4.2.14",
+  "version": "4.3.0",
     "dependencies": {
         "game": "",
         "caneconomy": "1.0.17",

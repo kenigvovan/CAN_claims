@@ -1,5 +1,6 @@
 ﻿using claims.src.auxialiry;
 using claims.src.events;
+using claims.src.gui.playerGui.structures;
 using claims.src.messages;
 using claims.src.part;
 using claims.src.part.structure;
@@ -8,6 +9,7 @@ using claims.src.part.structure.plots;
 using claims.src.part.structure.war;
 using claims.src.timers;
 using System;
+using System.Collections.Generic;
 using System.Xml.Linq;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -1134,20 +1136,38 @@ namespace claims.src.commands
         /*==============================================================================================*/
         public static TextCommandResult StartWarTime(TextCommandCallingArgs args)
         {
-            string firstAllianceName = Filter.filterName(args.Parsers[0].GetValue().ToString());
-            string secondAllianceName = Filter.filterName(args.Parsers[1].GetValue().ToString());
+            string firstName = Filter.filterName(args.Parsers[0].GetValue().ToString());
+            string secondName = Filter.filterName(args.Parsers[1].GetValue().ToString());
 
-            if (!claims.dataStorage.GetAllianceByName(firstAllianceName, out Alliance firstAlliance))
+            IConflictParty firstParty = null;
+            if (claims.dataStorage.GetAllianceByName(firstName, out Alliance firstAlliance))
             {
-                return TextCommandResult.Error(Lang.Get("claims:no_such_alliance"));
+                firstParty = firstAlliance;
+            }
+            else if (claims.dataStorage.GetCityByName(firstName, out City firstCity))
+            {
+                firstParty = firstCity;
+            }
+            else
+            {
+                return TextCommandResult.Error(Lang.Get("claims:no_such_alliance_or_city", firstName));
             }
 
-            if (!claims.dataStorage.GetAllianceByName(secondAllianceName, out Alliance secondAlliance))
+            IConflictParty secondParty = null;
+            if (claims.dataStorage.GetAllianceByName(secondName, out Alliance secondAlliance))
             {
-                return TextCommandResult.Error(Lang.Get("claims:no_such_alliance"));
+                secondParty = secondAlliance;
+            }
+            else if (claims.dataStorage.GetCityByName(secondName, out City secondCity))
+            {
+                secondParty = secondCity;
+            }
+            else
+            {
+                return TextCommandResult.Error(Lang.Get("claims:no_such_alliance_or_city", secondName));
             }
 
-            if (!ConflictHandler.TryGetConflictWithSides(firstAlliance, secondAlliance, out var conflict))
+            if (!ConflictHandler.TryGetConflictWithSides(firstParty, secondParty, out var conflict))
             {
                 return TextCommandResult.Success(Lang.Get("claims:no_conflict_found"));
             }
@@ -1165,15 +1185,81 @@ namespace claims.src.commands
                             ModConfigReady.startWarCallbacks.Remove(conflict.Guid);
                         }
                         RightsHandler.ClearPlayerCachesAndUpdatePlotSavedRightsForClients(conflict);
+                        UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(conflict.First, new Dictionary<string, object> { { "value", conflict.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_WAR_TIME_MARK_START);
+                        UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(conflict.Second, new Dictionary<string, object> { { "value", conflict.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_WAR_TIME_MARK_START);
                         MessageHandler.SendMsgInAlliance(conflict.First, Lang.Get("claims:battle_started_with", conflict.Second.GetPartName()));
                         MessageHandler.SendMsgInAlliance(conflict.Second, Lang.Get("claims:battle_started_with", conflict.First.GetPartName()));
                         MessageHandler.SendDiscoveryToAlliance(conflict.First, "ingamediscovery-battle-start", Lang.Get("claims:ingamediscovery-battle-start", conflict.Second.GetPartName()), new object[] { });
                         MessageHandler.SendDiscoveryToAlliance(conflict.Second, "ingamediscovery-battle-start", Lang.Get("claims:ingamediscovery-battle-start", conflict.First.GetPartName()), new object[] { });
+                        ModConfigReady.CheckWarToEnd();
                     }
                 }, 2 * 1000);
                 ModConfigReady.startWarCallbacks[conflict.Guid] = savedLong;
             }
             return TextCommandResult.Success("claims:war_started");
+        }
+
+        public static TextCommandResult SetBattleDate(TextCommandCallingArgs args)
+        {
+            string firstName = Filter.filterName(args.Parsers[0].GetValue().ToString());
+            string secondName = Filter.filterName(args.Parsers[1].GetValue().ToString());
+
+            IConflictParty firstParty = null;
+            if (claims.dataStorage.GetAllianceByName(firstName, out Alliance firstAlliance))
+            {
+                firstParty = firstAlliance;
+            }
+            else if (claims.dataStorage.GetCityByName(firstName, out City firstCity))
+            {
+                firstParty = firstCity;
+            }
+            else
+            {
+                return TextCommandResult.Error(Lang.Get("claims:no_such_alliance_or_city", firstName));
+            }
+
+            IConflictParty secondParty = null;
+            if (claims.dataStorage.GetAllianceByName(secondName, out Alliance secondAlliance))
+            {
+                secondParty = secondAlliance;
+            }
+            else if (claims.dataStorage.GetCityByName(secondName, out City secondCity))
+            {
+                secondParty = secondCity;
+            }
+            else
+            {
+                return TextCommandResult.Error(Lang.Get("claims:no_such_alliance_or_city", secondName));
+            }
+
+            if (!ConflictHandler.TryGetConflictWithSides(firstParty, secondParty, out var conflict))
+            {
+                return TextCommandResult.Error(Lang.Get("claims:no_conflict_found"));
+            }
+
+            int minutesUntilStart = 2;
+            object rawMinutes = args.Parsers[2].GetValue();
+            if (rawMinutes != null && rawMinutes is int parsedMinutes && parsedMinutes > 0)
+            {
+                minutesUntilStart = parsedMinutes;
+            }
+
+            int battleDurationMinutes = 30;
+            object rawDuration = args.Parsers[3].GetValue();
+            if (rawDuration != null && rawDuration is int parsedDuration && parsedDuration > 0)
+            {
+                battleDurationMinutes = parsedDuration;
+            }
+
+            conflict.NextBattleDateStart = DateTime.Now.AddMinutes(minutesUntilStart);
+            conflict.NextBattleDateEnd = conflict.NextBattleDateStart.AddMinutes(battleDurationMinutes);
+            conflict.saveToDatabase();
+
+            ModConfigReady.CheckForWarToStart();
+
+            return TextCommandResult.Success(string.Format("Battle date set: start {0}, end {1}",
+                conflict.NextBattleDateStart.ToString("yyyy-MM-dd HH:mm:ss"),
+                conflict.NextBattleDateEnd.ToString("yyyy-MM-dd HH:mm:ss")));
         }
 
     }

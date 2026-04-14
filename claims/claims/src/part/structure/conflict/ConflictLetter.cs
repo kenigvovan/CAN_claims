@@ -1,4 +1,5 @@
-﻿using System;
+﻿using claims.src.part;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,14 +10,14 @@ namespace claims.src.part.structure.conflict
 {
     public class ConflictLetter
     {
-        public Alliance From { get; set; }
-        public Alliance To { get; set; }
+        public IConflictParty From { get; set; }
+        public IConflictParty To { get; set; }
         public LetterPurpose Purpose { get; set; }
         public long TimeStampExpire { get; set; }
         public Thread OnAccept { get; }
         public Thread OnDeny { get; }
         public string Guid { get; }
-        public ConflictLetter(Alliance from, Alliance to, LetterPurpose purpose, long timeStampExpire, Thread onAccept, Thread OnDeny, string guid)
+        public ConflictLetter(IConflictParty from, IConflictParty to, LetterPurpose purpose, long timeStampExpire, Thread onAccept, Thread OnDeny, string guid)
         {
             From = from;
             To = to;
@@ -43,11 +44,8 @@ namespace claims.src.part.structure.conflict
         }
         public override int GetHashCode()
         {
-            int hash = 13;
-            hash = (hash * 7) + this.From.GetHashCode();
-            hash = (hash * 7) + this.To.GetHashCode();
-            hash = (hash * 7) + this.Purpose.GetHashCode();
-            return hash;
+            // XOR of From/To so that A→B and B→A produce the same hash (matches symmetric Equals)
+            return this.From.GetHashCode() ^ this.To.GetHashCode() ^ this.Purpose.GetHashCode();
         }
         public static Guid GetUnusedGuid()
         {

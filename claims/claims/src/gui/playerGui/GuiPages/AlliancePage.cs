@@ -134,6 +134,7 @@ namespace claims.src.gui.playerGui.GuiPages
                 {
                     if (t)
                     {
+                        gui.ConflictSourceTab = EnumSelectedTab.AllianceInfoPage;
                         gui.SelectedTab = EnumSelectedTab.ConflictLettersPage;
                         gui.BuildMainWindow();
                     }
@@ -144,6 +145,7 @@ namespace claims.src.gui.playerGui.GuiPages
                 {
                     if (t)
                     {
+                        gui.ConflictSourceTab = EnumSelectedTab.AllianceInfoPage;
                         gui.SelectedTab = EnumSelectedTab.ConflictsPage;
                         gui.BuildMainWindow();
                     }

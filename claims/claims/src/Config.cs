@@ -185,8 +185,8 @@ namespace claims.src
         public string CITY_ACCOUNT_STRING_PREFIX = "#city_";
         public string ALLIANCE_ACCOUNT_STRING_PREFIX = "#alliance_";
 
-        public OrderedDictionary<double, string> COINS_VALUES_TO_CODE = new OrderedDictionary<double, string> { };
-        public OrderedDictionary<int, double> ID_TO_COINS_VALUES = new OrderedDictionary<int, double>();
+        public System.Collections.Generic.OrderedDictionary<double, string> COINS_VALUES_TO_CODE = new();
+        public System.Collections.Generic.OrderedDictionary<int, double> ID_TO_COINS_VALUES = new();
 
         public bool VERBOSE_LOGGING = true;
         public bool SEND_ANNOUNCEMENTS_PLOT_IN_UNDER_ATTACK = true;

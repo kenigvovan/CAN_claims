@@ -239,7 +239,7 @@ namespace claims.src
         }
         public static void ClearPlayerCachesAndUpdatePlotSavedRightsForClients(Conflict conflict)
         {
-            foreach (var city in conflict.First.Cities)
+            foreach (var city in conflict.First.GetCities())
             {
                 foreach (var pl in city.getCityCitizens())
                 {
@@ -247,7 +247,7 @@ namespace claims.src
                 }
             }
 
-            foreach (var city in conflict.Second.Cities)
+            foreach (var city in conflict.Second.GetCities())
             {
                 foreach (var pl in city.getCityCitizens())
                 {
@@ -255,7 +255,7 @@ namespace claims.src
                 }
             }
 
-            foreach (var it in conflict.First.Cities)
+            foreach (var it in conflict.First.GetCities())
             {
                 foreach (var plot in it.getCityPlots())
                 {
@@ -265,7 +265,7 @@ namespace claims.src
                 }
             }
 
-            foreach (var it in conflict.Second.Cities)
+            foreach (var it in conflict.Second.GetCities())
             {
                 foreach (var plot in it.getCityPlots())
                 {
@@ -275,34 +275,43 @@ namespace claims.src
                 }
             }
         }
-        public static void SetAllianciesHostile(Alliance first, Alliance second, Conflict conflict)
+        public static void SetPartiesHostile(IConflictParty first, IConflictParty second, Conflict conflict)
         {
             first.RunningConflicts.Add(conflict);
             second.RunningConflicts.Add(conflict);
-            foreach (City ourCity in first.Cities)
+            foreach (City ourCity in first.GetCities())
             {
-                foreach (City targetCity in second.Cities)
+                foreach (City targetCity in second.GetCities())
                 {
-                    ourCity.HostileCities.Add(targetCity);
-                    ourCity.saveToDatabase();
+                    if (!ourCity.HostileCities.Contains(targetCity))
+                    {
+                        ourCity.HostileCities.Add(targetCity);
+                        ourCity.saveToDatabase();
+                    }
                 }
             }
-            foreach (City targetCity in second.Cities)
+            foreach (City targetCity in second.GetCities())
             {
-                foreach (City ourCity in first.Cities)
+                foreach (City ourCity in first.GetCities())
                 {
-                    targetCity.HostileCities.Add(ourCity);
-                    targetCity.saveToDatabase();
+                    if (!targetCity.HostileCities.Contains(ourCity))
+                    {
+                        targetCity.HostileCities.Add(ourCity);
+                        targetCity.saveToDatabase();
+                    }
                 }
             }
-            first.Hostiles.Add(second);
-            second.Hostiles.Add(first);
+            first.AddHostileParty(second);
+            second.AddHostileParty(first);
         }
+        // Keep Alliance-typed overload for backward compatibility with alliance conflict code
+        public static void SetAllianciesHostile(Alliance first, Alliance second, Conflict conflict)
+            => SetPartiesHostile(first, second, conflict);
         public static void AllianceAllySetHostileOnNewConflictStarted(Alliance first, Alliance second, Conflict conflict)
         {
             foreach(var it in first.ComradAlliancies)
             {
-                if(it != second && !it.Hostiles.Contains(second))
+                if(it != second && !it.HostileParties.Contains(second))
                 {
                     SetAllianciesHostile(it, second, conflict);
                     string newConflictGuid = ConflictLetter.GetUnusedGuid().ToString();
@@ -315,19 +324,18 @@ namespace claims.src
                     newConflict.TimeStampStarted = TimeFunctions.getEpochSeconds();
                     newConflict.MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES;
 
-                    UsefullPacketsSend.AddToQueueAllianceInfoUpdate(first.Guid,
-                                new Dictionary<string, object> { { "value", new ClientConflictCellElement(newConflict.GetPartName(),
-                                newConflict.First.GetPartName(), newConflict.Second.GetPartName(), newConflict.First.GetPartName(),
+                    var allyConflictCell = new ClientConflictCellElement(newConflict.GetPartName(),
+                                newConflict.First.GetPartName(), newConflict.First.Guid, WarTargetTypeHelper.FromConflictParty(newConflict.First),
+                                newConflict.Second.GetPartName(), newConflict.Second.Guid, WarTargetTypeHelper.FromConflictParty(newConflict.Second),
+                                newConflict.First.GetPartName(),
                                 newConflict.State, newConflict.Guid,
                                 newConflict.MinimumDaysBetweenBattles, newConflict.LastBattleDateStart, newConflict.LastBattleDateEnd,
                                 newConflict.NextBattleDateStart, newConflict.NextBattleDateEnd, newConflict.WarRanges, newConflict.FirstWarRanges,
-                                newConflict.SecondWarRanges, newConflict.TimeStampStarted) } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
+                                newConflict.SecondWarRanges, newConflict.TimeStampStarted, newConflict.ActiveWarTime);
+                    UsefullPacketsSend.AddToQueueAllianceInfoUpdate(first.Guid,
+                                new Dictionary<string, object> { { "value", allyConflictCell } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
                     UsefullPacketsSend.AddToQueueAllianceInfoUpdate(second.Guid,
-                        new Dictionary<string, object> { { "value", new ClientConflictCellElement(newConflict.GetPartName(),
-                                newConflict.First.GetPartName(), newConflict.Second.GetPartName(), newConflict.First.GetPartName(),
-                                newConflict.State, newConflict.Guid, newConflict.MinimumDaysBetweenBattles, newConflict.LastBattleDateStart,
-                                newConflict.LastBattleDateEnd, newConflict.NextBattleDateStart, newConflict.NextBattleDateEnd,
-                                newConflict.WarRanges, newConflict.FirstWarRanges, newConflict.SecondWarRanges, newConflict.TimeStampStarted) } },
+                        new Dictionary<string, object> { { "value", allyConflictCell } },
                         EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
 
                     first.saveToDatabase();
@@ -342,11 +350,13 @@ namespace claims.src
         {
             foreach(var runConflict in alliance.RunningConflicts)
             {
-                Alliance foeAlliance = runConflict.First == alliance ? runConflict.Second : runConflict.First;
-                foreach (City targetCity in foeAlliance.Cities)
+                IConflictParty foeParty = runConflict.First.Guid == alliance.Guid ? runConflict.Second : runConflict.First;
+                foreach (City targetCity in foeParty.GetCities())
                 {
-                    targetCity.HostileCities.Add(city);
-                    city.HostileCities.Add(targetCity);
+                    if (!targetCity.HostileCities.Contains(city))
+                        targetCity.HostileCities.Add(city);
+                    if (!city.HostileCities.Contains(targetCity))
+                        city.HostileCities.Add(targetCity);
                 }
             }
         }
@@ -354,8 +364,8 @@ namespace claims.src
         {
             foreach (var runConflict in alliance.RunningConflicts)
             {
-                Alliance foeAlliance = runConflict.First == alliance ? runConflict.Second : runConflict.First;
-                foreach (City targetCity in foeAlliance.Cities)
+                IConflictParty foeParty = runConflict.First.Guid == alliance.Guid ? runConflict.Second : runConflict.First;
+                foreach (City targetCity in foeParty.GetCities())
                 {
                     targetCity.HostileCities.Remove(city);
                     city.HostileCities.Remove(targetCity);

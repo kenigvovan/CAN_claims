@@ -4,6 +4,7 @@ using claims.src.delayed.invitations;
 using claims.src.gui.playerGui.structures;
 using claims.src.messages;
 using claims.src.network.packets;
+using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
 using Vintagestory.API.Common;
@@ -88,16 +89,15 @@ namespace claims.src.part
             }
 
             //FOR HOSTILE ALLIANCE WE DELETE OUR CITIES FROM HOSTILES FOR THIER CITIES
-            foreach (Alliance otherAlliance in alliance.Hostiles)
+            foreach (IConflictParty otherParty in alliance.HostileParties)
             {
-                foreach (City otherCity in otherAlliance.Cities)
+                foreach (City otherCity in otherParty.GetCities())
                 {
                     foreach (City city in alliance.Cities)
                     {
                         otherCity.HostileCities.Remove(city);
                         otherCity.saveToDatabase();
                     }
-
                 }
             }
 
@@ -131,17 +131,17 @@ namespace claims.src.part
         public static void DemolishConflict(Conflict conflict)
         {
             claims.dataStorage.TryRemoveConflict(conflict);
-            foreach (City ourCity in conflict.First.Cities)
+            foreach (City ourCity in conflict.First.GetCities())
             {
-                foreach (City targetCity in conflict.Second.Cities)
+                foreach (City targetCity in conflict.Second.GetCities())
                 {
                     ourCity.HostileCities.Remove(targetCity);
                     ourCity.saveToDatabase();
                 }
             }
-            foreach (City targetCity in conflict.Second.Cities)
+            foreach (City targetCity in conflict.Second.GetCities())
             {
-                foreach (City ourCity in conflict.First.Cities)
+                foreach (City ourCity in conflict.First.GetCities())
                 {
                     targetCity.HostileCities.Remove(ourCity);
                     targetCity.saveToDatabase();
@@ -149,8 +149,8 @@ namespace claims.src.part
             }
             conflict.First.RunningConflicts.Remove(conflict);
             conflict.Second.RunningConflicts.Remove(conflict);
-            conflict.First.Hostiles.Remove(conflict.Second);
-            conflict.Second.Hostiles.Remove(conflict.First);
+            conflict.First.RemoveHostileParty(conflict.Second);
+            conflict.Second.RemoveHostileParty(conflict.First);
             conflict.First.saveToDatabase();
             conflict.Second.saveToDatabase();
             claims.getModInstance().getDatabaseHandler().deleteFromDatabaseConflict(conflict);

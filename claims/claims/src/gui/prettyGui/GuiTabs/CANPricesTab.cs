@@ -10,11 +10,15 @@ namespace claims.src.gui.prettyGui.GuiTabs
     public class CANPricesTab: CANGuiTab
     {
         ItemIconAtlas itemIconAtlas;
+        ImGuiSlotRenderer slotRenderer;
+        ImGuiInventoryGrid inventoryGrid;
+        bool inventoryGridInitialized;
         public CANPricesTab(ICoreClientAPI capi, IconHandler iconHandler)
         {
             this.capi = capi;
             this.iconHandler = iconHandler;
             itemIconAtlas = new(capi);
+            slotRenderer = new ImGuiSlotRenderer(capi, 48);
         }
         public override void DrawTab()
         {

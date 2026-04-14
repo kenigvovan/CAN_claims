@@ -239,6 +239,28 @@ namespace claims.src.gui.playerGui.GuiPages
                     return;
                 }), nextIconBounds);
                 nextIconBounds = nextIconBounds.RightCopy(20);
+
+                compo.AddIconButton("claims:envelope", (bool t) =>
+                {
+                    if (t)
+                    {
+                        gui.ConflictSourceTab = EnumSelectedTab.City;
+                        gui.SelectedTab = EnumSelectedTab.ConflictLettersPage;
+                        gui.BuildMainWindow();
+                    }
+                }, nextIconBounds);
+                nextIconBounds = nextIconBounds.RightCopy(20);
+
+                compo.AddIconButton("claims:frog-mouth-helm", (bool t) =>
+                {
+                    if (t)
+                    {
+                        gui.ConflictSourceTab = EnumSelectedTab.City;
+                        gui.SelectedTab = EnumSelectedTab.ConflictsPage;
+                        gui.BuildMainWindow();
+                    }
+                }, nextIconBounds);
+                nextIconBounds = nextIconBounds.RightCopy(20);
             }
             else
             {

@@ -20,6 +20,19 @@ namespace claims.src.gui.prettyGui.GuiTabs
             this.capi = capi;
             this.iconHandler = iconHandler;
         }
+
+        private bool IsMyPartyGuid(string guid)
+        {
+            var info = claims.clientDataStorage.clientPlayerInfo;
+            if (info.AllianceInfo?.Guid?.Equals(guid) ?? false)
+                return true;
+            if (info.CityInfo?.Guid?.Equals(guid) ?? false)
+                return true;
+            return false;
+        }
+
+        private bool HasAlliance => claims.clientDataStorage.clientPlayerInfo.AllianceInfo != null;
+        private string CmdPrefix => HasAlliance ? "/a conflict " : "/city war ";
         public override void DrawTab()
         {
             var clientInfo = claims.clientDataStorage.clientPlayerInfo;
@@ -38,8 +51,12 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
                 ImGui.BeginGroup();
 
-                ImGui.Text(Lang.Get("claims:gui-conflict-letter-from", letter.From));
-                ImGui.Text(Lang.Get("claims:gui-conflict-letter-to", letter.To));
+                string fromTypeLabel = letter.FromType == WarTargetType.Alliance
+                    ? Lang.Get("claims:conflict_target_alliance") : Lang.Get("claims:conflict_target_city");
+                string toTypeLabel = letter.ToType == WarTargetType.Alliance
+                    ? Lang.Get("claims:conflict_target_alliance") : Lang.Get("claims:conflict_target_city");
+                ImGui.Text(Lang.Get("claims:gui-conflict-letter-from", letter.From, fromTypeLabel));
+                ImGui.Text(Lang.Get("claims:gui-conflict-letter-to", letter.To, toTypeLabel));
 
                 
                 string expDate = TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(letter.TimeStampExpire, true);
@@ -58,106 +75,68 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 if (ImGui.ImageButton("cancel", this.iconHandler.GetOrLoadIcon("peace-dove"), new Vector2(32)))
                 {
                     ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
+                    bool isAttacker = IsMyPartyGuid(letter.FromGuid);
+                    string cmd = CmdPrefix;
                     if (letter.Purpose == LetterPurpose.START_CONFLICT)
                     {
-                        if (claims.clientDataStorage.clientPlayerInfo.AllianceInfo?.Guid?.Equals(letter.FromGuid) ?? false)
+                        if (isAttacker)
                         {
-                            clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/a conflict revoke " + letter.To, EnumChatType.Macro, "");
+                            clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, cmd + "revoke " + letter.To, EnumChatType.Macro, "");
                         }
                         else
-                        {   
-                            clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/a conflict deny " + letter.From, EnumChatType.Macro, "");
-                        }
-                        var cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientConflictLetterCellElements.FirstOrDefault(c => c.Guid == letter.Guid);
-                        if (cell != null)
                         {
-                            toRemove.Add(cell);
+                            clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, cmd + "deny " + letter.From, EnumChatType.Macro, "");
                         }
                     }
                     else
                     {
-                        if (claims.clientDataStorage.clientPlayerInfo.AllianceInfo?.Guid?.Equals(letter.FromGuid) ?? false)
-                        {
-                            clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/a conflict denystop " + letter.To, EnumChatType.Macro, "");
-                        }
-                        else
-                        {
-                            clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/a conflict denystop " + letter.From, EnumChatType.Macro, "");
-                        }
-                        var cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientConflictLetterCellElements.FirstOrDefault(c => c.Guid == letter.Guid);
-                        if (cell != null)
-                        {
-                            toRemove.Add(cell);
-                        }
-                    }                  
-                }
-                if (letter.Purpose == LetterPurpose.START_CONFLICT)
-                {
-                    if (ImGui.IsItemHovered())
+                        clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, cmd + "denystop " + (isAttacker ? letter.To : letter.From), EnumChatType.Macro, "");
+                    }
+                    var cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientConflictLetterCellElements.FirstOrDefault(c => c.Guid == letter.Guid);
+                    if (cell != null)
                     {
-                        ImGui.SetTooltip(Lang.Get("claims:gui-conflict-cancel-button"));
+                        toRemove.Add(cell);
                     }
                 }
-                else
+                if (ImGui.IsItemHovered())
                 {
-                    if (ImGui.IsItemHovered())
+                    if (letter.Purpose == LetterPurpose.START_CONFLICT)
+                    {
+                        bool isAttacker = IsMyPartyGuid(letter.FromGuid);
+                        ImGui.SetTooltip(Lang.Get(isAttacker ? "claims:gui-conflict-cancel-button" : "claims:gui-conflict-deny-button"));
+                    }
+                    else
                     {
                         ImGui.SetTooltip(Lang.Get("claims:gui-conflict-denystop-button"));
                     }
                 }
                 ImGui.SameLine();
                 ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 20);
-                if (claims.clientDataStorage.clientPlayerInfo.AllianceInfo?.Guid?.Equals(letter.ToGuid) ?? false)
+                if (IsMyPartyGuid(letter.ToGuid))
                 {
                     if (ImGui.ImageButton("acceptconflict", this.iconHandler.GetOrLoadIcon("sword-brandish"), new Vector2(32)))
                     {
                         ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
+                        string cmd = CmdPrefix;
                         if (letter.Purpose == LetterPurpose.START_CONFLICT)
                         {
-                            if (claims.clientDataStorage.clientPlayerInfo.AllianceInfo?.Guid?.Equals(letter.FromGuid) ?? false)
-                            {
-                                return;
-                            }
-                            else
-                            {
-                                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/a conflict accept " + letter.From, EnumChatType.Macro, "");
-                            }
-                            var cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientConflictLetterCellElements.FirstOrDefault(c => c.From == letter.From);
-                            if (cell != null)
-                            {
-                                toRemove.Add(cell);
-                            }
+                            clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, cmd + "accept " + letter.From, EnumChatType.Macro, "");
                         }
                         else
                         {
-                            if (claims.clientDataStorage.clientPlayerInfo.AllianceInfo?.Guid?.Equals(letter.FromGuid) ?? false)
-                            {
-                                return;
-                            }
-                            else
-                            {
-                                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/a conflict acceptstop " + letter.From, EnumChatType.Macro, "");
-                            }
-                            var cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientConflictLetterCellElements.FirstOrDefault(c => c.From == letter.From);
-                            if (cell != null)
-                            {
-                                toRemove.Add(cell);
-                            }
+                            clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, cmd + "acceptstop " + letter.From, EnumChatType.Macro, "");
+                        }
+                        var cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientConflictLetterCellElements.FirstOrDefault(c => c.Guid == letter.Guid);
+                        if (cell != null)
+                        {
+                            toRemove.Add(cell);
                         }
                     }
-                    if (letter.Purpose == LetterPurpose.START_CONFLICT)
+                    if (ImGui.IsItemHovered())
                     {
-                        if (ImGui.IsItemHovered())
-                        {
-                            ImGui.SetTooltip(Lang.Get("claims:gui-conflict-accept-button"));
-                        }
-                    }
-                    else
-                    {
-                        if (ImGui.IsItemHovered())
-                        {
-                            ImGui.SetTooltip(Lang.Get("claims:gui-conflict-stop-button"));
-                        }
+                        ImGui.SetTooltip(Lang.Get(letter.Purpose == LetterPurpose.START_CONFLICT
+                            ? "claims:gui-conflict-accept-button"
+                            : "claims:gui-conflict-stop-button"));
                     }
                 }
 
@@ -179,7 +158,14 @@ namespace claims.src.gui.prettyGui.GuiTabs
             }
             if (ImGui.ImageButton("newconflict", this.iconHandler.GetOrLoadIcon("sword-brandish"), new Vector2(32)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.ALLIANCE_SEND_NEW_CONFLICT_LETTER_NEED_NAME;
+                if (claims.clientDataStorage.clientPlayerInfo.AllianceInfo != null)
+                {
+                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.ALLIANCE_SEND_NEW_CONFLICT_LETTER_NEED_NAME;
+                }
+                else
+                {
+                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_SEND_NEW_CONFLICT_LETTER_NEED_NAME;
+                }
             }
             if (ImGui.IsItemHovered())
             {
@@ -195,7 +181,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
             if (ImGui.ImageButton("allianceinfo", this.iconHandler.GetOrLoadIcon("vertical-banner"), new Vector2(60)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.LEAVE_ALLIANCE_CONFIRM;
+                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = capi.ModLoader.GetModSystem<claimsGui>().conflictSourceTab;
             }
             ImGui.SameLine();
             if (ImGui.ImageButton("conflictletters", this.iconHandler.GetOrLoadIcon("envelope"), new Vector2(60)))

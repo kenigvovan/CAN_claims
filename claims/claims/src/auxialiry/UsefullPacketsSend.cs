@@ -10,6 +10,7 @@ using claims.src.gui.playerGui.structures.cellElements;
 using claims.src.network.packets;
 using claims.src.part;
 using claims.src.part.structure;
+using claims.src.part.structure.conflict;
 using claims.src.part.structure.plots;
 using Newtonsoft.Json;
 using Vintagestory.API.Server;
@@ -66,7 +67,7 @@ namespace claims.src.auxialiry
                     }
                 }
 
-                infoToUpdateCity.AddRange([EnumPlayerRelatedInfo.CITY_CREATED_TIMESTAMP, EnumPlayerRelatedInfo.CITY_MEMBERS,
+                infoToUpdateCity.AddRange([EnumPlayerRelatedInfo.CITY_GUID, EnumPlayerRelatedInfo.CITY_CREATED_TIMESTAMP, EnumPlayerRelatedInfo.CITY_MEMBERS,
                                            EnumPlayerRelatedInfo.MAX_COUNT_PLOTS, EnumPlayerRelatedInfo.CLAIMED_PLOTS,
                                            EnumPlayerRelatedInfo.CITY_PLOTS_COLOR, EnumPlayerRelatedInfo.CITY_DEBT, EnumPlayerRelatedInfo.CITY_DAY_PAYMENT,
                                            EnumPlayerRelatedInfo.CITY_PERMISSIONS_UPDATED, EnumPlayerRelatedInfo.CITY_BALANCE, EnumPlayerRelatedInfo.CITY_CRIMINALS_LIST,
@@ -432,6 +433,13 @@ namespace claims.src.auxialiry
                 }
             }
         }
+        public static void AddToQueueConflictPartyInfoUpdate(IConflictParty party, Dictionary<string, object> additionalInfo, EnumPlayerRelatedInfo toUpdate)
+        {
+            foreach (var city in party.GetCities())
+            {
+                AddToQueueCityInfoUpdate(city.Guid, additionalInfo, toUpdate);
+            }
+        }
         public static void CheckCitisUpdatedAndSend()
         {
             if(claims.dataStorage == null)
@@ -458,20 +466,11 @@ namespace claims.src.auxialiry
             {
                 if (CityStatsCashe.TryGetValue(it.Guid, out var stat))
                 {
-                    stat.AllianceName = it?.Alliance.GetPartName() ?? "";
-                    stat.MayorName = it.getMayor()?.GetPartName() ?? "";
-                    stat.Name = it.GetPartName();
-                    stat.InvMsg = it.invMsg;
-                    stat.TimeStampCreated = it.TimeStampCreated;
-                    stat.CitizensAmount = it.getCityCitizens().Count;
-                    stat.Open = it.openCity;
-                    stat.ClaimedPlotsAmount = it.getCityPlots().Count;
+                    stat.UpdateFrom(it);
                 }
                 else
                 {
-                    CityStatsCashe.Add(it.Guid, new ClientCityInfoCellElement(it.getCityCitizens().Count, it.getMayor()?.GetPartName() ?? "",
-                        it.getCityPlots().Count, it?.Alliance.GetPartName() ?? "", it.TimeStampCreated, it.GetPartName(), it.openCity,
-                        it.invMsg, it.Guid));
+                    CityStatsCashe.Add(it.Guid, ClientCityInfoCellElement.FromCity(it));
                 }
             }
             List<ClientCityInfoCellElement> elToSend = new List<ClientCityInfoCellElement>();
@@ -531,6 +530,9 @@ namespace claims.src.auxialiry
                             break;
                         case EnumPlayerRelatedInfo.CITY_NAME:
                             result[pair.Key] = city.GetPartName();
+                            break;
+                        case EnumPlayerRelatedInfo.CITY_GUID:
+                            result[pair.Key] = city.Guid;
                             break;
                         case EnumPlayerRelatedInfo.MAX_COUNT_PLOTS:
                             result[pair.Key] = JsonConvert.SerializeObject(Settings.getPossibleAmountOfPlotsDictForCity(city));
@@ -688,6 +690,15 @@ namespace claims.src.auxialiry
                             if (CityStatsCashe.Count > 0)
                             {
                                 result[pair.Key] = JsonConvert.SerializeObject(CityStatsCashe.Values.ToList());
+                            }
+                            break;
+                        case EnumPlayerRelatedInfo.ALLIANCE_LIST_ALL:
+                            Dictionary<string, ClientAllianceInfoCellElement> AllianceStatsCashe =
+                            ObjectCacheUtil.GetOrCreate<Dictionary<string, ClientAllianceInfoCellElement>>(claims.sapi,
+                            "claims:allianceinfocache", () => new Dictionary<string, ClientAllianceInfoCellElement>());
+                            if (AllianceStatsCashe.Count > 0)
+                            {
+                                result[pair.Key] = JsonConvert.SerializeObject(AllianceStatsCashe.Values.ToList());
                             }
                             break;
                         default:

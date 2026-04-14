@@ -81,7 +81,7 @@ namespace claims.src.gui.playerGui.GuiElements
             double num = GuiElement.scaled(unscaledRightBoxWidth);
             Bounds.CalcWorldBounds();
 
-            string cellName = Lang.Get("claims:gui_conflict_cell_first_line", cell.FirstAllianceName, cell.SecondAllianceName);
+            string cellName = Lang.Get("claims:gui_conflict_cell_first_line", cell.FirstPartyName, cell.SecondPartyName);
             TextExtents textExtents = Font.GetTextExtents(cellName);
             textUtil.AutobreakAndDrawMultilineTextAt(context, Font, cellName, Bounds.absPaddingX, Bounds.absPaddingY + GuiElement.scaled(10), textExtents.Width + 1.0, EnumTextOrientation.Left);
             string expDate = Lang.Get("claims:gui_conflict_cell_started_line", TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(cell.TimeStampCreated, true));
@@ -253,7 +253,7 @@ namespace claims.src.gui.playerGui.GuiElements
             {
                 claims.CANCityGui.CreateNewCityState = CANClaimsGui.EnumUpperWindowSelectedState.ALLIANCE_SEND_PEACE_OFFER_CONFIRM;
                 claims.CANCityGui.selectedString = cell.Guid;
-                string targetAlliance = cell.FirstAllianceName.Equals(claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Name) ? cell.SecondAllianceName : cell.FirstAllianceName;
+                string targetAlliance = cell.FirstPartyName.Equals(claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Name) ? cell.SecondPartyName : cell.FirstPartyName;
                 claims.CANCityGui.secondSelectedString = targetAlliance;
                 claims.CANCityGui.BuildUpperWindow();                
             }

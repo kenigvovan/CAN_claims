@@ -1,7 +1,9 @@
-﻿using System;
+﻿using ImGuiNET;
+using OpenTK.Graphics.OpenGL;
+using System;
 using System.Collections.Generic;
 using System.Numerics;
-using ImGuiNET;
+using System.Threading.Tasks;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.Client.NoObf;
@@ -67,47 +69,51 @@ public class ItemIconAtlas : IDisposable
     }
 
     /// <summary>
-    /// Rebuilds the atlas with the provided items.
-    /// Call this only when the set of items to display changes.
+    /// Adds new items to the atlas without clearing existing ones.
+    /// Already known items are skipped.
     /// </summary>
     public void Build(IEnumerable<ItemStack> stacks)
     {
         if (_frameBuffer == null) return;
 
-        //_itemIndexMap.Clear();
-
-        var uniqueStacks = new List<ItemStack>();
-        var seenKeys = new HashSet<string>();
+        var newStacks = new List<ItemStack>();
 
         foreach (var stack in stacks)
         {
             if (stack == null || stack.Collectible == null) continue;
-
             string key = GetCacheKey(stack);
-
-            if (seenKeys.Add(key))
+            if (!_itemIndexMap.ContainsKey(key))
             {
-                uniqueStacks.Add(stack);
+                newStacks.Add(stack);
             }
         }
 
-        _game.Platform.LoadFrameBuffer(_frameBuffer);
+        if (newStacks.Count == 0) return;
+
         _game.Platform.GlEnableDepthTest();
         _game.Platform.GlDisableCullFace();
         _game.Platform.GlToggleBlend(true);
+
+        // Bind framebuffer WITHOUT clearing — preserve existing icons
         _game.Platform.ClearFrameBuffer(
             _frameBuffer,
             new float[] { 0, 0, 0, 0 },
-            clearColorBuffers: true
+            clearDepthBuffer: true,
+            clearColorBuffers: _itemIndexMap.Count == 0
         );
+
+        OpenTK.Graphics.OpenGL.GL.Viewport(0, 0, AtlasSize, AtlasSize);
 
         _game.OrthoMode(AtlasSize, AtlasSize, true);
 
-        for (var i = 0; i < uniqueStacks.Count; i++)
+        int nextIndex = _itemIndexMap.Count;
+
+        for (var i = 0; i < newStacks.Count; i++)
         {
-            var stack = uniqueStacks[i];
-            int col = i % ItemsPerRow;
-            int row = i / ItemsPerRow;
+            int idx = nextIndex + i;
+            var stack = newStacks[i];
+            int col = idx % ItemsPerRow;
+            int row = idx / ItemsPerRow;
             float x = col * ItemSize;
             float y = row * ItemSize;
 
@@ -143,7 +149,7 @@ public class ItemIconAtlas : IDisposable
 
             _game.Platform.GlScissorFlag(false);
 
-            _itemIndexMap[GetCacheKey(stack)] = i;
+            _itemIndexMap[GetCacheKey(stack)] = idx;
         }
 
         _game.PerspectiveMode();
@@ -182,6 +188,19 @@ public class ItemIconAtlas : IDisposable
             Build([stack]);
             ImGui.Text("?");
         }
+    }
+
+    public void GetUv(ItemStack stack, out Vector2? uv0, out Vector2? uv1)
+    {
+        if (stack == null || stack.Collectible == null || !_itemIndexMap.TryGetValue(GetCacheKey(stack), out int index))
+        {
+            uv0 = null;
+            uv1 = null;
+            return;
+        }
+        GetUv(index, out var a, out var b);
+        uv0 = a;
+        uv1 = b;
     }
 
     private void GetUv(int index, out Vector2 uv0, out Vector2 uv1)

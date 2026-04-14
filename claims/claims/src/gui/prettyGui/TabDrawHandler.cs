@@ -30,6 +30,7 @@ namespace claims.src.gui.prettyGui
             this.TabDictionary.Add(EnumSelectedTab.ConflictInfoPage, new CANConflictInfoTab(capi, iconHandler));
             this.TabDictionary.Add(EnumSelectedTab.CITIESLISTPAGE, new CANCityListTab(capi, iconHandler));
             this.TabDictionary.Add(EnumSelectedTab.UnionLettersPage, new CANUnionLettersTab(capi, iconHandler));
+            this.TabDictionary.Add(EnumSelectedTab.AllianceListPage, new CANAllianceListTab(capi, iconHandler));
             this.iconHandler = iconHandler;
         }
         public void DrawTab(EnumSelectedTab selectedTab)

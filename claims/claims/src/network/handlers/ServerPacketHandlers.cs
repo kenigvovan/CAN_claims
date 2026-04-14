@@ -168,15 +168,24 @@ namespace claims.src.network.handlers
                 {
                     return;
                 }
-                if (!playerInfo.HasAlliance())
+                IConflictParty ourParty;
+                if (playerInfo.HasAlliance())
+                {
+                    if (!playerInfo.Alliance.IsLeader(playerInfo))
+                        return;
+                    ourParty = playerInfo.Alliance;
+                }
+                else if (playerInfo.hasCity())
+                {
+                    if (!playerInfo.City.isMayor(playerInfo))
+                        return;
+                    ourParty = playerInfo.City;
+                }
+                else
                 {
                     return;
                 }
-                Alliance alliance = playerInfo.Alliance;
-                if(!alliance.IsLeader(playerInfo))
-                {
-                    return;
-                }
+
                 Dictionary<EnumPlayerRelatedInfo, string> collector = packet.playerGuiRelatedInfoDictionary;
                 if(!collector.TryGetValue(EnumPlayerRelatedInfo.CLIENT_CONFLICT_SUGGESTED_WARRANGE, out var clientConflictString))
                 {
@@ -187,14 +196,14 @@ namespace claims.src.network.handlers
                 {
                     return;
                 }
-                
+
                 if (!ConflictHandler.TryGetConflictByGuid(ccce.Guid, out var conflict))
                 {
                     return;
                 }
 
                 bool getFirst = true;
-                if(conflict.First.Equals(alliance))
+                if(conflict.First.Equals(ourParty))
                 {
                     conflict.FirstWarRanges = ccce.FirstWarRanges;
                 }
@@ -253,8 +262,8 @@ namespace claims.src.network.handlers
                 ccce.NextBattleDateEnd = conflict.NextBattleDateEnd;
                 ccce.NextBattleDateStart = conflict.NextBattleDateStart;
                 ccce.State = conflict.State;
-                UsefullPacketsSend.AddToQueueAllianceInfoUpdate(conflict.First.Guid, new Dictionary<string, object> { { "value", ccce } } , EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_WARRANGES_UPDATED);
-                UsefullPacketsSend.AddToQueueAllianceInfoUpdate(conflict.Second.Guid, new Dictionary<string, object> { { "value", ccce } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_WARRANGES_UPDATED);
+                UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(conflict.First, new Dictionary<string, object> { { "value", ccce } } , EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_WARRANGES_UPDATED);
+                UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(conflict.Second, new Dictionary<string, object> { { "value", ccce } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_WARRANGES_UPDATED);
             });
         }
         public static List<SelectedWarRange> FindCommonRanges(List<SelectedWarRange> first, List<SelectedWarRange> second)

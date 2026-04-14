@@ -9,6 +9,7 @@ using claims.src.part.structure.conflict;
 using claims.src.perms;
 using claims.src.rights;
 using Newtonsoft.Json;
+using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 
 namespace claims.src.gui.playerGui.structures
@@ -25,6 +26,7 @@ namespace claims.src.gui.playerGui.structures
         public AllianceInfo AllianceInfo { get; set; }
         public Dictionary<string, int> PlayerNextPayments = new();
         public List<ClientCityInfoCellElement> AllCitiesList { get; set; } = new List<ClientCityInfoCellElement>();
+        public List<ClientAllianceInfoCellElement> AllAlliancesList { get; set; } = new List<ClientAllianceInfoCellElement>();
         private Dictionary<EnumPlayerRelatedInfo, Action<string>> AcceptChangeHandlers = new();
         public ClientPlayerInfo()
         {
@@ -74,6 +76,7 @@ namespace claims.src.gui.playerGui.structures
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.OWN_ALLIANCE_REMOVE, OnAllianceRemove);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_LIST_ALL, OnCityListAll);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_LIST_UPDATE, OnCityListUpdate);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_LIST_ALL, OnAllianceListAll);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_NAME, OnAllianceName);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.TO_ALLIANCE_INVITE_ADD, OnAllianceInviteAdd);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_LETTER_ADD, OnAllianceLetterAdd);
@@ -84,6 +87,8 @@ namespace claims.src.gui.playerGui.structures
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ALL, OnAllianceConflictAll);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_PLOT_RECOLOR, OnCityPlotRecolor);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_WARRANGES_UPDATED, OnAllianceConflictWarrangesUpdated);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_WAR_TIME_MARK_START, OnAllianceConflictWarTimeMarkStart);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_WAR_TIME_MARK_END, OnAllianceConflictWarTimeMarkEnd);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_DAY_PAYMENT, OnCityDayPayment);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_PERMISSIONS_UPDATED, OnCityPermissionsUpdated);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_UNION_LETTER_ADD, OnAllianceUnionLetterAdd);
@@ -93,6 +98,7 @@ namespace claims.src.gui.playerGui.structures
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_ALLY_ADDED, OnAllianceAllyAdd);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_ALLY_REMOVED, OnAllianceAllyRemove);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT, OnPlayerNextPaymentDict);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_GUID, OnCityGuid);
         }
         public ClientPlayerInfo(string cityName, string mayorName, long timeStampCreated, List<string> citizens, Dictionary<string, int> maxCountPlots, int countPlots, string prefix,
             string afterName, HashSet<string> cityTitles, EnumShowPlotMovement showPlotMovement, int PlotColor, double cityBalance, List<string> criminals)
@@ -166,6 +172,10 @@ namespace claims.src.gui.playerGui.structures
         private void OnMayorName(string val)
         {
             this.CityInfo.MayorName = val;
+        }
+        private void OnCityGuid(string val)
+        {
+            this.CityInfo.Guid = val;
         }
         private void OnCityName(string val)
         {
@@ -490,6 +500,11 @@ namespace claims.src.gui.playerGui.structures
                 }
             }
         }
+        private void OnAllianceListAll(string val)
+        {
+            List<ClientAllianceInfoCellElement> ai = JsonConvert.DeserializeObject<List<ClientAllianceInfoCellElement>>(val);
+            claims.clientDataStorage.clientPlayerInfo.AllAlliancesList = ai;
+        }
         private void OnAllianceName(string val)
         {
             Tuple<string, string> tup = JsonConvert.DeserializeObject<Tuple<string, string>>(val);
@@ -659,6 +674,38 @@ namespace claims.src.gui.playerGui.structures
                     cell.NextBattleDateEnd = it.NextBattleDateEnd;
                     cell.NextBattleDateStart = it.NextBattleDateStart;
                 }
+            }
+        }
+        private void OnAllianceConflictWarTimeMarkStart(string val)
+        {
+            List<string> guids = JsonConvert.DeserializeObject<List<string>>(val);
+            if (guids == null || guids.Count == 0) return;
+            string conflictGuid = guids[0];
+            ClientConflictCellElement cell = this.CityInfo.ClientConflictCellElements.FirstOrDefault(c => c.Guid == conflictGuid);
+            if (cell != null)
+            {
+                cell.ActiveWarTime = true;
+            }
+            var player = claims.capi?.World?.Player;
+            if (player != null)
+            {
+                claims.capi.World.PlaySoundAt(new AssetLocation("game:sounds/effect/deepbell"), player.Entity, null, false, 32f, 0.5f);
+            }
+        }
+        private void OnAllianceConflictWarTimeMarkEnd(string val)
+        {
+            List<string> guids = JsonConvert.DeserializeObject<List<string>>(val);
+            if (guids == null || guids.Count == 0) return;
+            string conflictGuid = guids[0];
+            ClientConflictCellElement cell = this.CityInfo.ClientConflictCellElements.FirstOrDefault(c => c.Guid == conflictGuid);
+            if (cell != null)
+            {
+                cell.ActiveWarTime = false;
+            }
+            var player = claims.capi?.World?.Player;
+            if (player != null)
+            {
+                claims.capi.World.PlaySoundAt(new AssetLocation("game:sounds/effect/deepbell"), player.Entity, null, false, 32f, 0.5f);
             }
         }
         private void OnCityDayPayment(string val)

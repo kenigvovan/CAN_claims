@@ -52,6 +52,7 @@ namespace claims.src.gui.playerGui
         public int claimsPerPage = 3;
         public int selectedColor = -1;
         public int SelectedTabGroup = 0;
+        public EnumSelectedTab ConflictSourceTab = EnumSelectedTab.AllianceInfoPage;
         public enum EnumSelectedWarRangesTab
         {
             APPROVED, SUGGESTIONS
@@ -1823,7 +1824,7 @@ namespace claims.src.gui.playerGui
                 }
                 else
                 {
-                    if (claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Name.Equals(cell.FirstAllianceName))
+                    if (claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Name.Equals(cell.FirstPartyName))
                     {
                         ConflictPage.FillTwoWarRangesArrays(cell.FirstWarRanges, cell.SecondWarRanges);
                     }

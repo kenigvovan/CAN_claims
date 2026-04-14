@@ -100,7 +100,7 @@ namespace claims.src.gui.playerGui.GuiPages
 
             compo.AddIconButton("claims:vertical-banner", new Action<bool>((b) =>
             {
-                gui.SelectedTab = EnumSelectedTab.AllianceInfoPage;
+                gui.SelectedTab = gui.ConflictSourceTab;
                 gui.BuildMainWindow();
                 return;
             }), nextIconBounds);
@@ -188,7 +188,7 @@ namespace claims.src.gui.playerGui.GuiPages
 
             compo.AddIconButton("claims:vertical-banner", new Action<bool>((b) =>
             {
-                gui.SelectedTab = EnumSelectedTab.AllianceInfoPage;
+                gui.SelectedTab = gui.ConflictSourceTab;
                 gui.BuildMainWindow();
                 return;
             }), nextIconBounds);
@@ -240,7 +240,7 @@ namespace claims.src.gui.playerGui.GuiPages
                 return;
             }
 
-            compo.AddStaticText(string.Format("{0} x {1}", cell.FirstAllianceName, cell.SecondAllianceName),
+            compo.AddStaticText(string.Format("{0} x {1}", cell.FirstPartyName, cell.SecondPartyName),
                                             CairoFont.WhiteMediumText().WithOrientation(EnumTextOrientation.Center),
                                             invitationTextBounds);
             currentBounds = invitationTextBounds.BelowCopy();
@@ -287,7 +287,7 @@ namespace claims.src.gui.playerGui.GuiPages
                         }
                         else
                         {
-                            if (claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Name.Equals(cell.FirstAllianceName))
+                            if (claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Name.Equals(cell.FirstPartyName))
                             {
                                 FillTwoWarRangesArrays(cell.FirstWarRanges, cell.SecondWarRanges);
                             }
@@ -459,7 +459,7 @@ namespace claims.src.gui.playerGui.GuiPages
                     }
 
                 searchedAll:
-                    if (cell.FirstAllianceName.Equals(claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Name))
+                    if (cell.FirstPartyName.Equals(claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Name))
                     {
                         cell.FirstWarRanges = selectedWarRanges;
                     }

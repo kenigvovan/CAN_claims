@@ -91,7 +91,7 @@ namespace claims.src.beb
             this.CapturedPercent += GameMath.Clamp(1.0f - this.CapturedPercent, -deltaTime / this.captureDuration, deltaTime / this.captureDuration);
             if (this.Api.Side == EnumAppSide.Server)
             {               
-                if (this.CapturedPercent == 1f)
+                if (this.CapturedPercent >= 1f)
                 {
                     if (this.captureRef.HasValue) this.Api.Event.UnregisterGameTickListener(this.captureRef.Value);
                     this.captureRef = null;
@@ -126,10 +126,71 @@ namespace claims.src.beb
                     }
                     if (defenderPlot.getCity().getCityPlots().Count == 1)
                     {
-                        //TODO
-                        //remove city and update all
+                        City defenderCity = defenderPlot.getCity();
                         warTime.PlotAttacks.Remove(PlotPosition.fromBlockPos(this.Pos));
                         TimesToBreak = 0;
+
+                        if (claims.config.SEND_ANNOUNCEMENTS_PLOT_WAS_CAPTURED)
+                        {
+                            IConflictParty defenderParty = defenderCity.HasAlliance()
+                                ? (IConflictParty)defenderCity.Alliance
+                                : (IConflictParty)defenderCity;
+                            IConflictParty attackerParty = attackerCity.HasAlliance()
+                                ? (IConflictParty)attackerCity.Alliance
+                                : (IConflictParty)attackerCity;
+
+                            MessageHandler.SendMsgInAlliance(defenderParty,
+                                Lang.Get("claims:city_destroyed_by_war", defenderCity.GetPartName(), attackerCity.GetPartName()));
+                            MessageHandler.SendMsgInAlliance(attackerParty,
+                                Lang.Get("claims:we_destroyed_city", defenderCity.GetPartName()));
+                        }
+
+                        if (defenderCity.HasAlliance())
+                        {
+                            Alliance alliance = defenderCity.Alliance;
+                            alliance.Cities.Remove(defenderCity);
+                            foreach (var hostileParty in alliance.HostileParties)
+                            {
+                                foreach (var hosCity in hostileParty.GetCities())
+                                {
+                                    hosCity.HostileCities.Remove(defenderCity);
+                                    hosCity.saveToDatabase();
+                                }
+                            }
+                            foreach (var comradeAlliance in alliance.ComradAlliancies)
+                            {
+                                foreach (var comCity in comradeAlliance.Cities)
+                                {
+                                    comCity.ComradeCities.Remove(defenderCity);
+                                    comCity.saveToDatabase();
+                                }
+                            }
+                            defenderCity.Alliance = null;
+                            if (alliance.Cities.Count == 0)
+                            {
+                                PartDemolition.DemolishAlliance(alliance);
+                            }
+                            else
+                            {
+                                if (alliance.MainCity != null && alliance.MainCity.Equals(defenderCity))
+                                {
+                                    City newMain = alliance.Cities[0];
+                                    alliance.MainCity = newMain;
+                                    alliance.Leader = newMain.getMayor();
+                                }
+                                alliance.saveToDatabase();
+                                UsefullPacketsSend.AddToQueueAllianceInfoUpdate(alliance.Guid,
+                                    new Dictionary<string, object> { { "value", alliance.Guid } }, EnumPlayerRelatedInfo.NEW_ALLIANCE_ALL);
+                            }
+                        }
+
+                        foreach (var runningConflict in defenderCity.RunningConflicts.ToArray())
+                        {
+                            PartDemolition.DemolishConflict(runningConflict);
+                        }
+
+                        PartDemolition.demolishCity(defenderCity, string.Format("Last plot captured by {0}", attackerCity.GetPartName()));
+
                         this.Api.Event.RegisterCallback((float ft) =>
                         {
                             this.Api.World.BlockAccessor.BreakBlock(this.Pos, null);
@@ -168,19 +229,27 @@ namespace claims.src.beb
                         }, 1000);
                         if (claims.config.SEND_ANNOUNCEMENTS_PLOT_WAS_CAPTURED)
                         {
-                            StringBuilder sb = new();
+                            IConflictParty defenderParty = defenderCity.HasAlliance()
+                                ? (IConflictParty)defenderCity.Alliance
+                                : (IConflictParty)defenderCity;
+                            IConflictParty attackerParty = attackerCity.HasAlliance()
+                                ? (IConflictParty)attackerCity.Alliance
+                                : (IConflictParty)attackerCity;
+
                             if (claims.config.SEND_COORDS_OF_PLOT_WAS_CAPTURED)
                             {
                                 var localPos = PosFunctions.TranslateCoordsToLocalVec3d(this.Api, this.Pos);
-                                sb.Append(Lang.Get("claims:our_city_is_under_attack_on_pos", defenderCity.GetPartName(), localPos.X, localPos.Y, localPos.Z));
+                                MessageHandler.SendMsgInAlliance(defenderParty,
+                                    Lang.Get("claims:our_city_plot_was_captured_on_pos", defenderCity.GetPartName(), attackerCity.GetPartName(), localPos.X, localPos.Y, localPos.Z));
+                                MessageHandler.SendMsgInAlliance(attackerParty,
+                                    Lang.Get("claims:we_captured_plot_on_pos", defenderCity.GetPartName(), localPos.X, localPos.Y, localPos.Z));
                             }
                             else
                             {
-                                sb.Append(Lang.Get("claims:our_city_is_under_attack", defenderCity.GetPartName()));
-                            }
-                            if (defenderCity.HasAlliance())
-                            {
-                                MessageHandler.SendMsgInAlliance(defenderCity.Alliance, sb.ToString());
+                                MessageHandler.SendMsgInAlliance(defenderParty,
+                                    Lang.Get("claims:our_city_plot_was_captured", defenderCity.GetPartName(), attackerCity.GetPartName()));
+                                MessageHandler.SendMsgInAlliance(attackerParty,
+                                    Lang.Get("claims:we_captured_plot", defenderCity.GetPartName()));
                             }
                         }
                         return;
@@ -194,25 +263,31 @@ namespace claims.src.beb
             {
                 if (this.updateRef == null)
                 {
-                    if (!claims.dataStorage.GetPlayerByUid(byPlayer.PlayerUID, out var playerInfo) || !playerInfo.HasAlliance())
+                    if (!claims.dataStorage.GetPlayerByUid(byPlayer.PlayerUID, out var playerInfo) || !playerInfo.hasCity())
                     {
                         return;
                     }
-                    Alliance alliance = playerInfo.Alliance;
+                    IConflictParty attackerParty = playerInfo.HasAlliance()
+                        ? (IConflictParty)playerInfo.Alliance
+                        : (IConflictParty)playerInfo.City;
                     PlotPosition currentPlotPosition = PlotPosition.fromBlockPos(this.Pos);
                     if (!claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere))
                     {
                         return;
                     }
-                    if (!plotHere.getCity()?.HasAlliance() ?? false)
+                    City defenderCity = plotHere.getCity();
+                    if (defenderCity == null)
                     {
                         return;
                     }
-                    if (plotHere.getCity().Alliance.Equals(playerInfo.Alliance))
+                    IConflictParty defenderParty = defenderCity.HasAlliance()
+                        ? (IConflictParty)defenderCity.Alliance
+                        : (IConflictParty)defenderCity;
+                    if (attackerParty.Equals(defenderParty))
                     {
                         return;
                     }
-                    if (!ConflictHandler.TryGetConflictWithSides(alliance, plotHere.getCity().Alliance, out var conflict))
+                    if (!ConflictHandler.TryGetConflictWithSides(attackerParty, defenderParty, out var conflict))
                     {
                         return;
                     }
@@ -233,7 +308,7 @@ namespace claims.src.beb
                         return;
                     }
 
-                    this.AllianceGuid = alliance.Guid;
+                    this.AllianceGuid = playerInfo.HasAlliance() ? playerInfo.Alliance.Guid : null;
                     this.CityGuid = playerInfo.City.Guid;
                     this.ConflictGuid = conflict.Guid;
                     this.PlayerGuid = playerInfo.Guid;
@@ -265,14 +340,14 @@ namespace claims.src.beb
                         if(claims.config.SEND_COORDS_OF_PLOT_IN_UNDER_ATTACK)
                         {
                             var localPos = PosFunctions.TranslateCoordsToLocalVec3d(this.Api, this.Pos);
-                            sb.Append(Lang.Get("claims:our_city_is_under_attack_on_pos", plotHere.getCity().GetPartName(), localPos.X, localPos.Y, localPos.Z));
+                            sb.Append(Lang.Get("claims:our_city_is_under_attack_on_pos", defenderCity.GetPartName(), localPos.X, localPos.Y, localPos.Z));
                         }
                         else
                         {
-                            sb.Append(Lang.Get("claims:our_city_is_under_attack", plotHere.getCity().GetPartName()));
+                            sb.Append(Lang.Get("claims:our_city_is_under_attack", defenderCity.GetPartName()));
                         }
 
-                        MessageHandler.SendMsgInAlliance(alliance, sb.ToString());
+                        MessageHandler.SendMsgInAlliance(defenderParty, sb.ToString());
                     }
                 }
             }

@@ -64,7 +64,7 @@ namespace claims.src.commands
                 return TextCommandResult.Error("claims:no_such_player");
             }
 
-            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z), out Plot plot);
+            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z), out Plot plot);
             if (plot == null)
             {
                 return TextCommandResult.Error("claims:no_plots_here");

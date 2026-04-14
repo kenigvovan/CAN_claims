@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using claims.src.auxialiry;
 using claims.src.commands;
+using claims.src.gui.playerGui.structures;
 using claims.src.gui.playerGui.structures.cellElements;
 using claims.src.messages;
 using claims.src.part.structure;
@@ -121,20 +122,25 @@ namespace claims.src.events
             {
                 if (CityStatsCashe.TryGetValue(it.Guid, out var stat))
                 {
-                    stat.AllianceName = it?.Alliance.GetPartName() ?? "";
-                    stat.MayorName = it.getMayor()?.GetPartName() ?? "";
-                    stat.Name = it.GetPartName();
-                    stat.InvMsg = it.invMsg;
-                    stat.TimeStampCreated = it.TimeStampCreated;
-                    stat.CitizensAmount = it.getCityCitizens().Count;
-                    stat.Open = it.openCity;
-                    stat.ClaimedPlotsAmount = it.getCityPlots().Count;
+                    stat.UpdateFrom(it);
                 }
                 else
                 {
-                    CityStatsCashe.Add(it.Guid, new ClientCityInfoCellElement(it.getCityCitizens().Count, it.getMayor()?.GetPartName() ?? "",
-                        it.getCityPlots().Count, it.Alliance?.GetPartName() ?? "", it.TimeStampCreated, it.GetPartName(), it.openCity,
-                        it.invMsg, it.Guid));
+                    CityStatsCashe.Add(it.Guid, ClientCityInfoCellElement.FromCity(it));
+                }
+            }
+            Dictionary<string, ClientAllianceInfoCellElement> AllianceStatsCashe =
+                ObjectCacheUtil.GetOrCreate<Dictionary<string, ClientAllianceInfoCellElement>>(claims.sapi,
+                "claims:allianceinfocache", () => new Dictionary<string, ClientAllianceInfoCellElement>());
+            foreach (var it in claims.dataStorage.getAllAlliances())
+            {
+                if (AllianceStatsCashe.TryGetValue(it.Guid, out var stat))
+                {
+                    stat.UpdateFrom(it);
+                }
+                else
+                {
+                    AllianceStatsCashe.Add(it.Guid, ClientAllianceInfoCellElement.FromAlliance(it));
                 }
             }
             ReculculateNextBattleTimes();
@@ -202,8 +208,10 @@ namespace claims.src.events
                                         startWarCallbacks.Remove(conflict.Guid);
                                     }
                                     RightsHandler.ClearPlayerCachesAndUpdatePlotSavedRightsForClients(conflict);
+                                    UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(conflict.First, new Dictionary<string, object> { { "value", conflict.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_WAR_TIME_MARK_START);
+                                    UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(conflict.Second, new Dictionary<string, object> { { "value", conflict.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_WAR_TIME_MARK_START);
                                     MessageHandler.SendMsgInAlliance(conflict.First, Lang.Get("claims:battle_started_with", conflict.Second.GetPartName()));
-                                    MessageHandler.SendMsgInAlliance(conflict.Second, Lang.Get("claims:battle_started_with", conflict.First.GetPartName()));                                  
+                                    MessageHandler.SendMsgInAlliance(conflict.Second, Lang.Get("claims:battle_started_with", conflict.First.GetPartName()));
                                     MessageHandler.SendDiscoveryToAlliance(conflict.First, "ingamediscovery-battle-start", Lang.Get("claims:ingamediscovery-battle-start", conflict.Second.GetPartName()), new object[] { });
                                     MessageHandler.SendDiscoveryToAlliance(conflict.Second, "ingamediscovery-battle-start", Lang.Get("claims:ingamediscovery-battle-start", conflict.First.GetPartName()), new object[] { });
                                 }
@@ -214,14 +222,19 @@ namespace claims.src.events
                 }
             }
         }
+        public static Dictionary<string, long> endWarCallbacks = new Dictionary<string, long>();
         public static void CheckWarToEnd()
         {
             foreach(var wartime in claims.dataStorage.WarsTimes)
             {
-                if ((wartime.Value.BattleDateEnd + TimeSpan.FromSeconds(claims.config.CHECK_FOR_WAR_TO_START_EVERY_N_SECONDS)) < DateTime.Now)
+                if (!endWarCallbacks.ContainsKey(wartime.Value.ConflictGuid))
                 {
-                    claims.sapi.Event.RegisterCallback((float dt) =>
+                    int delayMs = (int)(wartime.Value.BattleDateEnd - DateTime.Now).TotalMilliseconds;
+                    if (delayMs < 2000) delayMs = 2000;
+
+                    long callbackId = claims.sapi.Event.RegisterCallback((float dt) =>
                     {
+                        endWarCallbacks.Remove(wartime.Value.ConflictGuid);
                         if (claims.dataStorage.WarsTimes.ContainsKey(wartime.Value.ConflictGuid))
                         {
                             claims.dataStorage.WarsTimes.Remove(wartime.Value.ConflictGuid);
@@ -233,16 +246,16 @@ namespace claims.src.events
                             {
                                 claims.sapi.World.Logger.Error("Conflict with guid {0} not found in data storage when trying to end war time.", wartime.Value.ConflictGuid);
                             }
-                            //TODO
-                            //reapply caches for players so they cannot break/place blocks in border plots
-                            //remove flags for capturing if not ticked to an end
                             RightsHandler.ClearPlayerCachesAndUpdatePlotSavedRightsForClients(conflict);
+                            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(conflict.First, new Dictionary<string, object> { { "value", conflict.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_WAR_TIME_MARK_END);
+                            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(conflict.Second, new Dictionary<string, object> { { "value", conflict.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_WAR_TIME_MARK_END);
                             MessageHandler.SendMsgInAlliance(conflict.First, Lang.Get("claims:battle_ended_with", conflict.Second.GetPartName()));
                             MessageHandler.SendMsgInAlliance(conflict.Second, Lang.Get("claims:battle_ended_with", conflict.First.GetPartName()));
                             MessageHandler.SendDiscoveryToAlliance(conflict.First, "ingamediscovery-battle-end", Lang.Get("claims:ingamediscovery-battle-end", conflict.Second.GetPartName()), new object[] { });
                             MessageHandler.SendDiscoveryToAlliance(conflict.Second, "ingamediscovery-battle-end", Lang.Get("claims:ingamediscovery-battle-end", conflict.First.GetPartName()), new object[] { });
                         }
-                    }, ((wartime.Value.BattleDateEnd - DateTime.Now).Seconds < 0 ? 2 : (wartime.Value.BattleDateEnd - DateTime.Now).Seconds) * 1000);
+                    }, delayMs);
+                    endWarCallbacks[wartime.Value.ConflictGuid] = callbackId;
                 }
             }
         }
