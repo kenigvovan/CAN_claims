@@ -91,6 +91,11 @@ namespace claims.src
                 return CallbackGUIStatus.Closed;
             }
 
+            if (ImGui.IsKeyPressed(ImGuiKey.Escape))
+            {
+                this.prettyGuiState.IsOpen = false;
+            }
+
             ImGuiWindowFlags flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoScrollbar
                  | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoInputs;
             ImGuiWindowFlags flags1 =

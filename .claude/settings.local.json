@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find C:\\\\Users\\\\koeni\\\\source\\\\repos\\\\CAN_claims:*)"
+    ]
+  }
+}

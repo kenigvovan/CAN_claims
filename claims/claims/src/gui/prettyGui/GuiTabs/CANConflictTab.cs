@@ -37,6 +37,13 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.Text($"Sides: {conflict.FirstPartyName} ({firstType}) x {conflict.SecondPartyName} ({secondType})");
                 ImGui.Text($"Started: {Lang.Get("claims:gui_conflict_cell_started_line", TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(conflict.TimeStampCreated, true))}");
 
+                if (conflict.ActiveWarTime)
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.2f, 0.2f, 1.0f));
+                    ImGui.Text(Lang.Get("claims:gui_battle_active"));
+                    ImGui.PopStyleColor();
+                }
+
                 if (ImGui.Button("Peace offer"))
                 {
                     capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.ALLIANCE_SEND_PEACE_OFFER_CONFIRM;

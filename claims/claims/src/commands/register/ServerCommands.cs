@@ -2219,7 +2219,7 @@ namespace claims.src.commands.register
                     .HandleWith(commands.CAdminCommand.processBackup)
                 .EndSub()
                 .BeginSub("startwar")
-                    .WithArgs(parsers.Word("firstAlliance"), parsers.Word("secondAlliance"))
+                    .WithArgs(parsers.Word("firstParty"), parsers.Word("secondParty"))
                     .WithPreCondition((TextCommandCallingArgs args) => {
 
                         if (args.Caller.Player is IServerPlayer player)
@@ -2234,6 +2234,23 @@ namespace claims.src.commands.register
                         return TextCommandResult.Error("");
                     })
                     .HandleWith(commands.CAdminCommand.StartWarTime)
+                .EndSub()
+                .BeginSub("setbattledate")
+                    .WithArgs(parsers.Word("firstParty"), parsers.Word("secondParty"), parsers.OptionalInt("minutesUntilStart"), parsers.OptionalInt("battleDurationMinutes"))
+                    .WithPreCondition((TextCommandCallingArgs args) => {
+
+                        if (args.Caller.Player is IServerPlayer player)
+                        {
+                            if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
+                            {
+                                return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
+                            }
+                            return TextCommandResult.Success();
+
+                        }
+                        return TextCommandResult.Error("");
+                    })
+                    .HandleWith(commands.CAdminCommand.SetBattleDate)
                 .EndSub()
                 ;
         }            

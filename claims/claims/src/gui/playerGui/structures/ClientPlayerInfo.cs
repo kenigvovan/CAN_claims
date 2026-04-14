@@ -9,6 +9,7 @@ using claims.src.part.structure.conflict;
 using claims.src.perms;
 using claims.src.rights;
 using Newtonsoft.Json;
+using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 
 namespace claims.src.gui.playerGui.structures
@@ -86,6 +87,8 @@ namespace claims.src.gui.playerGui.structures
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ALL, OnAllianceConflictAll);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_PLOT_RECOLOR, OnCityPlotRecolor);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_WARRANGES_UPDATED, OnAllianceConflictWarrangesUpdated);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_WAR_TIME_MARK_START, OnAllianceConflictWarTimeMarkStart);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_WAR_TIME_MARK_END, OnAllianceConflictWarTimeMarkEnd);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_DAY_PAYMENT, OnCityDayPayment);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_PERMISSIONS_UPDATED, OnCityPermissionsUpdated);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_UNION_LETTER_ADD, OnAllianceUnionLetterAdd);
@@ -671,6 +674,38 @@ namespace claims.src.gui.playerGui.structures
                     cell.NextBattleDateEnd = it.NextBattleDateEnd;
                     cell.NextBattleDateStart = it.NextBattleDateStart;
                 }
+            }
+        }
+        private void OnAllianceConflictWarTimeMarkStart(string val)
+        {
+            List<string> guids = JsonConvert.DeserializeObject<List<string>>(val);
+            if (guids == null || guids.Count == 0) return;
+            string conflictGuid = guids[0];
+            ClientConflictCellElement cell = this.CityInfo.ClientConflictCellElements.FirstOrDefault(c => c.Guid == conflictGuid);
+            if (cell != null)
+            {
+                cell.ActiveWarTime = true;
+            }
+            var player = claims.capi?.World?.Player;
+            if (player != null)
+            {
+                claims.capi.World.PlaySoundAt(new AssetLocation("game:sounds/effect/deepbell"), player.Entity, null, false, 32f, 0.5f);
+            }
+        }
+        private void OnAllianceConflictWarTimeMarkEnd(string val)
+        {
+            List<string> guids = JsonConvert.DeserializeObject<List<string>>(val);
+            if (guids == null || guids.Count == 0) return;
+            string conflictGuid = guids[0];
+            ClientConflictCellElement cell = this.CityInfo.ClientConflictCellElements.FirstOrDefault(c => c.Guid == conflictGuid);
+            if (cell != null)
+            {
+                cell.ActiveWarTime = false;
+            }
+            var player = claims.capi?.World?.Player;
+            if (player != null)
+            {
+                claims.capi.World.PlaySoundAt(new AssetLocation("game:sounds/effect/deepbell"), player.Entity, null, false, 32f, 0.5f);
             }
         }
         private void OnCityDayPayment(string val)

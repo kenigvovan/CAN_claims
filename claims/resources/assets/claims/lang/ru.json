@@ -272,6 +272,7 @@
   "alliance_wont_be_created": "Альянс не будет создан.",
   "help_agreement_new_alliance": "Используйте команду для подтверждения создания альянса.",
   "no_such_alliance": "Альянс с данным именем не найден.",
+  "no_such_alliance_or_city": "Альянс или город с именем {0} не найден.",
   "you_are_conquared": "Ваш альянс был захвачен.",
   "conflict_already_exists": "Конфликт уже создан.",
   "target_alliance_already_conquared": "Данный альянс уже захвачен.",
@@ -324,6 +325,13 @@
   "gui-off": "выкл",
 
   //maingui
+  "gui_battle_active": "БИТВА ИДЁТ",
+  "our_city_plot_was_captured_on_pos": "Участок города {0} был захвачен {1} на координатах {2}/{3}/{4}.",
+  "our_city_plot_was_captured": "Участок города {0} был захвачен {1}.",
+  "we_captured_plot_on_pos": "Мы захватили участок города {0} на координатах {1}/{2}/{3}!",
+  "we_captured_plot": "Мы захватили участок города {0}!",
+  "city_destroyed_by_war": "Город {0} был уничтожен {1} в войне!",
+  "we_destroyed_city": "Мы уничтожили город {0}!",
   "gui_main_city_name": "Город: <font color=\"green\">{0}</font>",
   "gui_main_city_mayor": "Мэр: <font color=\"green\">{0}</font>",
   "gui_main_city_population_count": "Жители: <font color=\"green\">{0}</font>",

@@ -331,7 +331,7 @@ namespace claims.src
                                 newConflict.State, newConflict.Guid,
                                 newConflict.MinimumDaysBetweenBattles, newConflict.LastBattleDateStart, newConflict.LastBattleDateEnd,
                                 newConflict.NextBattleDateStart, newConflict.NextBattleDateEnd, newConflict.WarRanges, newConflict.FirstWarRanges,
-                                newConflict.SecondWarRanges, newConflict.TimeStampStarted);
+                                newConflict.SecondWarRanges, newConflict.TimeStampStarted, newConflict.ActiveWarTime);
                     UsefullPacketsSend.AddToQueueAllianceInfoUpdate(first.Guid,
                                 new Dictionary<string, object> { { "value", allyConflictCell } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
                     UsefullPacketsSend.AddToQueueAllianceInfoUpdate(second.Guid,

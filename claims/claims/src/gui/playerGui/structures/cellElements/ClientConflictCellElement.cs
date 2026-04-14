@@ -25,11 +25,12 @@ namespace claims.src.gui.playerGui.structures.cellElements
         public List<SelectedWarRange> FirstWarRanges { get; set; } = new List<SelectedWarRange>();
         public List<SelectedWarRange> SecondWarRanges { get; set; } = new List<SelectedWarRange>();
         public long TimeStampCreated { get; set; }
+        public bool ActiveWarTime { get; set; }
         public ClientConflictCellElement(string name, string firstAllianceName, string firstPartyGuid, WarTargetType firstPartyType,
                                          string secondAllianceName, string secondPartyGuid, WarTargetType secondPartyType,
                                          string startedByAllianceName, ConflictState state, string guid, int minimumDaysBetweenBattles,
                                          DateTime lastBattleDateStart, DateTime lastBattleDateEnd, DateTime nextBattleDateStart, DateTime nextBattleDateEnd, List<SelectedWarRange> warRanges, List<SelectedWarRange> firtstWarRanges,
-                                         List<SelectedWarRange> secondWarRanges, long timeStampCreated)
+                                         List<SelectedWarRange> secondWarRanges, long timeStampCreated, bool activeWarTime = false)
         {
             Name = name;
             FirstPartyName = firstAllianceName;
@@ -50,6 +51,7 @@ namespace claims.src.gui.playerGui.structures.cellElements
             LastBattleDateEnd = lastBattleDateEnd;
             NextBattleDateStart = nextBattleDateStart;
             NextBattleDateEnd = nextBattleDateEnd;
+            ActiveWarTime = activeWarTime;
         }
     }
 }

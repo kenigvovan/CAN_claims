@@ -131,6 +131,13 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ? Lang.Get("claims:conflict_target_alliance") : Lang.Get("claims:conflict_target_city");
             ImGui.Text(string.Format("{0} ({1}) x {2} ({3})", cell.FirstPartyName, firstTypeLabel, cell.SecondPartyName, secondTypeLabel));
 
+            if (cell.ActiveWarTime)
+            {
+                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.2f, 0.2f, 1.0f));
+                ImGui.Text(Lang.Get("claims:gui_battle_active"));
+                ImGui.PopStyleColor();
+            }
+
             ImGui.Text(Lang.Get("claims:gui_last_start_end_battle",
                 TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.LastBattleDateStart).ToUnixTimeSeconds()),
                 TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.LastBattleDateEnd).ToUnixTimeSeconds())));
@@ -357,19 +364,31 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     ?? claims.clientDataStorage.clientPlayerInfo.CityInfo?.Name ?? "";
                 string ourPartyGuid = ourName.Equals(cell.FirstPartyName) ? cell.FirstPartyGuid : cell.SecondPartyGuid;
 
+                int activeTab = capi.ModLoader.GetModSystem<claimsGui>().selectedWarrangeTab;
+                bool[][] warRangesByDay = new bool[7][];
+                for (int d = 0; d < 7; d++)
+                {
+                    if (activeTab == 0)
+                    {
+                        warRangesByDay[d] = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientWarRangeCellElements[d].WarRangeArray;
+                    }
+                    else
+                    {
+                        warRangesByDay[d] = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientTwoWarRangesCellElement[d].OurWarRangeArray;
+                    }
+                }
+
                 List<SelectedWarRange> selectedWarRanges = new List<SelectedWarRange>();
                 int? startIndex = null;
                 int? savedStartIndex = null;
                 DayOfWeek? startDay = null;
                 DayOfWeek? savedStartDay = null;
                 bool? lastCellState = null;
-                bool firstGo = true;
                 //try find start of range
 
                 for (int day = 0; day < 8; day++)
                 {
-                    var currDay = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientTwoWarRangesCellElement[day % 7];
-                    var warRange = currDay.OurWarRangeArray;
+                    var warRange = warRangesByDay[day % 7];
                     for (int i = 0; i < 48; i++)
                     {
                         //find start of the range
@@ -388,17 +407,18 @@ namespace claims.src.gui.prettyGui.GuiTabs
             foundStart:
                 if (startIndex == null)
                 {
-                    startIndex = 0;
-                    startDay = DayOfWeek.Sunday;
+                    return;
                 }
                 bool firstStart = true;
                 for (int day = 0; day < 8; day++)
                 {
-                    ClientTwoWarRangesCellElement it = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientTwoWarRangesCellElement[((int)startDay + day) % 7];
+                    int dayIndex = ((int)startDay + day) % 7;
+                    var currentWarRange = warRangesByDay[dayIndex];
+                    DayOfWeek currentDayOfWeek = (DayOfWeek)dayIndex;
 
                     for (int i = (startIndex.HasValue && firstStart) ? startIndex.Value : 0; i < 48; i++)
                     {
-                        if (it.DayOfWeek == savedStartDay)
+                        if (currentDayOfWeek == savedStartDay)
                         {
                             if (savedStartIndex != null && i == savedStartIndex - 1)
                             {
@@ -406,24 +426,24 @@ namespace claims.src.gui.prettyGui.GuiTabs
                                 {
                                     int startDayNum = (int)startDay;
                                     int startMinutes = startDayNum * 24 * 60 + (startIndex ?? 0) * 30;
-                                    int endMinutes = ((int)it.DayOfWeek) * 24 * 60 + i * 30;
+                                    int endMinutes = (int)currentDayOfWeek * 24 * 60 + i * 30;
                                     int diff = endMinutes - startMinutes;
                                     if (diff < 0)
                                     {
                                         diff += 7 * 24 * 60;
                                     }
-                                    selectedWarRanges.Add(new SelectedWarRange((startDay ?? DayOfWeek.Sunday), it.DayOfWeek,
-                                        new TimeSpan(hours: (i * 30) / 60, minutes: (i * 30) % 60, seconds: 0),
+                                    selectedWarRanges.Add(new SelectedWarRange((startDay ?? DayOfWeek.Sunday), currentDayOfWeek,
+                                        new TimeSpan(hours: ((startIndex ?? 0) * 30) / 60, minutes: ((startIndex ?? 0) * 30) % 60, seconds: 0),
                                         TimeSpan.FromMinutes(diff), ourPartyGuid));
                                 }
                                 goto searchedAll;
                             }
                         }
-                        if (it.OurWarRangeArray[i])
+                        if (currentWarRange[i])
                         {
                             if (startIndex == null)
                             {
-                                startDay = it.DayOfWeek;
+                                startDay = currentDayOfWeek;
                                 startIndex = i;
                             }
                         }
@@ -433,17 +453,16 @@ namespace claims.src.gui.prettyGui.GuiTabs
                             {
                                 int startDayNum = (int)startDay;
                                 int startMinutes = startDayNum * 24 * 60 + (startIndex ?? 0) * 30;
-                                int endMinutes = ((int)it.DayOfWeek) * 24 * 60 + i * 30;
+                                int endMinutes = (int)currentDayOfWeek * 24 * 60 + i * 30;
                                 int diff = endMinutes - startMinutes;
                                 if (diff < 0)
                                 {
                                     diff += 7 * 24 * 60;
                                 }
-                                selectedWarRanges.Add(new SelectedWarRange((startDay ?? DayOfWeek.Sunday), it.DayOfWeek,
+                                selectedWarRanges.Add(new SelectedWarRange((startDay ?? DayOfWeek.Sunday), currentDayOfWeek,
                                     new TimeSpan(hours: ((startIndex ?? 0) * 30) / 60, minutes: ((startIndex ?? 0) * 30) % 60, seconds: 0),
                                     TimeSpan.FromMinutes(diff), ourPartyGuid));
                                 startIndex = null;
-                                //startDay = null;
                             }
                         }
                         firstStart = false;

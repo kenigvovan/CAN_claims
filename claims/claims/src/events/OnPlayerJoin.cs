@@ -80,7 +80,7 @@ namespace claims.src.events
                         it.Second.GetPartName(), it.Second.Guid, WarTargetTypeHelper.FromConflictParty(it.Second),
                         it.StartedBy.GetPartName(), it.State, it.Guid,
                         it.MinimumDaysBetweenBattles, it.LastBattleDateStart, it.LastBattleDateEnd, it.NextBattleDateStart, it.NextBattleDateEnd,
-                        it.WarRanges, it.FirstWarRanges, it.SecondWarRanges, it.TimeStampStarted));
+                        it.WarRanges, it.FirstWarRanges, it.SecondWarRanges, it.TimeStampStarted, it.ActiveWarTime));
                 }
                 if (lic.Count > 0)
                 {
@@ -121,7 +121,7 @@ namespace claims.src.events
                         it.Second.GetPartName(), it.Second.Guid, WarTargetTypeHelper.FromConflictParty(it.Second),
                         it.StartedBy.GetPartName(), it.State, it.Guid,
                         it.MinimumDaysBetweenBattles, it.LastBattleDateStart, it.LastBattleDateEnd, it.NextBattleDateStart, it.NextBattleDateEnd,
-                        it.WarRanges, it.FirstWarRanges, it.SecondWarRanges, it.TimeStampStarted));
+                        it.WarRanges, it.FirstWarRanges, it.SecondWarRanges, it.TimeStampStarted, it.ActiveWarTime));
                 }
                 if (lic.Count > 0)
                 {
