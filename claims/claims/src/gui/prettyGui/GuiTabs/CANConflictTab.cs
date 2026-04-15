@@ -23,6 +23,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.Text(Lang.Get("claims:conflict_list"));
             ImGui.SetWindowFontScale(1.0f);
 
+            if (claims.clientDataStorage.clientPlayerInfo.CityInfo == null) return;
             ImGui.BeginChild("InvitesScroll", new Vector2(0, 300), true);
             int i = 0;
             foreach (var conflict in claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientConflictCellElements)
@@ -84,7 +85,9 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 {
                     capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.ALLIANCE_SEND_PEACE_OFFER_CONFIRM;
                     capi.ModLoader.GetModSystem<claimsGui>().textInput = conflict.Guid;
-                    string targetAlliance = conflict.FirstPartyName.Equals(claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Name) ? conflict.SecondPartyName : conflict.FirstPartyName;
+                    string ourName = claims.clientDataStorage.clientPlayerInfo.AllianceInfo?.Name
+                        ?? claims.clientDataStorage.clientPlayerInfo.CityInfo?.Name ?? "";
+                    string targetAlliance = conflict.FirstPartyName.Equals(ourName) ? conflict.SecondPartyName : conflict.FirstPartyName;
                     capi.ModLoader.GetModSystem<claimsGui>().textInput2 = targetAlliance;
                 }
                 ImGui.PopStyleColor(3);

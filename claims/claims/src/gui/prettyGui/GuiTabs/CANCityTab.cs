@@ -343,7 +343,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     int i = 0;
                     foreach (var invite in claims.clientDataStorage.clientPlayerInfo.ReceivedInvitations)
                     {
-                        ImGui.PushID(i);
+                        ImGui.PushID(i++);
                         ImGui.BeginGroup();
 
                         ImGui.PushStyleColor(ImGuiCol.Text, labelColor);

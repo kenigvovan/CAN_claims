@@ -81,7 +81,9 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
             ImGui.Spacing();
 
-            EnumPlayerPermissions[] availableToAdd = claims.config.AVAILABLE_CITY_PERMISSIONS.Where(v => !cell.Permissions.Contains(v)).ToArray();
+            EnumPlayerPermissions[] availableToAdd = claims.config.AVAILABLE_CITY_PERMISSIONS == null
+                                    ? new EnumPlayerPermissions[] { }
+                                    : claims.config.AVAILABLE_CITY_PERMISSIONS.Where(v => !cell.Permissions.Contains(v)).ToArray();
             var availableToAddStrings = availableToAdd.Select(s => s.ToString()).ToArray();
             gui.multiSelectItems = availableToAddStrings;
             if (gui.selectedItems.Count() != availableToAddStrings.Count())

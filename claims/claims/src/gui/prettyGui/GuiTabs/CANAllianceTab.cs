@@ -273,6 +273,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     {
                         foreach (var it in toRemove)
                             claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientToAllianceInvitations.Remove(it);
+                        toRemove.Clear();
                     }
                 }
             }

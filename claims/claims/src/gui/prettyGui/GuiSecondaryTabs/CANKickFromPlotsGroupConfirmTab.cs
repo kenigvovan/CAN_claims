@@ -32,6 +32,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                  ImGuiWindowFlags.NoScrollWithMouse;
             ImGui.Begin("ClaimsDetails", p_open: ref capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowOpen, flags1);
             PlotsGroupCellElement cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.PlotsGroupCells.FirstOrDefault(gr => gr.Guid.Equals(capi.ModLoader.GetModSystem<claimsGui>().textInput), null);
+            if (cell == null) { ImGui.End(); return; }
             ImGui.Text(Lang.Get(TitleString, capi.ModLoader.GetModSystem<claimsGui>().textInput2, cell.Name));
 
             if (ImGui.Button(Lang.Get(ButtonString, capi.ModLoader.GetModSystem<claimsGui>().textInput, capi.ModLoader.GetModSystem<claimsGui>().textInput2)))

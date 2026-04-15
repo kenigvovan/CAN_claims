@@ -584,14 +584,7 @@ namespace claims.src.commands
                             newConflict.State = ConflictState.CREATED;
                             newConflict.TimeStampStarted = TimeFunctions.getEpochSeconds();
                             newConflict.MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES;
-                            var conflictCellElement = new ClientConflictCellElement(newConflict.GetPartName(),
-                                newConflict.First.GetPartName(), newConflict.First.Guid, WarTargetTypeHelper.FromConflictParty(newConflict.First),
-                                newConflict.Second.GetPartName(), newConflict.Second.Guid, WarTargetTypeHelper.FromConflictParty(newConflict.Second),
-                                newConflict.First.GetPartName(),
-                                newConflict.State, newConflict.Guid,
-                                newConflict.MinimumDaysBetweenBattles, newConflict.LastBattleDateStart, newConflict.LastBattleDateEnd,
-                                newConflict.NextBattleDateStart, newConflict.NextBattleDateEnd, newConflict.WarRanges, newConflict.FirstWarRanges,
-                                newConflict.SecondWarRanges, newConflict.TimeStampStarted, newConflict.ActiveWarTime);
+                            var conflictCellElement = ClientConflictCellElement.FromConflict(newConflict);
                             UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourAlliance,
                                 new Dictionary<string, object> { { "value", conflictCellElement } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
                             UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,

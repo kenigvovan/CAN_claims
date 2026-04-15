@@ -893,7 +893,7 @@ namespace claims.src.commands
                 {
                     if (args.RawArgs[3].Equals("on"))
                     {
-                        (plotHere.getPlotDesc() as PlotDescTavern).innerClaims[claimNumber].permissionsFlags[0] = false;
+                        (plotHere.getPlotDesc() as PlotDescTavern).innerClaims[claimNumber].permissionsFlags[0] = true;
                         MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:flag_now_has_value", "use", "on"));
                     }
                     else if (args.RawArgs[3].Equals("off"))
