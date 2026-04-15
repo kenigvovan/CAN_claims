@@ -28,7 +28,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             int i = 0;
             foreach (var conflict in claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientConflictCellElements)
             {
-                ImGui.PushID(i);
+                ImGui.PushID(i++);
                 ImGui.BeginGroup();
 
                 string firstType = conflict.FirstPartyType == WarTargetType.Alliance

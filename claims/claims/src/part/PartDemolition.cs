@@ -52,6 +52,13 @@ namespace claims.src.part
                 }
                 UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, new Dictionary<string, object> { { "value", city.Guid } }, EnumPlayerRelatedInfo.CITY_LIST_REMOVE);
             }
+            foreach (Conflict conflict in claims.dataStorage.conflicts.ToArray())
+            {
+                if (conflict.First.GetCities().Contains(city) || conflict.Second.GetCities().Contains(city))
+                {
+                    DemolishConflict(conflict);
+                }
+            }
             Dictionary<string, ClientCityInfoCellElement> CityStatsCashe =
                 ObjectCacheUtil.GetOrCreate<Dictionary<string, ClientCityInfoCellElement>>(claims.sapi,
                 "claims:cityinfocache", () => new Dictionary<string, ClientCityInfoCellElement>());
@@ -167,6 +174,10 @@ namespace claims.src.part
             conflict.Second.RunningConflicts.Remove(conflict);
             conflict.First.RemoveHostileParty(conflict.Second);
             conflict.Second.RemoveHostileParty(conflict.First);
+            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(conflict.First,
+                new Dictionary<string, object> { { "value", conflict.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_REMOVE);
+            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(conflict.Second,
+                new Dictionary<string, object> { { "value", conflict.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_REMOVE);
             conflict.First.saveToDatabase();
             conflict.Second.saveToDatabase();
             claims.getModInstance().getDatabaseHandler().deleteFromDatabaseConflict(conflict);

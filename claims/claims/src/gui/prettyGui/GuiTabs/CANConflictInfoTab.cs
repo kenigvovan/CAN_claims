@@ -178,8 +178,9 @@ namespace claims.src.gui.prettyGui.GuiTabs
         public override void DrawTab()
         {
             var clientInfo = claims.clientDataStorage.clientPlayerInfo;
+            if (clientInfo?.CityInfo == null) return;
 
-            var cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientConflictCellElements.FirstOrDefault(c => c.Guid == capi.ModLoader.GetModSystem<claimsGui>().textInput);
+            var cell = clientInfo.CityInfo.ClientConflictCellElements.FirstOrDefault(c => c.Guid == capi.ModLoader.GetModSystem<claimsGui>().textInput);
             if (cell == null)
             {
                 return;

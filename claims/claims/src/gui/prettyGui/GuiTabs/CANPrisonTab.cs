@@ -70,10 +70,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 string AllPlayers = "";
                 if (prisonCell.Players.Count > 0)
                 {
-                    foreach (var it in prisonCell.Players)
-                    {
-                        AllPlayers += it;
-                    }
+                    AllPlayers = string.Join(", ", prisonCell.Players);
                 }
 
                 ImGui.Text(AllPlayers);

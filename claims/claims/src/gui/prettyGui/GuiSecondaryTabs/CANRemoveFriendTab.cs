@@ -29,7 +29,8 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             ImGuiWindowFlags flags1 =
                  ImGuiWindowFlags.NoScrollWithMouse;
             ImGui.Begin("ClaimsDetails", p_open: ref capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowOpen, flags1);
-            
+            if (claims.clientDataStorage.clientPlayerInfo?.CityInfo == null) { ImGui.End(); return; }
+
             ImGui.Text(Lang.Get(TitleString));
 
             ImGui.Combo("Name", ref capi.ModLoader.GetModSystem<claimsGui>().selectedComboFirst, claims.clientDataStorage.clientPlayerInfo.CityInfo.PlayersNames.ToArray(), claims.clientDataStorage.clientPlayerInfo.CityInfo.PlayersNames.Count);

@@ -80,6 +80,7 @@ namespace claims.src.gui.playerGui.structures
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_LIST_ALL, OnAllianceListAll);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_NAME, OnAllianceName);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.TO_ALLIANCE_INVITE_ADD, OnAllianceInviteAdd);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.TO_ALLIANCE_INVITE_REMOVE, OnAllianceInviteRemove);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_LETTER_ADD, OnAllianceLetterAdd);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE, OnAllianceLetterRemove);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_LETTER_ALL, OnAllianceLetterAll);
@@ -531,6 +532,15 @@ namespace claims.src.gui.playerGui.structures
                 this.CityInfo.ClientToAllianceInvitations.Add(it);
             }
         }
+        private void OnAllianceInviteRemove(string val)
+        {
+            if (this.CityInfo == null) return;
+            var invitationToRemove = this.CityInfo.ClientToAllianceInvitations.FirstOrDefault(inv => inv.AllianceGuid == val);
+            if (invitationToRemove != null)
+            {
+                this.CityInfo.ClientToAllianceInvitations.Remove(invitationToRemove);
+            }
+        }
         private void OnAllianceLetterAdd(string val)
         {
             HashSet<ClientConflictLetterCellElement> pc = JsonConvert.DeserializeObject<HashSet<ClientConflictLetterCellElement>>(val);
@@ -611,25 +621,15 @@ namespace claims.src.gui.playerGui.structures
         }
         private void OnAllianceLetterAll(string val)
         {
+            if (this.CityInfo == null) return;
             List<ClientConflictLetterCellElement> pc = JsonConvert.DeserializeObject<List<ClientConflictLetterCellElement>>(val);
-            foreach (var it in pc)
-            {
-                foreach (var it_current in this.CityInfo.ClientConflictCellElements.ToArray())
-                {
-                    this.CityInfo.ClientConflictCellElements.Add(it_current);
-                }
-            }
+            this.CityInfo.ClientConflictLetterCellElements = pc;
         }
         private void OnAllianceUnionLetterAll(string val)
         {
+            if (this.CityInfo == null) return;
             List<ClientUnionLetterCellElement> pc = JsonConvert.DeserializeObject<List<ClientUnionLetterCellElement>>(val);
-            foreach (var it in pc)
-            {
-                foreach (var it_current in this.CityInfo.ClientUnionLetterCellElements.ToArray())
-                {
-                    this.CityInfo.ClientUnionLetterCellElements.Add(it_current);
-                }
-            }
+            this.CityInfo.ClientUnionLetterCellElements = pc;
         }
         private void OnAllianceAlliesAll(string val)
         {

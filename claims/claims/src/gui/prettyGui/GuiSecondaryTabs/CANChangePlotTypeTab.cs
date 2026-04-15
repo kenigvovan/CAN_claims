@@ -46,7 +46,8 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                     // Optimistic local update
                     if ((claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_TYPE)
                         || claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS))
-                        && PlotInfo.nameToPlotType.TryGetValue(playerName, out var plotType))
+                        && PlotInfo.nameToPlotType.TryGetValue(playerName, out var plotType)
+                    && claims.clientDataStorage.clientPlayerInfo.CurrentPlotInfo != null)
                     {
                         claims.clientDataStorage.clientPlayerInfo.CurrentPlotInfo.PlotType = plotType;
                     }

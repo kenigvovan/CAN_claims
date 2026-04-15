@@ -32,12 +32,13 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.Text(text);
 
 
+            if (claims.clientDataStorage.clientPlayerInfo.CityInfo == null) return;
             ImGui.BeginChild("UnionLettersScroll", new Vector2(0, 300), true);
             int i = 0;
-            
+
             foreach (var letter in claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientUnionLetterCellElements)
             {
-                ImGui.PushID(i);
+                ImGui.PushID(i++);
 
                 Vector2 start = ImGui.GetCursorScreenPos();
                 float width = ImGui.GetContentRegionAvail().X;

@@ -317,11 +317,14 @@ namespace claims.src.commands
                     city.saveToDatabase();
                     alliance.saveToDatabase();
                     UsefullPacketsSend.AddToQueueAllianceInfoUpdate(alliance.Guid, new Dictionary<string, object> { { "value", alliance.Guid } }, EnumPlayerRelatedInfo.NEW_ALLIANCE_ALL);
-
+                    UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
+                        new Dictionary<string, object> { { "value", alliance.Guid } }, EnumPlayerRelatedInfo.TO_ALLIANCE_INVITE_REMOVE);
                 })),
                 new Thread(new ThreadStart(() =>
                 {
                     MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:disagrre_with_invitation_to_alliance", playerInfo.GetPartName(), city.GetPartName()));
+                    UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
+                        new Dictionary<string, object> { { "value", alliance.Guid } }, EnumPlayerRelatedInfo.TO_ALLIANCE_INVITE_REMOVE);
                 }))
                 )))
             {

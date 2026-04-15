@@ -277,7 +277,7 @@ namespace claims.src.auxialiry
         {
             foreach(var pl in claims.sapi.World.AllOnlinePlayers)
             {
-                AddToQueuePlayerInfoUpdate(pl.PlayerName, additionalInfo, toUpdate);
+                AddToQueuePlayerInfoUpdate(pl.PlayerUID, additionalInfo, toUpdate);
             }
         }
         public static void SendAllCollectedCityUpdatesToCitizens()

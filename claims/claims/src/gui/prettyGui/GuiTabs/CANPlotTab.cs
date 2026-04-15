@@ -20,6 +20,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
         public override void DrawTab()
         {
             var clientInfo = claims.clientDataStorage.clientPlayerInfo;
+            if (clientInfo?.CurrentPlotInfo == null) return;
             Vector4 labelColor = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
             Vector4 valueColor = new Vector4(1.0f, 0.85f, 0.3f, 1.0f);
             Vector4 sectionColor = new Vector4(0.4f, 0.7f, 1.0f, 1.0f);
