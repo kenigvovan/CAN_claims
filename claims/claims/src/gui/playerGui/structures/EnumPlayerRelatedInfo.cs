@@ -38,6 +38,7 @@
 
         CITY_LIST_ALL,
         CITY_LIST_UPDATE,
+        CITY_LIST_REMOVE,
 
         ALLIANCE_LIST_ALL,
 

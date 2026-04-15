@@ -16,6 +16,9 @@ namespace claims.src.gui.prettyGui.GuiTabs
 {
     public class CANConflictInfoTab : CANGuiTab
     {
+        // Monday-first order: Mon(1), Tue(2), Wed(3), Thu(4), Fri(5), Sat(6), Sun(0)
+        private static readonly int[] DayOrder = { 1, 2, 3, 4, 5, 6, 0 };
+
         public CANConflictInfoTab(ICoreClientAPI capi, IconHandler iconHandler)
         {
             this.capi = capi;
@@ -116,10 +119,66 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ;
             }
         }
+        private static void DrawDayHeader(int dayIndex)
+        {
+            Vector4 dayColor = new Vector4(1.0f, 0.85f, 0.3f, 1.0f);
+            ImGui.PushStyleColor(ImGuiCol.Text, dayColor);
+            ImGui.Text(((DayOfWeek)dayIndex).ToString());
+            ImGui.PopStyleColor();
+        }
+
+        private static void DrawButtonGrid(bool[] slotArray, string idPrefix, bool interactive)
+        {
+            Vector4 activeColor = new Vector4(0.2f, 0.7f, 0.3f, 1.0f);
+            Vector4 scaleColor = new Vector4(0.5f, 0.5f, 0.5f, 1.0f);
+            // 3 rows: 0:00-8:00, 8:00-16:00, 16:00-24:00
+            for (int j = 0; j < 3; j++)
+            {
+                int startHour = j * 8;
+                ImGui.PushStyleColor(ImGuiCol.Text, scaleColor);
+                ImGui.Text($"{startHour:00}:00");
+                ImGui.PopStyleColor();
+                ImGui.SameLine(50);
+
+                for (int i = 0; i < 16; i++)
+                {
+                    int p = i + j * 16;
+                    bool value = slotArray[p];
+
+                    if (value)
+                        ImGui.PushStyleColor(ImGuiCol.Button, activeColor);
+
+                    if (ImGui.Button("##" + idPrefix + p.ToString(), new Vector2(16, 16)))
+                    {
+                        if (interactive)
+                            slotArray[p] = !slotArray[p];
+                    }
+
+                    if (value)
+                        ImGui.PopStyleColor();
+
+                    if (ImGui.IsItemHovered())
+                    {
+                        int h1 = (int)Math.Floor(p * 0.5f);
+                        int m1 = (int)((p * 0.5f - h1) * 60);
+                        int h2 = (int)Math.Floor((p + 1) * 0.5f);
+                        int m2 = (int)(((p + 1) * 0.5f - h2) * 60);
+
+                        ImGui.BeginTooltip();
+                        ImGui.Text(string.Format("{0:00}:{1:00} - {2:00}:{3:00}", h1, m1, h2, m2));
+                        ImGui.EndTooltip();
+                    }
+
+                    if (i < 15)
+                        ImGui.SameLine();
+                }
+            }
+        }
+
         public override void DrawTab()
-        {          
+        {
             var clientInfo = claims.clientDataStorage.clientPlayerInfo;
-           
+
             var cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientConflictCellElements.FirstOrDefault(c => c.Guid == capi.ModLoader.GetModSystem<claimsGui>().textInput);
             if (cell == null)
             {
@@ -129,22 +188,113 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ? Lang.Get("claims:conflict_target_alliance") : Lang.Get("claims:conflict_target_city");
             string secondTypeLabel = cell.SecondPartyType == WarTargetType.Alliance
                 ? Lang.Get("claims:conflict_target_alliance") : Lang.Get("claims:conflict_target_city");
-            ImGui.Text(string.Format("{0} ({1}) x {2} ({3})", cell.FirstPartyName, firstTypeLabel, cell.SecondPartyName, secondTypeLabel));
 
+            // --- Title: party names with colors, centered ---
+            Vector4 partyColor = new Vector4(1.0f, 0.85f, 0.3f, 1.0f);
+            Vector4 vsColor = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
+
+            string midText = $" ({firstTypeLabel})  vs   ({secondTypeLabel})";
+            ImGui.SetWindowFontScale(1.3f);
+            float namesWidth = ImGui.CalcTextSize(cell.FirstPartyName).X + ImGui.CalcTextSize(cell.SecondPartyName).X;
+            ImGui.SetWindowFontScale(1.0f);
+            float titleWidth = namesWidth + ImGui.CalcTextSize(midText).X;
+            float availWidth = ImGui.GetContentRegionAvail().X;
+            if (titleWidth < availWidth)
+            {
+                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (availWidth - titleWidth) * 0.5f);
+            }
+
+            ImGui.PushStyleColor(ImGuiCol.Text, partyColor);
+            ImGui.SetWindowFontScale(1.3f);
+            ImGui.Text(cell.FirstPartyName);
+            ImGui.SetWindowFontScale(1.0f);
+            ImGui.PopStyleColor();
+            ImGui.SameLine(0, 0);
+            ImGui.PushStyleColor(ImGuiCol.Text, vsColor);
+            ImGui.Text($" ({firstTypeLabel})");
+            ImGui.PopStyleColor();
+            ImGui.SameLine(0, 0);
+            ImGui.Text("  vs  ");
+            ImGui.SameLine(0, 0);
+            ImGui.PushStyleColor(ImGuiCol.Text, partyColor);
+            ImGui.SetWindowFontScale(1.3f);
+            ImGui.Text(cell.SecondPartyName);
+            ImGui.SetWindowFontScale(1.0f);
+            ImGui.PopStyleColor();
+            ImGui.SameLine(0, 0);
+            ImGui.PushStyleColor(ImGuiCol.Text, vsColor);
+            ImGui.Text($" ({secondTypeLabel})");
+            ImGui.PopStyleColor();
+
+            // --- State + battle active ---
             if (cell.ActiveWarTime)
             {
                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.2f, 0.2f, 1.0f));
+                ImGui.Bullet();
+                ImGui.SameLine();
                 ImGui.Text(Lang.Get("claims:gui_battle_active"));
                 ImGui.PopStyleColor();
             }
 
-            ImGui.Text(Lang.Get("claims:gui_last_start_end_battle",
-                TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.LastBattleDateStart).ToUnixTimeSeconds()),
-                TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.LastBattleDateEnd).ToUnixTimeSeconds())));
+            ImGui.Separator();
+            ImGui.Spacing();
 
-            ImGui.Text(Lang.Get("claims:gui_next_start_end_battle",
-                TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.NextBattleDateStart).ToUnixTimeSeconds()),
-                TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.NextBattleDateEnd).ToUnixTimeSeconds())));
+            // --- Info table ---
+            if (ImGui.BeginTable("ConflictInfoTable", 2, ImGuiTableFlags.None))
+            {
+                ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 160);
+                ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
+
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                ImGui.PushStyleColor(ImGuiCol.Text, vsColor);
+                ImGui.Text(Lang.Get("claims:gui_conflict_info_started_by"));
+                ImGui.PopStyleColor();
+                ImGui.TableNextColumn();
+                ImGui.Text(cell.StartedByPartyName);
+
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                ImGui.PushStyleColor(ImGuiCol.Text, vsColor);
+                ImGui.Text(Lang.Get("claims:gui_conflict_info_created"));
+                ImGui.PopStyleColor();
+                ImGui.TableNextColumn();
+                ImGui.Text(TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(cell.TimeStampCreated, true));
+
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                ImGui.PushStyleColor(ImGuiCol.Text, vsColor);
+                ImGui.Text(Lang.Get("claims:gui_conflict_info_last_battle"));
+                ImGui.PopStyleColor();
+                ImGui.TableNextColumn();
+                ImGui.Text(string.Format("{0}  -  {1}",
+                    TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.LastBattleDateStart).ToUnixTimeSeconds()),
+                    TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.LastBattleDateEnd).ToUnixTimeSeconds())));
+
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                ImGui.PushStyleColor(ImGuiCol.Text, vsColor);
+                ImGui.Text(Lang.Get("claims:gui_conflict_info_next_battle"));
+                ImGui.PopStyleColor();
+                ImGui.TableNextColumn();
+                ImGui.Text(string.Format("{0}  -  {1}",
+                    TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.NextBattleDateStart).ToUnixTimeSeconds()),
+                    TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.NextBattleDateEnd).ToUnixTimeSeconds())));
+
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                ImGui.PushStyleColor(ImGuiCol.Text, vsColor);
+                ImGui.Text(Lang.Get("claims:gui_conflict_info_pause_days"));
+                ImGui.PopStyleColor();
+                ImGui.TableNextColumn();
+                ImGui.Text(cell.MinimumDaysBetweenBattles.ToString());
+
+                ImGui.EndTable();
+            }
+
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
 
             if (ImGui.BeginTabBar("MyTabs"))
             {
@@ -157,64 +307,20 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     }
 
                     ImGui.BeginChild("InvitesScroll", new Vector2(0, 300), true);
-                    int ip = 0;
-                    foreach (var warRange in claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientWarRangeCellElements)
+                    for (int d = 0; d < 7; d++)
                     {
-                        ImGui.PushID(ip);
-
-                        Vector2 start = ImGui.GetCursorScreenPos();
-                        float width = ImGui.GetContentRegionAvail().X;
-
+                        int dayIndex = DayOrder[d];
+                        var warRange = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientWarRangeCellElements[dayIndex];
+                        ImGui.PushID(d);
                         ImGui.BeginGroup();
-                        ImGui.Text(((DayOfWeek)(ip)).ToString());
-                        ip++;
-                        for (int j = 0; j < 3; j++)
-                        {
-                            for (int i = 0; i < 16; i++)
-                            {
-                                int p = i + j * 16;
 
-                                
-                                bool value = warRange.WarRangeArray[p];
-
-                                // меняем цвет если включено
-                                if (value)
-                                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.7f, 0.3f, 1.0f));
-
-                                if (ImGui.Button("##btn" + p.ToString(), new Vector2(16, 16)))
-                                {
-                                    warRange.WarRangeArray[p] = !warRange.WarRangeArray[p];
-                                }
-
-                                if (value)
-                                    ImGui.PopStyleColor();
-
-                                // hover tooltip (аналог GuiElementHoverText)
-                                if (ImGui.IsItemHovered())
-                                {
-                                    int h1 = (int)Math.Floor(p * 0.5f);
-                                    int m1 = (int)((p * 0.5f - h1) * 60);
-                                    int h2 = (int)Math.Floor((p + 1) * 0.5f);
-                                    int m2 = (int)(((p + 1) * 0.5f - h2) * 60);
-
-                                    ImGui.BeginTooltip();
-                                    ImGui.Text(string.Format("{0:00}:{1:00} - {2:00}:{3:00}", h1, m1, h2, m2));
-                                    ImGui.EndTooltip();
-                                }
-
-                                if (i < 15)
-                                    ImGui.SameLine();
-                            }
-                        }
+                        DrawDayHeader(dayIndex);
+                        DrawButtonGrid(warRange.WarRangeArray, "btn", true);
 
                         ImGui.EndGroup();
-
-                        Vector2 end = ImGui.GetItemRectMax();
-                        var draw = ImGui.GetWindowDrawList();
-
                         ImGui.PopID();
 
-                        ImGui.Dummy(new Vector2(0, 8));
+                        ImGui.Spacing();
                         ImGui.Separator();
                     }
                     ImGui.EndChild();
@@ -238,112 +344,33 @@ namespace claims.src.gui.prettyGui.GuiTabs
                         capi.ModLoader.GetModSystem<claimsGui>().selectedWarrangeTab = 1;
                     }
 
-
-
-
                     ImGui.BeginChild("InvitesScroll", new Vector2(0, 300), true);
-                    int ip = 0;
-                    // claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientTwoWarRangesCellElement
-                    for (int day = 0; day < 7; day++)
+                    for (int d = 0; d < 7; d++)
                     {
-                        ImGui.PushID(ip);
-
-                        Vector2 start = ImGui.GetCursorScreenPos();
-                        float width = ImGui.GetContentRegionAvail().X;
-
+                        int dayIndex = DayOrder[d];
+                        ImGui.PushID(d);
                         ImGui.BeginGroup();
-                        ImGui.Text(((DayOfWeek)(ip)).ToString());
-                        ip++;
-                        ImGui.Text("Enemy's:");
-                        var warRange = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientTwoWarRangesCellElement[day].EnemyWarRangeArray;
-                        for (int j = 0; j < 3; j++)
-                        {
-                            for (int i = 0; i < 16; i++)
-                            {
-                                int p = i + j * 16;
 
+                        DrawDayHeader(dayIndex);
 
-                                bool value = warRange[p];
+                        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.4f, 0.4f, 1.0f));
+                        ImGui.Text(Lang.Get("claims:gui_conflict_warrange_enemy"));
+                        ImGui.PopStyleColor();
+                        var warRange = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientTwoWarRangesCellElement[dayIndex].EnemyWarRangeArray;
+                        DrawButtonGrid(warRange, "btn", false);
 
-                                // меняем цвет если включено
-                                if (value)
-                                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.7f, 0.3f, 1.0f));
+                        ImGui.Spacing();
 
-                                if (ImGui.Button("##btn" + p.ToString(), new Vector2(16, 16)))
-                                {
-                                    //warRange[p] = !warRange[p];
-                                }
+                        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.4f, 0.7f, 1.0f, 1.0f));
+                        ImGui.Text(Lang.Get("claims:gui_conflict_warrange_our"));
+                        ImGui.PopStyleColor();
+                        var warRangeOur = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientTwoWarRangesCellElement[dayIndex].OurWarRangeArray;
+                        DrawButtonGrid(warRangeOur, "btnour", true);
 
-                                if (value)
-                                    ImGui.PopStyleColor();
-
-                                // hover tooltip (аналог GuiElementHoverText)
-                                if (ImGui.IsItemHovered())
-                                {
-                                    int h1 = (int)Math.Floor(p * 0.5f);
-                                    int m1 = (int)((p * 0.5f - h1) * 60);
-                                    int h2 = (int)Math.Floor((p + 1) * 0.5f);
-                                    int m2 = (int)(((p + 1) * 0.5f - h2) * 60);
-
-                                    ImGui.BeginTooltip();
-                                    ImGui.Text(string.Format("{0:00}:{1:00} - {2:00}:{3:00}", h1, m1, h2, m2));
-                                    ImGui.EndTooltip();
-                                }
-
-                                if (i < 15)
-                                    ImGui.SameLine();
-                            }
-                        }
-                        ImGui.Separator();
-                        ImGui.Text("Our:");
-                        var warRangeOur = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientTwoWarRangesCellElement[day].OurWarRangeArray;
-                        for (int j = 0; j < 3; j++)
-                        {
-                            for (int i = 0; i < 16; i++)
-                            {
-                                int p = i + j * 16;
-
-
-                                bool value = warRangeOur[p];
-
-                                // меняем цвет если включено
-                                if (value)
-                                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.7f, 0.3f, 1.0f));
-
-                                if (ImGui.Button("##btnour" + p.ToString(), new Vector2(16, 16)))
-                                {
-                                    claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientTwoWarRangesCellElement[day].OurWarRangeArray[p] = !warRangeOur[p];
-                                }
-
-                                if (value)
-                                    ImGui.PopStyleColor();
-
-                                // hover tooltip (аналог GuiElementHoverText)
-                                if (ImGui.IsItemHovered())
-                                {
-                                    int h1 = (int)Math.Floor(p * 0.5f);
-                                    int m1 = (int)((p * 0.5f - h1) * 60);
-                                    int h2 = (int)Math.Floor((p + 1) * 0.5f);
-                                    int m2 = (int)(((p + 1) * 0.5f - h2) * 60);
-
-                                    ImGui.BeginTooltip();
-                                    ImGui.Text(string.Format("{0:00}:{1:00} - {2:00}:{3:00}", h1, m1, h2, m2));
-                                    ImGui.EndTooltip();
-                                }
-
-                                if (i < 15)
-                                    ImGui.SameLine();
-                            }
-                        }
                         ImGui.EndGroup();
-
-                        Vector2 end = ImGui.GetItemRectMax();
-                        var draw = ImGui.GetWindowDrawList();
-
                         ImGui.PopID();
 
-                        ImGui.Dummy(new Vector2(0, 8));
-                        ImGui.Separator();
+                        ImGui.Spacing();
                         ImGui.Separator();
                     }
                     ImGui.EndChild();
@@ -353,7 +380,13 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.EndTabBar();
             }
 
-            if (ImGui.ImageButton("sendinfo", this.iconHandler.GetOrLoadIcon("info"), new Vector2(20)))
+            ImGui.Spacing();
+
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.55f, 0.8f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.65f, 0.9f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.7f, 1.0f));
+            float sendBtnWidth = ImGui.CalcTextSize(Lang.Get("claims:gui-send-new-conflict-time")).X + 40;
+            if (ImGui.Button(Lang.Get("claims:gui-send-new-conflict-time"), new Vector2(sendBtnWidth, 30)))
             {
                 if (cell == null)
                 {
@@ -487,10 +520,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     playerGuiRelatedInfoDictionary = collector
                 });
             }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip(Lang.Get("claims:gui-send-new-conflict-time"));
-            }
+            ImGui.PopStyleColor(3);
 
 
             /*==============================================================================================*/

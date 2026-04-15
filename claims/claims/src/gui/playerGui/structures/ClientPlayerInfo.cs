@@ -76,6 +76,7 @@ namespace claims.src.gui.playerGui.structures
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.OWN_ALLIANCE_REMOVE, OnAllianceRemove);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_LIST_ALL, OnCityListAll);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_LIST_UPDATE, OnCityListUpdate);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_LIST_REMOVE, OnCityListRemove);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_LIST_ALL, OnAllianceListAll);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_NAME, OnAllianceName);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.TO_ALLIANCE_INVITE_ADD, OnAllianceInviteAdd);
@@ -497,6 +498,18 @@ namespace claims.src.gui.playerGui.structures
                 else
                 {
                     AllCitiesList.Add(it);
+                }
+            }
+        }
+        private void OnCityListRemove(string val)
+        {
+            List<string> guids = JsonConvert.DeserializeObject<List<string>>(val);
+            foreach (var cityGuid in guids)
+            {
+                var existing = AllCitiesList.FirstOrDefault(c => c.Guid == cityGuid);
+                if (existing != null)
+                {
+                    AllCitiesList.Remove(existing);
                 }
             }
         }

@@ -192,11 +192,13 @@ namespace claims.src.commands
             tcr.Status = EnumCommandStatus.Success;
             if (!HelperFunctionSetFlag(player, out Plot plotHere, tcr))
             {
+                if (plotHere != null) UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
                 return tcr;
             }
             //flag is the same
             if (!plotHere.getPermsHandler().setPvp((string)args.LastArg))
             {
+                UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
                 return tcr;
             }
             UsefullPacketsSend.AddToQueueCityInfoUpdate(plotHere.getCity().Guid, EnumPlayerRelatedInfo.CITY_DAY_PAYMENT);
@@ -214,11 +216,13 @@ namespace claims.src.commands
 
             if (!HelperFunctionSetFlag(player, out Plot plotHere, tcr))
             {
+                if (plotHere != null) UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
                 return tcr;
             }
 
             if (!plotHere.getPermsHandler().setFire((string)args.LastArg))
             {
+                UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
                 return tcr;
             }
 
@@ -236,11 +240,13 @@ namespace claims.src.commands
 
             if (!HelperFunctionSetFlag(player, out Plot plotHere, tcr))
             {
+                if (plotHere != null) UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
                 return tcr;
             }
 
             if (!plotHere.getPermsHandler().setBlast((string)args.LastArg))
             {
+                UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
                 return tcr;
             }
 
@@ -284,10 +290,12 @@ namespace claims.src.commands
             string name = Filter.filterName((string)args.LastArg);
             if (name.Length == 0 || !Filter.checkForBlockedNames(name))
             {
+                UsefullPacketsSend.SendCurrentPlotUpdate(player, plot);
                 return TextCommandResult.Success("claims:invalid_plot_name");
             }
             if (!plot.SetPartName(name))
             {
+                UsefullPacketsSend.SendCurrentPlotUpdate(player, plot);
                 return TextCommandResult.Success();
             }
 
@@ -324,6 +332,7 @@ namespace claims.src.commands
             
             if (!plotHere.setCustomTax(tax))
             {
+                UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
                 return TextCommandResult.Success();
             }
 
@@ -364,6 +373,7 @@ namespace claims.src.commands
                 tcr.Status = EnumCommandStatus.Success;
                 if (!plotHere.setNewType(tcr, (string)args.LastArg, player))
                 {
+                    UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
                     return tcr;
                 }
                 claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(plotHere.getPos());
@@ -402,6 +412,7 @@ namespace claims.src.commands
             {
                 if (plot.getCity() != playerInfo.City || !BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS, EnumPlayerPermissions.PLOT_SET_PLOT_ACCESS_PERMISSIONS }))
                 {
+                    UsefullPacketsSend.SendCurrentPlotUpdate(player, plot);
                     return TextCommandResult.Success("claims:you_dont_have_right_for_that_command");
                 }
             }

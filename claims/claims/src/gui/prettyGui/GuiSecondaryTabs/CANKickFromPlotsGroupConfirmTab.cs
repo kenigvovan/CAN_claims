@@ -37,8 +37,14 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             if (ImGui.Button(Lang.Get(ButtonString, capi.ModLoader.GetModSystem<claimsGui>().textInput, capi.ModLoader.GetModSystem<claimsGui>().textInput2)))
             {
                 ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
+                string memberToKick = capi.ModLoader.GetModSystem<claimsGui>().textInput2;
                 clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup,
-                   string.Format("/c plotsgroup kick {0} {1}", cell.Name, capi.ModLoader.GetModSystem<claimsGui>().textInput2), EnumChatType.Macro, "");
+                   string.Format("/c plotsgroup kick {0} {1}", cell.Name, memberToKick), EnumChatType.Macro, "");
+                // Optimistic local update
+                if (claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.CITY_PLOTSGROUP_KICK_PLAYER))
+                {
+                    cell.PlayersNames.Remove(memberToKick);
+                }
                 capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.NONE;
                 capi.ModLoader.GetModSystem<claimsGui>().textInput2 = "";
             }

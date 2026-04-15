@@ -26,14 +26,21 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SetTooltip(StringFunctions.concatStringsWithDelim(clientInfo.CityInfo.Criminals, ','));
             }
 
-            if (ImGui.ImageButton("addcriminal", this.iconHandler.GetOrLoadIcon("expander"), new Vector2(16)))
+            var perms = clientInfo.PlayerPermissions;
+            if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_ADD_CRIMINAL))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.ADD_CRIMINAL_NEED_NAME;
+                if (ImGui.ImageButton("addcriminal", this.iconHandler.GetOrLoadIcon("expander"), new Vector2(16)))
+                {
+                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.ADD_CRIMINAL_NEED_NAME;
+                }
+                ImGui.SameLine();
             }
-            ImGui.SameLine();
-            if (ImGui.ImageButton("removecriminal", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(16)))
+            if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_REMOVE_CRIMINAL))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.REMOVE_CRIMINAL;
+                if (ImGui.ImageButton("removecriminal", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(16)))
+                {
+                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.REMOVE_CRIMINAL;
+                }
             }
 
             ImGui.Text(Lang.Get("claims:gui-prison-cells-title"));

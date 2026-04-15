@@ -41,6 +41,8 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                     string playerName = claims.clientDataStorage.clientPlayerInfo.CityInfo.PlayersNames[capi.ModLoader.GetModSystem<claimsGui>().selectedComboFirst];
                     ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                     clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, this.CommandCallOnClick + playerName, EnumChatType.Macro, "");
+                    // Optimistic local update
+                    claims.clientDataStorage.clientPlayerInfo.Friends.Remove(playerName);
                     capi.ModLoader.GetModSystem<claimsGui>().textInput = "";
                     capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.NONE;
                 }         

@@ -1,12 +1,10 @@
-﻿using claims.src.auxialiry;
+using claims.src.auxialiry;
 using ImGuiNET;
-using System;
 using System.Numerics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.Client.NoObf;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace claims.src.gui.prettyGui.GuiTabs
 {
@@ -19,84 +17,150 @@ namespace claims.src.gui.prettyGui.GuiTabs
         }
         public override void DrawTab()
         {
+            Vector4 labelColor = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
+            Vector4 nameColor = new Vector4(1.0f, 0.85f, 0.3f, 1.0f);
+            Vector4 sectionColor = new Vector4(0.4f, 0.7f, 1.0f, 1.0f);
+            Vector4 openColor = new Vector4(0.3f, 0.8f, 0.4f, 1.0f);
+
+            // --- Header ---
             string text = Lang.Get("claims:gui_city_list_title");
             float windowWidth = ImGui.GetWindowSize().X;
+            ImGui.PushStyleColor(ImGuiCol.Text, sectionColor);
+            ImGui.SetWindowFontScale(1.3f);
             float textWidth = ImGui.CalcTextSize(text).X;
-
             ImGui.SetCursorPosX((windowWidth - textWidth) * 0.5f);
             ImGui.Text(text);
+            ImGui.SetWindowFontScale(1.0f);
+            ImGui.PopStyleColor();
 
-            ImGui.BeginChild("InvitesScroll", new Vector2(0, 300), true);
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            ImGui.BeginChild("CitiesScroll", new Vector2(0, 0), false);
             int i = 0;
-            foreach (var cityStatCell in claims.clientDataStorage.clientPlayerInfo.AllCitiesList)
+            foreach (var city in claims.clientDataStorage.clientPlayerInfo.AllCitiesList)
             {
                 ImGui.PushID(i);
 
-                Vector2 start = ImGui.GetCursorScreenPos();
-                float width = ImGui.GetContentRegionAvail().X;
+                // --- City name (large, gold) ---
+                ImGui.PushStyleColor(ImGuiCol.Text, nameColor);
+                ImGui.SetWindowFontScale(1.15f);
+                ImGui.Text(city.Name);
+                ImGui.SetWindowFontScale(1.0f);
+                ImGui.PopStyleColor();
 
-                ImGui.BeginGroup();
-
-                ImGui.Text(Lang.Get("claims:gui_citylist_city_name", cityStatCell.Name));
-
-                if(cityStatCell.AllianceName.Length > 0)
+                // --- Info message button (same line as name) ---
+                if (city.InvMsg.Length > 0)
                 {
-                    ImGui.Text(Lang.Get("claims:gui_citylist_alliance_name", cityStatCell.AllianceName));
-                }
-
-                ImGui.Text(Lang.Get("claims:gui-mayor-name", cityStatCell.MayorName));
-
-                ImGui.Text(Lang.Get("claims:gui-city-population", cityStatCell.CitizensAmount));
-
-                ImGui.Text(Lang.Get("claims:gui-claimed-plots", cityStatCell.ClaimedPlotsAmount));
-
-                if (cityStatCell.InvMsg.Length > 0)
-                {
-                    if (ImGui.ImageButton("cityinfo", this.iconHandler.GetOrLoadIcon("info"), new Vector2(16)))
+                    ImGui.SameLine();
+                    if (ImGui.ImageButton("cityinfo", this.iconHandler.GetOrLoadIcon("info"), new Vector2(14)))
                     {
-
                     }
                     if (ImGui.IsItemHovered())
                     {
                         ImGui.BeginTooltip();
-                        ImGui.Text(cityStatCell.InvMsg);
+                        ImGui.Text(city.InvMsg);
                         ImGui.EndTooltip();
                     }
                 }
-                ImGui.Text(Lang.Get("claims:gui-date-created", TimeFunctions.getDateFromEpochSeconds(cityStatCell.TimeStampCreated)));
 
-                ImGui.SameLine();
-
-                if (cityStatCell.Open)
+                // --- Join button (same line as name, for open cities) ---
+                if (city.Open)
                 {
-                    if (ImGui.ImageButton("joincity", this.iconHandler.GetOrLoadIcon("stairs-goal"), new Vector2(16)))
+                    ImGui.SameLine();
+                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.55f, 0.3f, 1.0f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.65f, 0.4f, 1.0f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.25f, 1.0f));
+                    if (ImGui.ImageButton("joincity", this.iconHandler.GetOrLoadIcon("stairs-goal"), new Vector2(14)))
                     {
                         ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                        clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/c join " + cityStatCell.Name, EnumChatType.Macro, "");
+                        clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/c join " + city.Name, EnumChatType.Macro, "");
+                    }
+                    ImGui.PopStyleColor(3);
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.BeginTooltip();
+                        ImGui.Text(Lang.Get("claims:gui_citylist_join_city_hover"));
+                        ImGui.EndTooltip();
                     }
                 }
 
-                if (ImGui.IsItemHovered())
+                // --- Details table ---
+                if (ImGui.BeginTable("CityDetails" + i, 2, ImGuiTableFlags.None))
                 {
-                    ImGui.BeginTooltip();
-                    ImGui.Text(Lang.Get("claims:gui_citylist_join_city_hover"));
-                    ImGui.EndTooltip();
+                    ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 100);
+                    ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
+
+                    // Mayor
+                    ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+                    ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
+                    ImGui.Text(Lang.Get("claims:gui-city-tab-mayor"));
+                    ImGui.PopStyleColor();
+                    ImGui.TableNextColumn();
+                    ImGui.Text(city.MayorName ?? "");
+
+                    // Alliance
+                    if (city.AllianceName.Length > 0)
+                    {
+                        ImGui.TableNextRow();
+                        ImGui.TableNextColumn();
+                        ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
+                        ImGui.Text(Lang.Get("claims:gui-citylist-alliance-label"));
+                        ImGui.PopStyleColor();
+                        ImGui.TableNextColumn();
+                        ImGui.Text(city.AllianceName);
+                    }
+
+                    // Population
+                    ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+                    ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
+                    ImGui.Text(Lang.Get("claims:gui-citylist-population-label"));
+                    ImGui.PopStyleColor();
+                    ImGui.TableNextColumn();
+                    ImGui.Text(city.CitizensAmount.ToString());
+
+                    // Plots
+                    ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+                    ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
+                    ImGui.Text(Lang.Get("claims:gui-citylist-plots-label"));
+                    ImGui.PopStyleColor();
+                    ImGui.TableNextColumn();
+                    ImGui.Text(city.ClaimedPlotsAmount.ToString());
+
+                    // Created
+                    ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+                    ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
+                    ImGui.Text(Lang.Get("claims:gui-city-tab-created"));
+                    ImGui.PopStyleColor();
+                    ImGui.TableNextColumn();
+                    ImGui.Text(TimeFunctions.getDateFromEpochSeconds(city.TimeStampCreated));
+
+                    // Open status
+                    if (city.Open)
+                    {
+                        ImGui.TableNextRow();
+                        ImGui.TableNextColumn();
+                        ImGui.TableNextColumn();
+                        ImGui.PushStyleColor(ImGuiCol.Text, openColor);
+                        ImGui.Text(Lang.Get("claims:gui-citylist-open"));
+                        ImGui.PopStyleColor();
+                    }
+
+                    ImGui.EndTable();
                 }
 
-                //ImGui.Text(AllPlayers);
-
-                ImGui.EndGroup();
-
-                Vector2 end = ImGui.GetItemRectMax();
-                var draw = ImGui.GetWindowDrawList();
+                ImGui.Spacing();
+                ImGui.Separator();
+                ImGui.Spacing();
 
                 ImGui.PopID();
-
-                ImGui.Dummy(new Vector2(0, 8));
-                ImGui.Separator();
+                i++;
             }
             ImGui.EndChild();
-
         }
     }
 }

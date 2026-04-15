@@ -1,4 +1,5 @@
-﻿using ImGuiNET;
+﻿using System.Linq;
+using ImGuiNET;
 using System.Numerics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -39,9 +40,19 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             {
                 ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                 capi.ModLoader.GetModSystem<claimsGui>().textInput2 = claims.clientDataStorage.clientPlayerInfo.CityInfo.PlayersNames[capi.ModLoader.GetModSystem<claimsGui>().selectedComboFirst];
+                string rankName = capi.ModLoader.GetModSystem<claimsGui>().textInput;
+                string playerName = capi.ModLoader.GetModSystem<claimsGui>().textInput2;
                 clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, this.CommandToCallOnYes + " " +
-                    capi.ModLoader.GetModSystem<claimsGui>().textInput + " "
-                    + capi.ModLoader.GetModSystem<claimsGui>().textInput2, EnumChatType.Macro, "");
+                    rankName + " " + playerName, EnumChatType.Macro, "");
+                // Optimistic local update
+                if (claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.CITY_SET_RANK))
+                {
+                    var rankCell = claims.clientDataStorage.clientPlayerInfo.CityInfo.CityRanks.FirstOrDefault(rc => rc.Name == rankName);
+                    if (rankCell != null)
+                    {
+                        rankCell.Citizens.Add(playerName);
+                    }
+                }
                 capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.NONE;
             }
             ImGui.SameLine();

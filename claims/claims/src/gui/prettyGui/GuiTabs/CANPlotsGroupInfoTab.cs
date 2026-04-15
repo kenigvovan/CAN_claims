@@ -34,62 +34,74 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.SetCursorPosX((windowWidth - textWidth) * 0.5f);
             ImGui.Text(titleText);
 
+            var perms = clientInfo.PlayerPermissions;
+
             ImGui.Text(Lang.Get("claims:gui-group-members", cell.PlayersNames.Count));
             if (ImGui.IsItemHovered())
             {
                 ImGui.SetTooltip(StringFunctions.concatStringsWithDelim(cell.PlayersNames, ','));
             }
-            ImGui.SameLine();
 
-
-            if (ImGui.ImageButton("addplotsgroupmember", this.iconHandler.GetOrLoadIcon("expander"), new Vector2(16)))
+            if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_PLOTSGROUP_ADD_PLAYER))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.ADD_PLOTSGROUP_MEMBER_NEED_NAME;
+                ImGui.SameLine();
+                if (ImGui.ImageButton("addplotsgroupmember", this.iconHandler.GetOrLoadIcon("expander"), new Vector2(16)))
+                {
+                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.ADD_PLOTSGROUP_MEMBER_NEED_NAME;
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(Lang.Get("claims:gui-add-plotsgroup-member"));
+                }
             }
-            if (ImGui.IsItemHovered())
+            if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_PLOTSGROUP_KICK_PLAYER))
             {
-                ImGui.SetTooltip(Lang.Get("claims:gui-add-plotsgroup-member"));
+                ImGui.SameLine();
+                if (ImGui.ImageButton("removeplotsgroupmember", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(16)))
+                {
+                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.REMOVE_PLOTSGROUP_MEMBER_SELECT;
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(Lang.Get("claims:gui-remove-plotsgroup-member"));
+                }
             }
-            ImGui.SameLine();
-            if (ImGui.ImageButton("removeplotsgroupmember", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(16)))
+            if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_PLOTSGROUP_SET))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.REMOVE_PLOTSGROUP_MEMBER_SELECT;
-            }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip(Lang.Get("claims:gui-remove-plotsgroup-member"));
-            }
-            ImGui.Text(Lang.Get("claims:gui-plot-permissions"));
-            ImGui.SameLine();
-            if (ImGui.ImageButton("plotsgrpuppermissions", this.iconHandler.GetOrLoadIcon("medal"), new Vector2(16)))
-            {
-                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_PLOTSGROUP_PERMISSIONS;
-            }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip(Lang.Get("claims:gui-plot-permissions"));
-            }
-
-
-            if (ImGui.ImageButton("plotsgrpupaddplot", this.iconHandler.GetOrLoadIcon("expander"), new Vector2(16)))
-            {
-                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_PLOTSGROUP_PLOT_CLAIM_CONFIRM;
-            }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip(Lang.Get("claims:gui-plotsgroup-add-plot"));
+                ImGui.Text(Lang.Get("claims:gui-plot-permissions"));
+                ImGui.SameLine();
+                if (ImGui.ImageButton("plotsgrpuppermissions", this.iconHandler.GetOrLoadIcon("medal"), new Vector2(16)))
+                {
+                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_PLOTSGROUP_PERMISSIONS;
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(Lang.Get("claims:gui-plot-permissions"));
+                }
             }
 
-            ImGui.SameLine();
-
-            ImGui.SameLine();
-            if (ImGui.ImageButton("plotsgrpupremoveplot", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(16)))
+            if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_PLOTSGROUP_ADD_PLOT))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_PLOTSGROUP_PLOT_UNCLAIM_CONFIRM;
+                if (ImGui.ImageButton("plotsgrpupaddplot", this.iconHandler.GetOrLoadIcon("expander"), new Vector2(16)))
+                {
+                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_PLOTSGROUP_PLOT_CLAIM_CONFIRM;
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(Lang.Get("claims:gui-plotsgroup-add-plot"));
+                }
             }
-            if (ImGui.IsItemHovered())
+            if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_PLOTSGROUP_REMOVE_PLOT))
             {
-                ImGui.SetTooltip(Lang.Get("claims:gui-plotsgroup-remove-plot"));
+                ImGui.SameLine();
+                if (ImGui.ImageButton("plotsgrpupremoveplot", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(16)))
+                {
+                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_PLOTSGROUP_PLOT_UNCLAIM_CONFIRM;
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(Lang.Get("claims:gui-plotsgroup-remove-plot"));
+                }
             }
         }
     }
