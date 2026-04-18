@@ -55,6 +55,7 @@ namespace claims.src.gui.playerGui.structures
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_PLOTS_COLOR, OnCityCityPlotsColor);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_BALANCE, OnCityCityBalance);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_DEBT, OnCityCityDebt);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_FEE, OnCityCityFee);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_CRIMINAL_ADDED, OnCityCityCriminalAdded);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_CRIMINAL_REMOVED, OnCityCityCriminalRemoved);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_CRIMINALS_LIST, OnCityCityCriminalsList);
@@ -296,6 +297,10 @@ namespace claims.src.gui.playerGui.structures
         private void OnCityCityDebt(string val)
         {
             CityInfo.CityDebt = (double)decimal.Parse(val, CultureInfo.InvariantCulture);
+        }
+        private void OnCityCityFee(string val)
+        {
+            CityInfo.CityFee = int.Parse(val);
         }
         private void OnCityCityCriminalAdded(string val)
         {
