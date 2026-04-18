@@ -933,7 +933,7 @@ namespace claims.src.commands
                 return TextCommandResult.Success();
             }
 
-            int fee = (int)args.LastArg;
+            int fee = Convert.ToInt32(args.Parsers[0].GetValue());
 
             if (fee < 0)
             {
@@ -945,7 +945,12 @@ namespace claims.src.commands
             }
 
             city.fee = fee;
-            UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT);
+            UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_FEE);
+            foreach (var citizen in city.getOnlineCitizens())
+            {
+                if (claims.dataStorage.GetPlayerByUid(citizen.PlayerUID, out PlayerInfo pi))
+                    UsefullPacketsSend.AddToQueuePlayerInfoUpdate(pi.Guid, EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT);
+            }
             city.saveToDatabase();
             return SuccessWithParams("claims:city_fee_set_to", new object[] { fee });
         }

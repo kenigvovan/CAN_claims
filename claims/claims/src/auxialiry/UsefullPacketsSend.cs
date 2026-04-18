@@ -69,7 +69,7 @@ namespace claims.src.auxialiry
                 infoToUpdateCity.AddRange([EnumPlayerRelatedInfo.CITY_CREATED_TIMESTAMP, EnumPlayerRelatedInfo.CITY_MEMBERS,
                                            EnumPlayerRelatedInfo.MAX_COUNT_PLOTS, EnumPlayerRelatedInfo.CLAIMED_PLOTS,
                                            EnumPlayerRelatedInfo.CITY_PLOTS_COLOR, EnumPlayerRelatedInfo.CITY_DEBT, EnumPlayerRelatedInfo.CITY_DAY_PAYMENT,
-                                           EnumPlayerRelatedInfo.CITY_PERMISSIONS_UPDATED, EnumPlayerRelatedInfo.CITY_BALANCE, EnumPlayerRelatedInfo.CITY_CRIMINALS_LIST,
+                                           EnumPlayerRelatedInfo.CITY_PERMISSIONS_UPDATED, EnumPlayerRelatedInfo.CITY_BALANCE, EnumPlayerRelatedInfo.CITY_FEE, EnumPlayerRelatedInfo.CITY_CRIMINALS_LIST,
                                            EnumPlayerRelatedInfo.CITY_PRISON_CELL_ALL, EnumPlayerRelatedInfo.CITY_SUMMON_POINT_ALL, EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_ALL]);
             }
             infoToUpdatePlayer.AddRange([EnumPlayerRelatedInfo.SHOW_PLOT_MOVEMENT, EnumPlayerRelatedInfo.FRIENDS, EnumPlayerRelatedInfo.TO_CITY_INVITES,
@@ -544,6 +544,9 @@ namespace claims.src.auxialiry
                         case EnumPlayerRelatedInfo.CITY_DEBT:
                             result[pair.Key] = city.DebtBalance.ToString(CultureInfo.InvariantCulture);
                             break;
+                        case EnumPlayerRelatedInfo.CITY_FEE:
+                            result[pair.Key] = city.fee.ToString();
+                            break;
                         case EnumPlayerRelatedInfo.CITY_PLOTS_COLOR:
                             result[pair.Key] = city.cityColor.ToString();
                             break;
@@ -613,8 +616,8 @@ namespace claims.src.auxialiry
                                 result[pair.Key] = JsonConvert.SerializeObject(plotsgroupCellElements);
                             }
                             break;
-                        //PLAYER_NEXT_PAYMENT
                         case EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT:
+                            if (playerInfo == null) break;
                             var dict = playerInfo.GetNextPaymentsDict();
                             result[pair.Key] = JsonConvert.SerializeObject(dict);
                             break;

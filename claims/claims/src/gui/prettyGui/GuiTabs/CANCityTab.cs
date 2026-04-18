@@ -135,6 +135,22 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 {
                     ImGui.Text(Lang.Get("claims:gui-city-payment", clientInfo.CityInfo.CityDayPayment));
                 }
+                if (claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.CITY_SET_GLOBAL_FEE)
+                    || claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.CITY_SET_ALL))
+                {
+                    ImGui.Text(Lang.Get("claims:gui-city-fee"));
+                    ImGui.SameLine(0, 0);
+                    ImGui.Text(clientInfo.CityInfo.CityFee.ToString());
+                    ImGui.SameLine();
+                    if (ImGui.ImageButton("setcityfee", this.iconHandler.GetOrLoadIcon("medal"), new Vector2(16)))
+                    {
+                        capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_SET_FEE;
+                    }
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.SetTooltip(Lang.Get("claims:gui-city-set-fee-tooltip"));
+                    }
+                }
 
 
                 float availY = ImGui.GetContentRegionAvail().Y;

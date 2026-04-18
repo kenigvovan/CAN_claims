@@ -23,6 +23,7 @@ namespace claims.src.gui.playerGui.structures
         public double CityBalance { get; set; }
         public double CityDebt { get; set; }
         public double CityDayPayment { get; set; }
+        public int CityFee { get; set; }
         public List<string> Criminals = new();
         public PermsHandler PermsHandler { get; set; } = new();
         public List<PrisonCellElement> PrisonCells { get; set; } = new();

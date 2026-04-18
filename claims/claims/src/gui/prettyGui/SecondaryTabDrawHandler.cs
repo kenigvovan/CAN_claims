@@ -60,6 +60,7 @@ namespace claims.src.gui.prettyGui
             this.TabDictionary.Add(EnumSecondaryWindowTab.CITY_PLOTS_PERMISSIONS, new CANCityPermissionsTab(capi, iconHandler, "claims:gui-city-permissions-title", "", "claims:gui-add-button"));
             this.TabDictionary.Add(EnumSecondaryWindowTab.ALLIANCE_CANCEL_UNION_SELECT, new CANSelectUnionToLeaveTab(capi, iconHandler, "claims:gui-select-union-to-leave-title", "/a union revoke", "claims:gui-confirm-button"));
             this.TabDictionary.Add(EnumSecondaryWindowTab.ALLIANCE_SEND_PEACE_OFFER_CONFIRM, new CANYesNoPieceOfferSendTab(capi, iconHandler, "claims:gui_send_peace_offer", "/alliance conflict offerstop ", "claims:gui-confirm-button", "claims:gui-decline-button"));
+            this.TabDictionary.Add(EnumSecondaryWindowTab.CITY_SET_FEE, new CANNeedIntInputTab(capi, iconHandler, "claims:gui-enter-city-fee", "/c set fee ", "claims:gui-set-button"));
             this.iconHandler = iconHandler;
         }
         public void DrawTab(EnumSecondaryWindowTab selectedTab)
