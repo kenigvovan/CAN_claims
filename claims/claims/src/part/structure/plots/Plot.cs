@@ -32,6 +32,8 @@ namespace claims.src.part.structure
         public bool extraBought { get; set; }
         public bool BorderPlot { get; set; } = false;
         public bool WasCaptured { get; set; } = false;
+        public long TimeStampClaimed { get; set; } = 0;
+        public long lastPaidPrice { get; set; } = 0;
         public Plot(Vec2i chunkPos) : base("", "")
         {
             this.plotPosition = new PlotPosition(chunkPos);

@@ -1,11 +1,15 @@
-﻿using claims.src.auxialiry;
+﻿using claims.src.agreement;
+using claims.src.auxialiry;
 using claims.src.gui.playerGui.structures;
+using claims.src.messages;
 using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.plots;
 using claims.src.rights;
 using System;
+using System.Threading;
 using Vintagestory.API.Common;
+using Vintagestory.API.Config;
 using Vintagestory.API.Server;
 
 namespace claims.src.commands
@@ -121,6 +125,8 @@ namespace claims.src.commands
                 if (paymentSuccessfull)
                 {
                     plot.Price = -1;
+                    plot.lastPaidPrice = (long)savedPrice;
+                    plot.TimeStampClaimed = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                     plot.getPermsHandler().setPerm(playerInfo.PermsHandler);
                     plot.setPlotOwner(playerInfo);
                     playerInfo.PlayerPlots.Add(plot);
@@ -160,27 +166,60 @@ namespace claims.src.commands
                 return TextCommandResult.Error("claims:no_city_here");
             }
 
-            if ((plot.hasPlotOwner() && plot.getPlotOwner().Equals(playerInfo)) || plot.getCity().isMayor(playerInfo))
-            {
-                if (plot.hasCityPlotsGroup())
-                {
-                    return TextCommandResult.Error("claims:has_plots_group");
-                }
-                plot.setPlotOwner(null);
-                playerInfo.PlayerPlots.Remove(plot);
-                playerInfo.saveToDatabase();
-                claims.dataStorage.ClearCacheForPlayersInPlot(plot);
-                claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(plot.getPos());
-                claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
-                UsefullPacketsSend.SendCurrentPlotUpdate(player, plot);
-                UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT);
-                plot.saveToDatabase();
-                return TextCommandResult.Success("claims:plot_has_been_unclaimed_by_player");
-            }
-            else
+            if (!((plot.hasPlotOwner() && plot.getPlotOwner().Equals(playerInfo)) || plot.getCity().isMayor(playerInfo)))
             {
                 return TextCommandResult.Error("claims:no_plots_here");
             }
+            if (plot.hasCityPlotsGroup())
+            {
+                return TextCommandResult.Error("claims:has_plots_group");
+            }
+
+            long desired = PlotRefundHelper.CalculatePersonalUnclaimRefund(plot);
+            if (desired > 0)
+            {
+                long affordable = PlotRefundHelper.GetMaxAffordableRefund(plot, desired);
+                if (affordable < desired)
+                {
+                    long captured = affordable;
+                    Plot capturedPlot = plot;
+                    PlayerInfo capturedPlayerInfo = playerInfo;
+                    IServerPlayer capturedPlayer = player;
+                    AgreementHandler.addNewAgreementOrReplace(new Agreement(
+                        new Thread(new ThreadStart(() =>
+                        {
+                            if (captured > 0)
+                            {
+                                PlotRefundHelper.TryTransferPersonalRefund(capturedPlot, capturedPlayerInfo, captured);
+                            }
+                            FinishPersonalUnclaim(capturedPlot, capturedPlayerInfo, capturedPlayer);
+                            MessageHandler.sendMsgToPlayer(capturedPlayer,
+                                Lang.Get("claims:refund_unclaim_done_reduced", captured));
+                        })),
+                        player.PlayerUID));
+                    string askKey = affordable <= 0
+                        ? "claims:refund_unclaim_no_money_ask"
+                        : "claims:refund_unclaim_reduced_ask";
+                    return SuccessWithParams(askKey, new object[] { affordable, desired, claims.config.AGREEMENT_COMMAND });
+                }
+                PlotRefundHelper.TryTransferPersonalRefund(plot, playerInfo, desired);
+            }
+
+            FinishPersonalUnclaim(plot, playerInfo, player);
+            return TextCommandResult.Success("claims:plot_has_been_unclaimed_by_player");
+        }
+
+        private static void FinishPersonalUnclaim(Plot plot, PlayerInfo playerInfo, IServerPlayer player)
+        {
+            plot.setPlotOwner(null);
+            playerInfo.PlayerPlots.Remove(plot);
+            playerInfo.saveToDatabase();
+            claims.dataStorage.ClearCacheForPlayersInPlot(plot);
+            claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(plot.getPos());
+            claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
+            UsefullPacketsSend.SendCurrentPlotUpdate(player, plot);
+            UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT);
+            plot.saveToDatabase();
         }
         /*==============================================================================================*/
         /*=====================================SET======================================================*/

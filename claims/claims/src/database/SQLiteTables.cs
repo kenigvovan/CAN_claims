@@ -60,6 +60,8 @@
             "plotdesc TEXT," +
             "extraBought INTEGER," +
             "wascaptured INTEGER," +
+            "timestampclaimed INTEGER DEFAULT 0," +
+            "lastpaidprice INTEGER DEFAULT 0," +
             "PRIMARY KEY(x, z)" +
             ");";
 

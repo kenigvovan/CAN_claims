@@ -251,6 +251,7 @@ namespace claims.src.commands
             plotHere.setCity(playerInfo.City);
             plotHere.getPermsHandler().setPerm(city.getPermsHandler());
             plotHere.Price = -1;
+            plotHere.TimeStampClaimed = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             claims.dataStorage.addClaimedPlot(currentPlotPosition, plotHere);
             city.getCityPlots().Add(plotHere);
             city.saveToDatabase();
@@ -309,6 +310,7 @@ namespace claims.src.commands
                 city.Extrachunksbought--;
                 city.saveToDatabase();
             }
+            PlotRefundHelper.RefundOnCityUnclaim(plotHere);
             PartDemolition.demolishCityPlot(plotHere);
 
             claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(plotHere.getPos());
@@ -367,6 +369,7 @@ namespace claims.src.commands
             plotHere.setCity(playerInfo.City);
             plotHere.getPermsHandler().setPerm(city.getPermsHandler());
             plotHere.Price = -1;
+            plotHere.TimeStampClaimed = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             claims.dataStorage.addClaimedPlot(currentPlotPosition, plotHere);
             city.getCityPlots().Add(plotHere);
             city.saveToDatabase();
@@ -427,6 +430,7 @@ namespace claims.src.commands
             plotHere.getPermsHandler().setPerm(city.getPermsHandler());
             plotHere.Price = -1;
             plotHere.extraBought = true;
+            plotHere.TimeStampClaimed = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             city.Extrachunksbought++;
             claims.dataStorage.addClaimedPlot(currentPlotPosition, plotHere);
             city.getCityPlots().Add(plotHere);

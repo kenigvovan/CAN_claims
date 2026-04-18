@@ -1,5 +1,8 @@
 using claims.src.auxialiry;
+using claims.src.gui.playerGui.structures.cellElements;
 using ImGuiNET;
+using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -10,6 +13,14 @@ namespace claims.src.gui.prettyGui.GuiTabs
 {
     public class CANCityListTab : CANGuiTab
     {
+        private enum SortMode { Default, Oldest, Population, Plots }
+
+        private SortMode sortMode = SortMode.Default;
+
+        private static readonly Vector4 GoldColor = new Vector4(1.00f, 0.84f, 0.00f, 1.0f);
+        private static readonly Vector4 SilverColor = new Vector4(0.80f, 0.80f, 0.82f, 1.0f);
+        private static readonly Vector4 BronzeColor = new Vector4(0.85f, 0.55f, 0.25f, 1.0f);
+
         public CANCityListTab(ICoreClientAPI capi, IconHandler iconHandler)
         {
             this.capi = capi;
@@ -34,16 +45,40 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.PopStyleColor();
 
             ImGui.Separator();
+
+            // --- Sort mode buttons ---
+            ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
+            ImGui.Text(Lang.Get("claims:gui-citylist-sort-label"));
+            ImGui.PopStyleColor();
+            ImGui.SameLine();
+            DrawSortButton(SortMode.Default, "claims:gui-citylist-sort-default");
+            ImGui.SameLine();
+            DrawSortButton(SortMode.Oldest, "claims:gui-citylist-sort-oldest");
+            ImGui.SameLine();
+            DrawSortButton(SortMode.Population, "claims:gui-citylist-sort-population");
+            ImGui.SameLine();
+            DrawSortButton(SortMode.Plots, "claims:gui-citylist-sort-plots");
+
             ImGui.Spacing();
+
+            IEnumerable<ClientCityInfoCellElement> sorted = GetSortedCities();
 
             ImGui.BeginChild("CitiesScroll", new Vector2(0, 0), false);
             int i = 0;
-            foreach (var city in claims.clientDataStorage.clientPlayerInfo.AllCitiesList)
+            foreach (var city in sorted)
             {
                 ImGui.PushID(i);
 
-                // --- City name (large, gold) ---
-                ImGui.PushStyleColor(ImGuiCol.Text, nameColor);
+                Vector4 rowNameColor = nameColor;
+                if (sortMode != SortMode.Default)
+                {
+                    if (i == 0) rowNameColor = GoldColor;
+                    else if (i == 1) rowNameColor = SilverColor;
+                    else if (i == 2) rowNameColor = BronzeColor;
+                }
+
+                // --- City name (large) ---
+                ImGui.PushStyleColor(ImGuiCol.Text, rowNameColor);
                 ImGui.SetWindowFontScale(1.15f);
                 ImGui.Text(city.Name);
                 ImGui.SetWindowFontScale(1.0f);
@@ -161,6 +196,35 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 i++;
             }
             ImGui.EndChild();
+        }
+
+        private void DrawSortButton(SortMode mode, string langKey)
+        {
+            bool active = sortMode == mode;
+            if (active)
+            {
+                ImGui.PushStyleColor(ImGuiCol.Button, ImGui.GetStyle().Colors[(int)ImGuiCol.ButtonActive]);
+            }
+            if (ImGui.Button(Lang.Get(langKey)))
+            {
+                sortMode = mode;
+            }
+            if (active)
+            {
+                ImGui.PopStyleColor();
+            }
+        }
+
+        private IEnumerable<ClientCityInfoCellElement> GetSortedCities()
+        {
+            var cities = claims.clientDataStorage.clientPlayerInfo.AllCitiesList;
+            return sortMode switch
+            {
+                SortMode.Oldest => cities.OrderBy(c => c.TimeStampCreated),
+                SortMode.Population => cities.OrderByDescending(c => c.CitizensAmount),
+                SortMode.Plots => cities.OrderByDescending(c => c.ClaimedPlotsAmount),
+                _ => cities,
+            };
         }
     }
 }

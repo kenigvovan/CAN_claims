@@ -8,6 +8,7 @@ using claims.src.auxialiry.ClaimLimiter;
 using claims.src.bb;
 using claims.src.beb;
 using claims.src.blocks;
+using claims.src.cropbehaviors;
 using claims.src.claimsext.map;
 using claims.src.clextentions;
 using claims.src.clientMapHandling;
@@ -202,7 +203,21 @@ namespace claims.src
 
             ServerPacketHandlers.RegisterHandlers();
             InitLimiters();
-        }   
+            sapi.Event.ServerRunPhase(EnumServerRunPhase.RunGame, AttachOnlyOnFarmPlotBehavior);
+        }
+        private static void AttachOnlyOnFarmPlotBehavior()
+        {
+            if (!config.CROPS_ONLY_ON_FARM_PLOTS) return;
+            foreach (var block in sapi.World.Blocks)
+            {
+                if (block?.CropProps == null) continue;
+                var existing = block.CropProps.Behaviors ?? new CropBehavior[0];
+                var extended = new CropBehavior[existing.Length + 1];
+                Array.Copy(existing, extended, existing.Length);
+                extended[existing.Length] = new BehaviorOnlyOnFarmPlot(block);
+                block.CropProps.Behaviors = extended;
+            }
+        }
         public static void InitLimiters()
         {
             if (claims.config.CLAIM_LIMITERS_ENABLED)

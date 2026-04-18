@@ -44,6 +44,7 @@ namespace claims.src.part.structure.plots
             };
             plotAccessableForPlayersWithCode = new Dictionary<string, string> {
                 { "default", "claims:default_plot_type" },
+                { "farm", "claims:farm_plot_type" },
                 { "summon", "claims:summon_plot_type" },
                 { "embassy", "claims:embassy_plot_type" },
                 { "tavern", "claims:tavern_plot_type" },

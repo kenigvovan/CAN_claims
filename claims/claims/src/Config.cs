@@ -135,7 +135,14 @@ namespace claims.src
         public double PRISON_PLOT_COST = 3;
         public double EXTRA_PLOT_COST = 30;
 
-     
+        //REFUND ON UNCLAIM
+        public int PLOT_UNCLAIM_REFUND_PERCENT = 0;
+        public int PLOT_UNCLAIM_REFUND_MIN_AGE_SECONDS = 300;
+
+        //FARM PLOTS ONLY CROP GROWTH
+        public bool CROPS_ONLY_ON_FARM_PLOTS = false;
+
+
         //STRINGS
         public int MAX_LENGTH_CITY_INV_MSG = 100;
         public int MAX_LENGTH_CITY_NAME = 40;
