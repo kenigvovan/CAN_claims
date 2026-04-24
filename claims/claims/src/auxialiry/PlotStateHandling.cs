@@ -23,8 +23,8 @@ namespace claims.src.auxialiry
             
             foreach (var player in claims.sapi.World.AllOnlinePlayers)
             {
-                if (zone.X != (int)(player.Entity.ServerPos.X / claims.config.ZONE_BLOCKS_LENGTH) 
-                    || zone.Y != (int)(player.Entity.ServerPos.Z / claims.config.ZONE_BLOCKS_LENGTH))
+                if (zone.X != (int)(player.Entity.Pos.X / claims.config.ZONE_BLOCKS_LENGTH) 
+                    || zone.Y != (int)(player.Entity.Pos.Z / claims.config.ZONE_BLOCKS_LENGTH))
                 {
                     continue;
                 }
@@ -62,8 +62,8 @@ namespace claims.src.auxialiry
             Vec2i zone = new(x / claims.config.ZONE_PLOTS_LENGTH, z / claims.config.ZONE_PLOTS_LENGTH);
             foreach (var player in claims.sapi.World.AllOnlinePlayers)
             {
-                if (zone.X != (int)(player.Entity.ServerPos.X / claims.config.ZONE_BLOCKS_LENGTH) 
-                    || zone.Y != (int)(player.Entity.ServerPos.Z / claims.config.ZONE_BLOCKS_LENGTH))
+                if (zone.X != (int)(player.Entity.Pos.X / claims.config.ZONE_BLOCKS_LENGTH) 
+                    || zone.Y != (int)(player.Entity.Pos.Z / claims.config.ZONE_BLOCKS_LENGTH))
                 {
                     continue;
                 }

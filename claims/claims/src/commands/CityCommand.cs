@@ -36,7 +36,7 @@ namespace claims.src.commands
         public static TextCommandResult CityHere(TextCommandCallingArgs args)
         {
             IServerPlayer player = args.Caller.Player as IServerPlayer;
-            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z);
+            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
             claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere);
             if (plotHere == null)
             {
@@ -92,7 +92,7 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:you_already_have_city");
             }
-            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z);
+            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
             claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere);
             if (plotHere != null)
             {
@@ -120,7 +120,7 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:not_enough_for_new_city");
             }
-            if (!claims.dataStorage.plotHasDistantEnoughFromOtherForNewCity(new Vec2i((int)player.Entity.ServerPos.X / 16, (int)player.Entity.ServerPos.Z / 16)))
+            if (!claims.dataStorage.plotHasDistantEnoughFromOtherForNewCity(new Vec2i((int)player.Entity.Pos.X / 16, (int)player.Entity.Pos.Z / 16)))
             {
                 return TextCommandResult.Error("claims:too_close_to_another_city_new_city");
             }
@@ -216,7 +216,7 @@ namespace claims.src.commands
                 return TextCommandResult.Error("claims:max_amount_claimed");
             }
 
-            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z);
+            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
             if (claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere))
             {
                 return TextCommandResult.Error("claims:plot_already_claimed");
@@ -284,7 +284,7 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:you_dont_have_city");
             }
-            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z);
+            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
             claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere);
             if (plotHere == null)
             {
@@ -330,7 +330,7 @@ namespace claims.src.commands
                 return TextCommandResult.Error("claims:you_dont_have_city");
             }
             City city = playerInfo.City;
-            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z);
+            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
             claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere);
             if (plotHere != null)
             {
@@ -398,7 +398,7 @@ namespace claims.src.commands
                 return TextCommandResult.Error("claims:you_dont_have_city");
             }
             City city = playerInfo.City;
-            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z);
+            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
             claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere);
             if (plotHere != null)
             {
@@ -1468,7 +1468,7 @@ namespace claims.src.commands
                 tcr.Status = EnumCommandStatus.Success;
                 return tcr;
             }
-            var newPoint = player.Entity.ServerPos.AsBlockPos.AsVec3i.Clone();
+            var newPoint = player.Entity.Pos.AsBlockPos.AsVec3i.Clone();
             plotHere.Prison.addPrisonCell(new PrisonCellInfo(newPoint));
             plotHere.saveToDatabase();
             plotHere.Prison.saveToDatabase();
@@ -1582,7 +1582,7 @@ namespace claims.src.commands
                 return false;
             }
             city = playerInfo.City;
-            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z);
+            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
             claims.dataStorage.GetPlot(currentPlotPosition, out plotHere);
             if (plotHere == null)
             {
@@ -1765,7 +1765,7 @@ namespace claims.src.commands
             {
                 return tcr;
             }
-            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z);
+            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
             claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere);
             if (plotHere == null)
             {
@@ -1792,13 +1792,13 @@ namespace claims.src.commands
                 new Dictionary<string, object> { { "value", new SummonCellElement(oldPoint.AsVec3i.Clone(),
                     (plotHere.PlotDesc as PlotDescSummon).Name) } },
                 EnumPlayerRelatedInfo.CITY_SUMMON_POINT_REMOVE);
-            (plotHere.PlotDesc as PlotDescSummon).SummonPoint = player.Entity.ServerPos.XYZ.Clone();
+            (plotHere.PlotDesc as PlotDescSummon).SummonPoint = player.Entity.Pos.XYZ.Clone();
             UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
                 new Dictionary<string, object> { { "value", new SummonCellElement((plotHere.PlotDesc as PlotDescSummon).SummonPoint.AsVec3i.Clone(),
                     (plotHere.PlotDesc as PlotDescSummon).Name) } },
                 EnumPlayerRelatedInfo.CITY_SUMMON_POINT_ADD);
             tcr.StatusMessage = "claims:summon_point_set_to";
-            tcr.MessageParams = new object[] { player.Entity.ServerPos.XYZ.ToString() };
+            tcr.MessageParams = new object[] { player.Entity.Pos.XYZ.ToString() };
             plotHere.saveToDatabase();
             tcr.Status = EnumCommandStatus.Success;
             return tcr;
@@ -1813,7 +1813,7 @@ namespace claims.src.commands
             {
                 return tcr;
             }
-            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z);
+            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
             claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere);
             if (plotHere == null)
             {
@@ -1870,7 +1870,7 @@ namespace claims.src.commands
             {
                 return tcr;
             }
-            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z);
+            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
             claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere);
             
             

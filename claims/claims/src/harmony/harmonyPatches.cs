@@ -275,8 +275,8 @@ namespace claims.src.harmony
 
             if (___fallHandled) return false;
 
-            BlockPos pos = __instance.SidedPos.AsBlockPos;
-            BlockPos finalPos = __instance.ServerPos.AsBlockPos;
+            BlockPos pos = __instance.Pos.AsBlockPos;
+            BlockPos finalPos = __instance.Pos.AsBlockPos;
             Block block = null;
             
             if (__instance.Api.Side == EnumAppSide.Server)

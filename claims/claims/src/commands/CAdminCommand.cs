@@ -65,7 +65,7 @@ namespace claims.src.commands
                 Status = EnumCommandStatus.Success
             };
 
-            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z), out Plot plot);
+            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z), out Plot plot);
             if (plot == null)
             {
                 return tcr;
@@ -83,7 +83,7 @@ namespace claims.src.commands
             TextCommandResult tcr = new TextCommandResult();
             tcr.Status = EnumCommandStatus.Success;
 
-            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z), out Plot plot);
+            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z), out Plot plot);
             if (plot == null)
             {
                 return tcr;
@@ -99,7 +99,7 @@ namespace claims.src.commands
             TextCommandResult tcr = new TextCommandResult();
             tcr.Status = EnumCommandStatus.Success;
 
-            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z), out Plot plot);
+            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z), out Plot plot);
             if (plot == null)
             {
                 return tcr;
@@ -115,7 +115,7 @@ namespace claims.src.commands
             TextCommandResult tcr = new TextCommandResult();
             tcr.Status = EnumCommandStatus.Success;
 
-            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z), out Plot plot);
+            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z), out Plot plot);
             if (plot == null)
             {
                 return tcr;
@@ -131,7 +131,7 @@ namespace claims.src.commands
             TextCommandResult tcr = new TextCommandResult();
             tcr.Status = EnumCommandStatus.Success;
 
-            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z), out Plot plotHere);
+            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z), out Plot plotHere);
             if (plotHere == null)
             {
                 return tcr;
@@ -153,7 +153,7 @@ namespace claims.src.commands
             TextCommandResult tcr = new TextCommandResult();
             tcr.Status = EnumCommandStatus.Success;
 
-            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z), out Plot plotHere);
+            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z), out Plot plotHere);
             if (plotHere == null)
             {
                 return tcr;
@@ -189,7 +189,7 @@ namespace claims.src.commands
             TextCommandResult tcr = new TextCommandResult();
             tcr.Status = EnumCommandStatus.Success;
 
-            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z), out Plot plot);
+            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z), out Plot plot);
             if (plot == null)
             {
                 return tcr;
@@ -222,7 +222,7 @@ namespace claims.src.commands
             TextCommandResult tcr = new TextCommandResult();
             tcr.Status = EnumCommandStatus.Success;
 
-            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z);
+            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
             claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere);
             if (plotHere != null)
             {
@@ -851,7 +851,7 @@ namespace claims.src.commands
         /*==============================================================================================*/
         public static void cCityUnclaim(IServerPlayer player, CmdArgs args, City city, TextCommandResult res)
         {
-            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z);
+            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
             claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere);
             if (plotHere == null)
             {
@@ -880,7 +880,7 @@ namespace claims.src.commands
         }
         public static void cCityClaim(IServerPlayer player, CmdArgs args, City city, TextCommandResult res, bool force = false)
         {
-            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z);
+            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
             claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere);
             if (plotHere != null)
             {
@@ -911,7 +911,7 @@ namespace claims.src.commands
         }
         public static void cCityClaimByChankOffset(IServerPlayer player, CmdArgs args, City city, TextCommandResult res, int xOffset, int yOffset, bool force = false)
         {
-            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z);
+            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
             var curPos = currentPlotPosition.getPos();
             currentPlotPosition.setX(curPos.X + xOffset); 
             currentPlotPosition.setY(curPos.Y + yOffset);
@@ -1040,7 +1040,7 @@ namespace claims.src.commands
             TextCommandResult tcr = new TextCommandResult();
             tcr.Status = EnumCommandStatus.Success;
 
-            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z), out Plot plotHere);
+            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z), out Plot plotHere);
             if (plotHere == null)
             {
                 return tcr;

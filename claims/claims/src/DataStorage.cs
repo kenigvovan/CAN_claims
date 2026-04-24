@@ -661,8 +661,8 @@ namespace claims.src
         {
             foreach (var player in claims.sapi.World.AllOnlinePlayers)
             {
-                if (((((int)player.Entity.ServerPos.X / PlotPosition.plotSize)) == plot.getPos().X &&
-                    (((int)player.Entity.ServerPos.Z / PlotPosition.plotSize)) == plot.getPos().Y))
+                if (((((int)player.Entity.Pos.X / PlotPosition.plotSize)) == plot.getPos().X &&
+                    (((int)player.Entity.Pos.Z / PlotPosition.plotSize)) == plot.getPos().Y))
                 {
                     resetPlayerCacheByGUID(player.PlayerUID);
                 }

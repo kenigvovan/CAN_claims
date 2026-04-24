@@ -128,7 +128,7 @@ namespace claims.src.part
             plot.Type = PlotType.PRISON;
             plot.Prison = new Prison("", guid.ToString());
             claims.dataStorage.addPrison(plot.Prison);
-            plot.Prison.addPrisonCell(new PrisonCellInfo(new Vec3i((int)creator.Entity.ServerPos.X, (int)creator.Entity.ServerPos.Y, (int)creator.Entity.ServerPos.Z)));
+            plot.Prison.addPrisonCell(new PrisonCellInfo(new Vec3i((int)creator.Entity.Pos.X, (int)creator.Entity.Pos.Y, (int)creator.Entity.Pos.Z)));
             plot.getCity().getPrisons().Add(plot.Prison);
             plot.Prison.Plot = plot;
             plot.Prison.City = plot.getCity();

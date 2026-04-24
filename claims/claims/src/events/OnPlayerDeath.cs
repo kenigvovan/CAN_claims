@@ -49,7 +49,7 @@ namespace claims.src.events
             }
             if (attackPlayer == null)
                 return;
-            claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(killed.Entity.ServerPos), out Plot plotKilled); 
+            claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(killed.Entity.Pos), out Plot plotKilled); 
             if(plotKilled == null)
             {
                 return;

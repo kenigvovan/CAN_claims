@@ -181,7 +181,7 @@ namespace claims.src
             }
             else
             {
-                playerInfo.PlayerCache.setPlotPosition(PlotPosition.fromXZ((int)pl.Entity.ServerPos.X, (int)pl.Entity.ServerPos.Z));
+                playerInfo.PlayerCache.setPlotPosition(PlotPosition.fromXZ((int)pl.Entity.Pos.X, (int)pl.Entity.Pos.Z));
                 playerInfo.PlayerCache.Reset();
             }
 
@@ -232,7 +232,7 @@ namespace claims.src
                 //If we have last player pos saved
                 if (claims.dataStorage.getLastPlayerPos(it.PlayerUID, out Vec3i lastPlayerPos))
                 {
-                    Vec3i playerCurrentPos = it.Entity.ServerPos.XYZInt;
+                    Vec3i playerCurrentPos = it.Entity.Pos.XYZInt;
                     if ((lastPlayerPos.X != playerCurrentPos.X || lastPlayerPos.Z != playerCurrentPos.Z))
                     {
                         //Player moved
@@ -262,7 +262,7 @@ namespace claims.src
                             tree.SetInt("zChO", (int)lastPlayerPos.Z / PlotPosition.plotSize);
 
                             playerInfo.PlayerCache.Reset();
-                            playerInfo.PlayerCache.setPlotPosition(PlotPosition.fromXZ((int)it.Entity.ServerPos.X, (int)it.Entity.ServerPos.Z));
+                            playerInfo.PlayerCache.setPlotPosition(PlotPosition.fromXZ((int)it.Entity.Pos.X, (int)it.Entity.Pos.Z));
 
                             claims.sapi.World.Api.Event.PushEvent("claimsPlayerChangePlot", tree);
                         }
@@ -279,7 +279,7 @@ namespace claims.src
                     {
                         return;
                     }
-                    Vec3i playerCurrentPos = it.Entity.ServerPos.XYZInt;
+                    Vec3i playerCurrentPos = it.Entity.Pos.XYZInt;
                     claims.dataStorage.setLastPlayerPos(it.PlayerUID, playerCurrentPos.Clone());
 
                     //player probably just logged in
@@ -399,8 +399,8 @@ namespace claims.src
                 Vec2i playerZone = new Vec2i();
                 foreach (var pl in claims.sapi.World.AllOnlinePlayers)
                 {
-                    playerZone.X = (int)pl.Entity.ServerPos.X / claims.config.ZONE_BLOCKS_LENGTH;
-                    playerZone.Y = (int)pl.Entity.ServerPos.Z / claims.config.ZONE_BLOCKS_LENGTH;
+                    playerZone.X = (int)pl.Entity.Pos.X / claims.config.ZONE_BLOCKS_LENGTH;
+                    playerZone.Y = (int)pl.Entity.Pos.Z / claims.config.ZONE_BLOCKS_LENGTH;
 
                     HashSet<Vec2i> removeForPlyaer = new HashSet<Vec2i>();
                     foreach(var zone in PlotWhichShouldBeRemoved)
@@ -440,8 +440,8 @@ namespace claims.src
                     {
                         continue;
                     }
-                    playerZone.X = (int)pl.Entity.ServerPos.X / claims.config.ZONE_BLOCKS_LENGTH;
-                    playerZone.Y = (int)pl.Entity.ServerPos.Z / claims.config.ZONE_BLOCKS_LENGTH;
+                    playerZone.X = (int)pl.Entity.Pos.X / claims.config.ZONE_BLOCKS_LENGTH;
+                    playerZone.Y = (int)pl.Entity.Pos.Z / claims.config.ZONE_BLOCKS_LENGTH;
 
                     List<Tuple<Vec2i, SavedPlotInfo>> updatePlotsForPlayer = new List<Tuple<Vec2i, SavedPlotInfo>>();
                     PlotPosition tmpPlotPosition = new PlotPosition();

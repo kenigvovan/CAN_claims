@@ -7,7 +7,7 @@ namespace claims.src.events
     {
         public static bool canAttackEntity(IServerPlayer attacker, Entity defend)
         {
-            if (OnBlockAction.canAttackAnimals(attacker, defend.ServerPos.XYZ))
+            if (OnBlockAction.canAttackAnimals(attacker, defend.Pos.XYZ))
             {
                 return true;
             }

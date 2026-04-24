@@ -19,7 +19,7 @@ namespace claims.src.commands
         {
             IServerPlayer player = args.Caller.Player as IServerPlayer;
 
-            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z), out Plot plot);
+            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z), out Plot plot);
             if (plot == null)
             {
                 return TextCommandResult.Error("claims:plot_not_claimed");
@@ -150,7 +150,7 @@ namespace claims.src.commands
                 return TextCommandResult.Error("claims:no_such_player");
             }
 
-            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z), out Plot plot);
+            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z), out Plot plot);
             if (plot == null)
             {
                 return TextCommandResult.Error("claims:no_plots_here");
@@ -260,7 +260,7 @@ namespace claims.src.commands
                 return TextCommandResult.Success("claims:no_such_player");
             }
 
-            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z), out Plot plot);
+            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z), out Plot plot);
             if (plot == null)
             {
                 return TextCommandResult.Success("claims:no_plots_here");
@@ -306,7 +306,7 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Success("claims:not_negative");
             }
-            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z);
+            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
             if(!claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere))
             {
                 return TextCommandResult.Success("claims:plot_not_claimed");
@@ -345,7 +345,7 @@ namespace claims.src.commands
 
             if (PlotInfo.nameToPlotType.ContainsKey((string)args.LastArg))
             {
-                PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z);
+                PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
                 if(!claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere))
                 {
                     return TextCommandResult.Success("claims:plot_not_claimed");
@@ -383,7 +383,7 @@ namespace claims.src.commands
             TextCommandResult tcr = new();
             tcr.Status = EnumCommandStatus.Success;
 
-            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z), out Plot plot);
+            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z), out Plot plot);
             if (plot == null)
             {
                 return TextCommandResult.Success();
@@ -424,7 +424,7 @@ namespace claims.src.commands
                 return TextCommandResult.Success("claims:no_such_player");
             }
 
-            if(!claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z), out Plot plot))
+            if(!claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z), out Plot plot))
             {
                 return TextCommandResult.Success("claims:no_plots_here");
             }
@@ -458,7 +458,7 @@ namespace claims.src.commands
                 return TextCommandResult.Success("claims:no_such_player");
             }
 
-            if(!claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z), out Plot plot))
+            if(!claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z), out Plot plot))
             {
                 return TextCommandResult.Success("claims:no_plots_here");
             }
@@ -480,7 +480,7 @@ namespace claims.src.commands
         /*==============================================================================================*/
         public static bool HelperFunctionSetFlag(IServerPlayer player, out Plot plotHere, TextCommandResult tcr)
         {
-            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z);
+            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
             claims.dataStorage.GetPlot(currentPlotPosition, out plotHere);
             if (plotHere == null)
             {
@@ -556,7 +556,7 @@ namespace claims.src.commands
                 MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:you_dont_have_right_for_that_command"));
                 return tcr;
             }
-            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z);
+            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
             claims.dataStorage.getPlot(currentPlotPosition, out Plot plotHere);
             if (plotHere == null)
             {
@@ -630,7 +630,7 @@ namespace claims.src.commands
                 {
                     InnerClaimRecord tmpAdd = new InnerClaimRecord();
                     claims.dataStorage.addClaimRecord(player.PlayerUID, tmpAdd);
-                    tmpAdd.plotCoords = new Vec2i((int)player.Entity.ServerPos.X / 16, (int)player.Entity.ServerPos.Z / 16);                  
+                    tmpAdd.plotCoords = new Vec2i((int)player.Entity.Pos.X / 16, (int)player.Entity.Pos.Z / 16);                  
                 }
                 claims.dataStorage.getInnerClaimRecord(player.PlayerUID, out InnerClaimRecord tmp);
                 if(player.CurrentBlockSelection == null)
@@ -668,7 +668,7 @@ namespace claims.src.commands
                 {
                     InnerClaimRecord tmpAdd = new InnerClaimRecord();
                     claims.dataStorage.addClaimRecord(player.PlayerUID, tmpAdd);
-                    tmpAdd.plotCoords = new Vec2i((int)player.Entity.ServerPos.X / 16, (int)player.Entity.ServerPos.Z / 16);
+                    tmpAdd.plotCoords = new Vec2i((int)player.Entity.Pos.X / 16, (int)player.Entity.Pos.Z / 16);
                 }
                 claims.dataStorage.getInnerClaimRecord(player.PlayerUID, out InnerClaimRecord tmp);
                 if(player.CurrentBlockSelection == null)
@@ -1023,7 +1023,7 @@ namespace claims.src.commands
                     MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:no_such_player"));
                     return;
                 }
-                PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z);
+                PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
                 if (!claims.dataStorage.getPlot(currentPlotPosition, out Plot plotHere))
                 {
                     MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:plot_not_claimed"));
@@ -1070,7 +1070,7 @@ namespace claims.src.commands
                     MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:plot_not_claimed"));
                     return;
                 }
-                PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.ServerPos.X, (int)player.Entity.ServerPos.Z);
+                PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
                 claims.dataStorage.getPlot(currentPlotPosition, out Plot plotHere);
                 if (plotHere == null)
                 {

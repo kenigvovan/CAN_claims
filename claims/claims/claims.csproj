@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <Reference Include="caneconomy">
-      <HintPath>..\..\..\..\..\Desktop\caneconomy.dll</HintPath>
+      <HintPath>..\..\..\libs\1.22\caneconomy.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="ImGui.NET">

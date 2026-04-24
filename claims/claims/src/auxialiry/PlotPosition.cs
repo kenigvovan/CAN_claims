@@ -116,11 +116,11 @@ namespace claims.src.auxialiry
         {
             List<BlockPos> bList = new List<BlockPos>();
 
-            int x = (int)(player.Entity.ServerPos.X - (player.Entity.ServerPos.X % 16));
-            int z = (int)(player.Entity.ServerPos.Z - player.Entity.ServerPos.Z % 16);
+            int x = (int)(player.Entity.Pos.X - (player.Entity.Pos.X % 16));
+            int z = (int)(player.Entity.Pos.Z - player.Entity.Pos.Z % 16);
             bList.Add(new BlockPos(x, 0, z));
-            x = (int)(player.Entity.ServerPos.X + 16 - (player.Entity.ServerPos.X % 16));
-            z = (int)(player.Entity.ServerPos.Z + 16 - (player.Entity.ServerPos.Z % 16));
+            x = (int)(player.Entity.Pos.X + 16 - (player.Entity.Pos.X % 16));
+            z = (int)(player.Entity.Pos.Z + 16 - (player.Entity.Pos.Z % 16));
             bList.Add(new BlockPos(x, 256, z));
             List<int> colors = new List<int>();
 

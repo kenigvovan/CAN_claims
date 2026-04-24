@@ -141,7 +141,7 @@ namespace claims.src.part.structure
                 }
                 Type = PlotType.SUMMON;
                 getCity().summonPlots.Add(this);
-                PlotDescSummon pds = new PlotDescSummon(player.Entity.ServerPos.XYZ);
+                PlotDescSummon pds = new PlotDescSummon(player.Entity.Pos.XYZ);
                 pds.Name = "Point" + ((int)pds.SummonPoint.X % 10).ToString() + ((int)pds.SummonPoint.Z % 10).ToString();
                 this.PlotDesc = pds;
                 saveToDatabase();
@@ -161,7 +161,7 @@ namespace claims.src.part.structure
                 tcr.StatusMessage = "claims:plot_set_type";
                 tcr.MessageParams = new object[] { newPlotType };
                 UsefullPacketsSend.AddToQueueCityInfoUpdate(this.getCity().Guid,
-                    new Dictionary<string, object> { { "value", new PrisonCellElement(player.Entity.ServerPos.AsBlockPos.AsVec3i.Clone(), new HashSet<string>()) } }, EnumPlayerRelatedInfo.CITY_ADD_PRISON_CELL);
+                    new Dictionary<string, object> { { "value", new PrisonCellElement(player.Entity.Pos.AsBlockPos.AsVec3i.Clone(), new HashSet<string>()) } }, EnumPlayerRelatedInfo.CITY_ADD_PRISON_CELL);
                 return true;
             }
             else if (plotType == PlotType.TAVERN)

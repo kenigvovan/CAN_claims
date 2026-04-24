@@ -35,7 +35,7 @@ namespace claims.src.network.handlers
                     List<Tuple<Vec2i, long>> zonesTimestamps = JsonConvert.DeserializeObject<List<Tuple<Vec2i, long>>>(packet.data);
                     List<Vec2i> needUpdateZones = new List<Vec2i>();
 
-                    Vec2i playerServerPos = new Vec2i((int)player.Entity.ServerPos.X / 512, (int)player.Entity.ServerPos.Z / 512);
+                    Vec2i playerServerPos = new Vec2i((int)player.Entity.Pos.X / 512, (int)player.Entity.Pos.Z / 512);
 
                     //iterate through all pairs
                     //add only which need update - have 0 timestamp
@@ -118,7 +118,7 @@ namespace claims.src.network.handlers
                 }
                 else if(packet.type == PacketsContentEnum.CURRENT_PLOT_CLIENT_REQUEST)
                 {
-                    var currentPos = player.Entity.ServerPos;
+                    var currentPos = player.Entity.Pos;
                     if(claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(currentPos), out Plot plot))
                     {
                         CurrentPlotInfo cpi = new CurrentPlotInfo(plot.GetPartName(), plot.getPlotOwner()?.GetPartName() ?? "",
@@ -145,7 +145,7 @@ namespace claims.src.network.handlers
                     //skip if not mayor
                     //send dict with ranks
                     //add handler on client
-                    var currentPos = player.Entity.ServerPos;
+                    var currentPos = player.Entity.Pos;
                     if (claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(currentPos), out Plot plot))
                     {
                         CurrentPlotInfo cpi = new CurrentPlotInfo(plot.GetPartName(), plot.getPlotOwner()?.GetPartName() ?? "",
