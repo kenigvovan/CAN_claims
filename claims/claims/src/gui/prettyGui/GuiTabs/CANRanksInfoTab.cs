@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using claims.src.auxialiry;
@@ -33,145 +33,216 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 return;
             }
 
-            var clientInfo = claims.clientDataStorage.clientPlayerInfo;
-            string text = string.Format("{0}", cell.Name);
+            Vector4 labelColor = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
+            Vector4 nameColor = new Vector4(1.0f, 0.85f, 0.3f, 1.0f);
+            Vector4 sectionColor = new Vector4(0.4f, 0.7f, 1.0f, 1.0f);
+            Vector4 permColor = new Vector4(0.7f, 0.9f, 0.7f, 1.0f);
+
+            var gui = capi.ModLoader.GetModSystem<claimsGui>();
+
+            // --- Rank name header ---
+            ImGui.PushStyleColor(ImGuiCol.Text, nameColor);
+            ImGui.SetWindowFontScale(1.3f);
+            string text = cell.Name;
             float windowWidth = ImGui.GetWindowSize().X;
             float textWidth = ImGui.CalcTextSize(text).X;
-
             ImGui.SetCursorPosX((windowWidth - textWidth) * 0.5f);
             ImGui.Text(text);
+            ImGui.SetWindowFontScale(1.0f);
+            ImGui.PopStyleColor();
 
-            /*if (ImGui.ImageButton("promotewithrank", this.iconHandler.GetOrLoadIcon("dodging"), new Vector2(16)))
-            {
-                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_RANK_DELETE_CONFIRM;
-            }*/
+            ImGui.Separator();
+            ImGui.Spacing();
 
+            // --- Members ---
+            ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
             ImGui.Text(Lang.Get("claims:gui-rank-members", cell.Citizens.Count));
-
-            if (ImGui.IsItemHovered())
+            ImGui.PopStyleColor();
+            if (ImGui.IsItemHovered() && cell.Citizens.Count > 0)
             {
                 ImGui.SetTooltip(StringFunctions.concatStringsWithDelim(cell.Citizens, ','));
             }
 
-            EnumPlayerPermissions[] availableToAdd = claims.config.AVAILABLE_CITY_PERMISSIONS.Where(v => !cell.Permissions.Contains(v)).ToArray();
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
 
+            // --- Add permissions section ---
+            bool canAddPerm = claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.CITY_ADD_PERMISSION_TO_RANK);
+            bool canRemovePerm = claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.CITY_REMOVE_PERMISSION_FROM_RANK);
+
+            if (canAddPerm)
+            {
+            ImGui.PushStyleColor(ImGuiCol.Text, sectionColor);
+            ImGui.SetWindowFontScale(1.1f);
+            ImGui.Text(Lang.Get("claims:gui-rankinfo-add-perms"));
+            ImGui.SetWindowFontScale(1.0f);
+            ImGui.PopStyleColor();
+
+            ImGui.Spacing();
+
+            EnumPlayerPermissions[] availableToAdd = claims.config.AVAILABLE_CITY_PERMISSIONS == null
+                                    ? new EnumPlayerPermissions[] { }
+                                    : claims.config.AVAILABLE_CITY_PERMISSIONS.Where(v => !cell.Permissions.Contains(v)).ToArray();
             var availableToAddStrings = availableToAdd.Select(s => s.ToString()).ToArray();
-            capi.ModLoader.GetModSystem<claimsGui>().multiSelectItems = availableToAddStrings;
-            if (capi.ModLoader.GetModSystem<claimsGui>().selectedItems.Count() != availableToAddStrings.Count()) {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedItems = new bool[availableToAddStrings.Count()];
-            }
-            string PreviewText(string[] items, bool[]selected)
+            gui.multiSelectItems = availableToAddStrings;
+            if (gui.selectedItems.Count() != availableToAddStrings.Count())
             {
-                var list = new List<string>();
-                for (int i = 0; i < items.Length; i++)
-                    if (selected[i]) list.Add(items[i]);
-
-                return list.Count > 0 ? string.Join(", ", list) : "None";
+                gui.selectedItems = new bool[availableToAddStrings.Count()];
             }
 
-            if (ImGui.BeginCombo("Select to add", PreviewText(capi.ModLoader.GetModSystem<claimsGui>().multiSelectItems, capi.ModLoader.GetModSystem<claimsGui>().selectedItems)))
+            if (ImGui.BeginCombo("##addperms", PreviewText(gui.multiSelectItems, gui.selectedItems)))
             {
-                for (int i = 0; i < capi.ModLoader.GetModSystem<claimsGui>().multiSelectItems.Length; i++)
+                for (int i = 0; i < gui.multiSelectItems.Length; i++)
                 {
-                    ImGui.Checkbox(capi.ModLoader.GetModSystem<claimsGui>().multiSelectItems[i], ref capi.ModLoader.GetModSystem<claimsGui>().selectedItems[i]);
+                    ImGui.Checkbox(gui.multiSelectItems[i], ref gui.selectedItems[i]);
                 }
                 ImGui.EndCombo();
             }
 
-            if(ImGui.Button("Add"))
+            ImGui.SameLine();
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.55f, 0.3f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.65f, 0.4f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.25f, 1.0f));
+            if (ImGui.Button(Lang.Get("claims:gui-rankinfo-add-button")))
             {
                 ClientEventManager clientEventManager = (capi.World as ClientMain).eventManager;
                 List<string> fullList = new List<string>();
-                for (int i = 0; i < capi.ModLoader.GetModSystem<claimsGui>().multiSelectItems.Length; i++)
+                for (int i = 0; i < gui.multiSelectItems.Length; i++)
                 {
-                    if (capi.ModLoader.GetModSystem<claimsGui>().selectedItems[i])
+                    if (gui.selectedItems[i])
                     {
-                        fullList.Add(capi.ModLoader.GetModSystem<claimsGui>().multiSelectItems[i]);
+                        fullList.Add(gui.multiSelectItems[i]);
                     }
                 }
                 string allPerms = string.Join(' ', fullList);
                 clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup,
-                    string.Format("/c rank addperm {0} {1}",
-                    capi.ModLoader.GetModSystem<claimsGui>().textInput, allPerms), EnumChatType.Macro, "");
-                for(var i = 0; i < capi.ModLoader.GetModSystem<claimsGui>().selectedItems.Count(); i++)
+                    string.Format("/c rank addperm {0} {1}", gui.textInput, allPerms), EnumChatType.Macro, "");
+
+                // Optimistic local update
+                if (claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.CITY_ADD_PERMISSION_TO_RANK))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().selectedItems[i] = false;
+                    for (int i = 0; i < availableToAdd.Length; i++)
+                    {
+                        if (gui.selectedItems[i])
+                        {
+                            cell.Permissions.Add(availableToAdd[i]);
+                        }
+                    }
+                }
+
+                for (var i = 0; i < gui.selectedItems.Count(); i++)
+                {
+                    gui.selectedItems[i] = false;
                 }
             }
-          
+            ImGui.PopStyleColor(3);
+            }
+
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            // --- Remove permissions section ---
+            if (canRemovePerm)
+            {
+            ImGui.PushStyleColor(ImGuiCol.Text, sectionColor);
+            ImGui.SetWindowFontScale(1.1f);
+            ImGui.Text(Lang.Get("claims:gui-rankinfo-remove-perms"));
+            ImGui.SetWindowFontScale(1.0f);
+            ImGui.PopStyleColor();
+
+            ImGui.Spacing();
+
             EnumPlayerPermissions[] availableToRemove = claims.config.AVAILABLE_CITY_PERMISSIONS == null
                                             ? new EnumPlayerPermissions[] { }
                                             : claims.config.AVAILABLE_CITY_PERMISSIONS.Where(v => cell.Permissions.Contains(v)).ToArray();
 
             var availableToRemoveStrings = availableToRemove.Select(s => s.ToString()).ToArray();
-            capi.ModLoader.GetModSystem<claimsGui>().multiSelectItems2 = availableToRemoveStrings;
-            if (capi.ModLoader.GetModSystem<claimsGui>().selectedItems2.Count() != availableToRemoveStrings.Count())
+            gui.multiSelectItems2 = availableToRemoveStrings;
+            if (gui.selectedItems2.Count() != availableToRemoveStrings.Count())
             {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedItems2 = new bool[availableToRemoveStrings.Count()];
+                gui.selectedItems2 = new bool[availableToRemoveStrings.Count()];
             }
-            var c = capi.ModLoader.GetModSystem<claimsGui>().multiSelectItems2;
-            var c2 = capi.ModLoader.GetModSystem<claimsGui>().selectedItems2;
 
-            if (ImGui.BeginCombo("Select to remove", PreviewText(capi.ModLoader.GetModSystem<claimsGui>().multiSelectItems2, capi.ModLoader.GetModSystem<claimsGui>().selectedItems2)))
+            if (ImGui.BeginCombo("##removeperms", PreviewText(gui.multiSelectItems2, gui.selectedItems2)))
             {
-                for (int i = 0; i < capi.ModLoader.GetModSystem<claimsGui>().multiSelectItems2.Length; i++)
+                for (int i = 0; i < gui.multiSelectItems2.Length; i++)
                 {
-                    ImGui.Checkbox(capi.ModLoader.GetModSystem<claimsGui>().multiSelectItems2[i], ref capi.ModLoader.GetModSystem<claimsGui>().selectedItems2[i]);
+                    ImGui.Checkbox(gui.multiSelectItems2[i], ref gui.selectedItems2[i]);
                 }
                 ImGui.EndCombo();
             }
 
-            //compo.AddMultiSelectDropDown(availableToRemoveStrings, availableToRemoveStrings, -1, null, multiSelectBoundsRemove, "removePermissionsMultiDrop");
-
-            if (ImGui.Button("Remove"))
+            ImGui.SameLine();
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.7f, 0.25f, 0.2f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.35f, 0.3f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.6f, 0.2f, 0.15f, 1.0f));
+            if (ImGui.Button(Lang.Get("claims:gui-rankinfo-remove-button")))
             {
                 ClientEventManager clientEventManager = (capi.World as ClientMain).eventManager;
                 List<string> fullList = new List<string>();
-                for (int i = 0; i < capi.ModLoader.GetModSystem<claimsGui>().multiSelectItems2.Length; i++)
+                for (int i = 0; i < gui.multiSelectItems2.Length; i++)
                 {
-                    if (capi.ModLoader.GetModSystem<claimsGui>().selectedItems2[i])
+                    if (gui.selectedItems2[i])
                     {
-                        fullList.Add(capi.ModLoader.GetModSystem<claimsGui>().multiSelectItems2[i]);
+                        fullList.Add(gui.multiSelectItems2[i]);
                     }
                 }
                 string allPerms = string.Join(' ', fullList);
                 clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup,
-                    string.Format("/c rank removeperm {0} {1}",
-                    capi.ModLoader.GetModSystem<claimsGui>().textInput, allPerms), EnumChatType.Macro, "");
-                for (var i = 0; i < capi.ModLoader.GetModSystem<claimsGui>().selectedItems.Count(); i++)
+                    string.Format("/c rank removeperm {0} {1}", gui.textInput, allPerms), EnumChatType.Macro, "");
+
+                // Optimistic local update
+                if (claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.CITY_REMOVE_PERMISSION_FROM_RANK))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().selectedItems[i] = false;
+                    for (int i = 0; i < availableToRemove.Length; i++)
+                    {
+                        if (gui.selectedItems2[i])
+                        {
+                            cell.Permissions.Remove(availableToRemove[i]);
+                        }
+                    }
+                }
+
+                for (var i = 0; i < gui.selectedItems2.Count(); i++)
+                {
+                    gui.selectedItems2[i] = false;
                 }
             }
+            ImGui.PopStyleColor(3);
+            }
 
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
 
+            // --- Current permissions list ---
+            ImGui.PushStyleColor(ImGuiCol.Text, sectionColor);
+            ImGui.SetWindowFontScale(1.1f);
+            ImGui.Text(Lang.Get("claims:gui-rankinfo-current-perms"));
+            ImGui.SetWindowFontScale(1.0f);
+            ImGui.PopStyleColor();
 
-            ImGui.BeginChild("InvitesScroll", new Vector2(0, 300), true);
-            int j = 0;
-            foreach (var permissions in cell.Permissions.Select(v => v.ToString()).ToList())
+            ImGui.Spacing();
+
+            ImGui.BeginChild("PermsScroll", new Vector2(0, 0), false);
+            foreach (var permission in cell.Permissions.Select(v => v.ToString()).ToList())
             {
-                ImGui.PushID(j);
-
-                Vector2 start = ImGui.GetCursorScreenPos();
-                float width = ImGui.GetContentRegionAvail().X;
-
-                ImGui.BeginGroup();
-
-                ImGui.Text(permissions);
-
-                ImGui.EndGroup();
-
-                Vector2 end = ImGui.GetItemRectMax();
-                var draw = ImGui.GetWindowDrawList();
-
-                ImGui.PopID();
-
-                ImGui.Dummy(new Vector2(0, 8));
-                ImGui.Separator();
+                ImGui.PushStyleColor(ImGuiCol.Text, permColor);
+                ImGui.Text(permission);
+                ImGui.PopStyleColor();
             }
             ImGui.EndChild();
+        }
 
-            //ImGui.Text("Perms: " + string.Join('\n', cell.Permissions));
+        private string PreviewText(string[] items, bool[] selected)
+        {
+            var list = new List<string>();
+            for (int i = 0; i < items.Length; i++)
+                if (selected[i]) list.Add(items[i]);
+
+            return list.Count > 0 ? string.Join(", ", list) : Lang.Get("claims:gui-rankinfo-none-selected");
         }
     }
 }

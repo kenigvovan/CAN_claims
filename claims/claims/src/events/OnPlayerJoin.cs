@@ -76,11 +76,7 @@ namespace claims.src.events
                 List<ClientConflictCellElement> lic = new List<ClientConflictCellElement>();
                 foreach (var it in ConflictHandler.GetAllConflictsForParty(playerInfo.Alliance))
                 {
-                    lic.Add(new ClientConflictCellElement(it.GetPartName(), it.First.GetPartName(), it.First.Guid, WarTargetTypeHelper.FromConflictParty(it.First),
-                        it.Second.GetPartName(), it.Second.Guid, WarTargetTypeHelper.FromConflictParty(it.Second),
-                        it.StartedBy.GetPartName(), it.State, it.Guid,
-                        it.MinimumDaysBetweenBattles, it.LastBattleDateStart, it.LastBattleDateEnd, it.NextBattleDateStart, it.NextBattleDateEnd,
-                        it.WarRanges, it.FirstWarRanges, it.SecondWarRanges, it.TimeStampStarted, it.ActiveWarTime));
+                    lic.Add(ClientConflictCellElement.FromConflict(it));
                 }
                 if (lic.Count > 0)
                 {
@@ -117,11 +113,7 @@ namespace claims.src.events
                 List<ClientConflictCellElement> lic = new List<ClientConflictCellElement>();
                 foreach (var it in ConflictHandler.GetAllConflictsForParty(playerInfo.City))
                 {
-                    lic.Add(new ClientConflictCellElement(it.GetPartName(), it.First.GetPartName(), it.First.Guid, WarTargetTypeHelper.FromConflictParty(it.First),
-                        it.Second.GetPartName(), it.Second.Guid, WarTargetTypeHelper.FromConflictParty(it.Second),
-                        it.StartedBy.GetPartName(), it.State, it.Guid,
-                        it.MinimumDaysBetweenBattles, it.LastBattleDateStart, it.LastBattleDateEnd, it.NextBattleDateStart, it.NextBattleDateEnd,
-                        it.WarRanges, it.FirstWarRanges, it.SecondWarRanges, it.TimeStampStarted, it.ActiveWarTime));
+                    lic.Add(ClientConflictCellElement.FromConflict(it));
                 }
                 if (lic.Count > 0)
                 {

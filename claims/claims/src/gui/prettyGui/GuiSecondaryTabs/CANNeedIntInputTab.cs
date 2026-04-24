@@ -37,6 +37,13 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             {
                 ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                 clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, CommandCallOnClick + capi.ModLoader.GetModSystem<claimsGui>().intInput.ToString(), EnumChatType.Macro, "");
+                // Optimistic local update for plot price
+                if (CommandCallOnClick.StartsWith("/plot fs ")
+                    && (claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_FS)
+                        || claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS)))
+                {
+                    claims.clientDataStorage.clientPlayerInfo.CurrentPlotInfo.Price = capi.ModLoader.GetModSystem<claimsGui>().intInput;
+                }
                 capi.ModLoader.GetModSystem<claimsGui>().textInput = "";
             }
             ImGui.End();

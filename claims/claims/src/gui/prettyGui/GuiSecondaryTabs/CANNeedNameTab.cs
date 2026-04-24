@@ -35,7 +35,28 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             if(ImGui.Button((Lang.Get(ButtonString))))
             {
                 ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, CommandCallOnClick + capi.ModLoader.GetModSystem<claimsGui>().textInput, EnumChatType.Macro, "");
+                string inputValue = capi.ModLoader.GetModSystem<claimsGui>().textInput;
+                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, CommandCallOnClick + inputValue, EnumChatType.Macro, "");
+                // Optimistic local updates
+                var perms = claims.clientDataStorage.clientPlayerInfo.PlayerPermissions;
+                if (CommandCallOnClick.StartsWith("/city criminal add ")
+                    && perms.HasPermission(rights.EnumPlayerPermissions.CITY_ADD_CRIMINAL)
+                    && !claims.clientDataStorage.clientPlayerInfo.CityInfo.Criminals.Contains(inputValue))
+                {
+                    claims.clientDataStorage.clientPlayerInfo.CityInfo.Criminals.Add(inputValue);
+                }
+                else if (CommandCallOnClick.StartsWith("/city set name ")
+                    && (perms.HasPermission(rights.EnumPlayerPermissions.CITY_SET_NAME)
+                        || perms.HasPermission(rights.EnumPlayerPermissions.CITY_SET_ALL)))
+                {
+                    claims.clientDataStorage.clientPlayerInfo.CityInfo.Name = inputValue;
+                }
+                else if (CommandCallOnClick.StartsWith("/plot set name ")
+                    && (perms.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_NAME)
+                        || perms.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS)))
+                {
+                    claims.clientDataStorage.clientPlayerInfo.CurrentPlotInfo.PlotName = inputValue;
+                }
                 capi.ModLoader.GetModSystem<claimsGui>().textInput = "";
                 capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.NONE;
             }

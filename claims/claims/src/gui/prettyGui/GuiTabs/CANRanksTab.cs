@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using ImGuiNET;
 using Vintagestory.API.Client;
 using Vintagestory.API.Config;
@@ -14,43 +14,80 @@ namespace claims.src.gui.prettyGui.GuiTabs
         }
         public override void DrawTab()
         {
+            Vector4 labelColor = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
+            Vector4 nameColor = new Vector4(1.0f, 0.85f, 0.3f, 1.0f);
+            Vector4 sectionColor = new Vector4(0.4f, 0.7f, 1.0f, 1.0f);
+            Vector4 citizenColor = new Vector4(0.8f, 0.8f, 0.9f, 1.0f);
+
+            // --- Header ---
             string text = Lang.Get("claims:gui-ranks-title");
             float windowWidth = ImGui.GetWindowSize().X;
+            ImGui.PushStyleColor(ImGuiCol.Text, sectionColor);
+            ImGui.SetWindowFontScale(1.3f);
             float textWidth = ImGui.CalcTextSize(text).X;
-
             ImGui.SetCursorPosX((windowWidth - textWidth) * 0.5f);
             ImGui.Text(text);
+            ImGui.SetWindowFontScale(1.0f);
+            ImGui.PopStyleColor();
+
             ImGui.SameLine();
-            if (ImGui.ImageButton("createrank", this.iconHandler.GetOrLoadIcon("circle"), new Vector2(16)))
+
+            var perms = claims.clientDataStorage.clientPlayerInfo.PlayerPermissions;
+
+            // --- Create rank button ---
+            if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_CREATE_CITY_RANK))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_RANK_CREATION_NEED_NAME;
+                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.55f, 0.3f, 1.0f));
+                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.65f, 0.4f, 1.0f));
+                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.25f, 1.0f));
+                if (ImGui.ImageButton("createrank", this.iconHandler.GetOrLoadIcon("circle"), new Vector2(16)))
+                {
+                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_RANK_CREATION_NEED_NAME;
+                }
+                ImGui.PopStyleColor(3);
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(Lang.Get("claims:gui-create-rank-tooltip"));
+                }
             }
 
-            int i = 100;
+            ImGui.Separator();
+            ImGui.Spacing();
 
-            ImGui.BeginChild("Ranksscroll", new Vector2(0, 300), true);
+            ImGui.BeginChild("Ranksscroll", new Vector2(0, 0), false);
+            int i = 100;
             foreach (var rankCell in claims.clientDataStorage.clientPlayerInfo.CityInfo.CityRanks)
             {
                 ImGui.PushID(i);
 
-                Vector2 start = ImGui.GetCursorScreenPos();
-                float width = ImGui.GetContentRegionAvail().X;
+                // --- Rank name (gold, larger) ---
+                ImGui.PushStyleColor(ImGuiCol.Text, nameColor);
+                ImGui.SetWindowFontScale(1.15f);
+                ImGui.Text(rankCell.Name);
+                ImGui.SetWindowFontScale(1.0f);
+                ImGui.PopStyleColor();
 
-                ImGui.BeginGroup();
-
-                ImGui.Text(Lang.Get("claims:gui-rank-name", rankCell.Name));
-
-                if (ImGui.ImageButton("promotewithrank" + i.ToString(), this.iconHandler.GetOrLoadIcon("private"), new Vector2(16)))
+                // --- Action buttons (same line) ---
+                if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_SET_RANK))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().textInput = rankCell.Name;
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_RANK_ADD;
+                    ImGui.SameLine();
+                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.55f, 0.3f, 1.0f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.65f, 0.4f, 1.0f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.25f, 1.0f));
+                    if (ImGui.ImageButton("promotewithrank" + i.ToString(), this.iconHandler.GetOrLoadIcon("private"), new Vector2(14)))
+                    {
+                        capi.ModLoader.GetModSystem<claimsGui>().textInput = rankCell.Name;
+                        capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_RANK_ADD;
+                    }
+                    ImGui.PopStyleColor(3);
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.SetTooltip(Lang.Get("claims:gui-add-rank-tooltip"));
+                    }
                 }
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(Lang.Get("claims:gui-add-rank-tooltip"));
-                }
+
                 ImGui.SameLine();
-                if (ImGui.ImageButton("openrankinfo" + i.ToString(), this.iconHandler.GetOrLoadIcon("info"), new Vector2(16)))
+                if (ImGui.ImageButton("openrankinfo" + i.ToString(), this.iconHandler.GetOrLoadIcon("info"), new Vector2(14)))
                 {
                     capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.RANKINFOPAGE;
                     capi.ModLoader.GetModSystem<claimsGui>().textInput = rankCell.Name;
@@ -59,25 +96,57 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 {
                     ImGui.SetTooltip(Lang.Get("claims:gui-info-rank-tooltip"));
                 }
-                foreach (var plName in rankCell.Citizens)
+
+                // --- Members count ---
+                ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
+                ImGui.Text(Lang.Get("claims:gui-rank-members-label", rankCell.Citizens.Count));
+                ImGui.PopStyleColor();
+
+                // --- Citizens as styled buttons ---
+                if (rankCell.Citizens.Count > 0)
                 {
-                    if(ImGui.Button(plName))
+                    float btnSpacing = 4f;
+                    bool first = true;
+                    foreach (var plName in rankCell.Citizens)
                     {
-                        capi.ModLoader.GetModSystem<claimsGui>().textInput = rankCell.Name;
-                        capi.ModLoader.GetModSystem<claimsGui>().textInput2 = plName;
-                        capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_RANK_REMOVE_CONFIRM;
+                        if (!first)
+                        {
+                            ImGui.SameLine(0, btnSpacing);
+                        }
+                        first = false;
+
+                        if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_REMOVE_RANK))
+                        {
+                            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.25f, 0.25f, 0.35f, 1.0f));
+                            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.7f, 0.25f, 0.2f, 1.0f));
+                            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.6f, 0.2f, 0.15f, 1.0f));
+                            ImGui.PushStyleColor(ImGuiCol.Text, citizenColor);
+                            if (ImGui.Button(plName))
+                            {
+                                capi.ModLoader.GetModSystem<claimsGui>().textInput = rankCell.Name;
+                                capi.ModLoader.GetModSystem<claimsGui>().textInput2 = plName;
+                                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_RANK_REMOVE_CONFIRM;
+                            }
+                            ImGui.PopStyleColor(4);
+                            if (ImGui.IsItemHovered())
+                            {
+                                ImGui.SetTooltip(Lang.Get("claims:gui-rank-remove-citizen-tooltip", plName));
+                            }
+                        }
+                        else
+                        {
+                            ImGui.PushStyleColor(ImGuiCol.Text, citizenColor);
+                            ImGui.Text(plName);
+                            ImGui.PopStyleColor();
+                        }
                     }
                 }
 
-                ImGui.EndGroup();
-
-                Vector2 end = ImGui.GetItemRectMax();
-                var draw = ImGui.GetWindowDrawList();
+                ImGui.Spacing();
+                ImGui.Separator();
+                ImGui.Spacing();
 
                 ImGui.PopID();
-
-                ImGui.Dummy(new Vector2(0, 8));
-                ImGui.Separator();
                 i++;
             }
             ImGui.EndChild();

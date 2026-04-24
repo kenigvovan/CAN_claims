@@ -37,6 +37,13 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             {
                 ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                 clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, CommandCallOnClick + capi.ModLoader.GetModSystem<claimsGui>().doubleInput.ToString(), EnumChatType.Macro, "");
+                // Optimistic local update for plot tax
+                if (CommandCallOnClick.StartsWith("/plot set fee ")
+                    && (claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_FEE)
+                        || claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS)))
+                {
+                    claims.clientDataStorage.clientPlayerInfo.CurrentPlotInfo.CustomTax = capi.ModLoader.GetModSystem<claimsGui>().doubleInput;
+                }
                 capi.ModLoader.GetModSystem<claimsGui>().textInput = "";
             }
             ImGui.End();

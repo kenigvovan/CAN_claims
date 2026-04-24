@@ -43,6 +43,14 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                     string playerName = PlotInfo.plotAccessableForPlayersWithCode.Keys.ToList()[capi.ModLoader.GetModSystem<claimsGui>().selectedComboFirst];
                     ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                     clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, this.CommandCallOnClick + playerName, EnumChatType.Macro, "");
+                    // Optimistic local update
+                    if ((claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_TYPE)
+                        || claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS))
+                        && PlotInfo.nameToPlotType.TryGetValue(playerName, out var plotType)
+                    && claims.clientDataStorage.clientPlayerInfo.CurrentPlotInfo != null)
+                    {
+                        claims.clientDataStorage.clientPlayerInfo.CurrentPlotInfo.PlotType = plotType;
+                    }
                     capi.ModLoader.GetModSystem<claimsGui>().textInput = "";
                     capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.NONE;
                 }         

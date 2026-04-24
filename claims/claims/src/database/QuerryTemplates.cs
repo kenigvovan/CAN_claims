@@ -35,9 +35,9 @@
 
         //PLOT
         public static readonly string DELETE_PLOT = "DELETE FROM PLOTS WHERE x=@x AND z=@z";
-        public static readonly string INSERT_PLOT = "INSERT INTO PLOTS (name, x,z,city,ownerofplot,type,price,customtax,perms,plotgroupguid, markednopvp, plotdesc, extraBought, wascaptured)" +
-                                                    " VALUES (@name,@x,@z,@city,@ownerofplot,@type,@price,@customtax,@perms,@plotgroupguid, @markednopvp, @plotdesc, @extraBought, @wascaptured)";
-        public static readonly string UPDATE_PLOT = "UPDATE PLOTS SET name=@name, x=@x,z=@z,city=@city, ownerofplot=@ownerofplot, type=@type,price=@price,customtax=@customtax,perms=@perms, plotgroupguid=@plotgroupguid, markednopvp=@markednopvp, plotdesc=@plotdesc, extraBought=@extraBought, wascaptured=@wascaptured" +
+        public static readonly string INSERT_PLOT = "INSERT INTO PLOTS (name, x,z,city,ownerofplot,type,price,customtax,perms,plotgroupguid, markednopvp, plotdesc, extraBought, wascaptured, timestampclaimed, lastpaidprice)" +
+                                                    " VALUES (@name,@x,@z,@city,@ownerofplot,@type,@price,@customtax,@perms,@plotgroupguid, @markednopvp, @plotdesc, @extraBought, @wascaptured, @timestampclaimed, @lastpaidprice)";
+        public static readonly string UPDATE_PLOT = "UPDATE PLOTS SET name=@name, x=@x,z=@z,city=@city, ownerofplot=@ownerofplot, type=@type,price=@price,customtax=@customtax,perms=@perms, plotgroupguid=@plotgroupguid, markednopvp=@markednopvp, plotdesc=@plotdesc, extraBought=@extraBought, wascaptured=@wascaptured, timestampclaimed=@timestampclaimed, lastpaidprice=@lastpaidprice" +
                                                     " where x=@x and z=@z";
 
         //CONFLICT

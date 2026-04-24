@@ -32,13 +32,20 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                  ImGuiWindowFlags.NoScrollWithMouse;
             ImGui.Begin("ClaimsDetails", p_open: ref capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowOpen, flags1);
             PlotsGroupCellElement cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.PlotsGroupCells.FirstOrDefault(gr => gr.Guid.Equals(capi.ModLoader.GetModSystem<claimsGui>().textInput), null);
+            if (cell == null) { ImGui.End(); return; }
             ImGui.Text(Lang.Get(TitleString, capi.ModLoader.GetModSystem<claimsGui>().textInput2, cell.Name));
 
             if (ImGui.Button(Lang.Get(ButtonString, capi.ModLoader.GetModSystem<claimsGui>().textInput, capi.ModLoader.GetModSystem<claimsGui>().textInput2)))
             {
                 ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
+                string memberToKick = capi.ModLoader.GetModSystem<claimsGui>().textInput2;
                 clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup,
-                   string.Format("/c plotsgroup kick {0} {1}", cell.Name, capi.ModLoader.GetModSystem<claimsGui>().textInput2), EnumChatType.Macro, "");
+                   string.Format("/c plotsgroup kick {0} {1}", cell.Name, memberToKick), EnumChatType.Macro, "");
+                // Optimistic local update
+                if (claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.CITY_PLOTSGROUP_KICK_PLAYER))
+                {
+                    cell.PlayersNames.Remove(memberToKick);
+                }
                 capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.NONE;
                 capi.ModLoader.GetModSystem<claimsGui>().textInput2 = "";
             }

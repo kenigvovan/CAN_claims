@@ -1,7 +1,9 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 using claims.src.auxialiry;
 using claims.src.delayed.invitations;
 using claims.src.gui.playerGui.structures;
+using claims.src.gui.playerGui.structures.cellElements;
 using claims.src.messages;
 using claims.src.network.packets;
 using claims.src.part;
@@ -10,6 +12,7 @@ using claims.src.part.structure.conflict;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.Server;
+using Vintagestory.API.Util;
 
 namespace claims.src.part
 {
@@ -40,6 +43,26 @@ namespace claims.src.part
                     }, player as IServerPlayer);
                 }
             }
+            foreach (var player in claims.sapi.World.AllOnlinePlayers)
+            {
+                claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
+                if (playerInfo == null)
+                {
+                    continue;
+                }
+                UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, new Dictionary<string, object> { { "value", city.Guid } }, EnumPlayerRelatedInfo.CITY_LIST_REMOVE);
+            }
+            foreach (Conflict conflict in claims.dataStorage.conflicts.ToArray())
+            {
+                if (conflict.First.GetCities().Contains(city) || conflict.Second.GetCities().Contains(city))
+                {
+                    DemolishConflict(conflict);
+                }
+            }
+            Dictionary<string, ClientCityInfoCellElement> CityStatsCashe =
+                ObjectCacheUtil.GetOrCreate<Dictionary<string, ClientCityInfoCellElement>>(claims.sapi,
+                "claims:cityinfocache", () => new Dictionary<string, ClientCityInfoCellElement>());
+            CityStatsCashe.Remove(city.Guid);
             claims.economyHandler.deleteAccount(city.MoneyAccountName);
             claims.dataStorage.removeCityByGUID(city.Guid);
             //DataStorage.nameToCityDict.TryRemove(city.getPartName(), out _);
@@ -151,6 +174,10 @@ namespace claims.src.part
             conflict.Second.RunningConflicts.Remove(conflict);
             conflict.First.RemoveHostileParty(conflict.Second);
             conflict.Second.RemoveHostileParty(conflict.First);
+            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(conflict.First,
+                new Dictionary<string, object> { { "value", conflict.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_REMOVE);
+            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(conflict.Second,
+                new Dictionary<string, object> { { "value", conflict.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_REMOVE);
             conflict.First.saveToDatabase();
             conflict.Second.saveToDatabase();
             claims.getModInstance().getDatabaseHandler().deleteFromDatabaseConflict(conflict);

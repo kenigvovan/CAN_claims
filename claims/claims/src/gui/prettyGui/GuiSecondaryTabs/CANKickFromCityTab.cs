@@ -26,7 +26,8 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             ImGuiWindowFlags flags1 =
                  ImGuiWindowFlags.NoScrollWithMouse;
             ImGui.Begin("ClaimsDetails", p_open: ref capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowOpen, flags1);
-            
+            if (claims.clientDataStorage.clientPlayerInfo?.CityInfo == null) { ImGui.End(); return; }
+
             ImGui.Text("Select player's name:");
 
             ImGui.Combo("Name", ref capi.ModLoader.GetModSystem<claimsGui>().selectedComboFirst, claims.clientDataStorage.clientPlayerInfo.CityInfo.PlayersNames.ToArray(), claims.clientDataStorage.clientPlayerInfo.CityInfo.PlayersNames.Count);
@@ -38,6 +39,12 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                     string playerName = claims.clientDataStorage.clientPlayerInfo.CityInfo.PlayersNames[capi.ModLoader.GetModSystem<claimsGui>().selectedComboFirst];
                     ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                     clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/city kick " + playerName, EnumChatType.Macro, "");
+                    // Optimistic local update
+                    if (claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.CITY_KICK))
+                    {
+                        claims.clientDataStorage.clientPlayerInfo.CityInfo.PlayersNames.Remove(playerName);
+                        capi.ModLoader.GetModSystem<claimsGui>().selectedComboFirst = 0;
+                    }
                     capi.ModLoader.GetModSystem<claimsGui>().textInput = "";
                     capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.NONE;
                 }         

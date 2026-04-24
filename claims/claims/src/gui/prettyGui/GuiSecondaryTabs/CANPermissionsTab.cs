@@ -35,6 +35,9 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             ClientEventManager cem
         )
         {
+            bool canSetPerms = claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_PLOT_ACCESS_PERMISSIONS)
+                || claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS);
+
             bool friend = permsHandler.getPerm(perms.PermGroup.COMRADE, permType);
             bool citizen = permsHandler.getPerm(perms.PermGroup.CITIZEN, permType);
             bool stranger = permsHandler.getPerm(perms.PermGroup.STRANGER, permType);
@@ -48,6 +51,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                     EnumChatType.Macro,
                     ""
                 );
+                if (canSetPerms) permsHandler.setPerm(perms.PermGroup.COMRADE, permType, friend);
             }
             ImGui.SameLine();
 
@@ -59,6 +63,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                     EnumChatType.Macro,
                     ""
                 );
+                if (canSetPerms) permsHandler.setPerm(perms.PermGroup.CITIZEN, permType, citizen);
             }
             ImGui.SameLine();
 
@@ -70,6 +75,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                     EnumChatType.Macro,
                     ""
                 );
+                if (canSetPerms) permsHandler.setPerm(perms.PermGroup.STRANGER, permType, stranger);
             }
 
             ImGui.SameLine();
@@ -82,7 +88,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                     EnumChatType.Macro,
                     ""
                 );
-                permsHandler.setPerm(perms.PermGroup.ALLY, permType, alliance);
+                if (canSetPerms) permsHandler.setPerm(perms.PermGroup.ALLY, permType, alliance);
             }
         }
         public override void DrawTab()
@@ -98,7 +104,15 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             
             ImGui.Text(Lang.Get(TitleString, capi.ModLoader.GetModSystem<claimsGui>().textInput2, capi.ModLoader.GetModSystem<claimsGui>().textInput));
             var permsHandler = claims.clientDataStorage.clientPlayerInfo.CurrentPlotInfo.PermsHandler;
+            var playerPerms = claims.clientDataStorage.clientPlayerInfo.PlayerPermissions;
             ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
+            bool canPvp = playerPerms.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_PVP)
+                || playerPerms.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS);
+            bool canFire = playerPerms.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_FIRE)
+                || playerPerms.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS);
+            bool canBlast = playerPerms.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_BLAST)
+                || playerPerms.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS);
+
             bool pvp = permsHandler.pvpFlag;
             if (ImGui.Checkbox("PVP", ref pvp))
             {
@@ -108,7 +122,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                     EnumChatType.Macro,
                     ""
                 );
-                permsHandler.pvpFlag = pvp;
+                if (canPvp) permsHandler.pvpFlag = pvp;
             }
 
             // ===== FIRE =====
@@ -121,7 +135,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                     EnumChatType.Macro,
                     ""
                 );
-                permsHandler.fireFlag = fire;
+                if (canFire) permsHandler.fireFlag = fire;
             }
 
             bool blast = !permsHandler.blastFlag;
@@ -133,7 +147,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                     EnumChatType.Macro,
                     ""
                 );
-                permsHandler.blastFlag = !blast;
+                if (canBlast) permsHandler.blastFlag = !blast;
             }
 
             ImGui.Separator();

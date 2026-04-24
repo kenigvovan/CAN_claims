@@ -287,6 +287,14 @@ namespace claims.src.database
                 try { command.CommandText = "SELECT startedby_type FROM CONFLICTS LIMIT 1"; command.ExecuteScalar(); }
                 catch { command.CommandText = "ALTER TABLE CONFLICTS ADD COLUMN startedby_type TEXT DEFAULT 'alliance'"; command.ExecuteNonQuery(); }
 
+                //plot claim timestamp
+                try { command.CommandText = "SELECT timestampclaimed FROM PLOTS LIMIT 1"; command.ExecuteScalar(); }
+                catch { command.CommandText = "ALTER TABLE PLOTS ADD COLUMN timestampclaimed INTEGER DEFAULT 0"; command.ExecuteNonQuery(); }
+
+                //plot last paid price
+                try { command.CommandText = "SELECT lastpaidprice FROM PLOTS LIMIT 1"; command.ExecuteScalar(); }
+                catch { command.CommandText = "ALTER TABLE PLOTS ADD COLUMN lastpaidprice INTEGER DEFAULT 0"; command.ExecuteNonQuery(); }
+
             }
             catch (Exception ex)
             {
@@ -841,7 +849,9 @@ namespace claims.src.database
                 { "@markednopvp", plot.MarkedNoPvp },
                 { "@plotdesc",  PlotInfo.getPlotDescByType(plot) },
                 { "@extraBought", plot.extraBought },
-                { "@wascaptured", plot.WasCaptured }
+                { "@wascaptured", plot.WasCaptured },
+                { "@timestampclaimed", plot.TimeStampClaimed },
+                { "@lastpaidprice", plot.lastPaidPrice }
             };
 
             queryQueue.Enqueue(new QuerryInfo("PLOTS", update ? QuerryType.UPDATE : QuerryType.INSERT, tmpDict));
@@ -909,7 +919,15 @@ namespace claims.src.database
                     break;
             }
             plot.extraBought = it["extraBought"].ToString().Equals("0") ? false : true;
-            plot.extraBought = it["wascaptured"].ToString().Equals("0") ? false : true;
+            plot.WasCaptured = it["wascaptured"].ToString().Equals("0") ? false : true;
+            if (it.Table.Columns.Contains("timestampclaimed") && it["timestampclaimed"] != DBNull.Value)
+            {
+                plot.TimeStampClaimed = long.Parse(it["timestampclaimed"].ToString());
+            }
+            if (it.Table.Columns.Contains("lastpaidprice") && it["lastpaidprice"] != DBNull.Value)
+            {
+                plot.lastPaidPrice = long.Parse(it["lastpaidprice"].ToString());
+            }
             return true;
         }
 

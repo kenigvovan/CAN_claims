@@ -251,6 +251,7 @@ namespace claims.src.commands
             plotHere.setCity(playerInfo.City);
             plotHere.getPermsHandler().setPerm(city.getPermsHandler());
             plotHere.Price = -1;
+            plotHere.TimeStampClaimed = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             claims.dataStorage.addClaimedPlot(currentPlotPosition, plotHere);
             city.getCityPlots().Add(plotHere);
             city.saveToDatabase();
@@ -309,6 +310,7 @@ namespace claims.src.commands
                 city.Extrachunksbought--;
                 city.saveToDatabase();
             }
+            PlotRefundHelper.RefundOnCityUnclaim(plotHere);
             PartDemolition.demolishCityPlot(plotHere);
 
             claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(plotHere.getPos());
@@ -367,6 +369,7 @@ namespace claims.src.commands
             plotHere.setCity(playerInfo.City);
             plotHere.getPermsHandler().setPerm(city.getPermsHandler());
             plotHere.Price = -1;
+            plotHere.TimeStampClaimed = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             claims.dataStorage.addClaimedPlot(currentPlotPosition, plotHere);
             city.getCityPlots().Add(plotHere);
             city.saveToDatabase();
@@ -427,6 +430,7 @@ namespace claims.src.commands
             plotHere.getPermsHandler().setPerm(city.getPermsHandler());
             plotHere.Price = -1;
             plotHere.extraBought = true;
+            plotHere.TimeStampClaimed = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             city.Extrachunksbought++;
             claims.dataStorage.addClaimedPlot(currentPlotPosition, plotHere);
             city.getCityPlots().Add(plotHere);
@@ -542,24 +546,29 @@ namespace claims.src.commands
             string name = Filter.filterName((string)args.LastArg);
             if (name.Length == 0 || !Filter.checkForBlockedNames(name))
             {
+                UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_MEMBERS);
                 return TextCommandResult.Success("claims:invalid_player_name");
             }
             claims.dataStorage.getPlayerByName(name, out PlayerInfo targetPlayer);
             if (targetPlayer == null)
             {
+                UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_MEMBERS);
                 return TextCommandResult.Success("claims:invalid_player_name");
             }
             City targetCity = targetPlayer.City;
             if (targetCity == null || !targetCity.Equals(city))
             {
+                UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_MEMBERS);
                 return TextCommandResult.Success("claims:player_should_be_in_same_city");
             }
             if (city.isMayor(targetPlayer))
             {
+                UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_MEMBERS);
                 return TextCommandResult.Success("claims:can_not_kick_mayor");
             }
             if (playerInfo.Equals(targetPlayer))
             {
+                UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_MEMBERS);
                 return TextCommandResult.Success("claims:can_not_kick_yourself");
             }
             MessageHandler.sendMsgInCity(city, Lang.Get("claims:player_was_kicked", targetPlayer.GetPartName()));
@@ -734,9 +743,10 @@ namespace claims.src.commands
             City city = playerInfo.City;
             if (claims.economyHandler.getBalance(city.MoneyAccountName) < (decimal)claims.config.CITY_NAME_CHANGE_COST)
             {
+                UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_NAME);
                 return TextCommandResult.Success("claims:not_enough_money");
             }
-            
+
             if (city.rename((string)args.LastArg))
             {
                 if (claims.economyHandler.withdraw(playerInfo.City.MoneyAccountName, (decimal)claims.config.CITY_NAME_CHANGE_COST).ResultState == caneconomy.src.implementations.OperationResult.EnumOperationResultState.SUCCCESS)
@@ -745,7 +755,8 @@ namespace claims.src.commands
                     return SuccessWithParams("claims:city_name_changed_to", new object[] { (string)args.LastArg });
                 }
             }
-            
+
+            UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_NAME);
             return TextCommandResult.Error("");
         }
         public static TextCommandResult CitySetPermissions(TextCommandCallingArgs args)
@@ -934,7 +945,7 @@ namespace claims.src.commands
                 return TextCommandResult.Success();
             }
 
-            int fee = (int)args.LastArg;
+            int fee = Convert.ToInt32(args.Parsers[0].GetValue());
 
             if (fee < 0)
             {
@@ -946,7 +957,12 @@ namespace claims.src.commands
             }
 
             city.fee = fee;
-            UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT);
+            UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_FEE);
+            foreach (var citizen in city.getOnlineCitizens())
+            {
+                if (claims.dataStorage.GetPlayerByUid(citizen.PlayerUID, out PlayerInfo pi))
+                    UsefullPacketsSend.AddToQueuePlayerInfoUpdate(pi.Guid, EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT);
+            }
             city.saveToDatabase();
             return SuccessWithParams("claims:city_fee_set_to", new object[] { fee });
         }
@@ -1115,11 +1131,13 @@ namespace claims.src.commands
 
             if (!HelperFunctionRank(player, rank_name, player_name, out City city, out PlayerInfo targetPlayer, tcr))
             {
+                UsefullPacketsSend.AddToQueuePlayerInfoUpdate(player.PlayerUID, EnumPlayerRelatedInfo.CITY_CITIZENS_RANKS);
                 return tcr;
             }
             if (targetPlayer.getCityTitles().Contains(rank_name))
             {
                 tcr.StatusMessage = "claims:player_already_has_rank";
+                UsefullPacketsSend.AddToQueuePlayerInfoUpdate(player.PlayerUID, EnumPlayerRelatedInfo.CITY_CITIZENS_RANKS);
                 return tcr;
             }
             city.GrantPlayerRank(rank_name, targetPlayer);
@@ -1262,6 +1280,7 @@ namespace claims.src.commands
             string rankName = args.Parsers[0].GetValue().ToString();
             if(!city.CustomCityRanks.TryGetValue(rankName, out var foundRank))
             {
+                UsefullPacketsSend.AddToQueuePlayerInfoUpdate(player.PlayerUID, EnumPlayerRelatedInfo.CITY_CITIZENS_RANKS);
                 return TextCommandResult.Success("claims:no_such_rank");
             }
             string[] allPermissions = args.Parsers[1].GetValue().ToString().Split(' ');
@@ -1272,7 +1291,7 @@ namespace claims.src.commands
                 {
                     var tmpVal = (EnumPlayerPermissions)Enum.Parse(typeof(EnumPlayerPermissions), it);
                     permissionList.Add(tmpVal);
-                } 
+                }
                 catch(ArgumentException)
                 {
                     continue;
@@ -1315,6 +1334,7 @@ namespace claims.src.commands
             string rankName = args.Parsers[0].GetValue().ToString();
             if (!city.CustomCityRanks.TryGetValue(rankName, out var foundRank))
             {
+                UsefullPacketsSend.AddToQueuePlayerInfoUpdate(player.PlayerUID, EnumPlayerRelatedInfo.CITY_CITIZENS_RANKS);
                 return TextCommandResult.Success("claims:no_such_rank");
             }
             string[] allPermissions = args.Parsers[1].GetValue().ToString().Split(' ');
@@ -1659,11 +1679,13 @@ namespace claims.src.commands
             }
             if (!helperFunctionCriminal(player, (string)args.LastArg, out City targetCity, out PlayerInfo targetPlayer, tcr))
             {
+                UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_CRIMINALS_LIST);
                 return tcr;
             }
             if (city.getCriminals().Contains(targetPlayer))
             {
                 tcr.StatusMessage = "claims:already_added_as_criminal";
+                UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_CRIMINALS_LIST);
                 return tcr;
             }
             city.getCriminals().Add(targetPlayer);
@@ -1700,11 +1722,13 @@ namespace claims.src.commands
             }
             if (!helperFunctionCriminal(player, (string)args.LastArg, out City targetCity, out PlayerInfo targetPlayer, tcr))
             {
+                UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_CRIMINALS_LIST);
                 return tcr;
             }
             if (!city.getCriminals().Contains(targetPlayer))
             {
                 tcr.StatusMessage = "claims:not_criminal_here";
+                UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_CRIMINALS_LIST);
                 return tcr;
             }
             city.getCriminals().Remove(targetPlayer);
@@ -3159,6 +3183,11 @@ namespace claims.src.commands
                         newConflict.State = ConflictState.CREATED;
                         newConflict.TimeStampStarted = TimeFunctions.getEpochSeconds();
                         newConflict.MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES;
+                        var conflictCellElement = ClientConflictCellElement.FromConflict(newConflict);
+                        UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourCity,
+                            new Dictionary<string, object> { { "value", conflictCellElement } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
+                        UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
+                            new Dictionary<string, object> { { "value", conflictCellElement } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
                         ourCity.saveToDatabase();
                         targetParty.saveToDatabase();
                         newConflict.saveToDatabase(false);
@@ -3205,6 +3234,11 @@ namespace claims.src.commands
                 newConflict.State = ConflictState.CREATED;
                 newConflict.TimeStampStarted = TimeFunctions.getEpochSeconds();
                 newConflict.MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES;
+                var conflictCellElement = ClientConflictCellElement.FromConflict(newConflict);
+                UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourCity,
+                    new Dictionary<string, object> { { "value", conflictCellElement } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
+                UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
+                    new Dictionary<string, object> { { "value", conflictCellElement } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
                 ourCity.saveToDatabase();
                 targetParty.saveToDatabase();
                 newConflict.saveToDatabase(false);
@@ -3310,6 +3344,7 @@ namespace claims.src.commands
                                 new Dictionary<string, object> { { "value", (acceptLetter.Guid, acceptLetter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
                             UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
                                 new Dictionary<string, object> { { "value", (acceptLetter.Guid, acceptLetter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
+                            ConflictHandler.removeConflictLetter(acceptLetter);
                         }
                         PartDemolition.DemolishConflict(c);
                         foreach (var city in targetParty.GetCities())
@@ -3358,6 +3393,14 @@ namespace claims.src.commands
             if (!ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.END_CONFLICT, out var letter))
                 return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
             letter.OnAccept.Start();
+            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourCity,
+                new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
+            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
+                new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
+            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourCity,
+                new Dictionary<string, object> { { "value", letter.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_REMOVE);
+            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
+                new Dictionary<string, object> { { "value", letter.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_REMOVE);
             return TextCommandResult.Success();
         }
 
@@ -3379,6 +3422,10 @@ namespace claims.src.commands
             if (!ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.END_CONFLICT, out var letter))
                 return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
             letter.OnDeny.Start();
+            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourCity,
+                new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
+            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
+                new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
             return TextCommandResult.Success();
         }
     }

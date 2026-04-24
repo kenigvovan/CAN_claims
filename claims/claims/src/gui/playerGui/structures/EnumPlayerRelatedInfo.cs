@@ -11,6 +11,7 @@
         CITY_PLOTS_COLOR,
         CITY_BALANCE,
         CITY_DEBT,
+        CITY_FEE,
 
         CITY_CRIMINALS_LIST,
         CITY_CRIMINAL_ADDED, CITY_CRIMINAL_REMOVED,
@@ -38,6 +39,9 @@
 
         CITY_LIST_ALL,
         CITY_LIST_UPDATE,
+        CITY_LIST_REMOVE,
+
+        ALLIANCE_LIST_ALL,
 
         ALLIANCE_LIST_ALL,
 

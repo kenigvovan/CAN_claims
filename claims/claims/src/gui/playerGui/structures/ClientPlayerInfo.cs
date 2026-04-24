@@ -55,6 +55,7 @@ namespace claims.src.gui.playerGui.structures
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_PLOTS_COLOR, OnCityCityPlotsColor);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_BALANCE, OnCityCityBalance);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_DEBT, OnCityCityDebt);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_FEE, OnCityCityFee);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_CRIMINAL_ADDED, OnCityCityCriminalAdded);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_CRIMINAL_REMOVED, OnCityCityCriminalRemoved);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_CRIMINALS_LIST, OnCityCityCriminalsList);
@@ -76,9 +77,11 @@ namespace claims.src.gui.playerGui.structures
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.OWN_ALLIANCE_REMOVE, OnAllianceRemove);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_LIST_ALL, OnCityListAll);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_LIST_UPDATE, OnCityListUpdate);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_LIST_REMOVE, OnCityListRemove);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_LIST_ALL, OnAllianceListAll);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_NAME, OnAllianceName);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.TO_ALLIANCE_INVITE_ADD, OnAllianceInviteAdd);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.TO_ALLIANCE_INVITE_REMOVE, OnAllianceInviteRemove);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_LETTER_ADD, OnAllianceLetterAdd);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE, OnAllianceLetterRemove);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_LETTER_ALL, OnAllianceLetterAll);
@@ -295,6 +298,10 @@ namespace claims.src.gui.playerGui.structures
         {
             CityInfo.CityDebt = (double)decimal.Parse(val, CultureInfo.InvariantCulture);
         }
+        private void OnCityCityFee(string val)
+        {
+            CityInfo.CityFee = int.Parse(val);
+        }
         private void OnCityCityCriminalAdded(string val)
         {
             HashSet<string> hs = JsonConvert.DeserializeObject<HashSet<string>>(val);
@@ -505,6 +512,23 @@ namespace claims.src.gui.playerGui.structures
             List<ClientAllianceInfoCellElement> ai = JsonConvert.DeserializeObject<List<ClientAllianceInfoCellElement>>(val);
             claims.clientDataStorage.clientPlayerInfo.AllAlliancesList = ai;
         }
+        private void OnCityListRemove(string val)
+        {
+            List<string> guids = JsonConvert.DeserializeObject<List<string>>(val);
+            foreach (var cityGuid in guids)
+            {
+                var existing = AllCitiesList.FirstOrDefault(c => c.Guid == cityGuid);
+                if (existing != null)
+                {
+                    AllCitiesList.Remove(existing);
+                }
+            }
+        }
+        private void OnAllianceListAll(string val)
+        {
+            List<ClientAllianceInfoCellElement> ai = JsonConvert.DeserializeObject<List<ClientAllianceInfoCellElement>>(val);
+            claims.clientDataStorage.clientPlayerInfo.AllAlliancesList = ai;
+        }
         private void OnAllianceName(string val)
         {
             Tuple<string, string> tup = JsonConvert.DeserializeObject<Tuple<string, string>>(val);
@@ -516,6 +540,15 @@ namespace claims.src.gui.playerGui.structures
             foreach (var it in pc)
             {
                 this.CityInfo.ClientToAllianceInvitations.Add(it);
+            }
+        }
+        private void OnAllianceInviteRemove(string val)
+        {
+            if (this.CityInfo == null) return;
+            var invitationToRemove = this.CityInfo.ClientToAllianceInvitations.FirstOrDefault(inv => inv.AllianceGuid == val);
+            if (invitationToRemove != null)
+            {
+                this.CityInfo.ClientToAllianceInvitations.Remove(invitationToRemove);
             }
         }
         private void OnAllianceLetterAdd(string val)
@@ -598,25 +631,15 @@ namespace claims.src.gui.playerGui.structures
         }
         private void OnAllianceLetterAll(string val)
         {
+            if (this.CityInfo == null) return;
             List<ClientConflictLetterCellElement> pc = JsonConvert.DeserializeObject<List<ClientConflictLetterCellElement>>(val);
-            foreach (var it in pc)
-            {
-                foreach (var it_current in this.CityInfo.ClientConflictCellElements.ToArray())
-                {
-                    this.CityInfo.ClientConflictCellElements.Add(it_current);
-                }
-            }
+            this.CityInfo.ClientConflictLetterCellElements = pc;
         }
         private void OnAllianceUnionLetterAll(string val)
         {
+            if (this.CityInfo == null) return;
             List<ClientUnionLetterCellElement> pc = JsonConvert.DeserializeObject<List<ClientUnionLetterCellElement>>(val);
-            foreach (var it in pc)
-            {
-                foreach (var it_current in this.CityInfo.ClientUnionLetterCellElements.ToArray())
-                {
-                    this.CityInfo.ClientUnionLetterCellElements.Add(it_current);
-                }
-            }
+            this.CityInfo.ClientUnionLetterCellElements = pc;
         }
         private void OnAllianceAlliesAll(string val)
         {
@@ -674,6 +697,38 @@ namespace claims.src.gui.playerGui.structures
                     cell.NextBattleDateEnd = it.NextBattleDateEnd;
                     cell.NextBattleDateStart = it.NextBattleDateStart;
                 }
+            }
+        }
+        private void OnAllianceConflictWarTimeMarkStart(string val)
+        {
+            List<string> guids = JsonConvert.DeserializeObject<List<string>>(val);
+            if (guids == null || guids.Count == 0) return;
+            string conflictGuid = guids[0];
+            ClientConflictCellElement cell = this.CityInfo.ClientConflictCellElements.FirstOrDefault(c => c.Guid == conflictGuid);
+            if (cell != null)
+            {
+                cell.ActiveWarTime = true;
+            }
+            var player = claims.capi?.World?.Player;
+            if (player != null)
+            {
+                claims.capi.World.PlaySoundAt(new AssetLocation("game:sounds/effect/deepbell"), player.Entity, null, false, 32f, 0.5f);
+            }
+        }
+        private void OnAllianceConflictWarTimeMarkEnd(string val)
+        {
+            List<string> guids = JsonConvert.DeserializeObject<List<string>>(val);
+            if (guids == null || guids.Count == 0) return;
+            string conflictGuid = guids[0];
+            ClientConflictCellElement cell = this.CityInfo.ClientConflictCellElements.FirstOrDefault(c => c.Guid == conflictGuid);
+            if (cell != null)
+            {
+                cell.ActiveWarTime = false;
+            }
+            var player = claims.capi?.World?.Player;
+            if (player != null)
+            {
+                claims.capi.World.PlaySoundAt(new AssetLocation("game:sounds/effect/deepbell"), player.Entity, null, false, 32f, 0.5f);
             }
         }
         private void OnAllianceConflictWarTimeMarkStart(string val)

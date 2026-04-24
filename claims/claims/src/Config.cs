@@ -135,7 +135,14 @@ namespace claims.src
         public double PRISON_PLOT_COST = 3;
         public double EXTRA_PLOT_COST = 30;
 
-     
+        //REFUND ON UNCLAIM
+        public int PLOT_UNCLAIM_REFUND_PERCENT = 0;
+        public int PLOT_UNCLAIM_REFUND_MIN_AGE_SECONDS = 300;
+
+        //FARM PLOTS ONLY CROP GROWTH
+        public bool CROPS_ONLY_ON_FARM_PLOTS = false;
+
+
         //STRINGS
         public int MAX_LENGTH_CITY_INV_MSG = 100;
         public int MAX_LENGTH_CITY_NAME = 40;
@@ -185,8 +192,8 @@ namespace claims.src
         public string CITY_ACCOUNT_STRING_PREFIX = "#city_";
         public string ALLIANCE_ACCOUNT_STRING_PREFIX = "#alliance_";
 
-        public System.Collections.Generic.OrderedDictionary<decimal, string> COINS_VALUES_TO_CODE = new();
-        public System.Collections.Generic.OrderedDictionary<int, decimal> ID_TO_COINS_VALUES = new();
+        public System.Collections.Generic.OrderedDictionary<double, string> COINS_VALUES_TO_CODE = new();
+        public System.Collections.Generic.OrderedDictionary<int, double> ID_TO_COINS_VALUES = new();
 
         public bool VERBOSE_LOGGING = true;
         public bool SEND_ANNOUNCEMENTS_PLOT_IN_UNDER_ATTACK = true;
