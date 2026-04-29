@@ -48,7 +48,7 @@ namespace claims.src.timers
 
             ProcessAlliancesCare();
 
-            MessageHandler.sendGlobalMsg(Lang.Get("clams:new_day_log_msg"));
+            MessageHandler.sendGlobalMsg(Lang.Get("claims:new_day_log_msg"));
             MessageHandler.sendDebugMsg("[claims] DayTimer::new day here");
             if (scheduleNewDayAfter)
             {

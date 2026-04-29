@@ -120,7 +120,7 @@ namespace claims.src.harmony
             if(damageSource.SourceEntity is EntityPlayer)
             {
                 __result = EntityDamageHandler.canAttackEntity((damageSource.SourceEntity as EntityPlayer).Player as IServerPlayer, __instance) ||
-                   !Settings.protectedAnimals.Contains(__instance.GetName());
+                   !Settings.IsProtectedMob(__instance.Code);
                 return false;
             }
 

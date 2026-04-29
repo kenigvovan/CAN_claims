@@ -524,11 +524,6 @@ namespace claims.src.gui.playerGui.structures
                 }
             }
         }
-        private void OnAllianceListAll(string val)
-        {
-            List<ClientAllianceInfoCellElement> ai = JsonConvert.DeserializeObject<List<ClientAllianceInfoCellElement>>(val);
-            claims.clientDataStorage.clientPlayerInfo.AllAlliancesList = ai;
-        }
         private void OnAllianceName(string val)
         {
             Tuple<string, string> tup = JsonConvert.DeserializeObject<Tuple<string, string>>(val);
@@ -697,38 +692,6 @@ namespace claims.src.gui.playerGui.structures
                     cell.NextBattleDateEnd = it.NextBattleDateEnd;
                     cell.NextBattleDateStart = it.NextBattleDateStart;
                 }
-            }
-        }
-        private void OnAllianceConflictWarTimeMarkStart(string val)
-        {
-            List<string> guids = JsonConvert.DeserializeObject<List<string>>(val);
-            if (guids == null || guids.Count == 0) return;
-            string conflictGuid = guids[0];
-            ClientConflictCellElement cell = this.CityInfo.ClientConflictCellElements.FirstOrDefault(c => c.Guid == conflictGuid);
-            if (cell != null)
-            {
-                cell.ActiveWarTime = true;
-            }
-            var player = claims.capi?.World?.Player;
-            if (player != null)
-            {
-                claims.capi.World.PlaySoundAt(new AssetLocation("game:sounds/effect/deepbell"), player.Entity, null, false, 32f, 0.5f);
-            }
-        }
-        private void OnAllianceConflictWarTimeMarkEnd(string val)
-        {
-            List<string> guids = JsonConvert.DeserializeObject<List<string>>(val);
-            if (guids == null || guids.Count == 0) return;
-            string conflictGuid = guids[0];
-            ClientConflictCellElement cell = this.CityInfo.ClientConflictCellElements.FirstOrDefault(c => c.Guid == conflictGuid);
-            if (cell != null)
-            {
-                cell.ActiveWarTime = false;
-            }
-            var player = claims.capi?.World?.Player;
-            if (player != null)
-            {
-                claims.capi.World.PlaySoundAt(new AssetLocation("game:sounds/effect/deepbell"), player.Entity, null, false, 32f, 0.5f);
             }
         }
         private void OnAllianceConflictWarTimeMarkStart(string val)

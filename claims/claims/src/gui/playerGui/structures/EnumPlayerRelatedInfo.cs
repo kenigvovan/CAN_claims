@@ -43,7 +43,6 @@
 
         ALLIANCE_LIST_ALL,
 
-        ALLIANCE_LIST_ALL,
 
         ALLIANCE_BALANCE,
         ALLIANCE_NAME,

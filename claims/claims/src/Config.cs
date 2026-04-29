@@ -192,8 +192,8 @@ namespace claims.src
         public string CITY_ACCOUNT_STRING_PREFIX = "#city_";
         public string ALLIANCE_ACCOUNT_STRING_PREFIX = "#alliance_";
 
-        public System.Collections.Generic.OrderedDictionary<double, string> COINS_VALUES_TO_CODE = new();
-        public System.Collections.Generic.OrderedDictionary<int, double> ID_TO_COINS_VALUES = new();
+        public System.Collections.Generic.OrderedDictionary<decimal, string> COINS_VALUES_TO_CODE = new();
+        public System.Collections.Generic.OrderedDictionary<int, decimal> ID_TO_COINS_VALUES = new();
 
         public bool VERBOSE_LOGGING = true;
         public bool SEND_ANNOUNCEMENTS_PLOT_IN_UNDER_ATTACK = true;
@@ -210,8 +210,7 @@ namespace claims.src
         public static void AddDefaultValues()
         {
             claims.config.DAYTIME_MAKE_BACKUP = new HashSet<string> { "6:00", "12:00", "18:00", "0:00" };
-            claims.config.PROTECTED_MOB_TYPES = new HashSet<string>{"Bighorn lamb",
-            "Bighorn ewe", "Bighorn ram", "Rooster", "Chick", "Hen", "Sow", "Boar", "Piglet" };
+            claims.config.PROTECTED_MOB_TYPES = new HashSet<string> { "pig-*", "sheep-*", "chicken-*" };
             claims.config.CITY_PLOTS_COLOR_AVAILABLE_COLORS_GUI = new HashSet<string> { "white", "blue", "red", "orange", "black", "aqua", "yellow", "cyan", "pink", "gold", "indigo", "ivory", "lime", "green", "red", "purple", "silver",
         "violet"};
             claims.config.BLOCKED_COMMANDS_PRISON = new HashSet<string> { "summon" };
