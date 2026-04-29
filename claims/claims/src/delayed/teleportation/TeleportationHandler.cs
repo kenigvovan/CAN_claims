@@ -54,9 +54,9 @@ namespace claims.src.delayed.teleportation
             {
                 return;
             }
+            long timeNow = TimeFunctions.getEpochSeconds();
             foreach (var it in teleportationsList.ToArray())
             {
-                long timeNow = TimeFunctions.getEpochSeconds();
                 if (it.getTimeStamp() < timeNow)
                 {
                     IServerPlayer player = claims.sapi.World.PlayerByUid(it.getTargetPlayer().Guid) as IServerPlayer;

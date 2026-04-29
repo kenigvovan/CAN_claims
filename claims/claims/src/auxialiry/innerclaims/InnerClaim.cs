@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using Vintagestory.API.MathTools;
 
 namespace claims.src.auxialiry
@@ -85,14 +83,7 @@ namespace claims.src.auxialiry
             StringBuilder sb = new StringBuilder();
             sb.Append(pos1.X).Append(",").Append(pos1.Y).Append(",").Append(pos1.Z).Append(":").Append(pos2.X).Append(",").Append(pos2.Y).Append(",").Append(pos2.Z).Append(":").Append(permissionsFlags[0] ? "1" : "0").Append(",").
                 Append(permissionsFlags[1] ? "1" : "0").Append(",").Append(permissionsFlags[2] ? "1" : "0").Append(":");
-            foreach(var member in membersUids)
-            {
-                sb.Append(member);
-                if(!member.Equals(membersUids.Last()))
-                {
-                    sb.Append(",");
-                }
-            }
+            sb.Append(string.Join(",", membersUids));
             return sb.ToString();
         }
     }

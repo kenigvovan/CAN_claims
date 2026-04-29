@@ -4,15 +4,16 @@ namespace claims.src.auxialiry
 {
     public static class Filter
     {
+        static readonly Regex rgxName = new Regex("[^a-zA-Z0-9-_]");
+        static readonly Regex rgxNameWithSpaces = new Regex("[^a-zA-Z0-9-_ ]");
+
         public static string filterName(string inputString)
         {
-            Regex rgx = new Regex("[^a-zA-Z0-9-_]");
-            return rgx.Replace(inputString, "");
+            return rgxName.Replace(inputString, "");
         }
         public static string filterNameWithSpaces(string inputString)
         {
-            Regex rgx = new Regex("[^a-zA-Z0-9-_ ]");
-            return rgx.Replace(inputString, "");
+            return rgxNameWithSpaces.Replace(inputString, "");
         }
         public static bool checkForBlockedNames(string inputString)
         {
