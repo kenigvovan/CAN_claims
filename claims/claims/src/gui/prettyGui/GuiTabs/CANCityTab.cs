@@ -224,6 +224,22 @@ namespace claims.src.gui.prettyGui.GuiTabs
                         ImGui.Separator();
                         ImGui.Spacing();
                         ImGui.Text(Lang.Get("claims:gui-city-balance", clientInfo.CityInfo.CityBalance));
+                        ImGui.SameLine();
+                        if (ImGui.SmallButton("+##citydeposit"))
+                        {
+                            capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_DEPOSIT_CONFIRM;
+                        }
+                        if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-city-deposit-tooltip"));
+                        if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_WITHDRAW_MONEY))
+                        {
+                            ImGui.SameLine();
+                            if (ImGui.SmallButton("-##citywithdraw"))
+                            {
+                                capi.ModLoader.GetModSystem<claimsGui>().intInput = 0;
+                                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_WITHDRAW;
+                            }
+                            if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-city-withdraw-tooltip"));
+                        }
                     }
                 }
                 if (claims.config.GUI_SHOW_DEBT && clientInfo.CityInfo.CityDebt > 0)
@@ -324,6 +340,24 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 if (ImGui.IsItemHovered())
                 {
                     ImGui.SetTooltip(Lang.Get("claims:gui-conflicts-page"));
+                }
+                ImGui.SameLine();
+                if (ImGui.ImageButton("citylog", this.iconHandler.GetOrLoadIcon("files"), new Vector2(60)))
+                {
+                    capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.CityLog;
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(Lang.Get("claims:gui-city-log-tooltip"));
+                }
+                ImGui.SameLine();
+                if (ImGui.ImageButton("citymap", this.iconHandler.GetOrLoadIcon("huts-village"), new Vector2(60)))
+                {
+                    capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.CityMap;
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(Lang.Get("claims:gui-city-map-tooltip"));
                 }
             }
             else

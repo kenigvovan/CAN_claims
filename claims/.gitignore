@@ -677,3 +677,6 @@ fabric.properties
 
 # Markdown files
 *.md
+
+# HTML files
+*.html

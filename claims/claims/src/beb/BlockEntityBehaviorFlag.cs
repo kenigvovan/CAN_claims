@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using claims.src.auxialiry;
 using claims.src.bb;
+using claims.src.citylog;
 using claims.src.gui.playerGui.structures;
 using claims.src.messages;
 using claims.src.part;
@@ -186,7 +187,7 @@ namespace claims.src.beb
 
                         foreach (var runningConflict in defenderCity.RunningConflicts.ToArray())
                         {
-                            PartDemolition.DemolishConflict(runningConflict);
+                            PartDemolition.DemolishConflict(runningConflict, EnumConflictEndReason.CityDestroyed);
                         }
 
                         PartDemolition.demolishCity(defenderCity, string.Format("Last plot captured by {0}", attackerCity.GetPartName()));
@@ -200,6 +201,8 @@ namespace claims.src.beb
                     else
                     {
                         City defenderCity = defenderPlot.getCity();
+                        defenderCity.AddLogEntry(EnumCityLogEvent.FlagCaptured, attackerCity.GetPartName(), defenderPlot.GetPartName());
+                        attackerCity.AddLogEntry(EnumCityLogEvent.FlagCaptured, attackerCity.GetPartName(), defenderPlot.GetPartName());
                         defenderPlot.setCity(attackerCity);
                         defenderCity.getCityPlots().Remove(defenderPlot);
                         attackerCity.getCityPlots().Add(defenderPlot);
@@ -215,11 +218,12 @@ namespace claims.src.beb
                         defenderPlot.getCity().saveToDatabase();
 
                         defenderPlot.CheckBorderPlotValue();
-                        claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(defenderPlot.getPos());
                         claims.serverPlayerMovementListener.markPlotToWasReUpdated(defenderPlot.getPos());
 
-                        UsefullPacketsSend.AddToQueueCityInfoUpdate(defenderPlot.getCity().Guid, EnumPlayerRelatedInfo.CLAIMED_PLOTS);
-                        UsefullPacketsSend.AddToQueueCityInfoUpdate(defenderCity.Guid, EnumPlayerRelatedInfo.CLAIMED_PLOTS);
+                        UsefullPacketsSend.AddToQueueCityInfoUpdate(defenderPlot.getCity().Guid, EnumPlayerRelatedInfo.CLAIMED_PLOTS, EnumPlayerRelatedInfo.CITY_LOG);
+                        UsefullPacketsSend.AddToQueueCityInfoUpdate(defenderCity.Guid, EnumPlayerRelatedInfo.CLAIMED_PLOTS, EnumPlayerRelatedInfo.CITY_LOG);
+                        defenderPlot.getCity().FirePlotsMapChanged(EnumPlotsMapChangeReason.PlotCapturedByUs);
+                        defenderCity.FirePlotsMapChanged(EnumPlotsMapChangeReason.PlotLostToEnemy);
                         UsefullPacketsSend.AddToQueueAllPlayersInfoUpdate(new Dictionary<string, object> { { "value", defenderPlot.getPos() } }, EnumPlayerRelatedInfo.CITY_PLOT_RECOLOR);
                         warTime.PlotAttacks.Remove(PlotPosition.fromBlockPos(this.Pos));
                         TimesToBreak = 0;

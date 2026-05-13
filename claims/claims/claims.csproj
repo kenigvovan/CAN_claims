@@ -80,27 +80,5 @@
     </Content>
 </ItemGroup>
 
-<ItemGroup>
-  <Content Remove="..\resources\assets\claims\lang\ar.json" />
-  <Content Remove="..\resources\assets\claims\lang\cs.json" />
-  <Content Remove="..\resources\assets\claims\lang\de.json" />
-  <Content Remove="..\resources\assets\claims\lang\eo.json" />
-  <Content Remove="..\resources\assets\claims\lang\es-419.json" />
-  <Content Remove="..\resources\assets\claims\lang\es.json" />
-  <Content Remove="..\resources\assets\claims\lang\fr.json" />
-  <Content Remove="..\resources\assets\claims\lang\it.json" />
-  <Content Remove="..\resources\assets\claims\lang\ja.json" />
-  <Content Remove="..\resources\assets\claims\lang\ko.json" />
-  <Content Remove="..\resources\assets\claims\lang\nl.json" />
-  <Content Remove="..\resources\assets\claims\lang\pl.json" />
-  <Content Remove="..\resources\assets\claims\lang\pt-br.json" />
-  <Content Remove="..\resources\assets\claims\lang\pt-pt.json" />
-  <Content Remove="..\resources\assets\claims\lang\ro.json" />
-  <Content Remove="..\resources\assets\claims\lang\ru.json" />
-  <Content Remove="..\resources\assets\claims\lang\sk.json" />
-  <Content Remove="..\resources\assets\claims\lang\sv-se.json" />
-  <Content Remove="..\resources\assets\claims\lang\uk.json" />
-  <Content Remove="..\resources\assets\claims\lang\zh-cn.json" />
-</ItemGroup>
 
 </Project>

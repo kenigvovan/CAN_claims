@@ -22,7 +22,6 @@ namespace claims.src.part
         {
             foreach(var plot in city.getCityPlots())
             {
-                claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(plot.getPos());
                 claims.serverPlayerMovementListener.markPlotToWasRemoved(plot.getPos());
             }
             demolishCityPlots(city);
@@ -56,7 +55,7 @@ namespace claims.src.part
             {
                 if (conflict.First.GetCities().Contains(city) || conflict.Second.GetCities().Contains(city))
                 {
-                    DemolishConflict(conflict);
+                    DemolishConflict(conflict, EnumConflictEndReason.CityDestroyed);
                 }
             }
             Dictionary<string, ClientCityInfoCellElement> CityStatsCashe =
@@ -66,6 +65,7 @@ namespace claims.src.part
             claims.economyHandler.deleteAccount(city.MoneyAccountName);
             claims.dataStorage.removeCityByGUID(city.Guid);
             //DataStorage.nameToCityDict.TryRemove(city.getPartName(), out _);
+            City.FireCityDestroyed(city);
             claims.getModInstance().getDatabaseHandler().deleteFromDatabaseCity(city);
             MessageHandler.sendDebugMsg(string.Format("City {0} was deleted, ", city.GetPartName()) + reason);
         }
@@ -108,7 +108,7 @@ namespace claims.src.part
 
             foreach (Conflict conflict in claims.dataStorage.conflicts.ToArray())
             {
-                DemolishConflict(conflict);
+                DemolishConflict(conflict, EnumConflictEndReason.AllianceDestroyed);
             }
 
             //FOR HOSTILE ALLIANCE WE DELETE OUR CITIES FROM HOSTILES FOR THIER CITIES
@@ -149,9 +149,10 @@ namespace claims.src.part
             claims.economyHandler.deleteAccount(alliance.MoneyAccountName);
             claims.dataStorage.RemoveAllianceByGUID(alliance.Guid);
             //DataStorage.nameToCityDict.TryRemove(city.getPartName(), out _);
+            Alliance.FireAllianceDestroyed(alliance);
             claims.getModInstance().getDatabaseHandler().deleteFromDatabaseAlliance(alliance);
         }
-        public static void DemolishConflict(Conflict conflict)
+        public static void DemolishConflict(Conflict conflict, EnumConflictEndReason reason = EnumConflictEndReason.Peace)
         {
             claims.dataStorage.TryRemoveConflict(conflict);
             foreach (City ourCity in conflict.First.GetCities())
@@ -180,6 +181,10 @@ namespace claims.src.part
                 new Dictionary<string, object> { { "value", conflict.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_REMOVE);
             conflict.First.saveToDatabase();
             conflict.Second.saveToDatabase();
+            if (conflict.First is Alliance firstAlliance)
+                firstAlliance.FireConflictEnded(conflict.Second, reason);
+            if (conflict.Second is Alliance secondAlliance)
+                secondAlliance.FireConflictEnded(conflict.First, reason);
             claims.getModInstance().getDatabaseHandler().deleteFromDatabaseConflict(conflict);
         }
         public static void DemolishUnion(Alliance first, Alliance second)

@@ -114,12 +114,16 @@ namespace claims.src.part.structure
         /// <returns>If type was changed successfully.</returns>
         public bool setNewType(TextCommandResult tcr, string newPlotType, IServerPlayer player)
         {
-            PlotType plotType = PlotInfo.nameToPlotType[newPlotType];
+            if (!PlotInfo.nameToPlotType.TryGetValue(newPlotType, out PlotType plotType))
+            {
+                tcr.StatusMessage = "claims:unknown_plot_type";
+                return false;
+            }
 
             if(plotType == this.Type)
             {
                 tcr.StatusMessage = "claims:plot_the_same_type_set";
-                return false; 
+                return false;
             }
 
             if (plotType == PlotType.CAMP || plotType == PlotType.TOURNAMENT)
@@ -214,14 +218,25 @@ namespace claims.src.part.structure
             }
             else if (currentPlotType == PlotType.PRISON)
             {
+                EntityPos ep = claims.sapi.World.DefaultSpawnPosition;
                 foreach (PrisonCellInfo cell in Prison.getPrisonCells())
                 {
                     foreach (PlayerInfo player in cell.getPlayerInfos())
                     {
-                        EntityPos ep = claims.sapi.World.DefaultSpawnPosition;
-                        (claims.sapi.World.PlayerByUid(player.Guid) as IServerPlayer).SetSpawnPosition(new PlayerSpawnPos((int)ep.X, (int)ep.Y, (int)ep.Z));
-                        (claims.sapi.World.PlayerByUid(player.Guid) as IServerPlayer).
-                            Entity.TeleportToDouble(ep.X, ep.Y, ep.Z);
+                        IServerPlayer onlinePlayer = claims.sapi.World.PlayerByUid(player.Guid) as IServerPlayer;
+                        if (onlinePlayer != null)
+                        {
+                            onlinePlayer.SetSpawnPosition(new PlayerSpawnPos((int)ep.X, (int)ep.Y, (int)ep.Z));
+                            onlinePlayer.Entity.TeleportToDouble(ep.X, ep.Y, ep.Z);
+                            player.PrisonHoursLeft = 0;
+                        }
+                        else
+                        {
+                            // released while offline; OnPlayerJoin will teleport on next login
+                            player.PrisonHoursLeft = -1;
+                        }
+                        player.PrisonedIn = null;
+                        player.saveToDatabase();
                     }
                 }
 

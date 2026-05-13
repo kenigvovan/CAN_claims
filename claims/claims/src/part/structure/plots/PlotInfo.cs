@@ -82,9 +82,8 @@ namespace claims.src.part.structure.plots
                     sb.Append(plot.Prison.Guid);
                     return sb.ToString();
                 case PlotType.TAVERN:
-                    sb.Append(
-                        (plot.PlotDesc as PlotDescTavern).toSaveStringInnerClaims()
-                        );
+                    if (plot.PlotDesc is PlotDescTavern tavernDesc)
+                        sb.Append(tavernDesc.toSaveStringInnerClaims());
                     return sb.ToString();
             }
             return sb.ToString();

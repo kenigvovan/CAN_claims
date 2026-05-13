@@ -133,7 +133,6 @@ namespace claims.src.commands
                     plot.saveToDatabase();
                     playerInfo.saveToDatabase();
                     claims.dataStorage.ClearCacheForPlayersInPlot(plot);
-                    claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(plot.getPos());
                     claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
                     UsefullPacketsSend.SendCurrentPlotUpdate(player, plot);
                     UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT);
@@ -215,7 +214,6 @@ namespace claims.src.commands
             playerInfo.PlayerPlots.Remove(plot);
             playerInfo.saveToDatabase();
             claims.dataStorage.ClearCacheForPlayersInPlot(plot);
-            claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(plot.getPos());
             claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
             UsefullPacketsSend.SendCurrentPlotUpdate(player, plot);
             UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT);
@@ -241,7 +239,6 @@ namespace claims.src.commands
                 return tcr;
             }
             UsefullPacketsSend.AddToQueueCityInfoUpdate(plotHere.getCity().Guid, EnumPlayerRelatedInfo.CITY_DAY_PAYMENT);
-            claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(plotHere.getPos());
             claims.serverPlayerMovementListener.markPlotToWasReUpdated(plotHere.getPos());
             UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
             plotHere.saveToDatabase();
@@ -265,7 +262,6 @@ namespace claims.src.commands
                 return tcr;
             }
 
-            claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(plotHere.getPos());
             claims.serverPlayerMovementListener.markPlotToWasReUpdated(plotHere.getPos());
             UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
             plotHere.saveToDatabase();
@@ -289,7 +285,6 @@ namespace claims.src.commands
                 return tcr;
             }
 
-            claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(plotHere.getPos());
             claims.serverPlayerMovementListener.markPlotToWasReUpdated(plotHere.getPos());
             UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
             plotHere.saveToDatabase();
@@ -338,7 +333,6 @@ namespace claims.src.commands
                 return TextCommandResult.Success();
             }
 
-            claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(plot.getPos());
             claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
             UsefullPacketsSend.SendCurrentPlotUpdate(player, plot);
             plot.saveToDatabase();
@@ -375,7 +369,6 @@ namespace claims.src.commands
                 return TextCommandResult.Success();
             }
 
-            claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(plotHere.getPos());
             claims.serverPlayerMovementListener.markPlotToWasReUpdated(plotHere.getPos());
             UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
             if(plotHere.hasPlotOwner())
@@ -415,10 +408,10 @@ namespace claims.src.commands
                     UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
                     return tcr;
                 }
-                claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(plotHere.getPos());
                 claims.serverPlayerMovementListener.markPlotToWasReUpdated(plotHere.getPos());
                 UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
                 UsefullPacketsSend.AddToQueueCityInfoUpdate(plotHere.getCity().Guid, EnumPlayerRelatedInfo.CITY_DAY_PAYMENT);
+                plotHere.getCity().FirePlotsMapChanged(EnumPlotsMapChangeReason.TypeChanged);
                 return tcr;
             }
             else
@@ -458,7 +451,6 @@ namespace claims.src.commands
 
             plot.getPermsHandler().setAccessPerm(args.RawArgs);
 
-            claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(plot.getPos());
             claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
             plot.saveToDatabase();
             claims.dataStorage.ClearCacheForPlayersInPlot(plot);
@@ -492,7 +484,6 @@ namespace claims.src.commands
             }
             plot.Price = price;
             plot.saveToDatabase();
-            claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(plot.getPos());
             claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
             UsefullPacketsSend.SendCurrentPlotUpdate(player, plot);
             return SuccessWithParams("claims:plot_is_for_sale", new object[] { price });
@@ -519,7 +510,6 @@ namespace claims.src.commands
 
             plot.Price = -1;
             plot.saveToDatabase();
-            claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(plot.getPos());
             claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
             UsefullPacketsSend.SendCurrentPlotUpdate(player, plot);
             return TextCommandResult.Success("claims:plot_is_not_for_sale");
@@ -618,6 +608,11 @@ namespace claims.src.commands
                 MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:only_for_tavern"));
                 return tcr;
             }
+            if (plotHere.getPlotDesc() is not PlotDescTavern tavernDesc)
+            {
+                MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:only_for_tavern"));
+                return tcr;
+            }
             claims.dataStorage.getPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
             if (!(plotHere.hasPlotOwner() && plotHere.getPlotOwner().Equals(playerInfo))
                 && !plotHere.getCity().Equals(playerInfo.City))
@@ -648,17 +643,17 @@ namespace claims.src.commands
                     return tcr;
                 }
 
-                if(!(plot.getPlotDesc() is PlotDescTavern))
+                if (plot.getPlotDesc() is not PlotDescTavern plotTavernDesc)
                 {
                     MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:wrong_plot_type"));
                     return tcr;
                 }
-                if((plot.getPlotDesc() as PlotDescTavern).innerClaims.Count > claims.config.MAX_NUMBER_INNER_CLAIM_PER_TAVERN)
+                if(plotTavernDesc.innerClaims.Count > claims.config.MAX_NUMBER_INNER_CLAIM_PER_TAVERN)
                 {
                     MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:too_much_inner_claims"));
                     return tcr;
                 }
-                foreach(var it in (plot.getPlotDesc() as PlotDescTavern).innerClaims)
+                foreach(var it in plotTavernDesc.innerClaims)
                 {
                     if(it.Intersects(new InnerClaim(innerClaimRecord.pos1, innerClaimRecord.pos2)))
                     {
@@ -667,7 +662,7 @@ namespace claims.src.commands
                     }
                 }
 
-                (plot.getPlotDesc() as PlotDescTavern).addNewInnerClaim(innerClaimRecord.pos1, innerClaimRecord.pos2);
+                plotTavernDesc.addNewInnerClaim(innerClaimRecord.pos1, innerClaimRecord.pos2);
                 claims.dataStorage.tryRemoveClaimRecord(player.PlayerUID);
                 plot.saveToDatabase();
                 MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:inner_claim_was_added"));
@@ -760,12 +755,12 @@ namespace claims.src.commands
                         MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:not_valid_number"));
                         return tcr;
                     }
-                    if((plotHere.getPlotDesc() as PlotDescTavern).innerClaims.Count - 1 < claimNumber)
+                    if(tavernDesc.innerClaims.Count - 1 < claimNumber)
                     {
                         MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:not_valid_number"));
                         return tcr;
                     }
-                    (plotHere.getPlotDesc() as PlotDescTavern).innerClaims.RemoveAt(claimNumber);
+                    tavernDesc.innerClaims.RemoveAt(claimNumber);
                     plotHere.saveToDatabase();
                     return tcr;
                 }
@@ -777,7 +772,7 @@ namespace claims.src.commands
             }
             else if (args.RawArgs[0].Equals("list", StringComparison.OrdinalIgnoreCase))
             {
-                MessageHandler.sendMsgToPlayer(player, (plotHere.getPlotDesc() as PlotDescTavern).innerClaimsToString());
+                MessageHandler.sendMsgToPlayer(player, tavernDesc.innerClaimsToString());
                 return tcr;
                 //NUMBER. RIGHTS. MEMBERS.
             }
@@ -804,12 +799,12 @@ namespace claims.src.commands
                     else
                     {
                         
-                        if((plotHere.getPlotDesc() as PlotDescTavern).innerClaims.Count - 1 < claimNumber)
+                        if(tavernDesc.innerClaims.Count - 1 < claimNumber)
                         {
                             MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:not_valid_number"));
                             return tcr;
                         }
-                        (plotHere.getPlotDesc() as PlotDescTavern).innerClaims[claimNumber].membersUids.Add(targetPlayerInfo.Guid);
+                        tavernDesc.innerClaims[claimNumber].membersUids.Add(targetPlayerInfo.Guid);
                         plotHere.saveToDatabase();
                         return tcr;
                     }
@@ -843,12 +838,12 @@ namespace claims.src.commands
                     else
                     {
 
-                        if ((plotHere.getPlotDesc() as PlotDescTavern).innerClaims.Count - 1 < claimNumber)
+                        if (tavernDesc.innerClaims.Count - 1 < claimNumber)
                         {
                             MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:not_valid_number"));
                             return tcr;
                         }
-                        (plotHere.getPlotDesc() as PlotDescTavern).innerClaims[claimNumber].membersUids.Remove(targetPlayerInfo.Guid);
+                        tavernDesc.innerClaims[claimNumber].membersUids.Remove(targetPlayerInfo.Guid);
                         plotHere.saveToDatabase();
                         return tcr;
                     }
@@ -874,12 +869,12 @@ namespace claims.src.commands
                         return tcr;
                     }                  
 
-                    if ((plotHere.getPlotDesc() as PlotDescTavern).innerClaims.Count - 1 < claimNumber)
+                    if (tavernDesc.innerClaims.Count - 1 < claimNumber)
                     {
                         MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:not_valid_number"));
                         return tcr;
                     }
-                    reapplyHighlightInnerClaim(player, (plotHere.getPlotDesc() as PlotDescTavern).innerClaims[claimNumber]);
+                    reapplyHighlightInnerClaim(player, tavernDesc.innerClaims[claimNumber]);
                     return tcr;
                     
                 }
@@ -910,7 +905,7 @@ namespace claims.src.commands
                 {
                     return tcr;
                 }
-                if ((plotHere.getPlotDesc() as PlotDescTavern).innerClaims.Count - 1 < claimNumber)
+                if (tavernDesc.innerClaims.Count - 1 < claimNumber)
                 {
                     MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:not_valid_number"));
                     return tcr;
@@ -919,12 +914,12 @@ namespace claims.src.commands
                 {
                     if(args.RawArgs[3].Equals("on"))
                     {
-                        (plotHere.getPlotDesc() as PlotDescTavern).innerClaims[claimNumber].permissionsFlags[1] = true;
+                        tavernDesc.innerClaims[claimNumber].permissionsFlags[1] = true;
                         MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:flag_now_has_value", "build", "on"));
                     }
                     else if (args.RawArgs[3].Equals("off"))
                     {
-                        (plotHere.getPlotDesc() as PlotDescTavern).innerClaims[claimNumber].permissionsFlags[1] = false;
+                        tavernDesc.innerClaims[claimNumber].permissionsFlags[1] = false;
                         MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:flag_now_has_value", "build", "off"));
                     }
                 }
@@ -932,12 +927,12 @@ namespace claims.src.commands
                 {
                     if (args.RawArgs[3].Equals("on"))
                     {
-                        (plotHere.getPlotDesc() as PlotDescTavern).innerClaims[claimNumber].permissionsFlags[0] = true;
+                        tavernDesc.innerClaims[claimNumber].permissionsFlags[0] = true;
                         MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:flag_now_has_value", "use", "on"));
                     }
                     else if (args.RawArgs[3].Equals("off"))
                     {
-                        (plotHere.getPlotDesc() as PlotDescTavern).innerClaims[claimNumber].permissionsFlags[0] = false;
+                        tavernDesc.innerClaims[claimNumber].permissionsFlags[0] = false;
                         MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:flag_now_has_value", "use", "off"));
                     }
                 }
@@ -945,12 +940,12 @@ namespace claims.src.commands
                 {
                     if (args.RawArgs[3].Equals("on"))
                     {
-                        (plotHere.getPlotDesc() as PlotDescTavern).innerClaims[claimNumber].permissionsFlags[2] = true;
+                        tavernDesc.innerClaims[claimNumber].permissionsFlags[2] = true;
                         MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:flag_now_has_value", "attack", "on"));
                     }
                     else if(args.RawArgs[3].Equals("off"))
                     {
-                        (plotHere.getPlotDesc() as PlotDescTavern).innerClaims[claimNumber].permissionsFlags[2] = false;
+                        tavernDesc.innerClaims[claimNumber].permissionsFlags[2] = false;
                         MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:flag_now_has_value", "attack", "off"));
                     }
                 }

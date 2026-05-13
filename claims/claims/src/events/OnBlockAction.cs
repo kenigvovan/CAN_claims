@@ -47,7 +47,9 @@ namespace claims.src.events
         }
         public static bool checkInnerClaimPerm(PermType permType, string uid, Plot plot, BlockSelection blockSel)
         {
-            foreach(var it in (plot.PlotDesc as PlotDescTavern).innerClaims)
+            if (plot.PlotDesc is not PlotDescTavern tavernDesc)
+                return false;
+            foreach(var it in tavernDesc.innerClaims)
             {
                 if(it.Contains(blockSel.Position))
                 {
@@ -58,7 +60,9 @@ namespace claims.src.events
         }
         public static bool checkInnerClaimPerm(PermType permType, string uid, Plot plot, Vec3d blockSel)
         {
-            foreach (var it in (plot.PlotDesc as PlotDescTavern).innerClaims)
+            if (plot.PlotDesc is not PlotDescTavern tavernDesc)
+                return false;
+            foreach (var it in tavernDesc.innerClaims)
             {
                 if (it.Contains(blockSel))
                 {

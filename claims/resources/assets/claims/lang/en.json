@@ -70,6 +70,7 @@
   "city_inv_msg_set": "City inv msg set.",
   "limit_summon_plots": "Max summon plots.",
   "plot_the_same_type_set": "Plot already has such type.",
+  "unknown_plot_type": "Unknown plot type.",
   "gui-plot-borders": "Borders",
   "criminals": "City criminals: {0}.",
   "player_escaped_prison": "{0} escaped prison.",
@@ -483,6 +484,13 @@
   "gui-city-set-fee-tooltip": "Set city fee",
   "gui-city-fee": "Fee: ",
   "gui-city-balance": "Balance: {0}",
+  "gui-hud-player-balance": "Balance: {0}",
+  "gui-city-balance-hud": "City: {0}",
+  "gui-city-deposit-tooltip": "Deposit coins from active slot into city treasury",
+  "gui-city-deposit-confirm": "Transfer coins from active slot to city treasury?",
+  "gui-city-withdraw-tooltip": "Withdraw coins from city treasury",
+  "gui-enter-city-withdraw-amount": "Amount to withdraw:",
+  "gui-city-withdraw-button": "Withdraw",
   "gui-alliance-balance": "Balance: {0}",
   "gui-criminals": "Criminals: {0}",
   "gui-enter-summon-point-name": "Enter summon point name: ",
@@ -738,5 +746,37 @@
   "need_name_for_group_and_player": "Provide group name and player name.",
 
   //ADMIN
-  "try_pos": "Try providing a position."
+  "try_pos": "Try providing a position.",
+
+  //CITY LOG
+  "gui-city-log-title": "City Chronicle",
+  "gui-city-log-tooltip": "City Chronicle",
+  "gui-city-log-empty": "No events recorded yet.",
+  "gui-back": "< Back",
+  "log-city-created": "City was founded by {0}.",
+  "log-citizen-joined": "{0} joined the city.",
+  "log-citizen-left": "{0} left the city.",
+  "log-citizen-kicked": "{0} was expelled from the city.",
+  "log-mayor-changed": "{0} became the new mayor.",
+  "log-conflict-declared": "War declared against {0}.",
+  "log-flag-captured": "{0} captured plot {1}.",
+  "log-alliance-joined": "City joined alliance {0}.",
+  "log-alliance-left": "City left alliance {0}.",
+
+  //CITY MAP
+  "gui-city-map-title": "City Map",
+  "gui-city-map-tooltip": "City Map",
+  "gui-city-map-empty": "No plots to show.",
+  "gui-city-map-legend": "Legend:",
+  "gui-city-map-gap": "Gap (>5 chunks apart)",
+  "gui-plot-type-default": "Plot",
+  "gui-plot-type-main_city_plot": "Main Plot",
+  "gui-plot-type-tavern": "Tavern",
+  "gui-plot-type-prison": "Prison",
+  "gui-plot-type-embassy": "Embassy",
+  "gui-plot-type-summon": "Summon",
+  "gui-plot-type-farm": "Farm",
+  "gui-plot-type-camp": "Camp",
+  "gui-plot-type-tournament": "Tournament",
+  "gui-plot-type-temple": "Temple"
 }

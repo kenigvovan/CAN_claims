@@ -21,10 +21,18 @@ namespace claims.src.timers
                 if(player.PrisonHoursLeft == 1)
                 {
                     EntityPos ep = claims.sapi.World.DefaultSpawnPosition;
-                    (claims.sapi.World.PlayerByUid(player.Guid) as IServerPlayer).
-                        Entity.TeleportToDouble(ep.X, ep.Y, ep.Z);
-                    (claims.sapi.World.PlayerByUid(player.Guid) as IServerPlayer).SetSpawnPosition(new PlayerSpawnPos((int)ep.X, (int)ep.Y, (int)ep.Z));
-                    player.PrisonHoursLeft = 0;
+                    IServerPlayer onlinePlayer = claims.sapi.World.PlayerByUid(player.Guid) as IServerPlayer;
+                    if (onlinePlayer != null)
+                    {
+                        onlinePlayer.Entity.TeleportToDouble(ep.X, ep.Y, ep.Z);
+                        onlinePlayer.SetSpawnPosition(new PlayerSpawnPos((int)ep.X, (int)ep.Y, (int)ep.Z));
+                        player.PrisonHoursLeft = 0;
+                    }
+                    else
+                    {
+                        player.PrisonHoursLeft = -1; // released while offline, teleport on next login
+                    }
+                    player.PrisonedIn = null;
                 }
                 else if(player.PrisonHoursLeft > 1)
                 {

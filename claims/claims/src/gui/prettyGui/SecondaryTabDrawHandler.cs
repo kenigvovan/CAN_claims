@@ -62,6 +62,8 @@ namespace claims.src.gui.prettyGui
             this.TabDictionary.Add(EnumSecondaryWindowTab.ALLIANCE_SEND_PEACE_OFFER_CONFIRM, new CANYesNoPieceOfferSendTab(capi, iconHandler, "claims:gui_send_peace_offer", "/alliance conflict offerstop ", "claims:gui-confirm-button", "claims:gui-decline-button"));
             this.TabDictionary.Add(EnumSecondaryWindowTab.CITY_SEND_NEW_CONFLICT_LETTER_NEED_NAME, new CANDeclareConflictTab(capi, iconHandler, "/c war declare "));
             this.TabDictionary.Add(EnumSecondaryWindowTab.CITY_SET_FEE, new CANNeedIntInputTab(capi, iconHandler, "claims:gui-enter-city-fee", "/c set fee ", "claims:gui-set-button"));
+            this.TabDictionary.Add(EnumSecondaryWindowTab.CITY_WITHDRAW, new CANNeedIntInputTab(capi, iconHandler, "claims:gui-enter-city-withdraw-amount", "/city withdraw ", "claims:gui-city-withdraw-button"));
+            this.TabDictionary.Add(EnumSecondaryWindowTab.CITY_DEPOSIT_CONFIRM, new CANYesNoTab(capi, iconHandler, "claims:gui-city-deposit-confirm", "/city deposit", "claims:gui-confirm-button", "claims:gui-decline-button"));
             this.iconHandler = iconHandler;
         }
         public void DrawTab(EnumSecondaryWindowTab selectedTab)

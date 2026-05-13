@@ -46,7 +46,6 @@ namespace claims.src
         protected Dictionary<string, InnerClaimRecord> innerClaimRecords = new Dictionary<string, InnerClaimRecord>();
         protected WorldInfo world = null;
         protected Dictionary<Vec2i, ServerZoneInfo> PlotZones = new Dictionary<Vec2i, ServerZoneInfo>();
-        public Dictionary<Vec2i, long> serverZonesTimestamps = new Dictionary<Vec2i, long>();
         public List<ClaimLimiter> ClaimLimiters = new List<ClaimLimiter>();
         //CLIENT SIDE
         //############################################
@@ -510,24 +509,6 @@ namespace claims.src
         public bool getZone(Vec2i zoneCoords, out ServerZoneInfo zone)
         {
             return PlotZones.TryGetValue(zoneCoords, out zone);
-        }
-        public void setNowEpochZoneTimestamp(Vec2i vec)
-        {
-            if (serverZonesTimestamps.ContainsKey(vec))
-            {
-                serverZonesTimestamps[vec] = TimeFunctions.getEpochSeconds();
-            }
-        }
-        public void setNowEpochZoneTimestampFromPlotPosition(Vec2i plotPositionVec)
-        {
-            setNowEpochZoneTimestamp(new Vec2i(plotPositionVec.X / claims.config.ZONE_PLOTS_LENGTH, plotPositionVec.Y / claims.config.ZONE_PLOTS_LENGTH));
-        }
-        public void ResetAllZoneTimestamps()
-        {
-            foreach(var zoneCoords in PlotZones.Keys)
-            {
-                serverZonesTimestamps[zoneCoords] = 0;
-            }
         }
 
         /*==============================================================================================*/

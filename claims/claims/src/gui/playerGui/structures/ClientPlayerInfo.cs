@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using claims.src.citylog;
 using claims.src.gui.playerGui.structures.cellElements;
 using claims.src.part;
 using claims.src.part.structure;
@@ -27,6 +28,7 @@ namespace claims.src.gui.playerGui.structures
         public Dictionary<string, int> PlayerNextPayments = new();
         public List<ClientCityInfoCellElement> AllCitiesList { get; set; } = new List<ClientCityInfoCellElement>();
         public List<ClientAllianceInfoCellElement> AllAlliancesList { get; set; } = new List<ClientAllianceInfoCellElement>();
+        public double PlayerBalance { get; set; } = 0;
         private Dictionary<EnumPlayerRelatedInfo, Action<string>> AcceptChangeHandlers = new();
         public ClientPlayerInfo()
         {
@@ -102,6 +104,9 @@ namespace claims.src.gui.playerGui.structures
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_ALLY_REMOVED, OnAllianceAllyRemove);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT, OnPlayerNextPaymentDict);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_GUID, OnCityGuid);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_LOG, OnCityLog);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_PLOTS_MAP, OnCityPlotsMap);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.PLAYER_BALANCE, OnPlayerBalance);
         }
         public ClientPlayerInfo(string cityName, string mayorName, long timeStampCreated, List<string> citizens, Dictionary<string, int> maxCountPlots, int countPlots, string prefix,
             string afterName, HashSet<string> cityTitles, EnumShowPlotMovement showPlotMovement, int PlotColor, double cityBalance, List<string> criminals)
@@ -725,6 +730,22 @@ namespace claims.src.gui.playerGui.structures
             {
                 claims.capi.World.PlaySoundAt(new AssetLocation("game:sounds/effect/deepbell"), player.Entity, null, false, 32f, 0.5f);
             }
+        }
+        private void OnCityLog(string val)
+        {
+            if (CityInfo == null) return;
+            CityInfo.EventLog = JsonConvert.DeserializeObject<List<CityLogEntry>>(val) ?? new List<CityLogEntry>();
+        }
+        private void OnCityPlotsMap(string val)
+        {
+            if (CityInfo == null) return;
+            CityInfo.PlotsMap = JsonConvert.DeserializeObject<List<CityPlotMiniInfo>>(val) ?? new List<CityPlotMiniInfo>();
+        }
+        private void OnPlayerBalance(string val)
+        {
+            double.TryParse(val, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out double balance);
+            PlayerBalance = balance;
         }
         private void OnCityDayPayment(string val)
         {

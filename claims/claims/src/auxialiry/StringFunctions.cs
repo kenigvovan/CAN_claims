@@ -170,7 +170,8 @@ namespace claims.src.auxialiry
             int i = 0;
             foreach(var it in city.summonPlots)
             {
-                Vec3i summonPoint = (it.PlotDesc as PlotDescSummon).SummonPoint.AsVec3i;
+                if (it.PlotDesc is not PlotDescSummon desc) continue;
+                Vec3i summonPoint = desc.SummonPoint.AsVec3i;
                 sb.AppendLine(string.Format("{0}: {1}/{2}/{3}", i, summonPoint.X - claims.capi.World.DefaultSpawnPosition.AsBlockPos.X,
                                      summonPoint.Y - claims.capi.World.DefaultSpawnPosition.AsBlockPos.Y,
                                      summonPoint.Z - claims.capi.World.DefaultSpawnPosition.AsBlockPos.Z));

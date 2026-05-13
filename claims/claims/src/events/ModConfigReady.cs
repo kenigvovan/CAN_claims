@@ -30,7 +30,6 @@ namespace claims.src.events
             {
                 claims.dataStorage.addPlotToZoneSet(plot);
             }
-            claims.dataStorage.ResetAllZoneTimestamps();
             var world = claims.dataStorage.getWorldInfo();
             if (world == null)
             {

@@ -139,6 +139,13 @@ namespace claims.src.events
             {
                 playerInfo.SetPartName(player.PlayerName);
             }
+            if (playerInfo.PrisonHoursLeft == -1)
+            {
+                var ep = claims.sapi.World.DefaultSpawnPosition;
+                player.SetSpawnPosition(new PlayerSpawnPos((int)ep.X, (int)ep.Y, (int)ep.Z));
+                player.Entity.TeleportToDouble(ep.X, ep.Y, ep.Z);
+                playerInfo.PrisonHoursLeft = 0;
+            }
         }
     }
 }

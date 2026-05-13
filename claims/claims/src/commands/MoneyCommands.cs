@@ -1,5 +1,4 @@
 ﻿using caneconomy.src.implementations.VirtualMoney;
-using claims.src.auxialiry;
 using claims.src.part;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -47,7 +46,6 @@ namespace claims.src.commands
             if(claims.economyHandler.withdraw(playerInfo.City.MoneyAccountName, (decimal)toWithdraw).ResultState == caneconomy.src.implementations.OperationResult.EnumOperationResultState.SUCCCESS)
             {
                 VirtualMoneyEconomyHandler.GiveCurrencyItemsToPlayer(player, toWithdraw);
-                UsefullPacketsSend.AddToQueueCityInfoUpdate(playerInfo.City.Guid, gui.playerGui.structures.EnumPlayerRelatedInfo.CITY_BALANCE);
                 return SuccessWithParams("claims:economy_virtual_city_withdrawn", new object[] { toWithdraw });
             }
             return TextCommandResult.Success("claims:economy_virtual_city_withdraw_error");
@@ -70,7 +68,6 @@ namespace claims.src.commands
             if(collectedValue > 0)
             {
                 claims.economyHandler.deposit(playerInfo.City.MoneyAccountName, (decimal)collectedValue);
-                UsefullPacketsSend.AddToQueueCityInfoUpdate(playerInfo.City.Guid, gui.playerGui.structures.EnumPlayerRelatedInfo.CITY_BALANCE);
                 return SuccessWithParams("claims:economy_virtual_city_deposited", new object[] { collectedValue });
             }
             return TextCommandResult.Success("claims:economy_virtual_city_deposit_error");
@@ -113,7 +110,6 @@ namespace claims.src.commands
             if (claims.economyHandler.withdraw(playerInfo.Alliance.MoneyAccountName, (decimal)toWithdraw).ResultState == caneconomy.src.implementations.OperationResult.EnumOperationResultState.SUCCCESS)
             {
                 VirtualMoneyEconomyHandler.GiveCurrencyItemsToPlayer(player, toWithdraw);
-                UsefullPacketsSend.AddToQueueAllianceInfoUpdate(playerInfo.Alliance.Guid, gui.playerGui.structures.EnumPlayerRelatedInfo.ALLIANCE_BALANCE);
                 return SuccessWithParams("claims:economy_virtual_alliance_withdrawn", new object[] { toWithdraw });
             }
             return TextCommandResult.Success("claims:economy_virtual_city_withdraw_error");
@@ -136,7 +132,6 @@ namespace claims.src.commands
             if (collectedValue > 0)
             {
                 claims.economyHandler.deposit(playerInfo.Alliance.MoneyAccountName, (decimal)collectedValue);
-                UsefullPacketsSend.AddToQueueAllianceInfoUpdate(playerInfo.Alliance.Guid, gui.playerGui.structures.EnumPlayerRelatedInfo.ALLIANCE_BALANCE);
                 return SuccessWithParams("claims:economy_virtual_alliance_deposited", new object[] { collectedValue });
             }
             return TextCommandResult.Success("claims:economy_virtual_city_deposit_error");

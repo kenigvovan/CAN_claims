@@ -295,6 +295,9 @@ namespace claims.src.database
                 try { command.CommandText = "SELECT lastpaidprice FROM PLOTS LIMIT 1"; command.ExecuteScalar(); }
                 catch { command.CommandText = "ALTER TABLE PLOTS ADD COLUMN lastpaidprice INTEGER DEFAULT 0"; command.ExecuteNonQuery(); }
 
+                try { command.CommandText = "SELECT eventlog FROM CITIES LIMIT 1"; command.ExecuteScalar(); }
+                catch { command.CommandText = "ALTER TABLE CITIES ADD COLUMN eventlog TEXT DEFAULT \"\""; command.ExecuteNonQuery(); }
+
             }
             catch (Exception ex)
             {
@@ -636,7 +639,8 @@ namespace claims.src.database
                 { "@extrachunksbought", city.Extrachunksbought },
                 { "@citycolor", city.cityColor },
                 { "@templerespawnpoints", JsonConvert.SerializeObject(city.TempleRespawnPoints) },
-                { "@ranks", JsonConvert.SerializeObject(city.CustomCityRanks) }
+                { "@ranks", JsonConvert.SerializeObject(city.CustomCityRanks) },
+                { "@eventlog", JsonConvert.SerializeObject(city.EventLog) }
             };
 
             queryQueue.Enqueue(new QuerryInfo("CITIES", update ? QuerryType.UPDATE : QuerryType.INSERT, tmpDict));
@@ -764,6 +768,16 @@ namespace claims.src.database
             {
                 city.CustomCityRanks = JsonConvert.DeserializeObject<Dictionary<string, CustomCityRank>>(ranksString);
             }
+
+            try
+            {
+                string eventlogString = it["eventlog"].ToString();
+                if (eventlogString.Length != 0)
+                {
+                    city.EventLog = JsonConvert.DeserializeObject<List<citylog.CityLogEntry>>(eventlogString) ?? new List<citylog.CityLogEntry>();
+                }
+            }
+            catch { }
 
             foreach(var citizen in city.getCityCitizens())
             {

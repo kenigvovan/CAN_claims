@@ -1,6 +1,7 @@
 ﻿using caneconomy.src.interfaces;
 using claims.src.agreement;
 using claims.src.auxialiry;
+using claims.src.citylog;
 using claims.src.delayed.cooldowns;
 using claims.src.delayed.invitations;
 using claims.src.gui.playerGui.structures;
@@ -172,6 +173,8 @@ namespace claims.src.commands
             
 
             alliance.Cities.Remove(city);
+            city.AddLogEntry(EnumCityLogEvent.AllianceLeft, alliance.GetPartName());
+            alliance.FireCityLeft(city, EnumCityLeaveReason.Left);
             //delete alliance titles
             foreach (var it in city.getCityCitizens())
             {
@@ -205,10 +208,11 @@ namespace claims.src.commands
             city.Alliance = null;
             UsefullPacketsSend.AddToQueueAllianceInfoUpdate(alliance.Guid, new Dictionary<string, object> { { "value", alliance.Guid } }, EnumPlayerRelatedInfo.NEW_ALLIANCE_ALL);
             UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.OWN_ALLIANCE_REMOVE);
+            UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_LOG);
             city.saveToDatabase();
             alliance.saveToDatabase();
             return TextCommandResult.Success();
-        }        
+        }
         public static TextCommandResult KickFromAlliance(TextCommandCallingArgs args)
         {
             IServerPlayer player = args.Caller.Player as IServerPlayer;
@@ -254,14 +258,18 @@ namespace claims.src.commands
             }
 
             alliance.Cities.Remove(city);
+            city.AddLogEntry(EnumCityLogEvent.AllianceLeft, alliance.GetPartName());
+            alliance.FireCityLeft(city, EnumCityLeaveReason.Kicked);
             foreach (PlayerInfo playerInCity in city.getPlayerInfos())
             {
                 RightsHandler.reapplyRights(playerInCity);
             }
             RightsHandler.RemoveCityHostilesInAlliance(city, alliance);
             alliance.saveToDatabase();
+            city.saveToDatabase();
             UsefullPacketsSend.AddToQueueAllianceInfoUpdate(alliance.Guid, new Dictionary<string, object> { { "value", alliance.Guid } }, EnumPlayerRelatedInfo.NEW_ALLIANCE_ALL);
             UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, new Dictionary<string, object> { { "value", alliance.Guid } }, EnumPlayerRelatedInfo.OWN_ALLIANCE_REMOVE);
+            UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_LOG);
             return TextCommandResult.Success();
         }
         public static void processAllianceUninvite(IServerPlayer player, CmdArgs args, TextCommandResult res)
@@ -314,11 +322,14 @@ namespace claims.src.commands
                     }
                     MessageHandler.SendMsgInAlliance(alliance, Lang.Get("claims:city_joined_alliance", city.GetPartName()));
                     city.Alliance = alliance;
+                    city.AddLogEntry(EnumCityLogEvent.AllianceJoined, alliance.GetPartName());
+                    alliance.FireCityJoined(city);
                     city.saveToDatabase();
                     alliance.saveToDatabase();
                     UsefullPacketsSend.AddToQueueAllianceInfoUpdate(alliance.Guid, new Dictionary<string, object> { { "value", alliance.Guid } }, EnumPlayerRelatedInfo.NEW_ALLIANCE_ALL);
                     UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
                         new Dictionary<string, object> { { "value", alliance.Guid } }, EnumPlayerRelatedInfo.TO_ALLIANCE_INVITE_REMOVE);
+                    UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_LOG);
                 })),
                 new Thread(new ThreadStart(() =>
                 {
@@ -568,6 +579,11 @@ namespace claims.src.commands
 
                             Conflict newConflict = new Conflict("", newConflictGuid);
 
+                            foreach (var city in ourAlliance.GetCities())
+                                city.AddLogEntry(EnumCityLogEvent.ConflictDeclared, targetParty.GetPartName());
+                            foreach (var city in targetParty.GetCities())
+                                city.AddLogEntry(EnumCityLogEvent.ConflictDeclared, ourAlliance.GetPartName());
+
                             RightsHandler.SetPartiesHostile(ourAlliance, targetParty, newConflict);
                             if (targetParty is Alliance targetAllianceForAlly)
                             {
@@ -587,6 +603,7 @@ namespace claims.src.commands
                             newConflict.State = ConflictState.CREATED;
                             newConflict.TimeStampStarted = TimeFunctions.getEpochSeconds();
                             newConflict.MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES;
+                            ourAlliance.FireConflictDeclared(targetParty);
                             var conflictCellElement = ClientConflictCellElement.FromConflict(newConflict);
                             UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourAlliance,
                                 new Dictionary<string, object> { { "value", conflictCellElement } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
@@ -642,6 +659,11 @@ namespace claims.src.commands
 
                 Conflict newConflict = new Conflict("", Alliance.GetUnusedGuid());
 
+                foreach (var city in ourAlliance.GetCities())
+                    city.AddLogEntry(EnumCityLogEvent.ConflictDeclared, targetParty.GetPartName());
+                foreach (var city in targetParty.GetCities())
+                    city.AddLogEntry(EnumCityLogEvent.ConflictDeclared, ourAlliance.GetPartName());
+
                 RightsHandler.SetPartiesHostile(ourAlliance, targetParty, newConflict);
                 if (targetParty is Alliance targetAllianceForAlly2)
                 {
@@ -653,6 +675,7 @@ namespace claims.src.commands
                 newConflict.Second = targetParty;
                 newConflict.State = ConflictState.CREATED;
                 newConflict.MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES;
+                ourAlliance.FireConflictDeclared(targetParty);
                 targetParty.saveToDatabase();
                 ourAlliance.saveToDatabase();
                 newConflict.saveToDatabase(false);
