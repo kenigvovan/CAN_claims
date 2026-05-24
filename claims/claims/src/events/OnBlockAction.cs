@@ -1,5 +1,6 @@
 ﻿using System;
 using claims.src.auxialiry;
+using claims.src.bb;
 using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
@@ -88,6 +89,36 @@ namespace claims.src.events
             }
             return false;
         }*/
+        public static bool IsDefenderBreakingEnemyFlag(IServerPlayer byPlayer, PlayerInfo playerInfo, Plot plot, BlockPos pos)
+        {
+            if (plot == null || !plot.hasCity() || !playerInfo.hasCity())
+            {
+                return false;
+            }
+            var block = byPlayer.Entity.World.BlockAccessor.GetBlock(pos);
+            if (block?.GetBehavior<BlockBehaviorFlag>() == null)
+            {
+                return false;
+            }
+            City defenderCity = plot.getCity();
+            if (defenderCity.Equals(playerInfo.City))
+            {
+                return true;
+            }
+            if (defenderCity.HasAlliance() && playerInfo.HasAlliance())
+            {
+                Alliance defenderAlliance = defenderCity.Alliance;
+                if (defenderAlliance.Equals(playerInfo.Alliance))
+                {
+                    return true;
+                }
+                if (defenderAlliance.ComradAlliancies.Contains(playerInfo.Alliance))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
         public static bool canBlockDestroy(IServerPlayer byPlayer, BlockSelection blockSel, out string claimant)
         {
             claims.dataStorage.GetPlayerByUid(byPlayer.PlayerUID, out PlayerInfo playerInfo);
@@ -102,6 +133,10 @@ namespace claims.src.events
                 return true;
             }
             claimant = "claims";
+            if (IsDefenderBreakingEnemyFlag(byPlayer, playerInfo, plot, blockSel.Position))
+            {
+                return true;
+            }
             PlotPosition currentPosPlayer = new(blockSel.Position.X, blockSel.Position.Z);
             if (currentPosPlayer.Equals(playerInfo.PlayerCache.getLastLocation()))
             {

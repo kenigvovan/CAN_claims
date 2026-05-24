@@ -33,7 +33,8 @@ namespace claims.src.network.handlers
                     List<Tuple<Vec2i, long>> zonesTimestamps = JsonConvert.DeserializeObject<List<Tuple<Vec2i, long>>>(packet.data);
 
                     // Anti-spoof: only allow zones close to player's actual position
-                    Vec2i playerServerPos = new Vec2i((int)player.Entity.Pos.X / 512, (int)player.Entity.Pos.Z / 512);
+                    int zoneBlocks = claims.config.PLOT_SIZE * claims.config.ZONE_PLOTS_LENGTH;
+                    Vec2i playerServerPos = new Vec2i((int)player.Entity.Pos.X / zoneBlocks, (int)player.Entity.Pos.Z / zoneBlocks);
                     List<Vec2i> requestedZones = new List<Vec2i>();
                     foreach (var zoneItem in zonesTimestamps)
                     {

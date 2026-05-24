@@ -9,8 +9,6 @@ namespace claims.tests
         public PlotPositionTests()
         {
             claims.src.claims.config = new Config();
-            // Ensure plotSize reflects current config (static field)
-            PlotPosition.plotSize = claims.src.claims.config.PLOT_SIZE;
         }
 
         // =====================================================================
@@ -20,7 +18,7 @@ namespace claims.tests
         [Fact]
         public void FromXZ_DividesbyPlotSize()
         {
-            PlotPosition.plotSize = 16;
+            claims.src.claims.config.PLOT_SIZE = 16;
             var p = PlotPosition.fromXZ(32, 64);
             Assert.Equal(2, p.X);
             Assert.Equal(4, p.Z);
@@ -29,7 +27,7 @@ namespace claims.tests
         [Fact]
         public void FromXZ_Zero_ReturnsZero()
         {
-            PlotPosition.plotSize = 16;
+            claims.src.claims.config.PLOT_SIZE = 16;
             var p = PlotPosition.fromXZ(0, 0);
             Assert.Equal(0, p.X);
             Assert.Equal(0, p.Z);
@@ -38,7 +36,7 @@ namespace claims.tests
         [Fact]
         public void FromXZ_IntegerDivision_Truncates()
         {
-            PlotPosition.plotSize = 16;
+            claims.src.claims.config.PLOT_SIZE = 16;
             var p = PlotPosition.fromXZ(17, 31);
             Assert.Equal(1, p.X);
             Assert.Equal(1, p.Z);
@@ -51,7 +49,7 @@ namespace claims.tests
         [Fact]
         public void FromBlockPos_DividesByPlotSize()
         {
-            PlotPosition.plotSize = 16;
+            claims.src.claims.config.PLOT_SIZE = 16;
             var p = PlotPosition.fromBlockPos(new BlockPos(48, 64, 96));
             Assert.Equal(3, p.X);
             Assert.Equal(6, p.Z);

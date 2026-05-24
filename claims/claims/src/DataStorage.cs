@@ -560,8 +560,8 @@ namespace claims.src
             {
                 //if zone exists we check if plot on pos exists
                 //reuse vec again
-                tmpVec.X = blockSel.Position.X / 16;
-                tmpVec.Y = blockSel.Position.Z / 16;
+                tmpVec.X = blockSel.Position.X / PlotPosition.plotSize;
+                tmpVec.Y = blockSel.Position.Z / PlotPosition.plotSize;
                 if (clientSavedZone.savedPlots.TryGetValue(tmpVec, out SavedPlotInfo savedPlot))
                 {
                     if(savedPlot.clientInnerClaims != null)

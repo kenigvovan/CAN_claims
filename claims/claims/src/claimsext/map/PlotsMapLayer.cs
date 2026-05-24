@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using Cairo;
+using claims.src.auxialiry;
 using claims.src.clientMapHandling;
 using claims.src.playerMovements;
 using Vintagestory.API.Client;
@@ -217,8 +218,8 @@ namespace claims.src.claimsext.map
             {
                 //System.Threading.Thread.Sleep(1000);
                 int color = 0;
-                if (cityName != null) 
-                { 
+                if (cityName != null)
+                {
                     claims.clientDataStorage.ClientGetCityColor(cityName);
                 }
 
@@ -302,19 +303,21 @@ namespace claims.src.claimsext.map
         }
         public override void OnMouseMoveClient(MouseEvent args, GuiElementMap mapElem, StringBuilder hoverText)
         {
+
             foreach (var val in loadedMapData)
             {
                 val.Value.OnMouseMove(args, mapElem, hoverText);
                 var c = val.Value;
                 Vec2f viewPos = new Vec2f();
-                mapElem.TranslateWorldPosToViewPos(new Vec3d(val.Value.chunkCoord.X * 16 + 8, 0, val.Value.chunkCoord.Y * 16 + 8), ref viewPos);
+                mapElem.TranslateWorldPosToViewPos(new Vec3d(val.Value.chunkCoord.X * PlotPosition.plotSize + PlotPosition.plotSize / 2, 0, val.Value.chunkCoord.Y * PlotPosition.plotSize + PlotPosition.plotSize / 2), ref viewPos);
             }
             foreach (var zone in claims.clientDataStorage.getClientSavedPlots())
             {
                 foreach (var savedPlot in zone.Value.savedPlots)
                 {
+                    int ap = 0;
                     Vec2f viewPos = new Vec2f();
-                    mapElem.TranslateWorldPosToViewPos(new Vec3d(savedPlot.Key.X * 16 + 8, 0, savedPlot.Key.Y * 16 + 8), ref viewPos);
+                    mapElem.TranslateWorldPosToViewPos(new Vec3d(savedPlot.Key.X * PlotPosition.plotSize + PlotPosition.plotSize / 2, 0, savedPlot.Key.Y * PlotPosition.plotSize + PlotPosition.plotSize / 2), ref viewPos);
 
                     double mouseX = args.X - mapElem.Bounds.renderX;
                     double mouseY = args.Y - mapElem.Bounds.renderY;
@@ -331,6 +334,7 @@ namespace claims.src.claimsext.map
                             //hoverText.Append("Mayor: " + cityPlotInfo.mayorName + "\n");
                         }
                     }
+                    ap++;
                 }
             }
         }
@@ -343,23 +347,21 @@ namespace claims.src.claimsext.map
         }
         void loadFromChunkPixels(Vec2i cord, int[] pixels, string structureName)
         {
-
-            Vec2i mcord = new Vec2i(cord.X /2 / CANMultiChunkMapComponent.ChunkLen, cord.Y / 2 / CANMultiChunkMapComponent.ChunkLen);
+            int ppcd = chunksize / PlotPosition.plotSize;
+            Vec2i mcord = new Vec2i(cord.X / ppcd / CANMultiChunkMapComponent.ChunkLen, cord.Y / ppcd / CANMultiChunkMapComponent.ChunkLen);
             Vec2i baseCord = new Vec2i(mcord.X * CANMultiChunkMapComponent.ChunkLen, mcord.Y * CANMultiChunkMapComponent.ChunkLen);
             api.Event.EnqueueMainThreadTask(() =>
             {
                 if (!loadedMapData.TryGetValue(mcord, out CANMultiChunkMapComponent mccomp))
                 {
                     loadedMapData[mcord] = mccomp = new CANMultiChunkMapComponent(api as ICoreClientAPI, baseCord);
-                    mccomp.setChunk(cord.X / 2 - baseCord.X, cord.Y / 2 - baseCord.Y, pixels);
+                    mccomp.setChunk(cord.X / ppcd - baseCord.X, cord.Y / ppcd - baseCord.Y, pixels);
                 }
                 else
                 {
-                    mccomp.setChunk(cord.X / 2 - baseCord.X, cord.Y / 2 - baseCord.Y, pixels);
+                    mccomp.setChunk(cord.X / ppcd - baseCord.X, cord.Y / ppcd - baseCord.Y, pixels);
                     return;
                 }
-
-
             }, "plotmaplayerready");
         }
 
@@ -398,29 +400,19 @@ namespace claims.src.claimsext.map
 
         public void GenerateChunkPart(int X, int Y, int color, ref int[] pixels, Vec2i tmpVec, string cityName)
         {
-            int pivot = 0;
+            int ps = PlotPosition.plotSize;
+            int stride = chunksize;
+            // X = world-Z offset (row), Y = world-X offset (col)
+            int pivot = Y * ps + X * ps * stride;
             color &= unchecked((int)0x80ffffff);
-            if (Y == 1 && X == 1)
-            {
-                pivot = 528;
-            }
-            else if (Y == 1)
-            {
-                pivot = 16;
-            }
-            else if (X == 1)
-            {
-                pivot = 512;
-            }
             int place = 0;
             if (claims.config.CITY_AREA_VISIBILITY_STATE != Config.CITY_AREA_VISIBILITY.WITHOUT_INNER)
             {
-                for (int i = 0; i < 16; i++)
+                for (int i = 0; i < ps; i++)
                 {
-                    for (int j = 0; j < 16; j++)
+                    for (int j = 0; j < ps; j++)
                     {
-                        place = i * 32 + j + pivot;
-
+                        place = i * stride + j + pivot;
                         pixels[place] = color;
                         continue;
                     }
@@ -437,9 +429,9 @@ namespace claims.src.claimsext.map
             //left
             if (!claims.clientDataStorage.getSavedPlot(copyVec, out plot) || plot.cityName != cityName)
             {
-                for(int i = 0; i < 16;i++)
+                for (int i = 0; i < ps; i++)
                 {
-                    place = i * 32 + pivot;
+                    place = i * stride + pivot;
                     pixels[place] = color;
                 }
             }
@@ -448,10 +440,10 @@ namespace claims.src.claimsext.map
             //down
             if (!claims.clientDataStorage.getSavedPlot(copyVec, out plot) || plot.cityName != cityName)
             {
-                
-                for (int i = 0; i < 16; i++)
+                int lastRow = (ps - 1) * stride;
+                for (int i = 0; i < ps; i++)
                 {
-                    place = i + 480 + pivot;
+                    place = i + lastRow + pivot;
                     pixels[place] = color;
                 }
             }
@@ -460,9 +452,9 @@ namespace claims.src.claimsext.map
             //right
             if (!claims.clientDataStorage.getSavedPlot(copyVec, out plot) || plot.cityName != cityName)
             {
-                for (int i = 0; i < 16; i++)
+                for (int i = 0; i < ps; i++)
                 {
-                    place = i * 32 + 15 + pivot;
+                    place = i * stride + (ps - 1) + pivot;
                     pixels[place] = color;
                 }
             }
@@ -471,7 +463,7 @@ namespace claims.src.claimsext.map
             //up
             if (!claims.clientDataStorage.getSavedPlot(copyVec, out plot) || plot.cityName != cityName)
             {
-                for (int i = 0; i < 16; i++)
+                for (int i = 0; i < ps; i++)
                 {
                     place = i + pivot;
                     pixels[place] = color;
@@ -482,32 +474,23 @@ namespace claims.src.claimsext.map
 
         public int[] GenerateChunkImage(Vec2i chunkPos, bool informOthers = false)
         {
-            ICoreClientAPI capi = api as ICoreClientAPI;
-            var rand1 = new Random();
-            BlockPos tmpPos = new BlockPos();
-            Vec2i localpos = new Vec2i();
+            int ps = PlotPosition.plotSize;
+            int ppcd = chunksize / ps; // plots per game-chunk dimension
             int[] texDataTmp = new int[chunksize * chunksize];
-         
-            Vec2i leftUpperCorner = new Vec2i(chunkPos.X - (chunkPos.X % 2), chunkPos.Y - (chunkPos.Y % 2));
 
-            SavedPlotInfo[] savedPlots = new SavedPlotInfo[4];
+            Vec2i leftUpperCorner = new Vec2i(
+                chunkPos.X - (chunkPos.X % ppcd),
+                chunkPos.Y - (chunkPos.Y % ppcd));
 
-            Vec2i tmpVec = leftUpperCorner.Copy();
-            if (claims.clientDataStorage.getSavedPlot(tmpVec, out savedPlots[0]))
-                GenerateChunkPart(0, 0, claims.clientDataStorage.ClientGetCityColor(savedPlots[0].cityName), ref texDataTmp, tmpVec, savedPlots[0].cityName);
-
-            tmpVec.X++;
-            if(claims.clientDataStorage.getSavedPlot(tmpVec, out savedPlots[1]))
-                GenerateChunkPart(0, 1, claims.clientDataStorage.ClientGetCityColor(savedPlots[1].cityName), ref texDataTmp, tmpVec, savedPlots[1].cityName);
-
-            tmpVec.X--;
-            tmpVec.Y++;
-            if(claims.clientDataStorage.getSavedPlot(tmpVec, out savedPlots[2]))
-                GenerateChunkPart(1, 0, claims.clientDataStorage.ClientGetCityColor(savedPlots[2].cityName), ref texDataTmp, tmpVec, savedPlots[2].cityName);
-
-            tmpVec.X++;
-            if(claims.clientDataStorage.getSavedPlot(tmpVec, out savedPlots[3]))
-                GenerateChunkPart(1, 1, claims.clientDataStorage.ClientGetCityColor(savedPlots[3].cityName), ref texDataTmp, tmpVec, savedPlots[3].cityName);
+            for (int worldZOffset = 0; worldZOffset < ppcd; worldZOffset++)
+            {
+                for (int worldXOffset = 0; worldXOffset < ppcd; worldXOffset++)
+                {
+                    Vec2i tmpVec = new Vec2i(leftUpperCorner.X + worldXOffset, leftUpperCorner.Y + worldZOffset);
+                    if (claims.clientDataStorage.getSavedPlot(tmpVec, out SavedPlotInfo savedPlot))
+                        GenerateChunkPart(worldZOffset, worldXOffset, claims.clientDataStorage.ClientGetCityColor(savedPlot.cityName), ref texDataTmp, tmpVec, savedPlot.cityName);
+                }
+            }
             return texDataTmp;
         }
     }

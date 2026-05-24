@@ -313,6 +313,7 @@ namespace claims.src
                 claims.config = api.LoadModConfig<Config>( "claims.json");
                 if (claims.config != null)
                 {
+                    ValidatePlotSize(api);
                     api.StoreModConfig<Config>(claims.config, "claims.json");
                     return;
                 }
@@ -320,6 +321,7 @@ namespace claims.src
                 {
                     claims.config = new Config();
                     AddDefaultValues();
+                    ValidatePlotSize(api);
                     api.StoreModConfig<Config>(claims.config, "claims.json");
                 }
             }
@@ -329,8 +331,26 @@ namespace claims.src
                 {
                     claims.config = new Config();
                     AddDefaultValues();
+                    ValidatePlotSize(api);
                     api.StoreModConfig<Config>(claims.config, "claims.json");
                     return;
+                }
+            }
+        }
+        private static void ValidatePlotSize(ICoreAPI api)
+        {
+            if (claims.config.PLOT_SIZE != 16 && claims.config.PLOT_SIZE != 32)
+            {
+                
+                if (claims.config.PLOT_SIZE < 16)
+                {
+                    claims.config.PLOT_SIZE = 16;
+                    api.Logger.Error("[claims] PLOT_SIZE={0} is not supported (allowed: 16, 32). Falling back to 16.", claims.config.PLOT_SIZE);
+                }
+                else
+                {
+                    claims.config.PLOT_SIZE = 32;
+                    api.Logger.Error("[claims] PLOT_SIZE={0} is not supported (allowed: 16, 32). Falling back to 32.", claims.config.PLOT_SIZE);
                 }
             }
         }

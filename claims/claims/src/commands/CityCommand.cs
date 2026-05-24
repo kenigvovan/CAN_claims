@@ -121,7 +121,7 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:not_enough_for_new_city");
             }
-            if (!claims.dataStorage.plotHasDistantEnoughFromOtherForNewCity(new Vec2i((int)player.Entity.Pos.X / 16, (int)player.Entity.Pos.Z / 16)))
+            if (!claims.dataStorage.plotHasDistantEnoughFromOtherForNewCity(new Vec2i((int)player.Entity.Pos.X / PlotPosition.plotSize, (int)player.Entity.Pos.Z / PlotPosition.plotSize)))
             {
                 return TextCommandResult.Error("claims:too_close_to_another_city_new_city");
             }

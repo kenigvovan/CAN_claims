@@ -89,9 +89,14 @@ namespace claims.src.beb
             {
                 return;
             }
+            if (this.Api.Side == EnumAppSide.Server && IsCaptureNoLongerValid())
+            {
+                CancelCapture();
+                return;
+            }
             this.CapturedPercent += GameMath.Clamp(1.0f - this.CapturedPercent, -deltaTime / this.captureDuration, deltaTime / this.captureDuration);
             if (this.Api.Side == EnumAppSide.Server)
-            {               
+            {
                 if (this.CapturedPercent >= 1f)
                 {
                     if (this.captureRef.HasValue) this.Api.Event.UnregisterGameTickListener(this.captureRef.Value);
@@ -260,6 +265,48 @@ namespace claims.src.beb
                     }
                 }
             }
+        }
+        private bool IsCaptureNoLongerValid()
+        {
+            if (!claims.dataStorage.GetPlot(PlotPosition.fromBlockPos(this.Pos), out var plot))
+            {
+                return true;
+            }
+            City defenderCity = plot.getCity();
+            if (defenderCity == null)
+            {
+                return true;
+            }
+            if (!claims.dataStorage.getCityByGUID(this.CityGuid, out City attackerCity))
+            {
+                return true;
+            }
+            IConflictParty defenderParty = defenderCity.HasAlliance()
+                ? (IConflictParty)defenderCity.Alliance
+                : (IConflictParty)defenderCity;
+            IConflictParty attackerParty = attackerCity.HasAlliance()
+                ? (IConflictParty)attackerCity.Alliance
+                : (IConflictParty)attackerCity;
+            return attackerParty.Equals(defenderParty);
+        }
+        private void CancelCapture()
+        {
+            if (this.updateRef.HasValue)
+            {
+                this.Api.Event.UnregisterGameTickListener(this.updateRef.Value);
+                this.updateRef = null;
+            }
+            this.CapturedPercent = 0;
+            this.TimesToBreak = 0;
+            if (this.ConflictGuid != null
+                && claims.dataStorage.WarsTimes.TryGetValue(this.ConflictGuid, out var warTime))
+            {
+                warTime.PlotAttacks.Remove(PlotPosition.fromBlockPos(this.Pos));
+            }
+            this.Api.Event.RegisterCallback((float ft) =>
+            {
+                this.Api.World.BlockAccessor.BreakBlock(this.Pos, null);
+            }, 1000);
         }
         public void TryStartCapture(IPlayer byPlayer)
         {

@@ -675,7 +675,7 @@ namespace claims.src.commands
                 {
                     InnerClaimRecord tmpAdd = new InnerClaimRecord();
                     claims.dataStorage.addClaimRecord(player.PlayerUID, tmpAdd);
-                    tmpAdd.plotCoords = new Vec2i((int)player.Entity.Pos.X / 16, (int)player.Entity.Pos.Z / 16);                  
+                    tmpAdd.plotCoords = new Vec2i((int)player.Entity.Pos.X / PlotPosition.plotSize, (int)player.Entity.Pos.Z / PlotPosition.plotSize);
                 }
                 claims.dataStorage.getInnerClaimRecord(player.PlayerUID, out InnerClaimRecord tmp);
                 if(player.CurrentBlockSelection == null)
@@ -684,8 +684,8 @@ namespace claims.src.commands
                     return tcr;
                 }
 
-                if (player.CurrentBlockSelection.Position.X / 16 == tmp.plotCoords.X
-                    && player.CurrentBlockSelection.Position.Z / 16 == tmp.plotCoords.Y)
+                if (player.CurrentBlockSelection.Position.X / PlotPosition.plotSize == tmp.plotCoords.X
+                    && player.CurrentBlockSelection.Position.Z / PlotPosition.plotSize == tmp.plotCoords.Y)
                 {
                     tmp.pos1 = new Vec3i();
                     tmp.pos1.X = player.CurrentBlockSelection.Position.X;
@@ -694,8 +694,8 @@ namespace claims.src.commands
                 }
                 else
                 {
-                    tmp.plotCoords.X = player.CurrentBlockSelection.Position.X/16;
-                    tmp.plotCoords.Y = player.CurrentBlockSelection.Position.Z / 16;
+                    tmp.plotCoords.X = player.CurrentBlockSelection.Position.X / PlotPosition.plotSize;
+                    tmp.plotCoords.Y = player.CurrentBlockSelection.Position.Z / PlotPosition.plotSize;
                     tmp.pos1.X = player.CurrentBlockSelection.Position.X;
                     tmp.pos1.Y = player.CurrentBlockSelection.Position.Y;
                     tmp.pos1.Z = player.CurrentBlockSelection.Position.Z;
@@ -713,7 +713,7 @@ namespace claims.src.commands
                 {
                     InnerClaimRecord tmpAdd = new InnerClaimRecord();
                     claims.dataStorage.addClaimRecord(player.PlayerUID, tmpAdd);
-                    tmpAdd.plotCoords = new Vec2i((int)player.Entity.Pos.X / 16, (int)player.Entity.Pos.Z / 16);
+                    tmpAdd.plotCoords = new Vec2i((int)player.Entity.Pos.X / PlotPosition.plotSize, (int)player.Entity.Pos.Z / PlotPosition.plotSize);
                 }
                 claims.dataStorage.getInnerClaimRecord(player.PlayerUID, out InnerClaimRecord tmp);
                 if(player.CurrentBlockSelection == null)
@@ -721,8 +721,8 @@ namespace claims.src.commands
                     MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:no_selection"));
                     return tcr;
                 }
-                if ((player.CurrentBlockSelection.Position.X / 16 == tmp.plotCoords.X)
-                    && (player.CurrentBlockSelection.Position.Z / 16 == tmp.plotCoords.Y)
+                if ((player.CurrentBlockSelection.Position.X / PlotPosition.plotSize == tmp.plotCoords.X)
+                    && (player.CurrentBlockSelection.Position.Z / PlotPosition.plotSize == tmp.plotCoords.Y)
                     )
                 {
                     tmp.pos2 = new Vec3i();                 

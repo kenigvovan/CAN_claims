@@ -1,4 +1,5 @@
 ﻿using System;
+using claims.src.bb;
 using claims.src.playerMovements;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -29,6 +30,10 @@ namespace claims.src.events
 
             var c = claims.capi.World.BlockAccessor.GetBlock(blockSel.Position);
             if(claims.config.blockTypesAccess.Contains(c.GetType()))
+            {
+                return EnumWorldAccessResponse.Granted;
+            }
+            if (c?.GetBehavior<BlockBehaviorFlag>() != null)
             {
                 return EnumWorldAccessResponse.Granted;
             }
