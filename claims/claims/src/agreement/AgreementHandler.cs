@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using claims.src.messages;
@@ -20,23 +20,22 @@ namespace claims.src.agreement
             }
             agreements.TryAdd(agreement.getPlayerUid(), agreement);
 
-			CancellationTokenSource source = new CancellationTokenSource();
-			CancellationToken token = source.Token;
-
-			var tokenSource2 = new CancellationTokenSource();
-			CancellationToken ct = tokenSource2.Token;
-			agreement.setTokenSource(tokenSource2);
-			var t = Task.Run(async delegate
+			var tokenSource = new CancellationTokenSource();
+			agreement.setTokenSource(tokenSource);
+			Task.Run(async delegate
 			{
-				await Task.Delay(claims.config.AGREEMENT_TIMEOUT_SECONDS * 1000, source.Token);
-				ct.ThrowIfCancellationRequested();
+				await Task.Delay(claims.config.AGREEMENT_TIMEOUT_SECONDS * 1000, tokenSource.Token);
 				string uid = agreement.getPlayerUid();
 				if (agreements.TryGetValue(uid, out _))
 				{
 					agreements.TryRemove(uid, out _);
-					MessageHandler.sendMsgToPlayer(claims.sapi.World.PlayerByUid(uid) as IServerPlayer, Lang.Get("claims:agreement_timeout"));
+					IServerPlayer onlinePlayer = claims.sapi.World.PlayerByUid(uid) as IServerPlayer;
+					if (onlinePlayer != null)
+					{
+						MessageHandler.sendMsgToPlayer(onlinePlayer, Lang.Get("claims:agreement_timeout"));
+					}
 				}
-			}, tokenSource2.Token);
+			}, tokenSource.Token);
 		}
 
 		public static bool agreeFor(IServerPlayer player)
@@ -46,7 +45,7 @@ namespace claims.src.agreement
 				agreement.getToken().Cancel();
 				claims.sapi.Event.RegisterCallback((dt =>
 				{
-					agreement.getOnAgree().Start();					
+					agreement.getOnAgree().Start();
 				}), 0);
 				return true;
 			}

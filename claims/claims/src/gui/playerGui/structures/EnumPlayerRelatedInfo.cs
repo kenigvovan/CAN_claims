@@ -43,6 +43,7 @@
 
         ALLIANCE_LIST_ALL,
 
+
         ALLIANCE_BALANCE,
         ALLIANCE_NAME,
 
@@ -69,6 +70,12 @@
 
         PLAYER_NEXT_PAYMENT,
 
-        CITY_GUID
+        CITY_GUID,
+
+        CITY_LOG,
+
+        CITY_PLOTS_MAP,
+
+        PLAYER_BALANCE
     }
 }

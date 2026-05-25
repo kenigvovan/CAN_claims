@@ -91,6 +91,45 @@ namespace claims.src.playerMovements
             return null;
         }
 
+        // Reverse of Vec2i.ToChunkIndex() which packs Y into upper 32 bits, X into lower 32 bits.
+        private static Vec2i ChunkIndexToVec2i(long idx)
+        {
+            return new Vec2i((int)idx, (int)(idx >> 32));
+        }
+
+        public Dictionary<Vec2i, ClientSavedZone> GetAllMapPieces()
+        {
+            Dictionary<Vec2i, ClientSavedZone> result = new Dictionary<Vec2i, ClientSavedZone>();
+            using (SqliteCommand cmd = this.sqliteConn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT position, data FROM mappiece";
+                using (SqliteDataReader reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        long pos = (long)reader["position"];
+                        object dataObj = reader["data"];
+                        if (dataObj == null) continue;
+                        byte[] data = dataObj as byte[];
+                        if (data == null) continue;
+                        try
+                        {
+                            ClientSavedZone zone = SerializerUtil.Deserialize<ClientSavedZone>(data);
+                            if (zone != null)
+                            {
+                                result[ChunkIndexToVec2i(pos)] = zone;
+                            }
+                        }
+                        catch
+                        {
+                            // skip corrupted entries
+                        }
+                    }
+                }
+            }
+            return result;
+        }
+
         public void SetMapPieces(Dictionary<Vec2i, ClientSavedZone> pieces)
         {
             using (SqliteTransaction transaction = this.sqliteConn.BeginTransaction())

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using claims.src.part;
 using Newtonsoft.Json;
+using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 
 namespace claims.src.auxialiry
@@ -13,6 +14,7 @@ namespace claims.src.auxialiry
         public static HashSet<string> blockedNames;
         public static HashSet<string> blockedCommandsForPrison;
         public static HashSet<string> protectedAnimals;
+        public static HashSet<AssetLocation> protectedAnimalCodes;
         public static SortedDictionary<int, CityLevelInfo> cityLevelsDict;
         public static SortedDictionary<int, AllianceLevelInfo> AllianceLevelsDict;
         public static int[] colors = new int[0];
@@ -21,6 +23,7 @@ namespace claims.src.auxialiry
             blockedNames = new HashSet<string>();
             blockedCommandsForPrison = new HashSet<string>();
             protectedAnimals = new HashSet<string>();
+            protectedAnimalCodes = new HashSet<AssetLocation>();
             cityLevelsDict = new SortedDictionary<int, CityLevelInfo>();
             AllianceLevelsDict = new SortedDictionary<int, AllianceLevelInfo>();
             loadBlockedCommandsForPrison();
@@ -31,13 +34,10 @@ namespace claims.src.auxialiry
         }
         public static void clearAll()
         {
-            //blockedNames.Clear();
             blockedNames = null;
-            //blockedCommandsForPrison.Clear();
             blockedCommandsForPrison = null;
-            //protectedAnimals.Clear();
             protectedAnimals = null;
-            //cityLevelsDict.Clear();
+            protectedAnimalCodes = null;
             cityLevelsDict = null;
             colors = null;
 
@@ -194,14 +194,43 @@ namespace claims.src.auxialiry
         }
         public static void loadProtectedAnimals()
         {
-            foreach(string it in claims.config.PROTECTED_MOB_TYPES)
+            foreach (string it in claims.config.PROTECTED_MOB_TYPES)
             {
-                if(it.Trim().Length == 0)
-                {
+                if (it.Trim().Length == 0)
                     continue;
-                }
                 protectedAnimals.Add(it.Trim());
             }
+
+            bool PatternMatches(string pattern, AssetLocation code)
+            {
+                if (pattern.EndsWith("-*"))
+                {
+                    var prefix = pattern[..^1]; // "pig-*" → "pig-"
+                    return pattern.Contains(':')
+                        ? code.ToString().StartsWith(prefix)
+                        : code.PathStartsWith(prefix);
+                }
+                return pattern.Contains(':')
+                    ? code.ToString() == pattern
+                    : code.Path == pattern;
+            }
+
+            foreach (var entityType in claims.sapi.World.EntityTypes)
+            {
+                foreach (var pattern in protectedAnimals)
+                {
+                    if (PatternMatches(pattern, entityType.Code))
+                    {
+                        protectedAnimalCodes.Add(entityType.Code);
+                        break;
+                    }
+                }
+            }
+        }
+
+        public static bool IsProtectedMob(AssetLocation code)
+        {
+            return protectedAnimalCodes.Contains(code);
         }
         public static bool isPvpTime()
         {

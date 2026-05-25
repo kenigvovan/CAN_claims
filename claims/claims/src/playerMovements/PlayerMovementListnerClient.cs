@@ -236,57 +236,25 @@ namespace claims.src.playerMovements
                 playerLastPos.Z = (int)player.Entity.Pos.Z;
             }
         }
-        //check if current zone and zones around are already loaded
-        //if not we prepare its' vectors and send them to server
-        //if we have them, we send it anyway but also we add timestamp of this zone
-        //so if zone's data is old - server will resend more relevant data to client
+        // Send the 3x3 zone window around the player to the server.
+        // Server diffs against player's current subscriptions and sends only newly subscribed zones.
         public void handleZoneChange(Vec2i toPlot, IPlayer player)
         {
-            //mapdb
-            Vec2i tmpZoneCoords = new Vec2i();
             Vec2i centerZoneCoords = new Vec2i(toPlot.X / claims.config.ZONE_PLOTS_LENGTH,
                                                toPlot.Y / claims.config.ZONE_PLOTS_LENGTH);
-            List<Tuple<Vec2i, long>> zonesTimestamps = new List<Tuple<Vec2i, long>>();
+            List<Tuple<Vec2i, long>> requestedZones = new List<Tuple<Vec2i, long>>();
             for (int i = -1; i < 2; i++)
             {
                 for (int j = -1; j < 2; j++)
                 {
-                    tmpZoneCoords.X = centerZoneCoords.X + i;
-                    tmpZoneCoords.Y = centerZoneCoords.Y + j;
-
-                    zonesTimestamps.Add(new Tuple<Vec2i, long>(tmpZoneCoords.Copy(), 0));
-                    continue;
-                    //ignore db for now
-
-
-                    if (claims.clientDataStorage.getClientSavedZone(tmpZoneCoords, out ClientSavedZone oldClientSavedZone))
-                    {
-                        zonesTimestamps.Add(new Tuple<Vec2i, long>(tmpZoneCoords.Copy(), oldClientSavedZone.timestamp));
-                        continue;
-                    }
-                    //get saved zone data if saved in DB
-                    //and add to data storage
-                    ClientSavedZone clientSavedZone = mapdb.GetMapPiece(tmpZoneCoords);
-                    if (clientSavedZone != null)
-                    {
-                        claims.clientDataStorage.addClientSavedZone(tmpZoneCoords.Copy(), clientSavedZone);
-                        zonesTimestamps.Add(new Tuple<Vec2i, long>(tmpZoneCoords.Copy(), clientSavedZone.timestamp));
-                        claims.clientModInstance.plotsMapLayer.generateFromZoneSavedPlotsOnMap(tmpZoneCoords.Copy());
-                    }
-                    else
-                    {
-                        zonesTimestamps.Add(new Tuple<Vec2i, long>(tmpZoneCoords.Copy(), 0));
-                    }
+                    requestedZones.Add(new Tuple<Vec2i, long>(new Vec2i(centerZoneCoords.X + i, centerZoneCoords.Y + j), 0));
                 }
             }
-            string serializedZones = JsonConvert.SerializeObject(zonesTimestamps);
-
             claims.clientChannel.SendPacket(new SavedPlotsPacket()
             {
                 type = PacketsContentEnum.CLIENT_INFORM_ZONES_TIMESTAMPS,
-                data = serializedZones
+                data = JsonConvert.SerializeObject(requestedZones)
             });
-
         }
         public void saveActiveZonesToDb()
         {
@@ -301,9 +269,49 @@ namespace claims.src.playerMovements
             if (byPlayer != null && claims.capi.World.Player == byPlayer)
             {
                 claims.clientModInstance.plotsMapLayer = claims.capi.ModLoader.GetModSystem<WorldMapManager>().MapLayers.OfType<PlotsMapLayer>().FirstOrDefault();
+
+                // Warm cache: load all previously saved zones from local SQLite into in-memory state
+                // and draw them on the map. Server will overwrite zones in the current 3x3 window via subscription.
+                LoadCachedZonesAndDraw();
+
                 handleZoneChange(new Vec2i((int)byPlayer.Entity.Pos.X / claims.config.PLOT_SIZE,
                     (int)byPlayer.Entity.Pos.Z / claims.config.PLOT_SIZE), byPlayer);
                 ClientCommands.RegisterCommands(claims.capi);
+            }
+        }
+        private void LoadCachedZonesAndDraw()
+        {
+            if (mapdb == null) return;
+            Dictionary<Vec2i, ClientSavedZone> cached;
+            try
+            {
+                cached = mapdb.GetAllMapPieces();
+            }
+            catch (Exception)
+            {
+                return;
+            }
+            foreach (var pair in cached)
+            {
+                if (pair.Value == null) continue;
+                if (claims.clientDataStorage.getClientSavedZone(pair.Key, out _)) continue;
+                claims.clientDataStorage.addClientSavedZone(pair.Key, pair.Value);
+                if (claims.clientModInstance.plotsMapLayer != null)
+                {
+                    claims.clientModInstance.plotsMapLayer.generateFromZoneSavedPlotsOnMap(pair.Key);
+                }
+            }
+        }
+        public void PeriodicSave(float dt)
+        {
+            if (mapdb == null) return;
+            try
+            {
+                saveActiveZonesToDb();
+            }
+            catch (Exception)
+            {
+                // best effort; next tick will retry
             }
         }
         public void OnShutDown()

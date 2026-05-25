@@ -21,6 +21,7 @@ using claims.src.harmony;
 using claims.src.messages;
 using claims.src.network.handlers;
 using claims.src.part;
+using claims.src.part.structure;
 using claims.src.part.structure.conflict;
 using claims.src.part.structure.plots;
 using claims.src.part.structure.union;
@@ -72,7 +73,8 @@ namespace claims.src
         public static CityInfo playerCityInfo;
         public static bool DebugValSet = false;
 
-        public static ClaimsPlayerMovementGUI movementClaimGui { get; set; }             
+        public static ClaimsPlayerMovementGUI movementClaimGui { get; set; }
+        public ClaimsModApi Api { get; private set; }
         /*==============================================================================================*/
         /*=====================================FUNCTIONS================================================*/
         /*==============================================================================================*/
@@ -172,6 +174,27 @@ namespace claims.src
             sapi = api;
             Config.LoadConfig(sapi);
 
+            Api = new ClaimsModApi();
+
+            City.PlotsMapChanged += (guid, reason) => UsefullPacketsSend.AddToQueueCityInfoUpdate(guid, EnumPlayerRelatedInfo.CITY_PLOTS_MAP);
+            caneconomy.src.implementations.VirtualMoney.VirtualMoneyEconomyHandler.AccountBalanceChanged += accountName =>
+            {
+                if (dataStorage == null) return;
+                if (dataStorage.GetPlayerByUid(accountName, out _))
+                {
+                    UsefullPacketsSend.AddToQueuePlayerInfoUpdate(accountName, EnumPlayerRelatedInfo.PLAYER_BALANCE);
+                }
+                else if (accountName.StartsWith(config.CITY_ACCOUNT_STRING_PREFIX))
+                {
+                    string guid = accountName.Substring(config.CITY_ACCOUNT_STRING_PREFIX.Length);
+                    if (dataStorage.getCityByGUID(guid, out City city))
+                        UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_BALANCE);
+                    else if (dataStorage.GetAllianceByGUID(guid, out Alliance alliance))
+                        UsefullPacketsSend.AddToQueueAllianceInfoUpdate(alliance.Guid, EnumPlayerRelatedInfo.ALLIANCE_BALANCE);
+                }
+            };
+            RegisterClaimsEvents();
+
 
             PermsHandler.initDicts();
             PlotInfo.initDicts();
@@ -204,6 +227,112 @@ namespace claims.src
             ServerPacketHandlers.RegisterHandlers();
             InitLimiters();
             sapi.Event.ServerRunPhase(EnumServerRunPhase.RunGame, AttachOnlyOnFarmPlotBehavior);
+        }
+        private void RegisterClaimsEvents()
+        {
+            City.CityCreated += city =>
+            {
+                var t = new TreeAttribute();
+                t.SetString("cityGuid", city.Guid);
+                t.SetString("cityName", city.GetPartName());
+                t.SetString("mayorUid", city.getMayor()?.Guid ?? "");
+                sapi.Event.PushEvent("claims:cityCreated", t);
+            };
+            City.CityDestroyed += city =>
+            {
+                var t = new TreeAttribute();
+                t.SetString("cityGuid", city.Guid);
+                t.SetString("cityName", city.GetPartName());
+                sapi.Event.PushEvent("claims:cityDestroyed", t);
+            };
+            City.CitizenJoined += (city, player) =>
+            {
+                var t = new TreeAttribute();
+                t.SetString("cityGuid", city.Guid);
+                t.SetString("cityName", city.GetPartName());
+                t.SetString("playerUid", player.Guid);
+                t.SetString("playerName", player.GetPartName());
+                sapi.Event.PushEvent("claims:citizenJoined", t);
+            };
+            City.CitizenLeft += (city, player, reason) =>
+            {
+                var t = new TreeAttribute();
+                t.SetString("cityGuid", city.Guid);
+                t.SetString("cityName", city.GetPartName());
+                t.SetString("playerUid", player.Guid);
+                t.SetString("playerName", player.GetPartName());
+                t.SetString("reason", reason.ToString());
+                sapi.Event.PushEvent("claims:citizenLeft", t);
+            };
+            City.MayorChanged += (city, newMayor) =>
+            {
+                var t = new TreeAttribute();
+                t.SetString("cityGuid", city.Guid);
+                t.SetString("cityName", city.GetPartName());
+                t.SetString("newMayorUid", newMayor.Guid);
+                t.SetString("newMayorName", newMayor.GetPartName());
+                sapi.Event.PushEvent("claims:mayorChanged", t);
+            };
+            City.PlotsMapChanged += (guid, reason) =>
+            {
+                if (reason == EnumPlotsMapChangeReason.TypeChanged)
+                {
+                    // detailed event pushed from plotCommand with plot coordinates
+                }
+            };
+            Alliance.AllianceCreated += alliance =>
+            {
+                var t = new TreeAttribute();
+                t.SetString("allianceGuid", alliance.Guid);
+                t.SetString("allianceName", alliance.GetPartName());
+                t.SetString("founderCityGuid", alliance.MainCity?.Guid ?? "");
+                sapi.Event.PushEvent("claims:allianceCreated", t);
+            };
+            Alliance.AllianceDestroyed += alliance =>
+            {
+                var t = new TreeAttribute();
+                t.SetString("allianceGuid", alliance.Guid);
+                t.SetString("allianceName", alliance.GetPartName());
+                sapi.Event.PushEvent("claims:allianceDestroyed", t);
+            };
+            Alliance.CityJoined += (alliance, city) =>
+            {
+                var t = new TreeAttribute();
+                t.SetString("cityGuid", city.Guid);
+                t.SetString("cityName", city.GetPartName());
+                t.SetString("allianceGuid", alliance.Guid);
+                t.SetString("allianceName", alliance.GetPartName());
+                sapi.Event.PushEvent("claims:cityJoinedAlliance", t);
+            };
+            Alliance.CityLeft += (alliance, city, reason) =>
+            {
+                var t = new TreeAttribute();
+                t.SetString("cityGuid", city.Guid);
+                t.SetString("cityName", city.GetPartName());
+                t.SetString("allianceGuid", alliance.Guid);
+                t.SetString("allianceName", alliance.GetPartName());
+                t.SetString("reason", reason.ToString());
+                sapi.Event.PushEvent("claims:cityLeftAlliance", t);
+            };
+            Alliance.ConflictDeclared += (alliance, opponent) =>
+            {
+                var t = new TreeAttribute();
+                t.SetString("attackerGuid", alliance.Guid);
+                t.SetString("attackerName", alliance.GetPartName());
+                t.SetString("defenderGuid", opponent.Guid);
+                t.SetString("defenderName", opponent.GetPartName());
+                sapi.Event.PushEvent("claims:conflictDeclared", t);
+            };
+            Alliance.ConflictEnded += (alliance, opponent, reason) =>
+            {
+                var t = new TreeAttribute();
+                t.SetString("firstGuid", alliance.Guid);
+                t.SetString("firstName", alliance.GetPartName());
+                t.SetString("secondGuid", opponent.Guid);
+                t.SetString("secondName", opponent.GetPartName());
+                t.SetString("reason", reason.ToString());
+                sapi.Event.PushEvent("claims:conflictEnded", t);
+            };
         }
         private static void AttachOnlyOnFarmPlotBehavior()
         {

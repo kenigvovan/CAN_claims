@@ -25,7 +25,8 @@
             "extrachunksbought INTEGER," +
             "citycolor INTEGER," +
             "templerespawnpoints TEXT" +
-            "ranks TEXT" +
+            "ranks TEXT," +
+            "eventlog TEXT" +
              ");";
 
         public static string playerTable =

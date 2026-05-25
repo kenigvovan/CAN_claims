@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using claims.src.citylog;
 using claims.src.gui.playerGui.structures.cellElements;
+using claims.src.part.structure;
 using claims.src.perms;
 
 namespace claims.src.gui.playerGui.structures
@@ -36,6 +38,8 @@ namespace claims.src.gui.playerGui.structures
         public List<ClientWarRangeCellElement> ClientWarRangeCellElements { get; set; } = new();
         public List<ClientTwoWarRangesCellElement> ClientTwoWarRangesCellElement { get; set; } = new();
         public List<ClientUnionLetterCellElement> ClientUnionLetterCellElements { get; set; } = new();
+        public List<CityLogEntry> EventLog { get; set; } = new List<CityLogEntry>();
+        public List<CityPlotMiniInfo> PlotsMap { get; set; } = new List<CityPlotMiniInfo>();
         public CityInfo()
         {
             Name = "";

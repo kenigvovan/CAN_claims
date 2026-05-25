@@ -9,7 +9,7 @@ namespace claims.src.auxialiry
 {
     public class PlotPosition
     {
-        public static int plotSize = claims.config.PLOT_SIZE;
+        public static int plotSize => claims.config.PLOT_SIZE;
         Vec2i pos = new Vec2i();
         public int X
         {
@@ -116,11 +116,12 @@ namespace claims.src.auxialiry
         {
             List<BlockPos> bList = new List<BlockPos>();
 
-            int x = (int)(player.Entity.ServerPos.X - (player.Entity.ServerPos.X % 16));
-            int z = (int)(player.Entity.ServerPos.Z - player.Entity.ServerPos.Z % 16);
+            int ps = plotSize;
+            int x = (int)(player.Entity.Pos.X - (player.Entity.Pos.X % ps));
+            int z = (int)(player.Entity.Pos.Z - player.Entity.Pos.Z % ps);
             bList.Add(new BlockPos(x, 0, z));
-            x = (int)(player.Entity.ServerPos.X + 16 - (player.Entity.ServerPos.X % 16));
-            z = (int)(player.Entity.ServerPos.Z + 16 - (player.Entity.ServerPos.Z % 16));
+            x = (int)(player.Entity.Pos.X + ps - (player.Entity.Pos.X % ps));
+            z = (int)(player.Entity.Pos.Z + ps - (player.Entity.Pos.Z % ps));
             bList.Add(new BlockPos(x, 256, z));
             List<int> colors = new List<int>();
 

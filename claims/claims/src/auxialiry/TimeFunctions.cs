@@ -10,7 +10,7 @@ namespace claims.src.auxialiry
         //public static DateTime start =  new DateTime(1970, 1, 1);
         public static long getEpochSeconds()
         {
-            return (long)((DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds);
+            return DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         }
         public static long getSecondsBeforeNextDayStart()
         {

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using claims.src.auxialiry;
+using claims.src.citylog;
 using claims.src.gui.playerGui.structures;
 using claims.src.messages;
 using claims.src.network.packets;
@@ -59,11 +60,12 @@ namespace claims.src.part
             perms.CitizenPerms[1] = true;
             perms.CitizenPerms[2] = true;
 
+            city.AddLogEntry(EnumCityLogEvent.CityCreated, creator?.GetPartName() ?? "");
+            City.FireCityCreated(city);
             city.saveToDatabase();
             newPlot.saveToDatabase();
             claims.dataStorage.ClearCacheForPlayersInPlot(newPlot);
             claims.serverPlayerMovementListener.markPlotToWasReUpdated(newPlot.getPos());
-            claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(newPlot.getPos());
 
             MessageHandler.sendGlobalMsg(Lang.Get("claims:new_city_created", StringFunctions.replaceUnderscore(cityName), creator != null ? creator.GetPartName() : ""));
             TreeAttribute tree = new TreeAttribute();
@@ -128,7 +130,7 @@ namespace claims.src.part
             plot.Type = PlotType.PRISON;
             plot.Prison = new Prison("", guid.ToString());
             claims.dataStorage.addPrison(plot.Prison);
-            plot.Prison.addPrisonCell(new PrisonCellInfo(new Vec3i((int)creator.Entity.ServerPos.X, (int)creator.Entity.ServerPos.Y, (int)creator.Entity.ServerPos.Z)));
+            plot.Prison.addPrisonCell(new PrisonCellInfo(new Vec3i((int)creator.Entity.Pos.X, (int)creator.Entity.Pos.Y, (int)creator.Entity.Pos.Z)));
             plot.getCity().getPrisons().Add(plot.Prison);
             plot.Prison.Plot = plot;
             plot.Prison.City = plot.getCity();
@@ -162,6 +164,7 @@ namespace claims.src.part
             newAlliace.Cities.Add(creator.City);
             creator.City.Alliance = newAlliace;
             newAlliace.TimeStampCreated = TimeFunctions.getEpochSeconds();
+            Alliance.FireAllianceCreated(newAlliace);
             if (caneconomy.caneconomy.config.SELECTED_ECONOMY_HANDLER == "VIRTUAL_MONEY")
             {
                 claims.economyHandler.newAccount(newAlliace.MoneyAccountName, new Dictionary<string, object> { { "lastknownname", newAlliace.GetPartName() } });

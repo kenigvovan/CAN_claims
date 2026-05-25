@@ -66,7 +66,7 @@ namespace claims.src.messages
         {
             foreach (var it in claims.sapi.World.AllOnlinePlayers)
             {
-                if (it.Entity.ServerPos.DistanceTo(pos) <= claims.config.LOCAL_CHAT_DISTANCE)
+                if (it.Entity.Pos.DistanceTo(pos) <= claims.config.LOCAL_CHAT_DISTANCE)
                 {
                     sendMsgToPlayer(it as IServerPlayer, "|L|" + msg);
                 }

@@ -26,11 +26,7 @@ namespace claims.src.events
             playerInfo.PlayerCache.Reset();
             playerInfo.saveToDatabase();
 
-            //for future we want to save already sent plots info on client
-            if(claims.serverPlayerMovementListener.alreadySentZonesToPlayers.ContainsKey(playerInfo.GetPartName()))
-            {
-                claims.serverPlayerMovementListener.alreadySentZonesToPlayers.Remove(playerInfo.GetPartName());
-            }
+            claims.serverPlayerMovementListener.RemovePlayerFromAllSubscriptions(player.PlayerUID);
         }
     }
 }

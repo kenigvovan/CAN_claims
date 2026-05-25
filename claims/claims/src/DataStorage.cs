@@ -46,7 +46,6 @@ namespace claims.src
         protected Dictionary<string, InnerClaimRecord> innerClaimRecords = new Dictionary<string, InnerClaimRecord>();
         protected WorldInfo world = null;
         protected Dictionary<Vec2i, ServerZoneInfo> PlotZones = new Dictionary<Vec2i, ServerZoneInfo>();
-        public Dictionary<Vec2i, long> serverZonesTimestamps = new Dictionary<Vec2i, long>();
         public List<ClaimLimiter> ClaimLimiters = new List<ClaimLimiter>();
         //CLIENT SIDE
         //############################################
@@ -511,24 +510,6 @@ namespace claims.src
         {
             return PlotZones.TryGetValue(zoneCoords, out zone);
         }
-        public void setNowEpochZoneTimestamp(Vec2i vec)
-        {
-            if (serverZonesTimestamps.ContainsKey(vec))
-            {
-                serverZonesTimestamps[vec] = TimeFunctions.getEpochSeconds();
-            }
-        }
-        public void setNowEpochZoneTimestampFromPlotPosition(Vec2i plotPositionVec)
-        {
-            setNowEpochZoneTimestamp(new Vec2i(plotPositionVec.X / claims.config.ZONE_PLOTS_LENGTH, plotPositionVec.Y / claims.config.ZONE_PLOTS_LENGTH));
-        }
-        public void ResetAllZoneTimestamps()
-        {
-            foreach(var zoneCoords in PlotZones.Keys)
-            {
-                serverZonesTimestamps[zoneCoords] = 0;
-            }
-        }
 
         /*==============================================================================================*/
         /*=====================================CLIENT FUNCTIONS=========================================*/
@@ -579,8 +560,8 @@ namespace claims.src
             {
                 //if zone exists we check if plot on pos exists
                 //reuse vec again
-                tmpVec.X = blockSel.Position.X / 16;
-                tmpVec.Y = blockSel.Position.Z / 16;
+                tmpVec.X = blockSel.Position.X / PlotPosition.plotSize;
+                tmpVec.Y = blockSel.Position.Z / PlotPosition.plotSize;
                 if (clientSavedZone.savedPlots.TryGetValue(tmpVec, out SavedPlotInfo savedPlot))
                 {
                     if(savedPlot.clientInnerClaims != null)
@@ -661,8 +642,8 @@ namespace claims.src
         {
             foreach (var player in claims.sapi.World.AllOnlinePlayers)
             {
-                if (((((int)player.Entity.ServerPos.X / PlotPosition.plotSize)) == plot.getPos().X &&
-                    (((int)player.Entity.ServerPos.Z / PlotPosition.plotSize)) == plot.getPos().Y))
+                if (((((int)player.Entity.Pos.X / PlotPosition.plotSize)) == plot.getPos().X &&
+                    (((int)player.Entity.Pos.Z / PlotPosition.plotSize)) == plot.getPos().Y))
                 {
                     resetPlayerCacheByGUID(player.PlayerUID);
                 }

@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using claims.src.gui.prettyGui;
+using claims.src.rights;
 using ImGuiNET;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -57,8 +58,36 @@ namespace claims.src
             api.Event.LevelFinalize += () =>
             {
                 api.ModLoader.GetModSystem<ImGuiModSystem>().Draw += Draw;
+                api.ModLoader.GetModSystem<ImGuiModSystem>().Draw += DrawBalanceHUD;
             };
         }
+        private CallbackGUIStatus DrawBalanceHUD(float deltaSeconds)
+        {
+            if (claims.config?.SELECTED_ECONOMY_HANDLER != "VIRTUAL_MONEY")
+                return CallbackGUIStatus.DontGrabMouse;
+            var clientInfo = claims.clientDataStorage?.clientPlayerInfo;
+            if (clientInfo == null)
+                return CallbackGUIStatus.DontGrabMouse;
+
+            var io = ImGui.GetIO();
+            ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.78f, io.DisplaySize.Y - 60), ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowBgAlpha(0.75f);
+            ImGui.Begin("##balancehud",
+                ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.AlwaysAutoResize |
+                ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoNav);
+
+            ImGui.Text(Lang.Get("claims:gui-hud-player-balance", clientInfo.PlayerBalance));
+
+            if (clientInfo.CityInfo != null &&
+                clientInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.CITY_SEE_BALANCE))
+            {
+                ImGui.Text(Lang.Get("claims:gui-city-balance-hud", clientInfo.CityInfo.CityBalance));
+            }
+
+            ImGui.End();
+            return CallbackGUIStatus.DontGrabMouse;
+        }
+
         private bool SwitchGui(KeyCombination comb)
         {
             if (this.prettyGuiState.IsOpen)

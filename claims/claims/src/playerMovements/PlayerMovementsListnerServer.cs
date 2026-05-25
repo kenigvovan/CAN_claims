@@ -22,26 +22,67 @@ namespace claims.src
     public class PlayerMovementsListnerServer
     {
         public static int playerPositionControlDelta = 100;
-        public Dictionary<string, HashSet<Vec2i>> alreadySentZonesToPlayers;
+        // uid -> set of zones this player is subscribed to
+        public Dictionary<string, HashSet<Vec2i>> playerSubscriptions;
+        // zone -> set of uids subscribed to this zone (reverse index for fast push)
+        public Dictionary<Vec2i, HashSet<string>> zoneSubscribers;
 
-        //after plot is claimed/unclaimed/bought/flags/ownership/plotgroups changes/changed name/cost etc.
-        //we add it's pos here and once in N seconds we send
-        //for every player in some radius update about this plots
-        //flags decide if player can use/brake something
-        //plotgroup as well
-        //ownershipment of plot gives hime all rights
-        //also innerclaims should as well be passed there as some sort of cuboids 
-        //and require resend of data when changed
-        //TODO
         public Dictionary<Vec2i, HashSet<Vec2i>> PlotWhichShouldBeUpdated;
         public Dictionary<Vec2i, HashSet<Vec2i>> PlotWhichShouldBeRemoved;
         public PlayerMovementsListnerServer()
         {
-            alreadySentZonesToPlayers = new Dictionary<string, HashSet<Vec2i>>();
+            playerSubscriptions = new Dictionary<string, HashSet<Vec2i>>();
+            zoneSubscribers = new Dictionary<Vec2i, HashSet<string>>();
             PlotWhichShouldBeUpdated = new Dictionary<Vec2i, HashSet<Vec2i>>();
             PlotWhichShouldBeRemoved = new Dictionary<Vec2i, HashSet<Vec2i>>();
 
             claims.sapi.Event.Timer(checkAndSendUpdates, 10);
+        }
+        private void Subscribe(string uid, Vec2i zone)
+        {
+            if (!playerSubscriptions.TryGetValue(uid, out var zones))
+            {
+                zones = new HashSet<Vec2i>();
+                playerSubscriptions[uid] = zones;
+            }
+            zones.Add(zone);
+
+            if (!zoneSubscribers.TryGetValue(zone, out var subs))
+            {
+                subs = new HashSet<string>();
+                zoneSubscribers[zone] = subs;
+            }
+            subs.Add(uid);
+        }
+        private void Unsubscribe(string uid, Vec2i zone)
+        {
+            if (playerSubscriptions.TryGetValue(uid, out var zones))
+            {
+                zones.Remove(zone);
+                if (zones.Count == 0) playerSubscriptions.Remove(uid);
+            }
+            if (zoneSubscribers.TryGetValue(zone, out var subs))
+            {
+                subs.Remove(uid);
+                if (subs.Count == 0) zoneSubscribers.Remove(zone);
+            }
+        }
+        public void RemovePlayerFromAllSubscriptions(string uid)
+        {
+            if (!playerSubscriptions.TryGetValue(uid, out var zones)) return;
+            foreach (var zone in zones)
+            {
+                if (zoneSubscribers.TryGetValue(zone, out var subs))
+                {
+                    subs.Remove(uid);
+                    if (subs.Count == 0) zoneSubscribers.Remove(zone);
+                }
+            }
+            playerSubscriptions.Remove(uid);
+        }
+        public HashSet<string> GetSubscribers(Vec2i zone)
+        {
+            return zoneSubscribers.TryGetValue(zone, out var subs) ? subs : null;
         }
         //Player change chunk position
         /*public static string getMsgForChunkChange(Plot fromPlot, Plot toPlot, int state, PlayerInfo playerInfo)
@@ -181,7 +222,7 @@ namespace claims.src
             }
             else
             {
-                playerInfo.PlayerCache.setPlotPosition(PlotPosition.fromXZ((int)pl.Entity.ServerPos.X, (int)pl.Entity.ServerPos.Z));
+                playerInfo.PlayerCache.setPlotPosition(PlotPosition.fromXZ((int)pl.Entity.Pos.X, (int)pl.Entity.Pos.Z));
                 playerInfo.PlayerCache.Reset();
             }
 
@@ -232,7 +273,7 @@ namespace claims.src
                 //If we have last player pos saved
                 if (claims.dataStorage.getLastPlayerPos(it.PlayerUID, out Vec3i lastPlayerPos))
                 {
-                    Vec3i playerCurrentPos = it.Entity.ServerPos.XYZInt;
+                    Vec3i playerCurrentPos = it.Entity.Pos.XYZInt;
                     if ((lastPlayerPos.X != playerCurrentPos.X || lastPlayerPos.Z != playerCurrentPos.Z))
                     {
                         //Player moved
@@ -262,7 +303,7 @@ namespace claims.src
                             tree.SetInt("zChO", (int)lastPlayerPos.Z / PlotPosition.plotSize);
 
                             playerInfo.PlayerCache.Reset();
-                            playerInfo.PlayerCache.setPlotPosition(PlotPosition.fromXZ((int)it.Entity.ServerPos.X, (int)it.Entity.ServerPos.Z));
+                            playerInfo.PlayerCache.setPlotPosition(PlotPosition.fromXZ((int)it.Entity.Pos.X, (int)it.Entity.Pos.Z));
 
                             claims.sapi.World.Api.Event.PushEvent("claimsPlayerChangePlot", tree);
                         }
@@ -279,7 +320,7 @@ namespace claims.src
                     {
                         return;
                     }
-                    Vec3i playerCurrentPos = it.Entity.ServerPos.XYZInt;
+                    Vec3i playerCurrentPos = it.Entity.Pos.XYZInt;
                     claims.dataStorage.setLastPlayerPos(it.PlayerUID, playerCurrentPos.Clone());
 
                     //player probably just logged in
@@ -305,179 +346,155 @@ namespace claims.src
             }
         }
         /// <summary>
-        /// Send plots' zones around player
-        /// if zone already has been sent we skip it
-        /// for now we resend on every reconnect
+        /// Sync player subscriptions with the requested zone set.
+        /// Subscribes to zones not previously tracked, unsubscribes from zones no longer requested.
+        /// Sends snapshot only for newly subscribed zones (delta).
         /// </summary>
-        /// <param name="playersPlot"></param>
-        /// <param name="playerInfo"></param>
-        /// <param name="player"></param>
-        public void sendZoneToPlayer(Vec2i playersPlot, PlayerInfo playerInfo, IServerPlayer player)
+        public void SyncSubscriptionsAndSendSnapshot(IServerPlayer player, PlayerInfo playerInfo, IEnumerable<Vec2i> requestedZones)
         {
-            Vec2i centerZoneCoords = new Vec2i(playersPlot.X / claims.config.ZONE_PLOTS_LENGTH, playersPlot.Y / claims.config.ZONE_PLOTS_LENGTH);
-            Vec2i tmpZoneCoords = new Vec2i();
-            List<KeyValuePair<Vec2i, List<KeyValuePair<Vec2i, SavedPlotInfo>>>> savedZones = new List<KeyValuePair<Vec2i, List<KeyValuePair<Vec2i, SavedPlotInfo>>>>();
-            List<KeyValuePair<Vec2i, SavedPlotInfo>> savedPlots;
-            for (int i = -1; i < 2; i++)
-            {
-                savedPlots = new List<KeyValuePair<Vec2i, SavedPlotInfo>>();
-                for (int j = -1; j < 2; j++) 
-                {
-                    tmpZoneCoords.X = centerZoneCoords.X + i;
-                    tmpZoneCoords.Y = centerZoneCoords.Y + j;
+            string uid = player.PlayerUID;
+            HashSet<Vec2i> requested = new HashSet<Vec2i>(requestedZones);
 
-                    if (alreadySentZonesToPlayers.TryGetValue(playerInfo.GetPartName(), out HashSet<Vec2i> alreadySentZones))
+            // Compute diff
+            HashSet<Vec2i> current = playerSubscriptions.TryGetValue(uid, out var existing)
+                ? new HashSet<Vec2i>(existing)
+                : new HashSet<Vec2i>();
+
+            HashSet<Vec2i> toUnsubscribe = new HashSet<Vec2i>(current);
+            toUnsubscribe.ExceptWith(requested);
+            HashSet<Vec2i> toSubscribe = new HashSet<Vec2i>(requested);
+            toSubscribe.ExceptWith(current);
+
+            foreach (var zone in toUnsubscribe)
+            {
+                Unsubscribe(uid, zone);
+            }
+
+            // Build snapshot for newly subscribed zones only
+            HashSet<Tuple<Vec2i, long, List<KeyValuePair<Vec2i, SavedPlotInfo>>>> snapshot
+                = new HashSet<Tuple<Vec2i, long, List<KeyValuePair<Vec2i, SavedPlotInfo>>>>();
+            foreach (var zone in toSubscribe)
+            {
+                Subscribe(uid, zone);
+                if (claims.dataStorage.getZone(zone, out ServerZoneInfo serverZoneInfo))
+                {
+                    List<KeyValuePair<Vec2i, SavedPlotInfo>> preparedSavedPlots = new List<KeyValuePair<Vec2i, SavedPlotInfo>>();
+                    foreach (Plot plot in serverZoneInfo.zonePlots)
                     {
-                        //we already sent this zone to player
-                        if (alreadySentZones.Contains(tmpZoneCoords))
-                        {
-                            continue;
-                        }
-                    }
-                    //for zone in which player is and around we collect plots
-                    //if zone exists then it has plots, so we add it to "already sent" dict
-                    if (claims.dataStorage.getZone(tmpZoneCoords, out ServerZoneInfo zone))
-                    {                        
-                        foreach (Plot plot in zone.zonePlots)
-                        {
-                            savedPlots.Add(new KeyValuePair<Vec2i, SavedPlotInfo>(plot.getPos(), new SavedPlotInfo((int)plot.Price, plot.getPermsHandler().pvpFlag,
+                        preparedSavedPlots.Add(new KeyValuePair<Vec2i, SavedPlotInfo>(plot.getPos(),
+                            new SavedPlotInfo((int)plot.Price, plot.getPermsHandler().pvpFlag,
                                 player.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canBlockDestroyWithOutCacheUpdate(playerInfo, plot),
                                 player.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canBlockUseWithOutCacheUpdate(playerInfo, plot),
                                 player.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canAttackAnimalsWithOutCacheUpdate(playerInfo, plot),
                                 plot.getCity().GetPartName(), plot.GetPartName(),
-                                plot.hasCityPlotsGroup()
-                                    ? plot.getPlotGroup().GetPartName()
-                                    : "",
-                               plot.Type == PlotType.TAVERN
-                                   ? plot.GetClientInnerClaimFromDefault(playerInfo)
-                                   : null,
-                               plot.getCity().Alliance?.Guid ?? "")));
-                        }
-                        if (!alreadySentZonesToPlayers.ContainsKey(playerInfo.GetPartName()))
-                        {
-                            alreadySentZonesToPlayers.Add(playerInfo.GetPartName(),
-                                                        new HashSet<Vec2i> { tmpZoneCoords });
-                        }
-                        else
-                        {
-                            alreadySentZones.Add(tmpZoneCoords);
-                        }
-                    }                   
-                    
+                                plot.hasCityPlotsGroup() ? plot.getPlotGroup().GetPartName() : "",
+                                plot.Type == PlotType.TAVERN ? plot.GetClientInnerClaimFromDefault(playerInfo) : null,
+                                plot.getCity().Alliance?.Guid ?? "")));
+                    }
+                    snapshot.Add(new Tuple<Vec2i, long, List<KeyValuePair<Vec2i, SavedPlotInfo>>>(zone, 0L, preparedSavedPlots));
                 }
-                if (savedPlots.Count > 0)
+                else
                 {
-                    savedZones.Add(new KeyValuePair<Vec2i, List<KeyValuePair<Vec2i, SavedPlotInfo>>>(tmpZoneCoords.Copy(), savedPlots));
+                    // Zone exists but is empty (or doesn't exist) - send empty so client clears any stale data
+                    snapshot.Add(new Tuple<Vec2i, long, List<KeyValuePair<Vec2i, SavedPlotInfo>>>(zone, 0L, new List<KeyValuePair<Vec2i, SavedPlotInfo>>()));
                 }
             }
-            //List < KeyValuePair < Vec2i, List<KeyValuePair<Vec2i, SavedPlotInfo>>>>
-            if (savedZones.Count > 0)
-            {
-                //we collected all zones' plots and send packet
-                string serializedPlots = JsonConvert.SerializeObject(savedZones);
 
+            if (snapshot.Count > 0)
+            {
+                string serialized = JsonConvert.SerializeObject(snapshot);
                 claims.serverChannel.SendPacket(new SavedPlotsPacket()
                 {
-                    type = PacketsContentEnum.ON_JOIN,
-                    data = serializedPlots
-
+                    type = PacketsContentEnum.SERVER_UPDATED_ZONES_ANSWER,
+                    data = serialized
                 }, player);
             }
         }
         //in collected "removed" plots and "updated" plots dict we saved coords of such plots
-        //later we come through them and decide to which players we need to send this info
-        //now in hardcoded radius around player's zone
+        //we send each subscribed player the deltas for zones they're subscribed to
         public void checkAndSendUpdates()
         {
             var sapi = claims.sapi;
-            if(sapi == null)
+            if (sapi == null)
             {
                 return;
             }
             if (PlotWhichShouldBeRemoved.Count > 0)
             {
-                Vec2i playerZone = new Vec2i();
-                foreach (var pl in claims.sapi.World.AllOnlinePlayers)
+                // For each subscriber, collect the plots in zones they're subscribed to
+                Dictionary<string, HashSet<Vec2i>> perPlayerRemoves = new Dictionary<string, HashSet<Vec2i>>();
+                foreach (var zoneEntry in PlotWhichShouldBeRemoved)
                 {
-                    playerZone.X = (int)pl.Entity.ServerPos.X / claims.config.ZONE_BLOCKS_LENGTH;
-                    playerZone.Y = (int)pl.Entity.ServerPos.Z / claims.config.ZONE_BLOCKS_LENGTH;
-
-                    HashSet<Vec2i> removeForPlyaer = new HashSet<Vec2i>();
-                    foreach(var zone in PlotWhichShouldBeRemoved)
+                    if (!zoneSubscribers.TryGetValue(zoneEntry.Key, out var subs)) continue;
+                    foreach (var uid in subs)
                     {
-                        if ((playerZone.X - 2 < zone.Key.X && playerZone.X + 2 > zone.Key.X) &&
-                            (playerZone.Y - 2 < zone.Key.Y && playerZone.Y + 2 > zone.Key.Y))
+                        if (!perPlayerRemoves.TryGetValue(uid, out var set))
                         {
-                            foreach(var it in zone.Value)
-                            {
-                                removeForPlyaer.Add(it);
-                            }                           
-                        }                          
+                            set = new HashSet<Vec2i>();
+                            perPlayerRemoves[uid] = set;
+                        }
+                        foreach (var coord in zoneEntry.Value) set.Add(coord);
                     }
-                    if(removeForPlyaer.Count == 0)
-                    {
-                        continue;
-                    }
-                    string serializedZones = JsonConvert.SerializeObject(removeForPlyaer);
+                }
+                foreach (var pair in perPlayerRemoves)
+                {
+                    IServerPlayer pl = claims.sapi.World.PlayerByUid(pair.Key) as IServerPlayer;
+                    if (pl == null) continue;
+                    string serializedZones = JsonConvert.SerializeObject(pair.Value);
                     claims.serverChannel.SendPacket(new SavedPlotsPacket()
                     {
                         type = PacketsContentEnum.SERVER_REMOVE_COLLECTED_PLOTS,
                         data = serializedZones
-
-                    }, pl as IServerPlayer);
+                    }, pl);
                 }
                 PlotWhichShouldBeRemoved.Clear();
             }
 
-            if(PlotWhichShouldBeUpdated.Count > 0)
+            if (PlotWhichShouldBeUpdated.Count > 0)
             {
-                Vec2i playerZone = new Vec2i();
-                foreach (IServerPlayer pl in claims.sapi.World.AllOnlinePlayers)
+                Dictionary<string, List<Vec2i>> perPlayerUpdates = new Dictionary<string, List<Vec2i>>();
+                foreach (var zoneEntry in PlotWhichShouldBeUpdated)
                 {
-                    claims.dataStorage.GetPlayerByUid(pl.PlayerUID, out PlayerInfo playerInfo);
-
-                    if (playerInfo == null)
+                    if (!zoneSubscribers.TryGetValue(zoneEntry.Key, out var subs)) continue;
+                    foreach (var uid in subs)
                     {
-                        continue;
+                        if (!perPlayerUpdates.TryGetValue(uid, out var list))
+                        {
+                            list = new List<Vec2i>();
+                            perPlayerUpdates[uid] = list;
+                        }
+                        foreach (var coord in zoneEntry.Value) list.Add(coord);
                     }
-                    playerZone.X = (int)pl.Entity.ServerPos.X / claims.config.ZONE_BLOCKS_LENGTH;
-                    playerZone.Y = (int)pl.Entity.ServerPos.Z / claims.config.ZONE_BLOCKS_LENGTH;
+                }
+                PlotPosition tmpPlotPosition = new PlotPosition();
+                foreach (var pair in perPlayerUpdates)
+                {
+                    IServerPlayer pl = claims.sapi.World.PlayerByUid(pair.Key) as IServerPlayer;
+                    if (pl == null) continue;
+                    if (!claims.dataStorage.GetPlayerByUid(pair.Key, out PlayerInfo playerInfo)) continue;
 
                     List<Tuple<Vec2i, SavedPlotInfo>> updatePlotsForPlayer = new List<Tuple<Vec2i, SavedPlotInfo>>();
-                    PlotPosition tmpPlotPosition = new PlotPosition();
-                    foreach (var zone in PlotWhichShouldBeUpdated)
+                    foreach (var coord in pair.Value)
                     {
-                        if ((playerZone.X - 2 < zone.Key.X && playerZone.X + 2 > zone.Key.X) &&
-                            (playerZone.Y - 2 < zone.Key.Y && playerZone.Y + 2 > zone.Key.Y))
+                        tmpPlotPosition.setXY(coord);
+                        if (claims.dataStorage.GetPlot(tmpPlotPosition, out Plot plot))
                         {
-                            foreach (var it in zone.Value)
-                            {
-                                tmpPlotPosition.setXY(it);
-                                if (claims.dataStorage.GetPlot(tmpPlotPosition, out Plot plot))
-                                {
-                                    
-                                    updatePlotsForPlayer.Add(new Tuple<Vec2i, SavedPlotInfo>(plot.getPos(), new SavedPlotInfo((int)plot.Price, plot.getPermsHandler().pvpFlag,
-                                    pl.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canBlockDestroyWithOutCacheUpdate(playerInfo, plot),
-                                    pl.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canBlockUseWithOutCacheUpdate(playerInfo, plot),
-                                    pl.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canAttackAnimalsWithOutCacheUpdate(playerInfo, plot),
-                                    plot.getCity().GetPartName(), plot.GetPartName(),
-                                    plot.hasCityPlotsGroup()
-                                        ? plot.getPlotGroup().GetPartName()
-                                        : "",
-                                   plot.Type == PlotType.TAVERN
-                                       ? plot.GetClientInnerClaimFromDefault(playerInfo)
-                                       : null,
-                                   plot.getCity().Alliance?.Guid ?? "")));
-                                }
-                            }
+                            updatePlotsForPlayer.Add(new Tuple<Vec2i, SavedPlotInfo>(plot.getPos(), new SavedPlotInfo((int)plot.Price, plot.getPermsHandler().pvpFlag,
+                                pl.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canBlockDestroyWithOutCacheUpdate(playerInfo, plot),
+                                pl.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canBlockUseWithOutCacheUpdate(playerInfo, plot),
+                                pl.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canAttackAnimalsWithOutCacheUpdate(playerInfo, plot),
+                                plot.getCity().GetPartName(), plot.GetPartName(),
+                                plot.hasCityPlotsGroup() ? plot.getPlotGroup().GetPartName() : "",
+                                plot.Type == PlotType.TAVERN ? plot.GetClientInnerClaimFromDefault(playerInfo) : null,
+                                plot.getCity().Alliance?.Guid ?? "")));
                         }
                     }
+                    if (updatePlotsForPlayer.Count == 0) continue;
                     string serializedZones = JsonConvert.SerializeObject(updatePlotsForPlayer);
                     claims.serverChannel.SendPacket(new SavedPlotsPacket()
                     {
                         type = PacketsContentEnum.SERVER_UPDATE_COLLECTED_PLOTS,
                         data = serializedZones
-
                     }, pl);
                 }
                 PlotWhichShouldBeUpdated.Clear();

@@ -1,4 +1,5 @@
-﻿using claims.src.clientMapHandling;
+﻿using claims.src.auxialiry;
+using claims.src.clientMapHandling;
 using Vintagestory.API.Client;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
@@ -51,8 +52,8 @@ namespace claims.src.gui.plotMovementGui
         {
             base.OnGuiOpened();
             //return;
-            if (claims.clientDataStorage.getSavedPlot(new Vec2i((int)claims.capi.World.Player.Entity.Pos.X / 16,
-                                                                        (int)claims.capi.World.Player.Entity.Pos.Z / 16),
+            if (claims.clientDataStorage.getSavedPlot(new Vec2i((int)claims.capi.World.Player.Entity.Pos.X / PlotPosition.plotSize,
+                                                                        (int)claims.capi.World.Player.Entity.Pos.Z / PlotPosition.plotSize),
                                                                out SavedPlotInfo savedPlotInfo))
             {
                 claims.updateMovementGUIInfo(savedPlotInfo);

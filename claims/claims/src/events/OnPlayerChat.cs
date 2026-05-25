@@ -17,7 +17,7 @@ namespace claims.src.events
             claims.dataStorage.getPlayerChatDict().TryGetValue(player.PlayerUID, out chat);
             if (chat == ClaimsChatType.LOCAL)
             {
-                MessageHandler.sendLocalMsg(player.Entity.ServerPos.XYZ, message);
+                MessageHandler.sendLocalMsg(player.Entity.Pos.XYZ, message);
                 consumed.value = true;
                 return;
             }

@@ -9,7 +9,7 @@ namespace claims.src.events
     {
         public static bool canPVPAttackHere(IServerPlayer attacker, IServerPlayer defend)
         {
-            claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(defend.Entity.ServerPos), out Plot defendPlot);
+            claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(defend.Entity.Pos), out Plot defendPlot);
 
             claims.dataStorage.GetPlayerByUid(attacker.PlayerUID, out PlayerInfo attackerPlayerInfo);
             claims.dataStorage.GetPlayerByUid(defend.PlayerUID, out PlayerInfo defendPlayerInfo);

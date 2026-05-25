@@ -1,5 +1,6 @@
 ﻿using claims.src.auxialiry;
 using claims.src.delayed.invitations;
+using claims.src.part;
 using claims.src.part.interfaces;
 using claims.src.part.structure.conflict;
 using System;
@@ -45,6 +46,20 @@ namespace claims.src.part.structure
         public Alliance(string val, string guid) : base(val, guid)
         {
         }
+
+        public static event Action<Alliance> AllianceCreated;
+        public static event Action<Alliance> AllianceDestroyed;
+        public static event Action<Alliance, City> CityJoined;
+        public static event Action<Alliance, City, EnumCityLeaveReason> CityLeft;
+        public static event Action<Alliance, IConflictParty> ConflictDeclared;
+        public static event Action<Alliance, IConflictParty, EnumConflictEndReason> ConflictEnded;
+
+        public static void FireAllianceCreated(Alliance alliance) => AllianceCreated?.Invoke(alliance);
+        public static void FireAllianceDestroyed(Alliance alliance) => AllianceDestroyed?.Invoke(alliance);
+        public void FireCityJoined(City city) => CityJoined?.Invoke(this, city);
+        public void FireCityLeft(City city, EnumCityLeaveReason reason) => CityLeft?.Invoke(this, city, reason);
+        public void FireConflictDeclared(IConflictParty opponent) => ConflictDeclared?.Invoke(this, opponent);
+        public void FireConflictEnded(IConflictParty opponent, EnumConflictEndReason reason) => ConflictEnded?.Invoke(this, opponent, reason);
         public override bool saveToDatabase(bool update = true)
         {
             return claims.getModInstance().getDatabaseHandler().saveAlliance(this, update);

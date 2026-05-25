@@ -260,7 +260,6 @@ namespace claims.src
                 foreach (var plot in it.getCityPlots())
                 {
                     claims.dataStorage.ClearCacheForPlayersInPlot(plot);
-                    claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(plot.getPos());
                     claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
                 }
             }
@@ -270,7 +269,6 @@ namespace claims.src
                 foreach (var plot in it.getCityPlots())
                 {
                     claims.dataStorage.ClearCacheForPlayersInPlot(plot);
-                    claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(plot.getPos());
                     claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
                 }
             }

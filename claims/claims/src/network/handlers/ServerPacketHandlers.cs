@@ -25,100 +25,37 @@ namespace claims.src.network.handlers
             {
                 if (packet.type == PacketsContentEnum.CLIENT_INFORM_ZONES_TIMESTAMPS)
                 {
-                    //if player is logging in plot where they have permissions
-                    
                     claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
                     if (playerInfo == null)
                     {
                         return;
                     }
                     List<Tuple<Vec2i, long>> zonesTimestamps = JsonConvert.DeserializeObject<List<Tuple<Vec2i, long>>>(packet.data);
-                    List<Vec2i> needUpdateZones = new List<Vec2i>();
 
-                    Vec2i playerServerPos = new Vec2i((int)player.Entity.ServerPos.X / 512, (int)player.Entity.ServerPos.Z / 512);
-
-                    //iterate through all pairs
-                    //add only which need update - have 0 timestamp
-                    //or server's timestamp is newer than client's
+                    // Anti-spoof: only allow zones close to player's actual position
+                    int zoneBlocks = claims.config.PLOT_SIZE * claims.config.ZONE_PLOTS_LENGTH;
+                    Vec2i playerServerPos = new Vec2i((int)player.Entity.Pos.X / zoneBlocks, (int)player.Entity.Pos.Z / zoneBlocks);
+                    List<Vec2i> requestedZones = new List<Vec2i>();
                     foreach (var zoneItem in zonesTimestamps)
                     {
-                        //player can spoof zones coords and get data about far land from him
-                        if (zoneItem.Item1.X > playerServerPos.X + 3 || zoneItem.Item1.X < playerServerPos.X - 3 || zoneItem.Item1.Y > playerServerPos.Y + 3 || zoneItem.Item1.Y < playerServerPos.Y - 3)
+                        if (zoneItem.Item1.X > playerServerPos.X + 3 || zoneItem.Item1.X < playerServerPos.X - 3 ||
+                            zoneItem.Item1.Y > playerServerPos.Y + 3 || zoneItem.Item1.Y < playerServerPos.Y - 3)
                         {
                             continue;
                         }
-                        needUpdateZones.Add(zoneItem.Item1);
-                        continue;
-                        //ignore timestamps now
-
-                        if (zoneItem.Item2 == 0)
-                        {
-                            needUpdateZones.Add(zoneItem.Item1);
-                            continue;
-                        }
-                        else
-                        {
-                            if (claims.dataStorage.serverZonesTimestamps.TryGetValue(zoneItem.Item1, out long timestamp))
-                            {
-                                if (timestamp > zoneItem.Item2)
-                                {
-                                    continue;
-                                }
-                                else
-                                {
-                                    needUpdateZones.Add(zoneItem.Item1);
-                                }
-                            }
-                        }
+                        requestedZones.Add(zoneItem.Item1);
                     }
-                    HashSet<Tuple<Vec2i, long, List<KeyValuePair<Vec2i, SavedPlotInfo>>>> preparedData = new HashSet<Tuple<Vec2i, long, List<KeyValuePair<Vec2i, SavedPlotInfo>>>>();
-                    long savedTimestamp = TimeFunctions.getEpochSeconds();
-                    foreach (Vec2i zoneVec in needUpdateZones)
+
+                    claims.serverPlayerMovementListener.SyncSubscriptionsAndSendSnapshot(player, playerInfo, requestedZones);
+
+                    if (ServerMain.FrameProfiler.Enabled)
                     {
-                        if (claims.dataStorage.getZone(zoneVec, out ServerZoneInfo serverZoneInfo))
-                        {
-                            List<KeyValuePair<Vec2i, SavedPlotInfo>> preparedSavedPlots = new List<KeyValuePair<Vec2i, SavedPlotInfo>>();
-                            foreach (Plot plot in serverZoneInfo.zonePlots)
-                            {
-                                preparedSavedPlots.Add(new KeyValuePair<Vec2i, SavedPlotInfo>(plot.getPos(),
-                                    new SavedPlotInfo((int)plot.Price, plot.getPermsHandler().pvpFlag,
-                                        player.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canBlockDestroyWithOutCacheUpdate(playerInfo, plot),
-                                        player.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canBlockUseWithOutCacheUpdate(playerInfo, plot),
-                                        player.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canAttackAnimalsWithOutCacheUpdate(playerInfo, plot),
-                                        plot.getCity().GetPartName(), plot.GetPartName(),
-                                        plot.hasCityPlotsGroup()
-                                            ? plot.getPlotGroup().GetPartName()
-                                            : "",
-                                        plot.Type == PlotType.TAVERN
-                                            ? plot.GetClientInnerClaimFromDefault(playerInfo)
-                                            : null,
-                                        plot.getCity().Alliance?.Guid ?? "")));
-                            }
-                            preparedData.Add(new Tuple<Vec2i, long, List<KeyValuePair<Vec2i, SavedPlotInfo>>>
-                            (zoneVec, savedTimestamp, preparedSavedPlots));
-                        }
-                    }
-                    if (preparedData.Count > 0)
-                    {
-
-                        string serializedZones = JsonConvert.SerializeObject(preparedData);
-
-                        claims.serverChannel.SendPacket(new SavedPlotsPacket()
-                        {
-                            type = PacketsContentEnum.SERVER_UPDATED_ZONES_ANSWER,
-                            data = serializedZones
-
-                        }, player);
-                        
-                        if (ServerMain.FrameProfiler.Enabled)
-                        {
-                            ServerMain.FrameProfiler.Mark("can-claims-packet-city-zone");
-                        }
+                        ServerMain.FrameProfiler.Mark("can-claims-packet-city-zone");
                     }
                 }
                 else if(packet.type == PacketsContentEnum.CURRENT_PLOT_CLIENT_REQUEST)
                 {
-                    var currentPos = player.Entity.ServerPos;
+                    var currentPos = player.Entity.Pos;
                     if(claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(currentPos), out Plot plot))
                     {
                         CurrentPlotInfo cpi = new CurrentPlotInfo(plot.GetPartName(), plot.getPlotOwner()?.GetPartName() ?? "",
@@ -145,7 +82,7 @@ namespace claims.src.network.handlers
                     //skip if not mayor
                     //send dict with ranks
                     //add handler on client
-                    var currentPos = player.Entity.ServerPos;
+                    var currentPos = player.Entity.Pos;
                     if (claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(currentPos), out Plot plot))
                     {
                         CurrentPlotInfo cpi = new CurrentPlotInfo(plot.GetPartName(), plot.getPlotOwner()?.GetPartName() ?? "",

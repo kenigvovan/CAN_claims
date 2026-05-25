@@ -10,20 +10,13 @@ namespace claims.src.delayed.cooldowns
 
         public static void processCooldowns()
         {
-            if (cooldowns == null || cooldowns.Count == 0)
+            if (cooldowns.Count == 0)
                 return;
 
             long timeNow = TimeFunctions.getEpochSeconds();
             foreach (HashSet<CooldownInfo> cooldownInfo in cooldowns.Values)
             {
-                foreach (CooldownInfo cooldown in cooldownInfo)
-                {
-                    if (cooldown.getStamp() < timeNow)
-                    {
-                        cooldownInfo.Remove(cooldown);
-                        break;
-                    }
-                }
+                cooldownInfo.RemoveWhere(c => c.getStamp() < timeNow);
             }
         }
         public static long hasCooldown(ICooldown canHasCooldown, CooldownType cooldownType)

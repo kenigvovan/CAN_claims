@@ -48,7 +48,7 @@ namespace claims.src.timers
 
             ProcessAlliancesCare();
 
-            MessageHandler.sendGlobalMsg(Lang.Get("clams:new_day_log_msg"));
+            MessageHandler.sendGlobalMsg(Lang.Get("claims:new_day_log_msg"));
             MessageHandler.sendDebugMsg("[claims] DayTimer::new day here");
             if (scheduleNewDayAfter)
             {
@@ -95,7 +95,6 @@ namespace claims.src.timers
                     }
                 }
                 UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, gui.playerGui.structures.EnumPlayerRelatedInfo.CITY_DEBT);
-                UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, gui.playerGui.structures.EnumPlayerRelatedInfo.CITY_BALANCE);
             }
             else
             {
@@ -107,10 +106,9 @@ namespace claims.src.timers
                 {
                     if (city.DebtBalance > 0)
                     {
-                        city.DebtBalance = 0;                        
+                        city.DebtBalance = 0;
                     }
                     UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, gui.playerGui.structures.EnumPlayerRelatedInfo.CITY_DEBT);
-                    UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, gui.playerGui.structures.EnumPlayerRelatedInfo.CITY_BALANCE);
                 }
             }
             claims.sapi.Logger.Debug(string.Format("[claims] processCityCare, withdrew {0} from city {1} account. Balance after is {2}, debt is {3}.",

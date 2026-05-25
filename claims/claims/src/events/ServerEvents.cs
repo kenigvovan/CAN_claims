@@ -25,9 +25,10 @@ namespace claims.src.events
             sapi.Event.ServerRunPhase(EnumServerRunPhase.RunGame, () => 
             {
                 claims.config.COINS_VALUES_TO_CODE.Clear();
-                caneconomy.caneconomy.config.COINS_VALUES_TO_CODE.Foreach(el => claims.config.COINS_VALUES_TO_CODE.Add((double)el.Key, el.Value));
+                caneconomy.caneconomy.config.EXTENDED_COINS_VALUES_TO_CODE_PRIVATE.Foreach(el => claims.config.COINS_VALUES_TO_CODE.Add(el.Value.CoinValue, el.Value.CollectibleCode));
+
                 claims.config.ID_TO_COINS_VALUES.Clear();
-                caneconomy.caneconomy.config.ID_TO_COINS_VALUES.Foreach(el => claims.config.ID_TO_COINS_VALUES.Add(el.Key, (double)el.Value));
+                caneconomy.caneconomy.config.EXTENDED_COINS_VALUES_TO_CODE_PRIVATE.Foreach(el => claims.config.ID_TO_COINS_VALUES.Add(el.Key, el.Value.CoinValue));
             });
 
             

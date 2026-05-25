@@ -3,6 +3,7 @@ using claims.src.part;
 using claims.src.part.structure;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace claims.src.part.structure.conflict
 {
@@ -41,9 +42,9 @@ namespace claims.src.part.structure.conflict
         }
         public static void updateConflictLetters()
         {
-            foreach (ConflictLetter letter in conflictLettersList)
+            long now = TimeFunctions.getEpochSeconds();
+            foreach (ConflictLetter letter in conflictLettersList.ToArray())
             {
-                long now = TimeFunctions.getEpochSeconds();
                 if (letter.TimeStampExpire < now)
                 {
                     //TODO

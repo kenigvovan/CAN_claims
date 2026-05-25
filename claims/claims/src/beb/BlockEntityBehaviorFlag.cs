@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using claims.src.auxialiry;
 using claims.src.bb;
+using claims.src.citylog;
 using claims.src.gui.playerGui.structures;
 using claims.src.messages;
 using claims.src.part;
@@ -88,9 +89,14 @@ namespace claims.src.beb
             {
                 return;
             }
+            if (this.Api.Side == EnumAppSide.Server && IsCaptureNoLongerValid())
+            {
+                CancelCapture();
+                return;
+            }
             this.CapturedPercent += GameMath.Clamp(1.0f - this.CapturedPercent, -deltaTime / this.captureDuration, deltaTime / this.captureDuration);
             if (this.Api.Side == EnumAppSide.Server)
-            {               
+            {
                 if (this.CapturedPercent >= 1f)
                 {
                     if (this.captureRef.HasValue) this.Api.Event.UnregisterGameTickListener(this.captureRef.Value);
@@ -186,7 +192,7 @@ namespace claims.src.beb
 
                         foreach (var runningConflict in defenderCity.RunningConflicts.ToArray())
                         {
-                            PartDemolition.DemolishConflict(runningConflict);
+                            PartDemolition.DemolishConflict(runningConflict, EnumConflictEndReason.CityDestroyed);
                         }
 
                         PartDemolition.demolishCity(defenderCity, string.Format("Last plot captured by {0}", attackerCity.GetPartName()));
@@ -200,6 +206,8 @@ namespace claims.src.beb
                     else
                     {
                         City defenderCity = defenderPlot.getCity();
+                        defenderCity.AddLogEntry(EnumCityLogEvent.FlagCaptured, attackerCity.GetPartName(), defenderPlot.GetPartName());
+                        attackerCity.AddLogEntry(EnumCityLogEvent.FlagCaptured, attackerCity.GetPartName(), defenderPlot.GetPartName());
                         defenderPlot.setCity(attackerCity);
                         defenderCity.getCityPlots().Remove(defenderPlot);
                         attackerCity.getCityPlots().Add(defenderPlot);
@@ -215,11 +223,12 @@ namespace claims.src.beb
                         defenderPlot.getCity().saveToDatabase();
 
                         defenderPlot.CheckBorderPlotValue();
-                        claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(defenderPlot.getPos());
                         claims.serverPlayerMovementListener.markPlotToWasReUpdated(defenderPlot.getPos());
 
-                        UsefullPacketsSend.AddToQueueCityInfoUpdate(defenderPlot.getCity().Guid, EnumPlayerRelatedInfo.CLAIMED_PLOTS);
-                        UsefullPacketsSend.AddToQueueCityInfoUpdate(defenderCity.Guid, EnumPlayerRelatedInfo.CLAIMED_PLOTS);
+                        UsefullPacketsSend.AddToQueueCityInfoUpdate(defenderPlot.getCity().Guid, EnumPlayerRelatedInfo.CLAIMED_PLOTS, EnumPlayerRelatedInfo.CITY_LOG);
+                        UsefullPacketsSend.AddToQueueCityInfoUpdate(defenderCity.Guid, EnumPlayerRelatedInfo.CLAIMED_PLOTS, EnumPlayerRelatedInfo.CITY_LOG);
+                        defenderPlot.getCity().FirePlotsMapChanged(EnumPlotsMapChangeReason.PlotCapturedByUs);
+                        defenderCity.FirePlotsMapChanged(EnumPlotsMapChangeReason.PlotLostToEnemy);
                         UsefullPacketsSend.AddToQueueAllPlayersInfoUpdate(new Dictionary<string, object> { { "value", defenderPlot.getPos() } }, EnumPlayerRelatedInfo.CITY_PLOT_RECOLOR);
                         warTime.PlotAttacks.Remove(PlotPosition.fromBlockPos(this.Pos));
                         TimesToBreak = 0;
@@ -256,6 +265,48 @@ namespace claims.src.beb
                     }
                 }
             }
+        }
+        private bool IsCaptureNoLongerValid()
+        {
+            if (!claims.dataStorage.GetPlot(PlotPosition.fromBlockPos(this.Pos), out var plot))
+            {
+                return true;
+            }
+            City defenderCity = plot.getCity();
+            if (defenderCity == null)
+            {
+                return true;
+            }
+            if (!claims.dataStorage.getCityByGUID(this.CityGuid, out City attackerCity))
+            {
+                return true;
+            }
+            IConflictParty defenderParty = defenderCity.HasAlliance()
+                ? (IConflictParty)defenderCity.Alliance
+                : (IConflictParty)defenderCity;
+            IConflictParty attackerParty = attackerCity.HasAlliance()
+                ? (IConflictParty)attackerCity.Alliance
+                : (IConflictParty)attackerCity;
+            return attackerParty.Equals(defenderParty);
+        }
+        private void CancelCapture()
+        {
+            if (this.updateRef.HasValue)
+            {
+                this.Api.Event.UnregisterGameTickListener(this.updateRef.Value);
+                this.updateRef = null;
+            }
+            this.CapturedPercent = 0;
+            this.TimesToBreak = 0;
+            if (this.ConflictGuid != null
+                && claims.dataStorage.WarsTimes.TryGetValue(this.ConflictGuid, out var warTime))
+            {
+                warTime.PlotAttacks.Remove(PlotPosition.fromBlockPos(this.Pos));
+            }
+            this.Api.Event.RegisterCallback((float ft) =>
+            {
+                this.Api.World.BlockAccessor.BreakBlock(this.Pos, null);
+            }, 1000);
         }
         public void TryStartCapture(IPlayer byPlayer)
         {

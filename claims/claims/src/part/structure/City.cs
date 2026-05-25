@@ -1,5 +1,6 @@
 ﻿using caneconomy.src.accounts;
 using claims.src.auxialiry;
+using claims.src.citylog;
 using claims.src.cityplotsgroups;
 using claims.src.delayed.invitations;
 using claims.src.gui.playerGui.structures;
@@ -54,9 +55,18 @@ namespace claims.src.part
         public bool Neutral { get; set; } = false;
         public HashSet<Conflict> RunningConflicts { get; } = new HashSet<Conflict>();
         public Dictionary<string, CustomCityRank> CustomCityRanks { get; set; } = new();
+        public List<CityLogEntry> EventLog { get; set; } = new List<CityLogEntry>();
         public City(string valName, string guid, bool isTechnical = false) : base(valName, guid)
         {
             this.isTechnical = isTechnical;
+        }
+
+        public void AddLogEntry(EnumCityLogEvent eventType, params string[] args)
+        {
+            EventLog.Add(new CityLogEntry(TimeFunctions.getEpochSeconds(), eventType, args));
+            int maxEntries = claims.config.CITY_LOG_MAX_ENTRIES;
+            if (EventLog.Count > maxEntries)
+                EventLog.RemoveRange(0, EventLog.Count - maxEntries);
         }
 
 
@@ -238,6 +248,21 @@ namespace claims.src.part
         {
             return cityPlots;
         }
+
+        public static event Action<string, EnumPlotsMapChangeReason> PlotsMapChanged;
+        public void FirePlotsMapChanged(EnumPlotsMapChangeReason reason) => PlotsMapChanged?.Invoke(this.Guid, reason);
+
+        public static event Action<City> CityCreated;
+        public static event Action<City> CityDestroyed;
+        public static event Action<City, PlayerInfo> CitizenJoined;
+        public static event Action<City, PlayerInfo, EnumCityLeaveReason> CitizenLeft;
+        public static event Action<City, PlayerInfo> MayorChanged;
+
+        public static void FireCityCreated(City city) => CityCreated?.Invoke(city);
+        public static void FireCityDestroyed(City city) => CityDestroyed?.Invoke(city);
+        public void FireCitizenJoined(PlayerInfo player) => CitizenJoined?.Invoke(this, player);
+        public void FireCitizenLeft(PlayerInfo player, EnumCityLeaveReason reason) => CitizenLeft?.Invoke(this, player, reason);
+        public void FireMayorChanged(PlayerInfo newMayor) => MayorChanged?.Invoke(this, newMayor);
 
         public HashSet<PlayerInfo> getCityCitizens()
         {
@@ -498,7 +523,6 @@ namespace claims.src.part
             //for all plots set new mark and add to queue for send
             foreach(var plot in getCityPlots())
             {
-                claims.dataStorage.setNowEpochZoneTimestampFromPlotPosition(plot.getPos());
                 claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
             }
         }

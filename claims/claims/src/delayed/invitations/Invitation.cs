@@ -41,8 +41,7 @@ namespace claims.src.delayed.invitations
         public void accept()
         {
             InvitationHandler.removeInvitationIfExists(sender, receiver);
-            Task.Run(() => onApproval.Start());
-            //this.onApproval.Start();            
+            onApproval.Start();
         }
         public void deny()
         {

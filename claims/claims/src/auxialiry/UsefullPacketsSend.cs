@@ -71,10 +71,12 @@ namespace claims.src.auxialiry
                                            EnumPlayerRelatedInfo.MAX_COUNT_PLOTS, EnumPlayerRelatedInfo.CLAIMED_PLOTS,
                                            EnumPlayerRelatedInfo.CITY_PLOTS_COLOR, EnumPlayerRelatedInfo.CITY_DEBT, EnumPlayerRelatedInfo.CITY_DAY_PAYMENT,
                                            EnumPlayerRelatedInfo.CITY_PERMISSIONS_UPDATED, EnumPlayerRelatedInfo.CITY_BALANCE, EnumPlayerRelatedInfo.CITY_FEE, EnumPlayerRelatedInfo.CITY_CRIMINALS_LIST,
-                                           EnumPlayerRelatedInfo.CITY_PRISON_CELL_ALL, EnumPlayerRelatedInfo.CITY_SUMMON_POINT_ALL, EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_ALL]);
+                                           EnumPlayerRelatedInfo.CITY_PRISON_CELL_ALL, EnumPlayerRelatedInfo.CITY_SUMMON_POINT_ALL, EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_ALL,
+                                           EnumPlayerRelatedInfo.CITY_LOG, EnumPlayerRelatedInfo.CITY_PLOTS_MAP]);
             }
             infoToUpdatePlayer.AddRange([EnumPlayerRelatedInfo.SHOW_PLOT_MOVEMENT, EnumPlayerRelatedInfo.FRIENDS, EnumPlayerRelatedInfo.TO_CITY_INVITES,
-                                         EnumPlayerRelatedInfo.PLAYER_PREFIX, EnumPlayerRelatedInfo.PLAYER_AFTER_NAME, EnumPlayerRelatedInfo.PLAYER_CITY_TITLES]);
+                                         EnumPlayerRelatedInfo.PLAYER_PREFIX, EnumPlayerRelatedInfo.PLAYER_AFTER_NAME, EnumPlayerRelatedInfo.PLAYER_CITY_TITLES,
+                                         EnumPlayerRelatedInfo.PLAYER_BALANCE]);
             if(city != null)
             {
                 AddToQueueCityInfoUpdate(city.Guid, infoToUpdateCity.ToArray());
@@ -579,6 +581,12 @@ namespace claims.src.auxialiry
                         case EnumPlayerRelatedInfo.CITY_PERMISSIONS_UPDATED:
                             result[pair.Key] = JsonConvert.SerializeObject(city.getPermsHandler());
                             break;
+                        case EnumPlayerRelatedInfo.CITY_LOG:
+                            result[pair.Key] = JsonConvert.SerializeObject(city.EventLog);
+                            break;
+                        case EnumPlayerRelatedInfo.CITY_PLOTS_MAP:
+                            result[pair.Key] = JsonConvert.SerializeObject(city.getCityPlots().Select(p => new CityPlotMiniInfo(p.plotPosition.X, p.plotPosition.Z, p.Type)).ToList());
+                            break;
                         case EnumPlayerRelatedInfo.CITY_PRISON_CELL_ALL:
                             if (city.hasPrison())
                             {
@@ -599,7 +607,8 @@ namespace claims.src.auxialiry
                                 HashSet<SummonCellElement> summonCellElements = new HashSet<SummonCellElement>();
                                 foreach (var it in city.summonPlots)
                                 {
-                                    summonCellElements.Add(new SummonCellElement((it.PlotDesc as PlotDescSummon).SummonPoint.AsVec3i.Clone(), (it.PlotDesc as PlotDescSummon).Name));
+                                    if (it.PlotDesc is not PlotDescSummon desc) continue;
+                                    summonCellElements.Add(new SummonCellElement(desc.SummonPoint.AsVec3i.Clone(), desc.Name));
                                 }
                                 result[pair.Key] = JsonConvert.SerializeObject(summonCellElements);
                             }
@@ -704,6 +713,10 @@ namespace claims.src.auxialiry
                             {
                                 result[pair.Key] = JsonConvert.SerializeObject(AllianceStatsCashe.Values.ToList());
                             }
+                            break;
+                        case EnumPlayerRelatedInfo.PLAYER_BALANCE:
+                            result[pair.Key] = claims.economyHandler.getBalance(playerInfo.Guid)
+                                .ToString(System.Globalization.CultureInfo.InvariantCulture);
                             break;
                         default:
                             if (pair.Value?.TryGetValue("value", out var list) ?? false)

@@ -26,6 +26,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.PushStyleColor(ImGuiCol.Text, sectionColor);
             ImGui.SetWindowFontScale(1.3f);
             float textWidth = ImGui.CalcTextSize(text).X;
+
             ImGui.SetCursorPosX((windowWidth - textWidth) * 0.5f);
             ImGui.Text(text);
             ImGui.SetWindowFontScale(1.0f);
