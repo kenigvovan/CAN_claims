@@ -2,8 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using Cairo;
-using caneconomy.src.interfaces;
 using claims.src.auxialiry;
+using claims.src.economy;
 using claims.src.auxialiry.ClaimLimiter;
 using claims.src.bb;
 using claims.src.beb;
@@ -62,7 +62,10 @@ namespace claims.src
         public PlayerMovementListnerClient pmlc;
         public static PlayerMovementsListnerServer serverPlayerMovementListener;
         public static Config config;
-        public static EconomyHandler economyHandler;
+        public static IMoneyProvider economyProvider = new NoopMoneyProvider();
+
+        public static event Action<string> AccountBalanceChanged;
+        public static void RaiseAccountBalanceChanged(string accountName) => AccountBalanceChanged?.Invoke(accountName);
 
         /*==============================================================================================*/
         /*=====================================GUI/CLIENT===============================================*/
@@ -177,7 +180,7 @@ namespace claims.src
             Api = new ClaimsModApi();
 
             City.PlotsMapChanged += (guid, reason) => UsefullPacketsSend.AddToQueueCityInfoUpdate(guid, EnumPlayerRelatedInfo.CITY_PLOTS_MAP);
-            caneconomy.src.implementations.VirtualMoney.VirtualMoneyEconomyHandler.AccountBalanceChanged += accountName =>
+            AccountBalanceChanged += accountName =>
             {
                 if (dataStorage == null) return;
                 if (dataStorage.GetPlayerByUid(accountName, out _))
@@ -453,7 +456,7 @@ namespace claims.src
             dataStorage = null;
             serverPlayerMovementListener = null;
             config = null;
-            economyHandler = null;
+            economyProvider = new NoopMoneyProvider();
             ConflictHandler.clearAll();
             UnionHander.clearAll();
         }

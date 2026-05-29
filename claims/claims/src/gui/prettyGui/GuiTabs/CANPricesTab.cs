@@ -39,34 +39,25 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.Separator();
             ImGui.Spacing();
 
-            if (caneconomy.caneconomy.config != null)
+            if (claims.config.COINS_VALUES_TO_CODE != null && claims.config.COINS_VALUES_TO_CODE.Count > 0)
             {
                 if (ImGui.BeginTable("CurrencyTable", 2, ImGuiTableFlags.None))
                 {
                     ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthFixed, 80);
                     ImGui.TableSetupColumn("Icon", ImGuiTableColumnFlags.WidthStretch);
 
-                    foreach (var it in caneconomy.caneconomy.config.EXTENDED_COINS_VALUES_TO_CODE_PRIVATE)
+                    foreach (var it in claims.config.COINS_VALUES_TO_CODE)
                     {
-                        var coinData = it.Value;
                         ImGui.TableNextRow();
 
                         ImGui.TableNextColumn();
                         ImGui.PushStyleColor(ImGuiCol.Text, valueColor);
                         ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 12);
-                        ImGui.Text(coinData.CoinValue.ToString());
+                        ImGui.Text(it.Key.ToString());
                         ImGui.PopStyleColor();
 
                         ImGui.TableNextColumn();
-                        ItemStack coin = new ItemStack(capi.World.GetItem(new AssetLocation(coinData.CollectibleCode)), 1);
-                        if (coinData.CoinAttributes != null)
-                        {
-                            var attributeTree = new TreeAttribute();
-                            foreach (var attr in coinData.CoinAttributes)
-                            {
-                                coin.Attributes[attr.Key] = attr.Value;
-                            }
-                        }
+                        ItemStack coin = new ItemStack(capi.World.GetItem(new AssetLocation(it.Value)), 1);
                         itemIconAtlas.Draw(coin, new Vector2(48, 48));
                     }
 

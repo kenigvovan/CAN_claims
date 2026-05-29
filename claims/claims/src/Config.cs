@@ -201,6 +201,8 @@ namespace claims.src
         public bool SEND_ANNOUNCEMENTS_PLOT_WAS_CAPTURED = true;
         public bool SEND_COORDS_OF_PLOT_WAS_CAPTURED = true;
         public bool GUI_SHOW_DEBT = true;
+        public bool SHOW_BALANCE_HUD_DEFAULT = false;
+        public bool? BalanceHudOverride = null;
         public CITY_AREA_VISIBILITY CITY_AREA_VISIBILITY_STATE = CITY_AREA_VISIBILITY.ALL;
         public int CITY_LOG_MAX_ENTRIES { get; set; } = 100;
         public HashSet<EnumPlayerPermissions> AVAILABLE_CITY_PERMISSIONS = new() {

@@ -135,8 +135,9 @@ namespace claims.src.events
         public static void processExistedPlayerInfoOnLogin(PlayerInfo playerInfo, IServerPlayer player)
         {
             playerInfo.TimeStampLasOnline = TimeFunctions.getEpochSeconds();
-            if(player.PlayerName.Equals(playerInfo.GetPartName()))
+            if (!player.PlayerName.Equals(playerInfo.GetPartName()))
             {
+                claims.dataStorage.changePlayerName(playerInfo, player.PlayerName);
                 playerInfo.SetPartName(player.PlayerName);
             }
             if (playerInfo.PrisonHoursLeft == -1)

@@ -43,5 +43,7 @@ namespace claims.src.network.packets
         public bool GUI_SHOW_DEBT;
         [ProtoMember(17)]
         public CITY_AREA_VISIBILITY CITY_AREA_VISIBILITY_STATE;
+        [ProtoMember(18)]
+        public bool SHOW_BALANCE_HUD_DEFAULT;
     }
 }

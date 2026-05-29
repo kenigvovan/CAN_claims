@@ -171,7 +171,8 @@ namespace claims.src.auxialiry
                        AVAILABLE_CITY_PERMISSIONS = claims.config.AVAILABLE_CITY_PERMISSIONS,
                        SELECTED_ECONOMY_HANDLER = claims.config.SELECTED_ECONOMY_HANDLER,
                        GUI_SHOW_DEBT = claims.config.GUI_SHOW_DEBT,
-                       CITY_AREA_VISIBILITY_STATE = claims.config.CITY_AREA_VISIBILITY_STATE
+                       CITY_AREA_VISIBILITY_STATE = claims.config.CITY_AREA_VISIBILITY_STATE,
+                       SHOW_BALANCE_HUD_DEFAULT = claims.config.SHOW_BALANCE_HUD_DEFAULT
                    }
                    , player);
         }
@@ -302,7 +303,7 @@ namespace claims.src.auxialiry
                 foreach (var citizen in onlinePlayersFromCity)
                 {
                     var playerCollector = new Dictionary<EnumPlayerRelatedInfo, string>();
-                    if (playerDelayedInfoCollector.Remove(citizen.PlayerName, out Dictionary<EnumPlayerRelatedInfo, Dictionary<string, List<object>>> dictInfo))
+                    if (playerDelayedInfoCollector.Remove(citizen.PlayerUID, out Dictionary<EnumPlayerRelatedInfo, Dictionary<string, List<object>>> dictInfo))
                     {
                         if (claims.dataStorage.GetPlayerByUid(citizen.PlayerUID, out PlayerInfo playerInfo))
                         {
@@ -503,7 +504,7 @@ namespace claims.src.auxialiry
                     alliance.TimeStampCreated,
                     alliance.Prefix,
                     StringFunctions.GetPartsNames(alliance.Cities),
-                    (double)claims.economyHandler.getBalance(alliance.MoneyAccountName),
+                    (double)claims.economyProvider.GetBalance(alliance.MoneyAccountName),
                     alliance.Guid,
                     StringFunctions.GetPartsNames(alliance.ComradAlliancies)
                 ));
@@ -543,7 +544,7 @@ namespace claims.src.auxialiry
                             result[pair.Key] = city.getCityPlots().Count.ToString();
                             break;
                         case EnumPlayerRelatedInfo.CITY_BALANCE:
-                            result[pair.Key] = claims.economyHandler.getBalance(city.MoneyAccountName).ToString(CultureInfo.InvariantCulture);
+                            result[pair.Key] = claims.economyProvider.GetBalance(city.MoneyAccountName).ToString(CultureInfo.InvariantCulture);
                             break;
                         case EnumPlayerRelatedInfo.CITY_DEBT:
                             result[pair.Key] = city.DebtBalance.ToString(CultureInfo.InvariantCulture);
@@ -573,7 +574,7 @@ namespace claims.src.auxialiry
                             result[pair.Key] = JsonConvert.SerializeObject(city.CustomCityRanks);
                             break;
                         case EnumPlayerRelatedInfo.ALLIANCE_BALANCE:
-                            result[pair.Key] = claims.economyHandler.getBalance(city.Alliance.MoneyAccountName).ToString();
+                            result[pair.Key] = claims.economyProvider.GetBalance(city.Alliance.MoneyAccountName).ToString();
                             break;
                         case EnumPlayerRelatedInfo.CITY_DAY_PAYMENT:
                             result[pair.Key] = city.GetDayPaymentAmount().ToString();
@@ -715,7 +716,7 @@ namespace claims.src.auxialiry
                             }
                             break;
                         case EnumPlayerRelatedInfo.PLAYER_BALANCE:
-                            result[pair.Key] = claims.economyHandler.getBalance(playerInfo.Guid)
+                            result[pair.Key] = claims.economyProvider.GetBalance(playerInfo.Guid)
                                 .ToString(System.Globalization.CultureInfo.InvariantCulture);
                             break;
                         default:

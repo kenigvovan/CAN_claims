@@ -1732,6 +1732,22 @@ namespace claims.src.commands.register
                     .HandleWith(commands.CAdminCommand.triggerNextHour)
                     .WithDesc("Trigger new hour events")
                 .EndSub()
+                .BeginSub("diag")
+                    .WithPreCondition((TextCommandCallingArgs args) => {
+                        if (args.Caller.Player is IServerPlayer player)
+                        {
+                            if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
+                            {
+                                return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
+                            }
+                            return TextCommandResult.Success();
+                        }
+                        return TextCommandResult.Error("");
+                    })
+                    .HandleWith(commands.CAdminCommand.DiagPlayer)
+                    .WithDesc("Diagnose player perms/city/mayor state")
+                    .WithArgs(parsers.Word("playerName"))
+                .EndSub()
                 .BeginSub("plot")
                     .BeginSub("set")
                        .BeginSub("permissions")

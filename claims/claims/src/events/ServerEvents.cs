@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using Vintagestory.API.Server;
-using Vintagestory.API.Util;
 
 namespace claims.src.events
 {
@@ -13,7 +12,7 @@ namespace claims.src.events
 
             sapi.Event.PlayerJoin += events.OnPlayerJoin.Event_OnPlayerJoin;
             sapi.Event.PlayerDisconnect += events.OnPlayerDisconnect.Event_OnPlayerDisconnect;
-         
+
             sapi.Event.CanUseBlock += events.OnBlockAction.Event_OnBlockUse;
             sapi.Event.CanPlaceOrBreakBlock += events.OnBlockAction.Event_OnBlockDestroy;
 
@@ -22,16 +21,7 @@ namespace claims.src.events
             sapi.Event.PlayerDeath += events.OnPlayerDeath.Event_OnPlayerDeath;
 
             sapi.Event.ServerRunPhase(EnumServerRunPhase.ModsAndConfigReady, events.ModConfigReady.onModsAndConfigReady);
-            sapi.Event.ServerRunPhase(EnumServerRunPhase.RunGame, () => 
-            {
-                claims.config.COINS_VALUES_TO_CODE.Clear();
-                caneconomy.caneconomy.config.EXTENDED_COINS_VALUES_TO_CODE_PRIVATE.Foreach(el => claims.config.COINS_VALUES_TO_CODE.Add(el.Value.CoinValue, el.Value.CollectibleCode));
 
-                claims.config.ID_TO_COINS_VALUES.Clear();
-                caneconomy.caneconomy.config.EXTENDED_COINS_VALUES_TO_CODE_PRIVATE.Foreach(el => claims.config.ID_TO_COINS_VALUES.Add(el.Key, el.Value.CoinValue));
-            });
-
-            
             //sapi.Event.ServerRunPhase(EnumServerRunPhase.Shutdown, onShutdown);
             //sapi.Event.ServerRunPhase(EnumServerRunPhase.Exit, onServerExit);
         }

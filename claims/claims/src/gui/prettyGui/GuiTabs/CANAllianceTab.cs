@@ -93,14 +93,17 @@ namespace claims.src.gui.prettyGui.GuiTabs
                         ImGui.SetTooltip(Lang.Get("claims:gui-set-alliance-prefix"));
                     }
 
-                    // Balance
-                    ImGui.TableNextRow();
-                    ImGui.TableNextColumn();
-                    ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-                    ImGui.Text(Lang.Get("claims:gui-alliance-balance-label"));
-                    ImGui.PopStyleColor();
-                    ImGui.TableNextColumn();
-                    ImGui.Text(clientInfo.AllianceInfo.Balance.ToString());
+                    if (claims.config.SELECTED_ECONOMY_HANDLER == "VIRTUAL_MONEY")
+                    {
+                        // Balance
+                        ImGui.TableNextRow();
+                        ImGui.TableNextColumn();
+                        ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
+                        ImGui.Text(Lang.Get("claims:gui-alliance-balance-label"));
+                        ImGui.PopStyleColor();
+                        ImGui.TableNextColumn();
+                        ImGui.Text(clientInfo.AllianceInfo.Balance.ToString());
+                    }
 
                     ImGui.EndTable();
                 }

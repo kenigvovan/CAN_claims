@@ -1,5 +1,4 @@
-﻿using caneconomy.src.accounts;
-using claims.src.auxialiry;
+﻿using claims.src.auxialiry;
 using claims.src.citylog;
 using claims.src.cityplotsgroups;
 using claims.src.delayed.invitations;
@@ -395,7 +394,8 @@ namespace claims.src.part
             if(this.mayor != null)
                 outStrings.Add($"{Lang.Get("claims:mayor")}  {getMayor().getPartNameReplaceUnder()}\n");
 
-            outStrings.Add(Lang.Get("claims:bank_status", claims.economyHandler.getBalance(this.MoneyAccountName)));
+            if (claims.economyProvider.SupportsPlayerWallet)
+                outStrings.Add(Lang.Get("claims:bank_status", claims.economyProvider.GetBalance(this.MoneyAccountName)));
             outStrings.Add(DebtBalance > 0 ? Lang.Get("claims:city_debt_status") + DebtBalance + "\n" : "\n");
             CityLevelInfo cityLevelInfo = Settings.getCityLevelInfo(getCityCitizens().Count);
             outStrings.Add($"{Lang.Get("claims:city_claimed_amount_status", this.getCityPlots().Count, cityLevelInfo.AmountOfPlots) + (cityLevelInfo.Maxextrachunksbought > 0 ? " " + Lang.Get("claims:city_claimed_extra_amount_status", this.Extrachunksbought, cityLevelInfo.Maxextrachunksbought) + "\n" : "\n")}");
@@ -475,7 +475,7 @@ namespace claims.src.part
 
             sumToPay += cityOutGo;
             claims.sapi.Logger.Debug(string.Format("[claims] processCityCare, withdraw {0} from city {1} account. Balance before is {2}, debt is {3}.",
-                sumToPay, this.GetPartName(), claims.economyHandler.getBalance(this.MoneyAccountName), this.DebtBalance));
+                sumToPay, this.GetPartName(), claims.economyProvider.GetBalance(this.MoneyAccountName), this.DebtBalance));
             return sumToPay;
         }
 
@@ -502,8 +502,7 @@ namespace claims.src.part
                 return false;
             }
 
-            if(caneconomy.caneconomy.config.SELECTED_ECONOMY_HANDLER == "REAL_MONEY" || 
-            (claims.economyHandler.updateAccount(this.MoneyAccountName, new Dictionary<string, object> { { "lastknownname", filteredName } })))
+            if (claims.economyProvider.UpdateAccount(this.MoneyAccountName, new Dictionary<string, object> { { "lastknownname", filteredName } }))
             {
                 claims.dataStorage.changeCityName(this, filteredName);
                 SetPartName(filteredName);

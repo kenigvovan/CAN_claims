@@ -62,7 +62,7 @@ namespace claims.src.part
                 ObjectCacheUtil.GetOrCreate<Dictionary<string, ClientCityInfoCellElement>>(claims.sapi,
                 "claims:cityinfocache", () => new Dictionary<string, ClientCityInfoCellElement>());
             CityStatsCashe.Remove(city.Guid);
-            claims.economyHandler.deleteAccount(city.MoneyAccountName);
+            claims.economyProvider.DeleteAccount(city.MoneyAccountName);
             claims.dataStorage.removeCityByGUID(city.Guid);
             //DataStorage.nameToCityDict.TryRemove(city.getPartName(), out _);
             City.FireCityDestroyed(city);
@@ -146,7 +146,7 @@ namespace claims.src.part
             {
                 UsefullPacketsSend.AddToQueueCityInfoUpdate(it.Guid, EnumPlayerRelatedInfo.OWN_ALLIANCE_REMOVE);
             }
-            claims.economyHandler.deleteAccount(alliance.MoneyAccountName);
+            claims.economyProvider.DeleteAccount(alliance.MoneyAccountName);
             claims.dataStorage.RemoveAllianceByGUID(alliance.Guid);
             //DataStorage.nameToCityDict.TryRemove(city.getPartName(), out _);
             Alliance.FireAllianceDestroyed(alliance);

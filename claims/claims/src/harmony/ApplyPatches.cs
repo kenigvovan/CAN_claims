@@ -1,5 +1,4 @@
-﻿using caneconomy.src.harmony;
-using HarmonyLib;
+﻿using HarmonyLib;
 using System;
 using System.Collections.Generic;
 using System.Linq;

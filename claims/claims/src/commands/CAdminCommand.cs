@@ -54,6 +54,75 @@ namespace claims.src.commands
 
             return tcr;
         }
+        public static TextCommandResult DiagPlayer(TextCommandCallingArgs args)
+        {
+            IServerPlayer caller = args.Caller.Player as IServerPlayer;
+            string targetName = (string)args.Parsers[0].GetValue();
+
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            void Line(string s) { sb.Append(s).Append('\n'); }
+
+            if (!claims.dataStorage.getPlayerByName(targetName, out PlayerInfo pi))
+            {
+                Line("no PlayerInfo for name '" + targetName + "' in nameToPlayerDict");
+                bool foundByUidScan = false;
+                foreach (var kv in claims.dataStorage.getPlayersDict())
+                {
+                    if (kv.Value.GetPartName() == targetName)
+                    {
+                        Line("but found in uidToPlayerDict by scan: uid=" + kv.Key);
+                        pi = kv.Value;
+                        foundByUidScan = true;
+                        break;
+                    }
+                }
+                if (!foundByUidScan)
+                {
+                    MessageHandler.sendMsgToPlayer(caller, sb.ToString());
+                    return TextCommandResult.Success();
+                }
+            }
+
+            Line("name='" + pi.GetPartName() + "' uid='" + pi.Guid + "'");
+            IServerPlayer onlinePlayer = claims.sapi.World.PlayerByUid(pi.Guid) as IServerPlayer;
+            Line("online=" + (onlinePlayer != null) +
+                 (onlinePlayer != null ? " sapi.PlayerName='" + onlinePlayer.PlayerName + "'" : ""));
+
+            Line("hasCity=" + pi.hasCity() +
+                 (pi.hasCity() ? " city='" + pi.City.GetPartName() + "' (" + pi.City.Guid + ")" : ""));
+            if (pi.hasCity())
+            {
+                var city = pi.City;
+                var mayor = city.getMayor();
+                Line("city.mayor=" + (mayor == null ? "null"
+                    : mayor.GetPartName() + " uid=" + mayor.Guid));
+                Line("ReferenceEquals(mayor,pi)=" + ReferenceEquals(mayor, pi) +
+                     " mayor.Equals(pi)=" + (mayor != null && mayor.Equals(pi)) +
+                     " isMayor()=" + city.isMayor(pi));
+                Line("cityCitizens.Contains(pi)=" + city.getCityCitizens().Contains(pi) +
+                     " count=" + city.getCityCitizens().Count);
+                Line("cityTitles=[" + string.Join(",", pi.getCityTitles()) + "]");
+                Line("CustomCityRanks keys=[" + string.Join(",", city.CustomCityRanks.Keys) + "]");
+                foreach (var t in pi.getCityTitles())
+                {
+                    if (city.CustomCityRanks.TryGetValue(t, out var rank))
+                    {
+                        Line("  rank '" + t + "' perms=[" + string.Join(",", rank.Permissions) + "]");
+                        Line("  rank '" + t + "' CitizensNames=[" + string.Join(",", rank.CitizensNames) + "]");
+                    }
+                    else
+                    {
+                        Line("  rank '" + t + "' NOT FOUND in CustomCityRanks");
+                    }
+                }
+            }
+
+            Line("PlayerPermissions=[" + string.Join(",", pi.PlayerPermissionsHandler.GetPermissions()) + "]");
+            Line("PermsHandler=" + pi.PermsHandler.ToString());
+
+            MessageHandler.sendMsgToPlayer(caller, sb.ToString());
+            return TextCommandResult.Success();
+        }
         /*==============================================================================================*/
         /*=====================================SET======================================================*/
         /*==============================================================================================*/

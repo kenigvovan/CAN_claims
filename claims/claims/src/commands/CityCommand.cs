@@ -10,6 +10,7 @@ using claims.src.cityplotsgroups;
 using claims.src.delayed.cooldowns;
 using claims.src.delayed.invitations;
 using claims.src.delayed.teleportation;
+using claims.src.economy;
 using claims.src.gui.playerGui.structures;
 using claims.src.gui.playerGui.structures.cellElements;
 using claims.src.messages;
@@ -117,7 +118,7 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:city_name_is_too_long");
             }
-            if (claims.economyHandler.getBalance(playerInfo.Guid) < (decimal)claims.config.NEW_CITY_COST)
+            if (claims.economyProvider.GetBalance(playerInfo.Guid) < (decimal)claims.config.NEW_CITY_COST)
             {
                 return TextCommandResult.Error("claims:not_enough_for_new_city");
             }
@@ -136,7 +137,7 @@ namespace claims.src.commands
                     }
                     if (!claims.config.NEW_CITY_ONLY_BY_ITEM)
                     {
-                        if (claims.economyHandler.withdraw(playerInfo.Guid, (decimal)claims.config.NEW_CITY_COST).ResultState == caneconomy.src.implementations.OperationResult.EnumOperationResultState.SUCCCESS)
+                        if (claims.economyProvider.Withdraw(playerInfo.Guid, (decimal)claims.config.NEW_CITY_COST) == MoneyOperationResult.Success)
                         {
                             PartInits.initNewCity(playerInfo, currentPlotPosition, newCityName);
                         }
@@ -222,7 +223,7 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:plot_already_claimed");
             }
-            if (claims.economyHandler.getBalance(city.MoneyAccountName) < (decimal)claims.config.PLOT_CLAIM_PRICE)
+            if (claims.economyProvider.GetBalance(city.MoneyAccountName) < (decimal)claims.config.PLOT_CLAIM_PRICE)
             {
                 return TextCommandResult.Error("claims:not_enough_money");
             }
@@ -243,7 +244,7 @@ namespace claims.src.commands
                 return TextCommandResult.Error("claims:should_be_on_the_border_with_another_claimed_plot");
             }
             
-            if(claims.economyHandler.withdraw(city.MoneyAccountName, (decimal)claims.config.PLOT_CLAIM_PRICE).ResultState != caneconomy.src.implementations.OperationResult.EnumOperationResultState.SUCCCESS)
+            if(claims.economyProvider.Withdraw(city.MoneyAccountName, (decimal)claims.config.PLOT_CLAIM_PRICE) != MoneyOperationResult.Success)
             {
                 return TextCommandResult.Error("claims:economy_money_transaction_error");
             }
@@ -344,7 +345,7 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:max_amount_claimed");
             }
-            if (claims.economyHandler.getBalance(city.MoneyAccountName) < (decimal)claims.config.OUTPOST_PLOT_COST)
+            if (claims.economyProvider.GetBalance(city.MoneyAccountName) < (decimal)claims.config.OUTPOST_PLOT_COST)
             {
                 return TextCommandResult.Error("claims:not_enough_money");
             }
@@ -362,7 +363,7 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:too_close_to_forbidden_area");
             }
-            if (claims.economyHandler.withdraw(city.MoneyAccountName, (decimal)claims.config.OUTPOST_PLOT_COST).ResultState != caneconomy.src.implementations.OperationResult.EnumOperationResultState.SUCCCESS)
+            if (claims.economyProvider.Withdraw(city.MoneyAccountName, (decimal)claims.config.OUTPOST_PLOT_COST) != MoneyOperationResult.Success)
             {
                 return TextCommandResult.Error("claims:economy_money_transaction_error");
             }
@@ -414,7 +415,7 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:max_amount_claimed");
             }
-            if (claims.economyHandler.getBalance(city.MoneyAccountName) < (decimal)claims.config.EXTRA_PLOT_COST)
+            if (claims.economyProvider.GetBalance(city.MoneyAccountName) < (decimal)claims.config.EXTRA_PLOT_COST)
             {
                 return TextCommandResult.Error("claims:not_enough_money");
             }
@@ -423,7 +424,7 @@ namespace claims.src.commands
                 return TextCommandResult.Error("claims:too_close_to_another_city");
             }
 
-            if(claims.economyHandler.withdraw(city.MoneyAccountName, (decimal)claims.config.EXTRA_PLOT_COST).ResultState != caneconomy.src.implementations.OperationResult.EnumOperationResultState.SUCCCESS)
+            if(claims.economyProvider.Withdraw(city.MoneyAccountName, (decimal)claims.config.EXTRA_PLOT_COST) != MoneyOperationResult.Success)
             {
                 return TextCommandResult.Error("claims:economy_money_transaction_error");
             }
@@ -753,7 +754,7 @@ namespace claims.src.commands
                 return TextCommandResult.Success("claims:you_dont_have_city");
             }
             City city = playerInfo.City;
-            if (claims.economyHandler.getBalance(city.MoneyAccountName) < (decimal)claims.config.CITY_NAME_CHANGE_COST)
+            if (claims.economyProvider.GetBalance(city.MoneyAccountName) < (decimal)claims.config.CITY_NAME_CHANGE_COST)
             {
                 UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_NAME);
                 return TextCommandResult.Success("claims:not_enough_money");
@@ -761,7 +762,7 @@ namespace claims.src.commands
 
             if (city.rename((string)args.LastArg))
             {
-                if (claims.economyHandler.withdraw(playerInfo.City.MoneyAccountName, (decimal)claims.config.CITY_NAME_CHANGE_COST).ResultState == caneconomy.src.implementations.OperationResult.EnumOperationResultState.SUCCCESS)
+                if (claims.economyProvider.Withdraw(playerInfo.City.MoneyAccountName, (decimal)claims.config.CITY_NAME_CHANGE_COST) == MoneyOperationResult.Success)
                 {
                     return SuccessWithParams("claims:city_name_changed_to", new object[] { (string)args.LastArg });
                 }
@@ -2055,14 +2056,14 @@ namespace claims.src.commands
                 return tcr;
             }
 
-            if(claims.economyHandler.getBalance(playerInfo.Guid) < (decimal)claims.config.SUMMON_PAYMENT)
+            if(claims.economyProvider.GetBalance(playerInfo.Guid) < (decimal)claims.config.SUMMON_PAYMENT)
             {
                 tcr.StatusMessage = "claims:not_enough_money";
                 tcr.Status = EnumCommandStatus.Success;
                 return tcr;
             }
 
-            if (claims.economyHandler.withdraw(playerInfo.Guid, (decimal)claims.config.SUMMON_PAYMENT).ResultState != caneconomy.src.implementations.OperationResult.EnumOperationResultState.SUCCCESS)
+            if (claims.economyProvider.Withdraw(playerInfo.Guid, (decimal)claims.config.SUMMON_PAYMENT) != MoneyOperationResult.Success)
             {
                 return TextCommandResult.Error("claims:economy_money_transaction_error");
             }

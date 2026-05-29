@@ -83,12 +83,15 @@ namespace claims.src.gui.playerGui.GuiPages
                     }
                 }, uninviteCityButtonBounds);
 
-                currentBounds = currentBounds.BelowCopy(0, 5);
+                if (claims.config.SELECTED_ECONOMY_HANDLER == "VIRTUAL_MONEY")
+                {
+                    currentBounds = currentBounds.BelowCopy(0, 5);
 
-                compo.AddStaticText(Lang.Get("claims:gui-alliance-balance", clientInfo.AllianceInfo.Balance),
-                       CairoFont.ButtonText(),
-                       EnumTextOrientation.Left,
-                       currentBounds, "allianceBalance");
+                    compo.AddStaticText(Lang.Get("claims:gui-alliance-balance", clientInfo.AllianceInfo.Balance),
+                           CairoFont.ButtonText(),
+                           EnumTextOrientation.Left,
+                           currentBounds, "allianceBalance");
+                }
 
                 currentBounds = currentBounds.BelowCopy(0, 5);
 

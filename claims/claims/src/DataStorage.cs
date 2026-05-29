@@ -154,6 +154,11 @@ namespace claims.src
             }
             return false;
         }
+        public bool changePlayerName(PlayerInfo player, string newName)
+        {
+            nameToPlayerDict.TryRemove(player.GetPartName(), out _);
+            return nameToPlayerDict.TryAdd(newName, player);
+        }
         public ConcurrentDictionary<string, PlayerInfo> getPlayersDict()
         {
             return uidToPlayerDict;

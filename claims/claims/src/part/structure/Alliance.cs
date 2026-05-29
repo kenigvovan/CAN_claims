@@ -117,8 +117,9 @@ namespace claims.src.part.structure
                 "[" + this.getPartNameReplaceUnder() + "]\n",
                 Lang.Get("claims:main_city") + this.MainCity.getPartNameReplaceUnder() + "\n",
                 StringFunctions.makeFeasibleStringFromNames(StringFunctions.getNamesOfCities(Lang.Get("claims:cities"), Cities), ',') + "\n",
-                Lang.Get("claims:bank_status") + claims.economyHandler.getBalance(this.MoneyAccountName) + "\n"
             };
+            if (claims.economyProvider.SupportsPlayerWallet)
+                outList.Add(Lang.Get("claims:bank_status") + claims.economyProvider.GetBalance(this.MoneyAccountName) + "\n");
             if (this.Neutral)
             {
                 outList.Add(Lang.Get("claims:neutral") + "\n");

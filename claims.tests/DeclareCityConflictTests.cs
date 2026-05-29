@@ -1,8 +1,8 @@
 using System.Collections.Concurrent;
 using System.Reflection;
-using caneconomy.src.interfaces;
 using claims.src;
 using claims.src.auxialiry;
+using claims.src.economy;
 using claims.src.commands;
 using claims.src.gui.playerGui.structures;
 using claims.src.part;
@@ -30,7 +30,7 @@ namespace claims.tests
 
             claims.src.claims.dataStorage = _storageMock.Object;
             claims.src.claims.config = new Config();
-            claims.src.claims.economyHandler = new Mock<EconomyHandler>().Object;
+            claims.src.claims.economyProvider = new Mock<IMoneyProvider>().Object;
 
             Settings.blockedNames = new HashSet<string>();
 

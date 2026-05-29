@@ -1,5 +1,5 @@
-﻿using caneconomy.src.interfaces;
-using claims.src.agreement;
+﻿using claims.src.agreement;
+using claims.src.economy;
 using claims.src.auxialiry;
 using claims.src.citylog;
 using claims.src.delayed.cooldowns;
@@ -25,7 +25,7 @@ namespace claims.src.commands
         // ================= TEST HOOKS =================
 
         internal static IDataStorage Storage = claims.dataStorage;
-        internal static EconomyHandler Economy = claims.economyHandler;
+        internal static IMoneyProvider Economy = claims.economyProvider;
         internal static IConfig Config = claims.config;
 
         internal static Func<long> Now = () => TimeFunctions.getEpochSeconds();
@@ -86,7 +86,7 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error(Lang.Get("claims:should_be_mayor"));
             }
-            if ((claims.economyHandler.getBalance(city.MoneyAccountName) < (decimal)claims.config.NEW_ALLIANCE_COST))
+            if ((claims.economyProvider.GetBalance(city.MoneyAccountName) < (decimal)claims.config.NEW_ALLIANCE_COST))
             {
                 return TextCommandResult.Error(Lang.Get("claims:not_enough_money"));
             }
@@ -95,12 +95,12 @@ namespace claims.src.commands
                 {
                 if (playerInfo.hasCity() && !playerInfo.City.HasAlliance())
                 {
-                    if ((claims.economyHandler.getBalance(city.MoneyAccountName) < (decimal)claims.config.NEW_ALLIANCE_COST))
+                    if ((claims.economyProvider.GetBalance(city.MoneyAccountName) < (decimal)claims.config.NEW_ALLIANCE_COST))
                     {
                         MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:not_enough_money"));
                         return;
                     }
-                        claims.economyHandler.withdraw(city.MoneyAccountName, (decimal)claims.config.NEW_ALLIANCE_COST);
+                        claims.economyProvider.Withdraw(city.MoneyAccountName, (decimal)claims.config.NEW_ALLIANCE_COST);
                         PartInits.InitNewAlliance(playerInfo, name);
                         MessageHandler.sendGlobalMsg(Lang.Get("claims:new_alliance_created", playerInfo.GetPartName(), name));
                     }
@@ -378,7 +378,7 @@ namespace claims.src.commands
             }
             alliance = playerInfo.Alliance;
 
-            if (claims.economyHandler.getBalance(alliance.MoneyAccountName) < (decimal)claims.config.ALLIANCE_RENAME_COST)
+            if (claims.economyProvider.GetBalance(alliance.MoneyAccountName) < (decimal)claims.config.ALLIANCE_RENAME_COST)
             {
                 return TextCommandResult.Success(Lang.Get("claims:not_enough_money"));
             }
@@ -392,7 +392,7 @@ namespace claims.src.commands
                 else
                 {
                     CooldownHandler.addCooldown(alliance, new CooldownInfo(TimeFunctions.getEpochSeconds() + claims.config.SECONDS_ALLIANCE_RENAME_COOLDOWN, CooldownType.RENAMING));
-                    claims.economyHandler.withdraw(alliance.MoneyAccountName, (decimal)claims.config.ALLIANCE_RENAME_COST);
+                    claims.economyProvider.Withdraw(alliance.MoneyAccountName, (decimal)claims.config.ALLIANCE_RENAME_COST);
                     alliance.SetPartName(name);
                     alliance.saveToDatabase();
                     UsefullPacketsSend.AddToQueueAllianceInfoUpdate(alliance.Guid, new Dictionary<string, object> { { "value", alliance.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_NAME);

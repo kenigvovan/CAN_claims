@@ -1,5 +1,6 @@
 ﻿using claims.src.agreement;
 using claims.src.auxialiry;
+using claims.src.economy;
 using claims.src.gui.playerGui.structures;
 using claims.src.messages;
 using claims.src.part;
@@ -90,7 +91,7 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:has_plot_group");
             }
-            if (plot.Price > (double)claims.economyHandler.getBalance(playerInfo.Guid))
+            if (plot.Price > (double)claims.economyProvider.GetBalance(playerInfo.Guid))
             {
                 return TextCommandResult.Error("claims:not_enough_money");
             }
@@ -99,29 +100,8 @@ namespace claims.src.commands
                 //Save price localy or do not move after we change plot price
                 decimal savedPrice = (decimal)plot.Price;
 
-                bool paymentSuccessfull = false;
-                if(caneconomy.caneconomy.config.SELECTED_ECONOMY_HANDLER == "REAL_MONEY")
-                {
-                    var withdrawState = claims.economyHandler.withdraw(playerInfo.MoneyAccountName, (decimal)plot.Price);
-
-                    if(withdrawState.ResultState != caneconomy.src.implementations.OperationResult.EnumOperationResultState.SUCCCESS)
-                    {
-                        return TextCommandResult.Error("claims:economy_money_transaction_error");
-                    }
-                    var depositState = claims.economyHandler.deposit(plot.getCity().MoneyAccountName, (decimal)plot.Price);
-
-                    if (depositState.ResultState != caneconomy.src.implementations.OperationResult.EnumOperationResultState.SUCCCESS)
-                    {
-                        claims.economyHandler.deposit(playerInfo.MoneyAccountName, (decimal)plot.Price);
-                        return TextCommandResult.Error("claims:economy_money_transaction_error");
-                    }
-                    paymentSuccessfull = true;
-                }
-                else
-                {
-                    paymentSuccessfull = claims.economyHandler.depositFromAToB(playerInfo.MoneyAccountName, plot.getCity().MoneyAccountName, (decimal)plot.Price).ResultState
-                    == caneconomy.src.implementations.OperationResult.EnumOperationResultState.SUCCCESS;
-                }
+                bool paymentSuccessfull = claims.economyProvider.Transfer(playerInfo.MoneyAccountName, plot.getCity().MoneyAccountName, (decimal)plot.Price)
+                    == MoneyOperationResult.Success;
                 if (paymentSuccessfull)
                 {
                     plot.Price = -1;

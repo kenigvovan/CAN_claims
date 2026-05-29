@@ -20,9 +20,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="caneconomy">
-      <HintPath>..\..\libs\caneconomy.dll</HintPath>
-    </Reference>
     <Reference Include="VintagestoryAPI">
       <HintPath>..\..\..\..\AppData\Roaming\Vintagestory\VintagestoryAPI.dll</HintPath>
     </Reference>

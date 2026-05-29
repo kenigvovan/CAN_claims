@@ -36,20 +36,8 @@ namespace claims.src.events
                 world = new WorldInfo(claims.sapi.World.Seed.ToString(), Guid.NewGuid().ToString());
                 world.saveToDatabase();
             }
-            claims.config.SELECTED_ECONOMY_HANDLER = caneconomy.caneconomy.config.SELECTED_ECONOMY_HANDLER;
-            if (caneconomy.caneconomy.config.SELECTED_ECONOMY_HANDLER == "REAL_MONEY")
-            {
-                claims.economyHandler = caneconomy.caneconomy.getHandler();
-                //new RealMoneyEconomyHandler();
-                caneconomy.caneconomy.OnBlockRemovedBlockEntityOpenableContainer += OnEconomyActions.OnBlockRemoved;
-                caneconomy.caneconomy.OnReceivedClientPacketBlockEntitySign += OnEconomyActions.OnButtonSave;
-            }
-
-            if (caneconomy.caneconomy.config.SELECTED_ECONOMY_HANDLER == "VIRTUAL_MONEY")
             {
                 var parsers = claims.sapi.ChatCommands.Parsers;
-                claims.economyHandler = caneconomy.caneconomy.getHandler();
-                   // new VirtualMoneyEconomyHandler();
 
                 claims.sapi.ChatCommands.Get("city")
                                             .BeginSub("balance")

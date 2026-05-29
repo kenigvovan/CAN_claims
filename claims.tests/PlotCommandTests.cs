@@ -1,7 +1,6 @@
-﻿using caneconomy.src.implementations;
-using caneconomy.src.interfaces;
-using claims.src;
+﻿using claims.src;
 using claims.src.auxialiry;
+using claims.src.economy;
 using claims.src.commands;
 using claims.src.part;
 using claims.src.part.structure;
@@ -20,7 +19,7 @@ namespace claims.tests
     {
         private readonly ITestOutputHelper _output;
         private Mock<DataStorage> _storageMock;
-        private Mock<EconomyHandler> _economyMock;
+        private Mock<IMoneyProvider> _economyMock;
         private Mock<IServerPlayer> _playerMock;
         private DataStorage realDataStorage;
 
@@ -32,11 +31,11 @@ namespace claims.tests
         {
             // Pass false to use the client-side constructor branch (no game API calls)
             _storageMock = new Mock<DataStorage>(false);
-            _economyMock = new Mock<EconomyHandler>();
+            _economyMock = new Mock<IMoneyProvider>();
             _playerMock = new Mock<IServerPlayer>();
 
             claims.src.claims.dataStorage = _storageMock.Object;
-            claims.src.claims.economyHandler = _economyMock.Object;
+            claims.src.claims.economyProvider = _economyMock.Object;
 
             _playerMock.Setup(p => p.PlayerUID).Returns(TestPlayerUid);
             _output = output;

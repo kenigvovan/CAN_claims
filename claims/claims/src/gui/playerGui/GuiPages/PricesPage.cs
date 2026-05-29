@@ -18,7 +18,7 @@ namespace claims.src.gui.playerGui.GuiPages
             currentBounds.fixedY += 15;
             string currencyStr = Lang.Get("claims:gui-currency-item");
             TextExtents textExtents;
-            if (caneconomy.caneconomy.config != null && caneconomy.caneconomy.config.EXTENDED_COINS_VALUES_TO_CODE_PRIVATE.Count > 0) 
+            if (claims.config.COINS_VALUES_TO_CODE != null && claims.config.COINS_VALUES_TO_CODE.Count > 0)
             {
                 var tempBound = currentBounds;
                 textExtents = pricesTabFont.GetTextExtents(currencyStr);
@@ -26,26 +26,16 @@ namespace claims.src.gui.playerGui.GuiPages
                 compo.AddStaticText(currencyStr,
                        pricesTabFont,
                        tempBound, "currency-item");
-                foreach (var it in caneconomy.caneconomy.config.EXTENDED_COINS_VALUES_TO_CODE_PRIVATE)
+                foreach (var it in claims.config.COINS_VALUES_TO_CODE)
                 {
-                    var coinData = it.Value;
-                    //currencyStr = coinData.CollectibleCode;
-                   
+                    string collectibleCode = it.Value;
+
                     tempBound = tempBound.RightCopy();
                     tempBound.fixedWidth = 48;
-                    //tempBound.fixedY -= 10;
 
-                    ItemStack coin = new ItemStack(compo.Api.World.GetItem(new AssetLocation(coinData.CollectibleCode)), 1);
-                    if (coinData.CoinAttributes != null)
-                    {
-                        var attributeTree = new TreeAttribute();
-                        foreach (var attr in coinData.CoinAttributes)
-                        {
-                            coin.Attributes[attr.Key] = attr.Value;
-                        }
-                    }
+                    ItemStack coin = new ItemStack(compo.Api.World.GetItem(new AssetLocation(collectibleCode)), 1);
                     ItemstackTextComponent currencyStack = new ItemstackTextComponent(compo.Api, coin, 48);
-                    compo.AddRichtext(new RichTextComponentBase[] { currencyStack }, tempBound, "coin-item" + coinData.CollectibleCode);                  
+                    compo.AddRichtext(new RichTextComponentBase[] { currencyStack }, tempBound, "coin-item" + collectibleCode);
                 }
                 currentBounds = currentBounds.BelowCopy(0, 0);
             }

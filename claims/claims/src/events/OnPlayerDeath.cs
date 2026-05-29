@@ -17,9 +17,9 @@ namespace claims.src.events
         {
             claims.dataStorage.GetPlayerByUid(byPlayer.PlayerUID, out PlayerInfo playerInfo);
 
-            if (!playerInfo.isPrisoned() && damageSource != null && damageSource.SourceEntity != null && damageSource.SourceEntity is EntityPlayer)
+            if (!playerInfo.isPrisoned() && damageSource != null && damageSource.SourceEntity is EntityPlayer attackerEntity)
             {
-                claims.dataStorage.getPlayerByName(damageSource.SourceEntity.GetName(), out PlayerInfo attackerPlayerInfo);
+                claims.dataStorage.GetPlayerByUid(attackerEntity.PlayerUID, out PlayerInfo attackerPlayerInfo);
                 tryToPrison(damageSource.SourceEntity, byPlayer, playerInfo, attackerPlayerInfo);
                 if (playerInfo.isPrisoned())
                 {

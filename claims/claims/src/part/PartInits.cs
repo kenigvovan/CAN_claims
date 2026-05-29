@@ -106,10 +106,7 @@ namespace claims.src.part
 
                 }, player as IServerPlayer);
             }
-            if (caneconomy.caneconomy.config.SELECTED_ECONOMY_HANDLER == "VIRTUAL_MONEY")
-            {
-                claims.economyHandler.newAccount(city.MoneyAccountName, new Dictionary<string, object> { { "lastknownname", city.GetPartName() } });
-            }
+            claims.economyProvider.NewAccount(city.MoneyAccountName, new Dictionary<string, object> { { "lastknownname", city.GetPartName() } });
             return;
         }
         public static void initPrison(Plot plot, City city, IServerPlayer creator)
@@ -165,10 +162,7 @@ namespace claims.src.part
             creator.City.Alliance = newAlliace;
             newAlliace.TimeStampCreated = TimeFunctions.getEpochSeconds();
             Alliance.FireAllianceCreated(newAlliace);
-            if (caneconomy.caneconomy.config.SELECTED_ECONOMY_HANDLER == "VIRTUAL_MONEY")
-            {
-                claims.economyHandler.newAccount(newAlliace.MoneyAccountName, new Dictionary<string, object> { { "lastknownname", newAlliace.GetPartName() } });
-            }
+            claims.economyProvider.NewAccount(newAlliace.MoneyAccountName, new Dictionary<string, object> { { "lastknownname", newAlliace.GetPartName() } });
             foreach (var city in newAlliace.Cities)
             {
                 foreach (var it in city.getCityCitizens())

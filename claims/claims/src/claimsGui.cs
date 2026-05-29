@@ -18,6 +18,7 @@ namespace claims.src
         public static LoadedTexture myTex = null;
         public static int active_button = 0;
         public static int svgid = 0;
+        public static bool showBalanceHud = false;
         private ImGuiModSystem imguiSys;
         private IconHandler iconHandler;
         private TabDrawHandler tabDrawHandler;
@@ -55,6 +56,17 @@ namespace claims.src
             imageHandler = new ImageHandler(api);
             tabDrawHandler = new TabDrawHandler(api, iconHandler);
             secondaryTabDrawHandler = new SecondaryTabDrawHandler(api, iconHandler);
+            if (claims.config?.BalanceHudOverride.HasValue == true)
+                showBalanceHud = claims.config.BalanceHudOverride.Value;
+            api.ChatCommands.Create("claimshud")
+                .WithDescription("Toggle balance HUD")
+                .HandleWith(args =>
+                {
+                    showBalanceHud = !showBalanceHud;
+                    claims.config.BalanceHudOverride = showBalanceHud;
+                    api.StoreModConfig(claims.config, "claims.json");
+                    return TextCommandResult.Success("Balance HUD: " + (showBalanceHud ? "on" : "off"));
+                });
             api.Event.LevelFinalize += () =>
             {
                 api.ModLoader.GetModSystem<ImGuiModSystem>().Draw += Draw;
@@ -64,6 +76,8 @@ namespace claims.src
         private CallbackGUIStatus DrawBalanceHUD(float deltaSeconds)
         {
             if (claims.config?.SELECTED_ECONOMY_HANDLER != "VIRTUAL_MONEY")
+                return CallbackGUIStatus.DontGrabMouse;
+            if (!showBalanceHud)
                 return CallbackGUIStatus.DontGrabMouse;
             var clientInfo = claims.clientDataStorage?.clientPlayerInfo;
             if (clientInfo == null)
@@ -159,8 +173,16 @@ namespace claims.src
             ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.1f, 0.3f, 0.7f, 1.0f));
             ImGui.PopStyleColor(3);
 
-            string[] labels = { "qaitbay-citadel", "magnifying-glass", "price-tag", "flat-platform", "prisoner", "magic-portal", "huts-village" };
-            string[] labelsToolTips = { "gui-city-tooltip", "gui-citizen-info-tooltip", "gui-prices-tooltip", "gui-plot-tooltip", "gui-prison-tooltip", "gui-summon-tooltip", "gui-plotsgroup-tooltip" };
+            bool economyEnabled = !string.IsNullOrEmpty(claims.config?.SELECTED_ECONOMY_HANDLER);
+            string[] labels = economyEnabled
+                ? new[] { "qaitbay-citadel", "magnifying-glass", "price-tag", "flat-platform", "prisoner", "magic-portal", "huts-village" }
+                : new[] { "qaitbay-citadel", "magnifying-glass", "flat-platform", "prisoner", "magic-portal", "huts-village" };
+            string[] labelsToolTips = economyEnabled
+                ? new[] { "gui-city-tooltip", "gui-citizen-info-tooltip", "gui-prices-tooltip", "gui-plot-tooltip", "gui-prison-tooltip", "gui-summon-tooltip", "gui-plotsgroup-tooltip" }
+                : new[] { "gui-city-tooltip", "gui-citizen-info-tooltip", "gui-plot-tooltip", "gui-prison-tooltip", "gui-summon-tooltip", "gui-plotsgroup-tooltip" };
+            var tabOrder = economyEnabled
+                ? new[] { EnumSelectedTab.CITY, EnumSelectedTab.PLAYER, EnumSelectedTab.PRICES, EnumSelectedTab.PLOT, EnumSelectedTab.PRISON, EnumSelectedTab.SUMMON, EnumSelectedTab.PlotsGroup }
+                : new[] { EnumSelectedTab.CITY, EnumSelectedTab.PLAYER, EnumSelectedTab.PLOT, EnumSelectedTab.PRISON, EnumSelectedTab.SUMMON, EnumSelectedTab.PlotsGroup };
               var newTexture = capi.Render.GetOrLoadTexture(assetPath);
 
             var draw = ImGui.GetWindowDrawList();
@@ -178,9 +200,9 @@ namespace claims.src
             );*/
             //ImGui.ImageButton("c", guiTex.TextureId, new Vector2(120));
             //int te = capi.Assets
-            for (int i = 0; i < 7; i++)
+            for (int i = 0; i < labels.Length; i++)
             {
-                
+
                 ImGui.PushID(i);
 
                 if (active_button == i)
@@ -189,7 +211,7 @@ namespace claims.src
                 if (ImGui.ImageButton("", this.iconHandler.GetOrLoadIcon(labels[i]), new Vector2(60)))
                 {
                     active_button = i;
-                    selectedTab = (EnumSelectedTab)i;
+                    selectedTab = tabOrder[i];
                 }
 
                 if (active_button == i)

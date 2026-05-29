@@ -1,4 +1,5 @@
 ﻿using claims.src.auxialiry;
+using claims.src.economy;
 using claims.src.messages;
 using claims.src.part;
 using claims.src.part.structure;
@@ -83,7 +84,7 @@ namespace claims.src.timers
         public static void processCityCare(City city)
         {
             decimal sumToPay = (decimal)city.GetDayPaymentAmount();
-            if (claims.economyHandler.getBalance(city.MoneyAccountName) < sumToPay + (decimal)city.DebtBalance) 
+            if (claims.economyProvider.GetBalance(city.MoneyAccountName) < sumToPay + (decimal)city.DebtBalance)
             {
                 city.DebtBalance += (double)sumToPay;
 
@@ -102,7 +103,7 @@ namespace claims.src.timers
                 {
                     return;
                 }
-                if(claims.economyHandler.withdraw(city.MoneyAccountName, Math.Floor(sumToPay) + (decimal)city.DebtBalance).ResultState == caneconomy.src.implementations.OperationResult.EnumOperationResultState.SUCCCESS )
+                if(claims.economyProvider.Withdraw(city.MoneyAccountName, Math.Floor(sumToPay) + (decimal)city.DebtBalance) == MoneyOperationResult.Success )
                 {
                     if (city.DebtBalance > 0)
                     {
@@ -112,7 +113,7 @@ namespace claims.src.timers
                 }
             }
             claims.sapi.Logger.Debug(string.Format("[claims] processCityCare, withdrew {0} from city {1} account. Balance after is {2}, debt is {3}.",
-                sumToPay, city.GetPartName(), claims.economyHandler.getBalance(city.MoneyAccountName), city.DebtBalance));
+                sumToPay, city.GetPartName(), claims.economyProvider.GetBalance(city.MoneyAccountName), city.DebtBalance));
             city.saveToDatabase();
         }
         public static void ProcessAllianceCare(Alliance alliance)
@@ -124,13 +125,13 @@ namespace claims.src.timers
                 toPay += claims.config.NEUTRAL_ALLANCE_PAYMENT;
             }
 
-            if (claims.economyHandler.getBalance(alliance.MoneyAccountName) < (decimal)toPay)
+            if (claims.economyProvider.GetBalance(alliance.MoneyAccountName) < (decimal)toPay)
             {
                 toDeleteAlliancies.Add(alliance);
             }
             else
             {
-                claims.economyHandler.withdraw(alliance.MoneyAccountName, (decimal)claims.config.ALLIANCE_BASE_CARE);
+                claims.economyProvider.Withdraw(alliance.MoneyAccountName, (decimal)claims.config.ALLIANCE_BASE_CARE);
             }
         } 
         public static void processCitiesFee()
@@ -225,7 +226,7 @@ namespace claims.src.timers
                     {
                         continue;
                     }
-                    if (claims.economyHandler.getBalance(it.MoneyAccountName) < toPay)
+                    if (claims.economyProvider.GetBalance(it.MoneyAccountName) < toPay)
                     {
                         //WE DELETE PLAYER FROM EVERY PLOTGROUP IN THIS CITY
                         foreach(CityPlotsGroup cpg in city.getCityPlotsGroups())
@@ -267,17 +268,7 @@ namespace claims.src.timers
                     }
                     else
                     {
-                        bool paymentSuccessfull = false;
-                        if (caneconomy.caneconomy.config.SELECTED_ECONOMY_HANDLER == "REAL_MONEY")
-                        {
-                            var withdrawState = claims.economyHandler.withdraw(it.MoneyAccountName, (decimal)toPay);
-                            var depositState = claims.economyHandler.deposit(city.MoneyAccountName, (decimal)toPay);
-                            paymentSuccessfull = true;
-                        }
-                        else
-                        {
-                            paymentSuccessfull = claims.economyHandler.depositFromAToB(it.MoneyAccountName, city.MoneyAccountName, toPay).ResultState == caneconomy.src.implementations.OperationResult.EnumOperationResultState.SUCCCESS;
-                        }
+                        bool paymentSuccessfull = claims.economyProvider.Transfer(it.MoneyAccountName, city.MoneyAccountName, toPay) == MoneyOperationResult.Success;
                         if (paymentSuccessfull)
                         {
                             MessageHandler.sendMsgToPlayerInfo(it, Lang.Get("claims:you_paid_fee_to_city", toPay.ToString(), city.getPartNameReplaceUnder()));
@@ -301,25 +292,14 @@ namespace claims.src.timers
                 {
                     foreach (City city in alliance.Cities.ToArray())
                     {
-                        if (claims.economyHandler.getBalance(city.MoneyAccountName) < alliance.AllianceFee)
+                        if (claims.economyProvider.GetBalance(city.MoneyAccountName) < alliance.AllianceFee)
                         {
                             alliance.Cities.Remove(city);
                             MessageHandler.SendMsgInAlliance(alliance, Lang.Get("claims:city_kicked_from_alliance_no_fee", city.getPartNameReplaceUnder()));
                         }
                         else
                         {
-                            bool paymentSuccessfull = false;
-                            if (caneconomy.caneconomy.config.SELECTED_ECONOMY_HANDLER == "REAL_MONEY")
-                            {
-                                var withdrawState = claims.economyHandler.withdraw(city.MoneyAccountName, (decimal)alliance.AllianceFee);
-                                var depositState = claims.economyHandler.deposit(alliance.MoneyAccountName, (decimal)alliance.AllianceFee);
-                                paymentSuccessfull = true;
-                            }
-                            else
-                            {
-                                claims.economyHandler.depositFromAToB(city.MoneyAccountName, alliance.MoneyAccountName, alliance.AllianceFee);
-                            }
-                            //claims.economyHandler.depositFromAToB(city.MoneyAccountName, alliance.MoneyAccountName, alliance.AllianceFee);
+                            claims.economyProvider.Transfer(city.MoneyAccountName, alliance.MoneyAccountName, (decimal)alliance.AllianceFee);
                         }
                     }
                 }

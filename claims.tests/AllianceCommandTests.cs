@@ -1,7 +1,7 @@
 ﻿using System.Reflection;
 using System.Runtime.Serialization;
-using caneconomy.src.interfaces;
 using claims.src;
+using claims.src.economy;
 using claims.src.auxialiry;
 using claims.src.commands;
 using claims.src.part;
@@ -16,7 +16,7 @@ namespace claims.tests
     public class AllianceCommandTests
     {
         private readonly Mock<DataStorage> _storageMock;
-        private readonly Mock<EconomyHandler> _economyMock;
+        private readonly Mock<IMoneyProvider> _economyMock;
         private readonly Mock<IServerPlayer> _playerMock;
 
         private const string TestPlayerUid = "alliance-test-uid";
@@ -25,11 +25,11 @@ namespace claims.tests
         public AllianceCommandTests()
         {
             _storageMock = new Mock<DataStorage>(false);
-            _economyMock = new Mock<EconomyHandler>();
+            _economyMock = new Mock<IMoneyProvider>();
             _playerMock = new Mock<IServerPlayer>();
 
             claims.src.claims.dataStorage = _storageMock.Object;
-            claims.src.claims.economyHandler = _economyMock.Object;
+            claims.src.claims.economyProvider = _economyMock.Object;
             claims.src.claims.config = new Config();
 
             // Filter.checkForBlockedNames requires Settings.blockedNames to be initialized

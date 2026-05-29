@@ -129,29 +129,38 @@ namespace claims.src.gui.playerGui
             
             mainBounds.WithChildren(currentBounds);
             currentBounds.fixedY += 15;
-            ElementBounds cityButtonBounds = currentBounds.FlatCopy().WithAlignment(EnumDialogArea.LeftTop).WithFixedSize(48, 48);
-            cityButtonBounds.fixedX += 5;
-            ElementBounds playerButtonBounds = cityButtonBounds.RightCopy(25);
-            ElementBounds pricesButtonBounds = playerButtonBounds.RightCopy(25);
-            ElementBounds plotButtonBounds = pricesButtonBounds.RightCopy(25);
-            ElementBounds prisonButtonBounds = plotButtonBounds.RightCopy(25);
-            ElementBounds summonButtonBounds = prisonButtonBounds.RightCopy(25);
-            ElementBounds plotsGroupButtonBounds = summonButtonBounds.RightCopy(25);
-            SingleComposer.AddIconToggleButtons([ "claims:qaitbay-citadel", "claims:magnifying-glass",
-                                                               "claims:price-tag", "claims:flat-platform",
-                                                               "claims:prisoner", "claims:magic-portal",
-                                                               "claims:huts-village"        ],
+            bool economyEnabled = !string.IsNullOrEmpty(claims.config?.SELECTED_ECONOMY_HANDLER);
+
+            var tabIcons = new System.Collections.Generic.List<string> { "claims:qaitbay-citadel", "claims:magnifying-glass" };
+            tabsOrder = new System.Collections.Generic.List<EnumSelectedTab> { EnumSelectedTab.City, EnumSelectedTab.Player };
+            if (economyEnabled)
+            {
+                tabIcons.Add("claims:price-tag");
+                tabsOrder.Add(EnumSelectedTab.Prices);
+            }
+            tabIcons.AddRange(new[] { "claims:flat-platform", "claims:prisoner", "claims:magic-portal", "claims:huts-village" });
+            tabsOrder.AddRange(new[] { EnumSelectedTab.Plot, EnumSelectedTab.Prison, EnumSelectedTab.Summon, EnumSelectedTab.PlotsGroup });
+
+            var tabBounds = new System.Collections.Generic.List<ElementBounds>();
+            ElementBounds prev = currentBounds.FlatCopy().WithAlignment(EnumDialogArea.LeftTop).WithFixedSize(48, 48);
+            prev.fixedX += 5;
+            tabBounds.Add(prev);
+            for (int i = 1; i < tabIcons.Count; i++)
+            {
+                prev = prev.RightCopy(25);
+                tabBounds.Add(prev);
+            }
+
+            SingleComposer.AddIconToggleButtons(tabIcons.ToArray(),
                                                 CairoFont.ButtonText(),
                                                 OnTabToggled,
-                                                [ cityButtonBounds, playerButtonBounds,
-                                                                      pricesButtonBounds, plotButtonBounds,
-                                                                      prisonButtonBounds, summonButtonBounds,
-                                                                      plotsGroupButtonBounds],
+                                                tabBounds.ToArray(),
                                                 "selectedTab");
 
-            if (SingleComposer.GetToggleButton("selectedTab-" + (int)SelectedTab) != null)
+            int selectedIdx = tabsOrder.IndexOf(SelectedTab);
+            if (selectedIdx >= 0 && SingleComposer.GetToggleButton("selectedTab-" + selectedIdx) != null)
             {
-                SingleComposer.GetToggleButton("selectedTab-" + (int)SelectedTab).SetValue(true);
+                SingleComposer.GetToggleButton("selectedTab-" + selectedIdx).SetValue(true);
             }
             
             var lineBounds = currentBounds.BelowCopy(0, 20).WithFixedHeight(5);
@@ -1798,9 +1807,11 @@ namespace claims.src.gui.playerGui
                 }
             ).Compose();
         }
+        private System.Collections.Generic.List<EnumSelectedTab> tabsOrder = new();
         public void OnTabToggled(int tabIndex)
         {
-            SelectedTab = (EnumSelectedTab)tabIndex;
+            if (tabIndex < 0 || tabIndex >= tabsOrder.Count) return;
+            SelectedTab = tabsOrder[tabIndex];
             BuildMainWindow();
         }
         public void OnSelectedNameFromDropDown(string code, bool selected)

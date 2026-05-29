@@ -176,6 +176,9 @@ namespace claims.src.network.handlers
                 claims.config.SELECTED_ECONOMY_HANDLER = packet.SELECTED_ECONOMY_HANDLER;
                 claims.config.GUI_SHOW_DEBT = packet.GUI_SHOW_DEBT;
                 claims.config.CITY_AREA_VISIBILITY_STATE = packet.CITY_AREA_VISIBILITY_STATE;
+                claims.config.SHOW_BALANCE_HUD_DEFAULT = packet.SHOW_BALANCE_HUD_DEFAULT;
+                if (!claims.config.BalanceHudOverride.HasValue)
+                    claimsGui.showBalanceHud = packet.SHOW_BALANCE_HUD_DEFAULT;
                 if (claims.config.AVAILABLE_CITY_PERMISSIONS == null)
                 {
                     claims.config.AVAILABLE_CITY_PERMISSIONS = new();
