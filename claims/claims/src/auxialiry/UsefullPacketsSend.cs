@@ -320,9 +320,12 @@ namespace claims.src.auxialiry
                         }
                     }
 
-                    var mergedCollector = playerCollector.Count > 0 
-                                                                ? collector.Union(playerCollector).ToDictionary(kv => kv.Key, kv => kv.Value) 
-                                                                : collector;
+                    if (playerCollector.Count > 0)
+                    {
+                        foreach (var kv in playerCollector)
+                            collector.TryAdd(kv.Key, kv.Value);
+                    }
+                    var mergedCollector = collector;
 
                     claims.serverChannel.SendPacket(
                         new SavedPlotsPacket
@@ -426,7 +429,7 @@ namespace claims.src.auxialiry
                     {
                         foreach (var it in toUpdate)
                         {
-                            cityHashSet.Add(it, null);
+                            cityHashSet.TryAdd(it, null);
                         }
                     }
                     else
@@ -574,7 +577,8 @@ namespace claims.src.auxialiry
                             result[pair.Key] = JsonConvert.SerializeObject(city.CustomCityRanks);
                             break;
                         case EnumPlayerRelatedInfo.ALLIANCE_BALANCE:
-                            result[pair.Key] = claims.economyProvider.GetBalance(city.Alliance.MoneyAccountName).ToString();
+                            if (city.Alliance != null)
+                                result[pair.Key] = claims.economyProvider.GetBalance(city.Alliance.MoneyAccountName).ToString();
                             break;
                         case EnumPlayerRelatedInfo.CITY_DAY_PAYMENT:
                             result[pair.Key] = city.GetDayPaymentAmount().ToString();

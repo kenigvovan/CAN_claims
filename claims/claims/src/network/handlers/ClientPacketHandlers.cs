@@ -133,7 +133,6 @@ namespace claims.src.network.handlers
                             claims.clientDataStorage.clientPlayerInfo.CityInfo = new CityInfo();
                         }
                         claims.clientDataStorage.clientPlayerInfo.AcceptChangedValues(someUpdateDict);
-                        claims.clientDataStorage.clientPlayerInfo.ReceivedInvitations.Clear();
                         if (claims.CANCityGui?.IsOpened() ?? false)
                         {
                             if(claims.CANCityGui.SelectedTab == gui.playerGui.CANClaimsGui.EnumSelectedTab.ConflictInfoPage)

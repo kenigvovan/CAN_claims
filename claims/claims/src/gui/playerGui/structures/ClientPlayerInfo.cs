@@ -107,6 +107,7 @@ namespace claims.src.gui.playerGui.structures
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_LOG, OnCityLog);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_PLOTS_MAP, OnCityPlotsMap);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.PLAYER_BALANCE, OnPlayerBalance);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_BALANCE, OnAllianceBalance);
         }
         public ClientPlayerInfo(string cityName, string mayorName, long timeStampCreated, List<string> citizens, Dictionary<string, int> maxCountPlots, int countPlots, string prefix,
             string afterName, HashSet<string> cityTitles, EnumShowPlotMovement showPlotMovement, int PlotColor, double cityBalance, List<string> criminals)
@@ -746,6 +747,11 @@ namespace claims.src.gui.playerGui.structures
             double.TryParse(val, System.Globalization.NumberStyles.Any,
                 System.Globalization.CultureInfo.InvariantCulture, out double balance);
             PlayerBalance = balance;
+        }
+        private void OnAllianceBalance(string val)
+        {
+            if (AllianceInfo != null)
+                AllianceInfo.Balance = (double)decimal.Parse(val, CultureInfo.InvariantCulture);
         }
         private void OnCityDayPayment(string val)
         {

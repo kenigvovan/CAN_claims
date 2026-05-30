@@ -90,6 +90,7 @@ namespace claims.src.timers
         public static void processCityCare(City city)
         {
             decimal sumToPay = (decimal)city.GetDayPaymentAmount();
+            string capturedGuid = city.Guid;
             if (claims.economyProvider.GetBalance(city.MoneyAccountName) < sumToPay + (decimal)city.DebtBalance)
             {
                 city.DebtBalance += (double)sumToPay;
@@ -101,7 +102,8 @@ namespace claims.src.timers
                         toDeleteCities.Add((city, Lang.Get("claims:city_delete_reason_debt_is_too_high", city.DebtBalance)));
                     }
                 }
-                UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, gui.playerGui.structures.EnumPlayerRelatedInfo.CITY_DEBT);
+                claims.sapi.Event.RegisterCallback(_ =>
+                    UsefullPacketsSend.AddToQueueCityInfoUpdate(capturedGuid, gui.playerGui.structures.EnumPlayerRelatedInfo.CITY_DEBT), 0);
             }
             else
             {
@@ -115,7 +117,8 @@ namespace claims.src.timers
                     {
                         city.DebtBalance = 0;
                     }
-                    UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, gui.playerGui.structures.EnumPlayerRelatedInfo.CITY_DEBT);
+                    claims.sapi.Event.RegisterCallback(_ =>
+                        UsefullPacketsSend.AddToQueueCityInfoUpdate(capturedGuid, gui.playerGui.structures.EnumPlayerRelatedInfo.CITY_DEBT), 0);
                 }
             }
             claims.sapi.Logger.Debug(string.Format("[claims] processCityCare, withdrew {0} from city {1} account. Balance after is {2}, debt is {3}.",

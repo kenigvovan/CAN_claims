@@ -13,7 +13,7 @@
       <Private>False</Private>
     </Reference>
     <Reference Include="ImGui.NET">
-      <HintPath>..\..\..\..\..\libs\ImGui.NET.dll</HintPath>
+      <HintPath>..\..\..\libs\1.22\ImGui.NET.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Microsoft.Data.Sqlite">
@@ -37,7 +37,7 @@
       <Private>false</Private>
     </Reference>
     <Reference Include="VSImGui">
-      <HintPath>..\..\..\..\..\libs\VSImGui.dll</HintPath>
+      <HintPath>..\..\..\libs\1.22\VSImGui.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="VSSurvivalMod">
