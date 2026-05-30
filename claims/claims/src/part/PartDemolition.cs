@@ -99,7 +99,8 @@ namespace claims.src.part
             TreeAttribute tree = new TreeAttribute();
             tree.SetInt("chX", plot.getPos().X);
             tree.SetInt("chZ", plot.getPos().Y);
-            tree.SetString("name", plot.getCity().GetPartName());
+            if (city != null)
+                tree.SetString("name", city.GetPartName());
             claims.sapi.World.Api.Event.PushEvent("plotunclaimed", tree);
         }
         public static void DemolishAlliance(Alliance alliance)
@@ -108,7 +109,12 @@ namespace claims.src.part
 
             foreach (Conflict conflict in claims.dataStorage.conflicts.ToArray())
             {
-                DemolishConflict(conflict, EnumConflictEndReason.AllianceDestroyed);
+                if (conflict.First.Equals(alliance) || conflict.Second.Equals(alliance) ||
+                    conflict.First.GetCities().Any(c => alliance.Cities.Contains(c)) ||
+                    conflict.Second.GetCities().Any(c => alliance.Cities.Contains(c)))
+                {
+                    DemolishConflict(conflict, EnumConflictEndReason.AllianceDestroyed);
+                }
             }
 
             //FOR HOSTILE ALLIANCE WE DELETE OUR CITIES FROM HOSTILES FOR THIER CITIES
@@ -154,6 +160,16 @@ namespace claims.src.part
         }
         public static void DemolishConflict(Conflict conflict, EnumConflictEndReason reason = EnumConflictEndReason.Peace)
         {
+            // Close active war window if conflict ends mid-battle
+            if (conflict.ActiveWarTime)
+            {
+                claims.dataStorage.WarsTimes.Remove(conflict.Guid);
+                conflict.ActiveWarTime = false;
+                RightsHandler.ClearPlayerCachesAndUpdatePlotSavedRightsForClients(conflict);
+            }
+            // Cancel pending start/end battle callbacks
+            events.ModConfigReady.startWarCallbacks.Remove(conflict.Guid);
+            events.ModConfigReady.endWarCallbacks.Remove(conflict.Guid);
             claims.dataStorage.TryRemoveConflict(conflict);
             foreach (City ourCity in conflict.First.GetCities())
             {

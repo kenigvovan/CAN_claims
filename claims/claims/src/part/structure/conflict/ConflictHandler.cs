@@ -21,7 +21,8 @@ namespace claims.src.part.structure.conflict
         }
         public static bool removeConflictLetter(IConflictParty from, IConflictParty to, LetterPurpose purpose)
         {
-            foreach (var it in conflictLettersList)
+            // ToArray() prevents InvalidOperationException from modifying HashSet during enumeration
+            foreach (var it in conflictLettersList.ToArray())
             {
                 if ((it.From.Equals(from) && it.To.Equals(to) && it.Purpose.Equals(purpose)) ||
                     (it.From.Equals(to) && it.To.Equals(from) && it.Purpose.Equals(purpose)))
@@ -47,8 +48,8 @@ namespace claims.src.part.structure.conflict
             {
                 if (letter.TimeStampExpire < now)
                 {
-                    //TODO
                     conflictLettersList.Remove(letter);
+                    letter.OnDeny?.Start();
                 }
             }
         }

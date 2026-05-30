@@ -64,7 +64,11 @@ namespace claims.src
                 {
                     showBalanceHud = !showBalanceHud;
                     claims.config.BalanceHudOverride = showBalanceHud;
-                    api.StoreModConfig(claims.config, "claims.json");
+                    // Load the file first so we only update BalanceHudOverride,
+                    // not overwrite server settings with the client's in-memory copy
+                    var savedCfg = api.LoadModConfig<Config>("claims.json") ?? new Config();
+                    savedCfg.BalanceHudOverride = showBalanceHud;
+                    api.StoreModConfig(savedCfg, "claims.json");
                     return TextCommandResult.Success("Balance HUD: " + (showBalanceHud ? "on" : "off"));
                 });
             api.Event.LevelFinalize += () =>
@@ -146,24 +150,6 @@ namespace claims.src
             ImGui.PushStyleColor(ImGuiCol.WindowBg, new Vector4(0.252f, 0.161f, 0.016f, 1f));
             ImGui.Begin("Claims", p_open: ref this.prettyGuiState.IsOpen,  flags1);
 
-            var assetPath = new AssetLocation("claims:textures/images/RWS_Tarot_18_Moon.jpg");
-            var asset = capi.Assets.TryGet(assetPath);
-            string p = "";
-            foreach(var it in capi.Assets.AllAssets)
-            {
-                if(it.Key.Path.Contains("Tarot"))
-                {
-                    var c = 3;
-                    asset = it.Value;
-                    p = it.Key;
-                }
-            }
-            LoadedTexture guiTex = new LoadedTexture(capi);
-
-            capi.Render.GetOrLoadTexture(
-                new AssetLocation("claims", "textures/RWS_Tarot_18_Moon.jpg"),
-                ref guiTex
-            );
             
 
 

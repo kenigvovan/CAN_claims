@@ -177,6 +177,14 @@ namespace claims.src.economy.bridge
                         MessageHandler.sendMsgToPlayer(player as IServerPlayer, Lang.Get("claims:economy_chest_bank_already_set_here"));
                         return;
                     }
+                    // Move bank to new chest location
+                    if (eh.accountExist(alliance.MoneyAccountName))
+                    {
+                        eh.deleteAccount(alliance.MoneyAccountName);
+                        MessageHandler.sendMsgToPlayer(player as IServerPlayer, Lang.Get("claims:economy_alliance_chest_bank_removed"));
+                    }
+                    eh.newAccount(alliance.MoneyAccountName, new Dictionary<string, object> { { "chestPos", new Vec3i(chestPos.X, chestPos.Y, chestPos.Z) } });
+                    MessageHandler.sendMsgToPlayer(player as IServerPlayer, Lang.Get("claims:economy_alliance_chest_bank_created"));
                 }
                 else
                 {

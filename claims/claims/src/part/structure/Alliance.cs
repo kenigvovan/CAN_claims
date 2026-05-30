@@ -87,7 +87,7 @@ namespace claims.src.part.structure
         }
         public bool IsLeader(PlayerInfo player)
         {
-            return player.Equals(MainCity.getMayor());
+            return MainCity?.getMayor()?.Equals(player) == true;
         }
         public void deleteSentInvitation(Invitation invitation)
         {

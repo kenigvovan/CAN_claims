@@ -428,7 +428,7 @@ namespace claims.src
                 MessageHandler.sendErrorMsg("loadDatabase:" + ex.Message);
                 return false;
             }
-            return false;
+            return true;
         }
         public static bool saveDatabase()
         {
@@ -441,7 +441,7 @@ namespace claims.src
                 MessageHandler.sendErrorMsg("saveDatabase:" + ex.Message);
                 return false;
             }
-            return false;
+            return true;
         }
 
         public static void ShutDownServer()

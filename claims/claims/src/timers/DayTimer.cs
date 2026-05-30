@@ -23,7 +23,13 @@ namespace claims.src.timers
         public void Run(bool scheduleNewDayAfter)
         {
             MessageHandler.sendDebugMsg("[claims] DayTimer::start collecting");
-            //EMPTY LIST FOR EVERY CITY
+            // Clear static state at the top — if a previous run threw, the dicts stay
+            // populated and the next Add() throws ArgumentException on duplicate key
+            citiesPlots.Clear();
+            playerSumFee.Clear();
+            toDeleteCities.Clear();
+            toDeleteAlliancies.Clear();
+
             foreach (City city in claims.dataStorage.getCitiesList())
             {
                 citiesPlots.Add(city, new List<Plot>());
@@ -131,7 +137,7 @@ namespace claims.src.timers
             }
             else
             {
-                claims.economyProvider.Withdraw(alliance.MoneyAccountName, (decimal)claims.config.ALLIANCE_BASE_CARE);
+                claims.economyProvider.Withdraw(alliance.MoneyAccountName, (decimal)toPay);
             }
         } 
         public static void processCitiesFee()
@@ -295,11 +301,14 @@ namespace claims.src.timers
                         if (claims.economyProvider.GetBalance(city.MoneyAccountName) < alliance.AllianceFee)
                         {
                             alliance.Cities.Remove(city);
+                            city.Alliance = null;
+                            city.saveToDatabase();
                             MessageHandler.SendMsgInAlliance(alliance, Lang.Get("claims:city_kicked_from_alliance_no_fee", city.getPartNameReplaceUnder()));
                         }
                         else
                         {
-                            claims.economyProvider.Transfer(city.MoneyAccountName, alliance.MoneyAccountName, (decimal)alliance.AllianceFee);
+                            if (claims.economyProvider.Transfer(city.MoneyAccountName, alliance.MoneyAccountName, (decimal)alliance.AllianceFee) != MoneyOperationResult.Success)
+                                claims.sapi.Logger.Warning("[claims] Alliance fee transfer failed: {0} -> {1}, amount {2}", city.MoneyAccountName, alliance.MoneyAccountName, alliance.AllianceFee);
                         }
                     }
                 }

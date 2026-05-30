@@ -19,6 +19,7 @@ namespace claims.src.events
         {
             //ADD CHAT WINDOWS
             PlayerGroup modChatGroup = claims.sapi.Groups.GetPlayerGroupByName(claims.config.CHAT_WINDOW_NAME);
+            if (modChatGroup == null) return;
             PlayerGroupMembership playerClaimsGroup = player.GetGroup(modChatGroup.Uid);
             if (playerClaimsGroup == null)
             {

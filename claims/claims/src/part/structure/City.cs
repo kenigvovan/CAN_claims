@@ -333,7 +333,8 @@ namespace claims.src.part
             double outSum = 0;
             foreach (Plot plot in getCityPlots())
             {
-                PlotInfo.dictPlotTypes.TryGetValue(plot.Type, out PlotInfo plotInfo);
+                if (!PlotInfo.dictPlotTypes.TryGetValue(plot.Type, out PlotInfo plotInfo))
+                    continue;
                 outSum += plotInfo.getCost();
             }
             return outSum;
@@ -381,7 +382,7 @@ namespace claims.src.part
                                                                         : "") + "\n"
             };
 
-            if(isMayor(forPlayer))
+            if(isMayor(forPlayer) && getCityPlots().Count > 0)
             {
                 Plot plot = getCityPlots()[0];
                 outStrings.Add(plot.getPos().ToString() + "\n");
@@ -467,7 +468,8 @@ namespace claims.src.part
 
             foreach (Plot plot in this.getCityPlots())
             {
-                PlotInfo.dictPlotTypes.TryGetValue(plot.Type, out PlotInfo plotInfo);
+                if (!PlotInfo.dictPlotTypes.TryGetValue(plot.Type, out PlotInfo plotInfo))
+                    continue;
                 sumToPay += plotInfo.getCost();
             }
             CityLevelInfo cityLevelInfo = Settings.getCityLevelInfo(this.getCityCitizens().Count);

@@ -16,6 +16,7 @@ namespace claims.src.events
         public static void Event_OnPlayerDeath(IServerPlayer byPlayer, DamageSource damageSource)
         {
             claims.dataStorage.GetPlayerByUid(byPlayer.PlayerUID, out PlayerInfo playerInfo);
+            if (playerInfo == null) return;
 
             if (!playerInfo.isPrisoned() && damageSource != null && damageSource.SourceEntity is EntityPlayer attackerEntity)
             {

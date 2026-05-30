@@ -7,6 +7,8 @@ namespace claims.src.economy.bridge
     {
         public override double ExecuteOrder() => 1.0;
 
+        private bool _adapterInstalled;
+
         public override void StartServerSide(ICoreServerAPI api)
         {
             base.StartServerSide(api);
@@ -14,7 +16,18 @@ namespace claims.src.economy.bridge
             api.Event.ServerRunPhase(EnumServerRunPhase.ModsAndConfigReady, InstallAdapter);
         }
 
-        private static void InstallAdapter()
+        public override void StopServerSide()
+        {
+            base.StopServerSide();
+            if (!_adapterInstalled) return;
+            caneconomy.src.implementations.VirtualMoney.VirtualMoneyEconomyHandler.AccountBalanceChanged -= claims.RaiseAccountBalanceChanged;
+            caneconomy.caneconomy.OnBlockRemovedBlockEntityOpenableContainer -= RealBankActions.OnBlockRemoved;
+            caneconomy.caneconomy.OnReceivedClientPacketBlockEntitySign -= RealBankActions.OnButtonSave;
+            claims.economyProvider = new NoopMoneyProvider();
+            _adapterInstalled = false;
+        }
+
+        private void InstallAdapter()
         {
             var adapter = new CanEconomyAdapter();
             adapter.RefreshCoinDenominations();
@@ -28,9 +41,9 @@ namespace claims.src.economy.bridge
             }
 
             caneconomy.src.implementations.VirtualMoney.VirtualMoneyEconomyHandler.AccountBalanceChanged += claims.RaiseAccountBalanceChanged;
-
             caneconomy.caneconomy.OnBlockRemovedBlockEntityOpenableContainer += RealBankActions.OnBlockRemoved;
             caneconomy.caneconomy.OnReceivedClientPacketBlockEntitySign += RealBankActions.OnButtonSave;
+            _adapterInstalled = true;
         }
     }
 }

@@ -25,7 +25,7 @@ namespace claims.src.commands
         // ================= TEST HOOKS =================
 
         internal static IDataStorage Storage = claims.dataStorage;
-        internal static IMoneyProvider Economy = claims.economyProvider;
+        internal static IMoneyProvider Economy => claims.economyProvider;
         internal static IConfig Config = claims.config;
 
         internal static Func<long> Now = () => TimeFunctions.getEpochSeconds();
@@ -448,7 +448,7 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Success(Lang.Get("claims:invalid_city_name"));
             }
-            if (claims.dataStorage.GetCityByName(name, out City city))
+            if (!claims.dataStorage.GetCityByName(name, out City city))
             {
                 return TextCommandResult.Success(Lang.Get("claims:no_such_city"));
             }
@@ -541,6 +541,10 @@ namespace claims.src.commands
             }
 
             Alliance ourAlliance = playerInfo.Alliance;
+            if (!ourAlliance.IsLeader(playerInfo))
+            {
+                return TextCommandResult.Success(Lang.Get("claims:you_dont_have_right_for_that_command"));
+            }
             if(ourAlliance.Equals(targetParty))
             {
                 return TextCommandResult.Success(Lang.Get("claims:same_alliance"));
@@ -716,7 +720,7 @@ namespace claims.src.commands
             ConflictLetter foundLetter = null;
             foreach(var it in conflictLettersList)
             {
-                if(it.To.Equals(targetParty))
+                if(it.From.Equals(ourAlliance))
                 {
                     foundLetter = it;
                     break;

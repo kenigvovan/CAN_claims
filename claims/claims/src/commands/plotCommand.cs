@@ -95,6 +95,10 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:not_enough_money");
             }
+            if (plot.Type != PlotType.EMBASSY && !(playerInfo.hasCity() && plot.getCity().Equals(playerInfo.City)))
+            {
+                return TextCommandResult.Error("claims:cannot_buy_plot_in_another_city");
+            }
             if (plot.Type == PlotType.EMBASSY || (playerInfo.hasCity() && plot.getCity().Equals(playerInfo.City)))
             {
                 //Save price localy or do not move after we change plot price

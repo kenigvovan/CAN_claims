@@ -190,8 +190,15 @@ namespace claims.src.beb
                             }
                         }
 
+                        IConflictParty attackerParty = attackerCity.HasAlliance()
+                            ? (IConflictParty)attackerCity.Alliance
+                            : (IConflictParty)attackerCity;
                         foreach (var runningConflict in defenderCity.RunningConflicts.ToArray())
                         {
+                            if (runningConflict.First.Equals(attackerParty))
+                                runningConflict.State = ConflictState.FIRST_WON;
+                            else if (runningConflict.Second.Equals(attackerParty))
+                                runningConflict.State = ConflictState.SECOND_WON;
                             PartDemolition.DemolishConflict(runningConflict, EnumConflictEndReason.CityDestroyed);
                         }
 

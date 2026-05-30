@@ -414,9 +414,9 @@ namespace claims.src.commands
                 return tcr;
             }
 
-            for(int i = -radius; i < radius; i++)
+            for(int i = -radius; i <= radius; i++)
             {
-                for(int j = - radius; j < radius; j++)
+                for(int j = -radius; j <= radius; j++)
                 {
                     cCityClaimByChankOffset(player, null, city, tcr, i, j, true);
                 }

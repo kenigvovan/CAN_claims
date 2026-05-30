@@ -210,16 +210,7 @@ namespace claims.src.events
                     }
                     else
                     {
-                        Alliance playerAlliance = playerInfo.Alliance;
-                        Alliance plotAlliance = plot.getCity().Alliance;
-                        if(ConflictHandler.TryGetConflictWithSides(playerAlliance, plotAlliance, out Conflict conflict))
-                        {
-                            b = conflict.ActiveWarTime;
-                        }
-                        else
-                        {
-                            b = false;
-                        }
+                        b = IsActiveWarOnPlot(playerInfo, plot);
                         //use item - cloth to check for use and spawn flag block after that
                     }
                     playerInfo.PlayerCache.getCache()[(int)PermType.BUILD_AND_DESTROY_PERM] = b;
@@ -309,16 +300,7 @@ namespace claims.src.events
                     }
                     else
                     {
-                        Alliance playerAlliance = playerInfo.Alliance;
-                        Alliance plotAlliance = plot.getCity().Alliance;
-                        if (ConflictHandler.TryGetConflictWithSides(playerAlliance, plotAlliance, out Conflict conflict))
-                        {
-                            b = conflict.ActiveWarTime;
-                        }
-                        else
-                        {
-                            b = false;
-                        }
+                        b = IsActiveWarOnPlot(playerInfo, plot);
                         //use item - cloth to check for use and spawn flag block after that
                     }
                     playerInfo.PlayerCache.getCache()[(int)PermType.USE_PERM] = b;
@@ -383,16 +365,7 @@ namespace claims.src.events
                     }
                     else
                     {
-                        Alliance playerAlliance = playerInfo.Alliance;
-                        Alliance plotAlliance = plot.getCity().Alliance;
-                        if (ConflictHandler.TryGetConflictWithSides(playerAlliance, plotAlliance, out Conflict conflict))
-                        {
-                            b = conflict.ActiveWarTime;
-                        }
-                        else
-                        {
-                            b = false;
-                        }
+                        b = IsActiveWarOnPlot(playerInfo, plot);
                         //use item - cloth to check for use and spawn flag block after that
                     }
                     playerInfo.PlayerCache.getCache()[(int)PermType.USE_PERM] = b;
@@ -453,7 +426,7 @@ namespace claims.src.events
                     playerInfo.PlayerCache.getCache()[(int)PermType.ATTACK_ANIMALS_PERM] = b;
                     if (!b && plot.Type == PlotType.TAVERN)
                     {
-                        return checkInnerClaimPerm(PermType.USE_PERM, playerInfo.Guid, plot, pos);
+                        return checkInnerClaimPerm(PermType.ATTACK_ANIMALS_PERM, playerInfo.Guid, plot, pos);
                     }
                     return b;
                 case PlotRelation.STRANGER:
@@ -461,7 +434,7 @@ namespace claims.src.events
                     playerInfo.PlayerCache.getCache()[(int)PermType.ATTACK_ANIMALS_PERM] = b;
                     if (!b && plot.Type == PlotType.TAVERN)
                     {
-                        return checkInnerClaimPerm(PermType.USE_PERM, playerInfo.Guid, plot, pos);
+                        return checkInnerClaimPerm(PermType.ATTACK_ANIMALS_PERM, playerInfo.Guid, plot, pos);
                     }
                     return b;
                 case PlotRelation.GROUP_MEMBER:
@@ -469,7 +442,7 @@ namespace claims.src.events
                     playerInfo.PlayerCache.getCache()[(int)PermType.ATTACK_ANIMALS_PERM] = b;
                     if (!b && plot.Type == PlotType.TAVERN)
                     {
-                        return checkInnerClaimPerm(PermType.USE_PERM, playerInfo.Guid, plot, pos);
+                        return checkInnerClaimPerm(PermType.ATTACK_ANIMALS_PERM, playerInfo.Guid, plot, pos);
                     }
                     return b;
                 case PlotRelation.COMRADE    :
@@ -477,7 +450,7 @@ namespace claims.src.events
                     playerInfo.PlayerCache.getCache()[(int)PermType.ATTACK_ANIMALS_PERM] = b;
                     if (!b && plot.Type == PlotType.TAVERN)
                     {
-                        return checkInnerClaimPerm(PermType.USE_PERM, playerInfo.Guid, plot, pos);
+                        return checkInnerClaimPerm(PermType.ATTACK_ANIMALS_PERM, playerInfo.Guid, plot, pos);
                     }
                     return b;
                 case PlotRelation.FOE:
@@ -487,16 +460,7 @@ namespace claims.src.events
                     }
                     else
                     {
-                        Alliance playerAlliance = playerInfo.Alliance;
-                        Alliance plotAlliance = plot.getCity().Alliance;
-                        if (ConflictHandler.TryGetConflictWithSides(playerAlliance, plotAlliance, out Conflict conflict))
-                        {
-                            b = conflict.ActiveWarTime;
-                        }
-                        else
-                        {
-                            b = false;
-                        }
+                        b = IsActiveWarOnPlot(playerInfo, plot);
                         //use item - cloth to check for use and spawn flag block after that
                     }
                     playerInfo.PlayerCache.getCache()[(int)PermType.ATTACK_ANIMALS_PERM] = b;
@@ -605,16 +569,7 @@ namespace claims.src.events
                     }
                     else
                     {
-                        Alliance playerAlliance = playerInfo.Alliance;
-                        Alliance plotAlliance = plot.getCity().Alliance;
-                        if (ConflictHandler.TryGetConflictWithSides(playerAlliance, plotAlliance, out Conflict conflict))
-                        {
-                            b = conflict.ActiveWarTime;
-                        }
-                        else
-                        {
-                            b = false;
-                        }
+                        b = IsActiveWarOnPlot(playerInfo, plot);
                         //use item - cloth to check for use and spawn flag block after that
                     }
                     //playerInfo.PlayerCache.getCache()[(int)PermType.BUILD_AND_DESTROY_PERM] = b;
@@ -683,16 +638,7 @@ namespace claims.src.events
                     }
                     else
                     {
-                        Alliance playerAlliance = playerInfo.Alliance;
-                        Alliance plotAlliance = plot.getCity().Alliance;
-                        if (ConflictHandler.TryGetConflictWithSides(playerAlliance, plotAlliance, out Conflict conflict))
-                        {
-                            b = conflict.ActiveWarTime;
-                        }
-                        else
-                        {
-                            b = false;
-                        }
+                        b = IsActiveWarOnPlot(playerInfo, plot);
                         //use item - cloth to check for use and spawn flag block after that
                     }
                     //playerInfo.PlayerCache.getCache()[(int)PermType.BUILD_AND_DESTROY_PERM] = b;
@@ -728,7 +674,7 @@ namespace claims.src.events
                     //playerInfo.PlayerCache.getCache()[(int)PermType.ATTACK_ANIMALS_PERM] = b;
                     /*if (!b && plot.getType() == PlotType.TAVERN)
                     {
-                        return checkInnerClaimPerm(PermType.USE_PERM, playerInfo.Guid, plot, pos);
+                        return checkInnerClaimPerm(PermType.ATTACK_ANIMALS_PERM, playerInfo.Guid, plot, pos);
                     }*/
                     return b;
                 case PlotRelation.STRANGER:
@@ -736,7 +682,7 @@ namespace claims.src.events
                     //playerInfo.PlayerCache.getCache()[(int)PermType.ATTACK_ANIMALS_PERM] = b;
                     /* if (!b && plot.getType() == PlotType.TAVERN)
                      {
-                         return checkInnerClaimPerm(PermType.USE_PERM, playerInfo.Guid, plot, pos);
+                         return checkInnerClaimPerm(PermType.ATTACK_ANIMALS_PERM, playerInfo.Guid, plot, pos);
                      }*/
                     return b;
                 case PlotRelation.GROUP_MEMBER:
@@ -744,7 +690,7 @@ namespace claims.src.events
                     //playerInfo.PlayerCache.getCache()[(int)PermType.ATTACK_ANIMALS_PERM] = b;
                     /*if (!b && plot.getType() == PlotType.TAVERN)
                     {
-                        return checkInnerClaimPerm(PermType.USE_PERM, playerInfo.Guid, plot, pos);
+                        return checkInnerClaimPerm(PermType.ATTACK_ANIMALS_PERM, playerInfo.Guid, plot, pos);
                     }*/
                     return b;
                 case PlotRelation.COMRADE:
@@ -752,7 +698,7 @@ namespace claims.src.events
                     //playerInfo.PlayerCache.getCache()[(int)PermType.ATTACK_ANIMALS_PERM] = b;
                     /* if (!b && plot.getType() == PlotType.TAVERN)
                      {
-                         return checkInnerClaimPerm(PermType.USE_PERM, playerInfo.Guid, plot, pos);
+                         return checkInnerClaimPerm(PermType.ATTACK_ANIMALS_PERM, playerInfo.Guid, plot, pos);
                      }*/
                     return b;
                 case PlotRelation.FOE:
@@ -762,16 +708,7 @@ namespace claims.src.events
                     }
                     else
                     {
-                        Alliance playerAlliance = playerInfo.Alliance;
-                        Alliance plotAlliance = plot.getCity().Alliance;
-                        if (ConflictHandler.TryGetConflictWithSides(playerAlliance, plotAlliance, out Conflict conflict))
-                        {
-                            b = conflict.ActiveWarTime;
-                        }
-                        else
-                        {
-                            b = false;
-                        }
+                        b = IsActiveWarOnPlot(playerInfo, plot);
                         //use item - cloth to check for use and spawn flag block after that
                     }
                     //playerInfo.PlayerCache.getCache()[(int)PermType.BUILD_AND_DESTROY_PERM] = b;
@@ -782,6 +719,15 @@ namespace claims.src.events
                     return b;
             }
             return false;
+        }
+        // Returns true if there is an active war window between the player's party and the plot's party.
+        // Handles all combinations: alliance vs alliance, city vs city, city vs alliance.
+        private static bool IsActiveWarOnPlot(PlayerInfo playerInfo, Plot plot)
+        {
+            if (!playerInfo.hasCity() || !plot.hasCity()) return false;
+            IConflictParty playerParty = playerInfo.HasAlliance() ? (IConflictParty)playerInfo.Alliance : playerInfo.City;
+            IConflictParty plotParty   = plot.getCity().HasAlliance() ? (IConflictParty)plot.getCity().Alliance : plot.getCity();
+            return ConflictHandler.TryGetConflictWithSides(playerParty, plotParty, out Conflict conflict) && conflict.ActiveWarTime;
         }
         public static void InitPlayerCache(IServerPlayer byPlayer)
         {

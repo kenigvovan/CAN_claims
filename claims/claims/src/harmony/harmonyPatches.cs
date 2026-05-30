@@ -320,8 +320,8 @@ namespace claims.src.harmony
                             __instance.SidedPos.Z += facing.Normali.Z;
                         }
                         ___fallMotion.X = facing.Normalf.X;
-                        ___fallMotion.X = 0;
-                        ___fallMotion.X = facing.Normalf.Z;
+                        ___fallMotion.Y = 0;
+                        ___fallMotion.Z = facing.Normalf.Z;
                         return false;
                     }
                 }
@@ -439,7 +439,7 @@ namespace claims.src.harmony
                     Vec3i ePos = plr.Entity.Pos.XYZ.AsVec3i;
                     if (city.HasTempleRespawnPoints())
                     {
-                        var nearestP = 0;
+                        var nearestP = int.MaxValue;
                         Vec3i bestP = city.TempleRespawnPoints.First().Value;
                         foreach (var rPoint in city.TempleRespawnPoints)
                         {
