@@ -136,15 +136,15 @@ namespace claims.src.beb
                         warTime.PlotAttacks.Remove(PlotPosition.fromBlockPos(this.Pos));
                         TimesToBreak = 0;
 
+                        IConflictParty defenderParty = defenderCity.HasAlliance()
+                            ? (IConflictParty)defenderCity.Alliance
+                            : (IConflictParty)defenderCity;
+                        IConflictParty attackerParty = attackerCity.HasAlliance()
+                            ? (IConflictParty)attackerCity.Alliance
+                            : (IConflictParty)attackerCity;
+
                         if (claims.config.SEND_ANNOUNCEMENTS_PLOT_WAS_CAPTURED)
                         {
-                            IConflictParty defenderParty = defenderCity.HasAlliance()
-                                ? (IConflictParty)defenderCity.Alliance
-                                : (IConflictParty)defenderCity;
-                            IConflictParty attackerParty = attackerCity.HasAlliance()
-                                ? (IConflictParty)attackerCity.Alliance
-                                : (IConflictParty)attackerCity;
-
                             MessageHandler.SendMsgInAlliance(defenderParty,
                                 Lang.Get("claims:city_destroyed_by_war", defenderCity.GetPartName(), attackerCity.GetPartName()));
                             MessageHandler.SendMsgInAlliance(attackerParty,
@@ -190,9 +190,6 @@ namespace claims.src.beb
                             }
                         }
 
-                        IConflictParty attackerParty = attackerCity.HasAlliance()
-                            ? (IConflictParty)attackerCity.Alliance
-                            : (IConflictParty)attackerCity;
                         foreach (var runningConflict in defenderCity.RunningConflicts.ToArray())
                         {
                             if (runningConflict.First.Equals(attackerParty))

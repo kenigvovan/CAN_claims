@@ -14,9 +14,9 @@ namespace claims.src.network.packets
         [ProtoMember(2)]
         public double NewPlotClaimCost;
         [ProtoMember(3)]
-        public System.Collections.Generic.OrderedDictionary<decimal, string> COINS_VALUES_TO_CODE;
+        public OrderedDictionary<decimal, string> COINS_VALUES_TO_CODE;
         [ProtoMember(4)]
-        public System.Collections.Generic.OrderedDictionary<int, decimal> ID_TO_COINS_VALUES;
+        public OrderedDictionary<int, decimal> ID_TO_COINS_VALUES;
         [ProtoMember(5)]
         public double CITY_NAME_CHANGE_COST;
         [ProtoMember(6)]

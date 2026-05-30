@@ -1,4 +1,5 @@
 using Vintagestory.API.Common;
+using Vintagestory.API.Datastructures;
 using Vintagestory.API.Server;
 
 namespace claims.src.economy.bridge
@@ -16,9 +17,9 @@ namespace claims.src.economy.bridge
             api.Event.ServerRunPhase(EnumServerRunPhase.ModsAndConfigReady, InstallAdapter);
         }
 
-        public override void StopServerSide()
+        public override void Dispose()
         {
-            base.StopServerSide();
+            base.Dispose();
             if (!_adapterInstalled) return;
             caneconomy.src.implementations.VirtualMoney.VirtualMoneyEconomyHandler.AccountBalanceChanged -= claims.RaiseAccountBalanceChanged;
             caneconomy.caneconomy.OnBlockRemovedBlockEntityOpenableContainer -= RealBankActions.OnBlockRemoved;
@@ -37,7 +38,7 @@ namespace claims.src.economy.bridge
             if (caneCfg != null)
             {
                 claims.config.SELECTED_ECONOMY_HANDLER = caneCfg.SELECTED_ECONOMY_HANDLER;
-                claims.config.COINS_VALUES_TO_CODE = caneCfg.COINS_VALUES_TO_CODE;
+                claims.config.COINS_VALUES_TO_CODE = new OrderedDictionary<decimal, string>(caneCfg.COINS_VALUES_TO_CODE);
             }
 
             caneconomy.src.implementations.VirtualMoney.VirtualMoneyEconomyHandler.AccountBalanceChanged += claims.RaiseAccountBalanceChanged;

@@ -192,8 +192,8 @@ namespace claims.src
         public string CITY_ACCOUNT_STRING_PREFIX = "#city_";
         public string ALLIANCE_ACCOUNT_STRING_PREFIX = "#alliance_";
 
-        public System.Collections.Generic.OrderedDictionary<decimal, string> COINS_VALUES_TO_CODE = new();
-        public System.Collections.Generic.OrderedDictionary<int, decimal> ID_TO_COINS_VALUES = new();
+        public OrderedDictionary<decimal, string> COINS_VALUES_TO_CODE = new();
+        public OrderedDictionary<int, decimal> ID_TO_COINS_VALUES = new();
 
         public bool VERBOSE_LOGGING = true;
         public bool SEND_ANNOUNCEMENTS_PLOT_IN_UNDER_ATTACK = true;

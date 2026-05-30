@@ -169,7 +169,6 @@ namespace claims.src
             var tabOrder = economyEnabled
                 ? new[] { EnumSelectedTab.CITY, EnumSelectedTab.PLAYER, EnumSelectedTab.PRICES, EnumSelectedTab.PLOT, EnumSelectedTab.PRISON, EnumSelectedTab.SUMMON, EnumSelectedTab.PlotsGroup }
                 : new[] { EnumSelectedTab.CITY, EnumSelectedTab.PLAYER, EnumSelectedTab.PLOT, EnumSelectedTab.PRISON, EnumSelectedTab.SUMMON, EnumSelectedTab.PlotsGroup };
-              var newTexture = capi.Render.GetOrLoadTexture(assetPath);
 
             var draw = ImGui.GetWindowDrawList();
 

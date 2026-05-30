@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 	  <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <OutputPath>bin\$(Configuration)\Mods\mod</OutputPath>
@@ -9,11 +9,11 @@
 
   <ItemGroup>
     <Reference Include="caneconomy">
-      <HintPath>..\..\..\libs\1.22\caneconomy.dll</HintPath>
+      <HintPath>..\..\..\libs\1.21\caneconomy.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="ImGui.NET">
-      <HintPath>..\..\..\..\..\libs\ImGui.NET.dll</HintPath>
+      <HintPath>..\..\..\libs\1.21\ImGui.NET.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Microsoft.Data.Sqlite">
@@ -37,7 +37,7 @@
       <Private>false</Private>
     </Reference>
     <Reference Include="VSImGui">
-      <HintPath>..\..\..\..\..\libs\VSImGui.dll</HintPath>
+      <HintPath>..\..\..\libs\1.21\VSImGui.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="VSSurvivalMod">
