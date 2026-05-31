@@ -20,15 +20,14 @@ namespace claims.src.network.handlers
                 switch (packet.type)
                 {
                     case PacketsContentEnum.ADD_SINGLE_PLOT:
-                        Tuple<Vec2i, SavedPlotInfo> savedPlotTuple = JsonConvert.DeserializeObject<Tuple<Vec2i, SavedPlotInfo>>(packet.data);
+                        Tuple<Vec3i, SavedPlotInfo> savedPlotTuple = JsonConvert.DeserializeObject<Tuple<Vec3i, SavedPlotInfo>>(packet.data);
                         claims.clientDataStorage.addClientSavedPlots(savedPlotTuple.Item1, savedPlotTuple.Item2);
-                        claims.clientModInstance.plotsMapLayer.OnResChunkPixels(savedPlotTuple.Item1, savedPlotTuple.Item2.cityName);
+                        claims.clientModInstance.plotsMapLayer.OnResChunkPixels(new Vec2i(savedPlotTuple.Item1.X, savedPlotTuple.Item1.Z), savedPlotTuple.Item2.cityName);
                         break;
                     case PacketsContentEnum.REMOVE_SINGLE_PLOT:
-                        //try to send saved plot as null without creating object
-                        Tuple<Vec2i, SavedPlotInfo> savedPlotTupleRemove = JsonConvert.DeserializeObject<Tuple<Vec2i, SavedPlotInfo>>(packet.data);
+                        Tuple<Vec3i, SavedPlotInfo> savedPlotTupleRemove = JsonConvert.DeserializeObject<Tuple<Vec3i, SavedPlotInfo>>(packet.data);
                         claims.clientDataStorage.removeClientSavedPlots(savedPlotTupleRemove.Item1);
-                        claims.clientModInstance.plotsMapLayer.OnResChunkPixels(savedPlotTupleRemove.Item1, "");
+                        claims.clientModInstance.plotsMapLayer.OnResChunkPixels(new Vec2i(savedPlotTupleRemove.Item1.X, savedPlotTupleRemove.Item1.Z), "");
                         break;
                     case PacketsContentEnum.ALL_CITY_COLORS:
                         Dictionary<string, int> colors = JsonConvert.DeserializeObject<Dictionary<string, int>>(packet.data);
@@ -36,19 +35,16 @@ namespace claims.src.network.handlers
                         //claims.getModInstance().plotsMapLayer.RedrawPlots();
                         break;
                     case PacketsContentEnum.SERVER_UPDATED_ZONES_ANSWER:
-                        HashSet<Tuple<Vec2i, long, List<KeyValuePair<Vec2i, SavedPlotInfo>>>> updatedZones = JsonConvert.DeserializeObject<HashSet<Tuple<Vec2i, long, List<KeyValuePair<Vec2i, SavedPlotInfo>>>>>(packet.data);
-                        //we got new zones info from server
+                        HashSet<Tuple<Vec2i, long, List<KeyValuePair<Vec3i, SavedPlotInfo>>>> updatedZones = JsonConvert.DeserializeObject<HashSet<Tuple<Vec2i, long, List<KeyValuePair<Vec3i, SavedPlotInfo>>>>>(packet.data);
                         foreach (var tup in updatedZones)
                         {
-                            //if zone was already known, but updated info from server arrived
                             if (claims.clientDataStorage.getClientSavedZone(tup.Item1, out var savedZone))
                             {
                                 claims.clientModInstance.plotsMapLayer.clearZoneSavedPlotsFromMap(tup.Item1);
-                                savedZone.savedPlots = tup.Item3.GroupBy(x => x.Key).ToDictionary(keySelector: x => x.Key, x => x.Last().Value);
+                                savedZone.savedPlots = tup.Item3.GroupBy(x => x.Key).ToDictionary(x => x.Key, x => x.Last().Value);
                                 savedZone.timestamp = tup.Item2;
                                 claims.clientModInstance.plotsMapLayer.generateFromZoneSavedPlotsOnMap(tup.Item1);
                             }
-                            //no such zone, reset it
                             else
                             {
                                 ClientSavedZone newZone = new ClientSavedZone(tup.Item3.GroupBy(x => x.Key).ToDictionary(x => x.Key, x => x.Last().Value));
@@ -59,18 +55,19 @@ namespace claims.src.network.handlers
                         }
                         break;
                     case PacketsContentEnum.SERVER_REMOVE_COLLECTED_PLOTS:
-                        HashSet<Vec2i> plotsToRemove = JsonConvert.DeserializeObject<HashSet<Vec2i>>(packet.data);
+                        HashSet<Vec3i> plotsToRemove = JsonConvert.DeserializeObject<HashSet<Vec3i>>(packet.data);
                         foreach (var savedPlot in plotsToRemove)
                         {
                             claims.clientDataStorage.removeClientSavedPlots(savedPlot);
-                            claims.clientModInstance.plotsMapLayer.OnResChunkPixels(savedPlot, "");
+                            claims.clientModInstance.plotsMapLayer.OnResChunkPixels(new Vec2i(savedPlot.X, savedPlot.Z), "");
                         }
                         break;
                     case PacketsContentEnum.SERVER_UPDATE_COLLECTED_PLOTS:
-                        List<Tuple<Vec2i, SavedPlotInfo>> plotsToUpdate = JsonConvert.DeserializeObject<List<Tuple<Vec2i, SavedPlotInfo>>>(packet.data);
+                        List<Tuple<Vec3i, SavedPlotInfo>> plotsToUpdate = JsonConvert.DeserializeObject<List<Tuple<Vec3i, SavedPlotInfo>>>(packet.data);
                         foreach (var savedPlot in plotsToUpdate)
                         {
                             claims.clientDataStorage.addClientSavedPlots(savedPlot.Item1, savedPlot.Item2);
+                            claims.clientModInstance.plotsMapLayer.OnResChunkPixels(new Vec2i(savedPlot.Item1.X, savedPlot.Item1.Z), savedPlot.Item2?.cityName ?? "");
                         }
                         break;
                     case PacketsContentEnum.OWN_CITY_DELETED:

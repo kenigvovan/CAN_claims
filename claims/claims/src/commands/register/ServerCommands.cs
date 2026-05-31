@@ -88,6 +88,20 @@ namespace claims.src.commands.register
                         .HandleWith(commands.CityCommand.ClaimCityPlot)
                     .EndSub()
                     /////////
+                    .BeginSub("claim3d")
+                        .WithDesc("Claim a 3D (16×16×16) plot at current position (requires ENABLE_3D_PLOTS=true).")
+                        .WithPreCondition((TextCommandCallingArgs args) => {
+                            if (args.Caller.Player is IServerPlayer player)
+                            {
+                                if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_CLAIM_PLOT }))
+                                    return TextCommandResult.Success();
+                                return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
+                            }
+                            return TextCommandResult.Error("");
+                        })
+                        .HandleWith(commands.CityCommand.ClaimCity3DPlot)
+                    .EndSub()
+                    /////////
                     .BeginSub("unclaim")
                          .WithPreCondition((TextCommandCallingArgs args) => {
                              if (args.Caller.Player is IServerPlayer player)

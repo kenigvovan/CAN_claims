@@ -37,6 +37,9 @@ namespace claims.src
         protected ConcurrentDictionary<string, PlayerInfo> uidToPlayerDict = new ConcurrentDictionary<string, PlayerInfo>();
 
         protected ConcurrentDictionary<PlotPosition, Plot> claimedPlots = new ConcurrentDictionary<PlotPosition, Plot>();
+        // Tracks which X,Z columns have at least one 3D plot. Used to avoid a second dict lookup on every block action.
+        private HashSet<long> _has3DPlotsAt = new HashSet<long>();
+        private static long Make3DIndexKey(int x, int z) => ((long)x << 32) | (uint)z;
         protected Dictionary<Vec2i, HashSet<Plot>> plotsZones = new Dictionary<Vec2i, HashSet<Plot>>();
         protected Dictionary<string, ClaimsChatType> mapPlayerChat = new Dictionary<string, ClaimsChatType>();
 
@@ -103,20 +106,38 @@ namespace claims.src
         }
         public virtual bool GetPlot(PlotPosition plotPosition, out Plot plot)
         {
-            if (claimedPlots.TryGetValue(plotPosition, out plot))
-            {
+            // Fast path: column positions only need one lookup.
+            if (plotPosition.LayerY == PlotPosition.COLUMN_Y)
+                return claimedPlots.TryGetValue(plotPosition, out plot);
+
+            // 3D position: try exact layer match only if 3D plots exist at this X,Z.
+            if (_has3DPlotsAt.Contains(Make3DIndexKey(plotPosition.X, plotPosition.Z))
+                && claimedPlots.TryGetValue(plotPosition, out plot))
                 return true;
-            }
-            return false;
+
+            // Fallback: check for a column plot at the same X,Z.
+            return claimedPlots.TryGetValue(plotPosition.ToColumnKey(), out plot);
         }
         public bool addClaimedPlot(PlotPosition location, Plot plot)
-        {          
-            return claimedPlots.TryAdd(location, plot) && addPlotToZoneSet(plot);
+        {
+            if (!claimedPlots.TryAdd(location, plot)) return false;
+            if (location.LayerY != PlotPosition.COLUMN_Y)
+                _has3DPlotsAt.Add(Make3DIndexKey(location.X, location.Z));
+            return addPlotToZoneSet(plot);
         }
         public bool removeClaimedPlot(PlotPosition location)
-        {          
-            return claimedPlots.TryRemove(location, out Plot removedPlot) && removePlotFromZoneSet(removedPlot);
+        {
+            if (!claimedPlots.TryRemove(location, out Plot removedPlot)) return false;
+            if (location.LayerY != PlotPosition.COLUMN_Y)
+            {
+                long k = Make3DIndexKey(location.X, location.Z);
+                bool any3DLeft = claimedPlots.Keys.Any(p => p.X == location.X && p.Z == location.Z && p.LayerY != PlotPosition.COLUMN_Y);
+                if (!any3DLeft) _has3DPlotsAt.Remove(k);
+            }
+            return removePlotFromZoneSet(removedPlot);
         }
+        public bool Has3DPlotAt(int plotX, int plotZ) =>
+            _has3DPlotsAt.Contains(Make3DIndexKey(plotX, plotZ));
         public ConcurrentDictionary<PlotPosition, Plot> getClaimedPlots()
         {
             return claimedPlots;
@@ -519,35 +540,32 @@ namespace claims.src
         /*==============================================================================================*/
         /*=====================================CLIENT FUNCTIONS=========================================*/
         /*==============================================================================================*/
-        public void addClientSavedPlots(Vec2i vec, SavedPlotInfo savedPlotInfo)
+        // Vec3i key: X=gridX, Y=layerY (-1 for column), Z=gridZ.
+        public void addClientSavedPlots(Vec3i vec, SavedPlotInfo savedPlotInfo)
         {
-            if (ClientSavedPlotsInZones.TryGetValue(new Vec2i(vec.X / claims.config.ZONE_PLOTS_LENGTH, vec.Y / claims.config.ZONE_PLOTS_LENGTH),
-                out ClientSavedZone clientSavedZone))
+            var zoneKey = new Vec2i(vec.X / claims.config.ZONE_PLOTS_LENGTH, vec.Z / claims.config.ZONE_PLOTS_LENGTH);
+            if (ClientSavedPlotsInZones.TryGetValue(zoneKey, out ClientSavedZone clientSavedZone))
             {
                 clientSavedZone.addClientSavedPlots(vec, savedPlotInfo);
             }
             else
             {
-                ClientSavedPlotsInZones.Add(new Vec2i(vec.X / claims.config.ZONE_PLOTS_LENGTH, vec.Y / claims.config.ZONE_PLOTS_LENGTH),
-                    new ClientSavedZone(new Dictionary<Vec2i, SavedPlotInfo> { { vec.Copy(), savedPlotInfo } }));
+                ClientSavedPlotsInZones.Add(zoneKey,
+                    new ClientSavedZone(new Dictionary<Vec3i, SavedPlotInfo> { { vec, savedPlotInfo } }));
             }
         }
-        public bool removeClientSavedPlots(Vec2i vec)
+        public bool removeClientSavedPlots(Vec3i vec)
         {
-            if (ClientSavedPlotsInZones.TryGetValue(new Vec2i(vec.X / claims.config.ZONE_PLOTS_LENGTH, vec.Y / claims.config.ZONE_PLOTS_LENGTH),
-                out ClientSavedZone clientSavedZone))
-            {
+            var zoneKey = new Vec2i(vec.X / claims.config.ZONE_PLOTS_LENGTH, vec.Z / claims.config.ZONE_PLOTS_LENGTH);
+            if (ClientSavedPlotsInZones.TryGetValue(zoneKey, out ClientSavedZone clientSavedZone))
                 return clientSavedZone.removeClientSavedPlot(vec);
-            }
             return false;
         }
-        public bool getSavedPlot(Vec2i vec, out SavedPlotInfo savedPlotInfo)
+        public bool getSavedPlot(Vec3i vec, out SavedPlotInfo savedPlotInfo)
         {
-            if (this.ClientSavedPlotsInZones.TryGetValue(new Vec2i(vec.X / claims.config.ZONE_PLOTS_LENGTH, vec.Y / claims.config.ZONE_PLOTS_LENGTH),
-                out ClientSavedZone clientSavedZone))
-            {
+            var zoneKey = new Vec2i(vec.X / claims.config.ZONE_PLOTS_LENGTH, vec.Z / claims.config.ZONE_PLOTS_LENGTH);
+            if (ClientSavedPlotsInZones.TryGetValue(zoneKey, out ClientSavedZone clientSavedZone))
                 return clientSavedZone.savedPlots.TryGetValue(vec, out savedPlotInfo);
-            }
             savedPlotInfo = null;
             return false;
         }
@@ -559,15 +577,18 @@ namespace claims.src
         {
             claimant = "claims";
             //find zone with saved plots on client
-            Vec2i tmpVec = new Vec2i(blockSel.Position.X / claims.config.ZONE_BLOCKS_LENGTH, blockSel.Position.Z / claims.config.ZONE_BLOCKS_LENGTH);
-            if (ClientSavedPlotsInZones.TryGetValue(new Vec2i(blockSel.Position.X / claims.config.ZONE_BLOCKS_LENGTH, blockSel.Position.Z / claims.config.ZONE_BLOCKS_LENGTH),
-                out ClientSavedZone clientSavedZone))
+            var zoneVec = new Vec2i(blockSel.Position.X / claims.config.ZONE_BLOCKS_LENGTH, blockSel.Position.Z / claims.config.ZONE_BLOCKS_LENGTH);
+            if (ClientSavedPlotsInZones.TryGetValue(zoneVec, out ClientSavedZone clientSavedZone))
             {
-                //if zone exists we check if plot on pos exists
-                //reuse vec again
-                tmpVec.X = blockSel.Position.X / PlotPosition.plotSize;
-                tmpVec.Y = blockSel.Position.Z / PlotPosition.plotSize;
-                if (clientSavedZone.savedPlots.TryGetValue(tmpVec, out SavedPlotInfo savedPlot))
+                // Build plot key: try 3D first, then column fallback
+                int plotX = blockSel.Position.X / PlotPosition.plotSize;
+                int plotZ = blockSel.Position.Z / PlotPosition.plotSize;
+                int layerY = blockSel.Position.Y / PlotPosition.plotSize;
+                var plotKey3D  = new Vec3i(plotX, layerY, plotZ);
+                var plotKeyCol = new Vec3i(plotX, PlotPosition.COLUMN_Y, plotZ);
+                if (!clientSavedZone.savedPlots.TryGetValue(plotKey3D, out SavedPlotInfo savedPlot))
+                    clientSavedZone.savedPlots.TryGetValue(plotKeyCol, out savedPlot);
+                if (savedPlot != null)
                 {
                     if(savedPlot.clientInnerClaims != null)
                     {
@@ -621,8 +642,8 @@ namespace claims.src
                 {
                     if(pl.Value.cityName.Equals(cityName))
                     {
-                        li.Add(pl.Key);
-                    }    
+                        li.Add(new Vec2i(pl.Key.X, pl.Key.Z));
+                    }
                 }
             }
             return li;
@@ -645,13 +666,14 @@ namespace claims.src
         }
         public void ClearCacheForPlayersInPlot(Plot plot)
         {
+            bool is3D = plot.plotPosition.LayerY != PlotPosition.COLUMN_Y;
             foreach (var player in claims.sapi.World.AllOnlinePlayers)
             {
-                if (((((int)player.Entity.Pos.X / PlotPosition.plotSize)) == plot.getPos().X &&
-                    (((int)player.Entity.Pos.Z / PlotPosition.plotSize)) == plot.getPos().Y))
-                {
-                    resetPlayerCacheByGUID(player.PlayerUID);
-                }
+                int px = (int)player.Entity.Pos.X / PlotPosition.plotSize;
+                int pz = (int)player.Entity.Pos.Z / PlotPosition.plotSize;
+                if (px != plot.getPos().X || pz != plot.getPos().Y) continue;
+                if (is3D && (int)player.Entity.Pos.Y / PlotPosition.plotSize != plot.plotPosition.LayerY) continue;
+                resetPlayerCacheByGUID(player.PlayerUID);
             }
         }
         public bool checkGuidForCityVillage(string guid)

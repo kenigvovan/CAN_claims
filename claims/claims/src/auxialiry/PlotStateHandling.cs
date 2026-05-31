@@ -37,7 +37,7 @@ namespace claims.src.auxialiry
                     plot.hasCityPlotsGroup() ? plot.getPlotGroup().GetPartName() : "",
                     plot.Type == PlotType.TAVERN ? plot.GetClientInnerClaimFromDefault(playerInfo) : null,
                     plot.getCity().Alliance?.Guid ?? "");
-                string serializedPlots = JsonConvert.SerializeObject(new Tuple<Vec2i, SavedPlotInfo>(plot.getPos(), tmpPlot));
+                string serializedPlots = JsonConvert.SerializeObject(new Tuple<Vec3i, SavedPlotInfo>(plot.getPlotKey(), tmpPlot));
 
                 claims.serverChannel.SendPacket(new SavedPlotsPacket()
                 {
@@ -47,7 +47,7 @@ namespace claims.src.auxialiry
             }
         }
         //Send subscribers of plot's zone info about the unclaimed plot
-        public static void broadcastPlotUnclaimedInZone(int x, int z)
+        public static void broadcastPlotUnclaimedInZone(int x, int z, int layerY = PlotPosition.COLUMN_Y)
         {
             Vec2i zone = new Vec2i(x / claims.config.ZONE_PLOTS_LENGTH, z / claims.config.ZONE_PLOTS_LENGTH);
 
@@ -55,7 +55,7 @@ namespace claims.src.auxialiry
             if (subs == null) return;
 
             var tmpPlot = new SavedPlotInfo(0, false, false, false, false, null, null, null, null, "");
-            string serializedPlots = JsonConvert.SerializeObject(new Tuple<Vec2i, SavedPlotInfo>(new Vec2i(x, z), tmpPlot));
+            string serializedPlots = JsonConvert.SerializeObject(new Tuple<Vec3i, SavedPlotInfo>(new Vec3i(x, layerY, z), tmpPlot));
 
             foreach (var uid in subs)
             {

@@ -174,6 +174,7 @@ namespace claims.src
 
         public int SEND_CITY_UPDATES_EVERY_N_SECONDS = 60;
         public int CHECK_FOR_PACKETS_TO_SEND_EVERY_N_SECONDS = 10;
+        public bool ENABLE_3D_PLOTS = false;
 
         //INNER CLAIM
         public int MAX_NUMBER_INNER_CLAIM_PER_TAVERN = 3;

@@ -260,7 +260,7 @@ namespace claims.src
                 foreach (var plot in it.getCityPlots())
                 {
                     claims.dataStorage.ClearCacheForPlayersInPlot(plot);
-                    claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
+                    claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPlotKey());
                 }
             }
 
@@ -269,7 +269,7 @@ namespace claims.src
                 foreach (var plot in it.getCityPlots())
                 {
                     claims.dataStorage.ClearCacheForPlayersInPlot(plot);
-                    claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
+                    claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPlotKey());
                 }
             }
         }

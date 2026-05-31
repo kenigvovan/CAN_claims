@@ -511,8 +511,8 @@ namespace claims.src
         {
 
             TreeAttribute tree = data as TreeAttribute;
-            Vec2i from = new Vec2i(tree.GetInt("xChO"), tree.GetInt("zChO"));
-            Vec2i to = new Vec2i(tree.GetInt("xCh"), tree.GetInt("zCh"));
+            Vec3i from = new Vec3i(tree.GetInt("xChO"), tree.GetInt("yChO"), tree.GetInt("zChO"));
+            Vec3i to   = new Vec3i(tree.GetInt("xCh"),  tree.GetInt("yCh"),  tree.GetInt("zCh"));
 
             clientDataStorage.getSavedPlot(from, out SavedPlotInfo savedPlotInfoFrom);
             clientDataStorage.getSavedPlot(to, out SavedPlotInfo savedPlotInfoTo);

@@ -524,7 +524,7 @@ namespace claims.src.part
             //for all plots set new mark and add to queue for send
             foreach(var plot in getCityPlots())
             {
-                claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
+                claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPlotKey());
             }
         }
 

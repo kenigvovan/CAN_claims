@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using claims.src.auxialiry;
 using claims.src.citylog;
 using claims.src.gui.playerGui.structures.cellElements;
 using claims.src.part;
@@ -678,7 +679,8 @@ namespace claims.src.gui.playerGui.structures
             HashSet<Vec2i> pc = JsonConvert.DeserializeObject<HashSet<Vec2i>>(val);
             foreach (var it in pc)
             {
-                if (claims.clientDataStorage.getSavedPlot(it, out var plot))
+                var key = new Vec3i(it.X, PlotPosition.COLUMN_Y, it.Y);
+                if (claims.clientDataStorage.getSavedPlot(key, out var plot))
                 {
                     claims.clientModInstance.plotsMapLayer.OnResChunkPixels(it, plot.cityName);
                 }

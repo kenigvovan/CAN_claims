@@ -5,8 +5,10 @@
   //PLOT
   "plot_already_claimed": "This plot is already claimed.",
   "plot_has_been_claimed": "Plot {0}/{1} has been claimed. Paid {2}.",
+  "plot_has_been_claimed_3d": "Plot {0}/{2} layer {1} has been claimed. Paid {3}.",
   "plot_has_been_claimed_by_player_paid": "The plot has been claimed, paid {0}.",
   "plot_has_been_unclaimed": "Plot {0}/{1} has been unclaimed.",
+  "plot_has_been_unclaimed_3d": "Plot {0}/{2} layer {1} has been unclaimed.",
   "plot_has_been_unclaimed_by_player": "Plot has been unclaimed, not owner now.",
   "refund_unclaim_reduced_ask": "City can only refund {0} out of {1}. Use /{2} to unclaim with reduced refund.",
   "refund_unclaim_no_money_ask": "City cannot refund anything (short {1}). Use /{2} to unclaim without refund.",

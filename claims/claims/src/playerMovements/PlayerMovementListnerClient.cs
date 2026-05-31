@@ -131,8 +131,8 @@ namespace claims.src.playerMovements
         public void onPlayerChangePlotEvent(string eventName, ref EnumHandling handling, IAttribute data)
         {
             TreeAttribute tree = data as TreeAttribute;
-            Vec2i from = new Vec2i(tree.GetInt("xChO"), tree.GetInt("zChO"));
-            Vec2i to = new Vec2i(tree.GetInt("xCh"), tree.GetInt("zCh"));
+            Vec3i from = new Vec3i(tree.GetInt("xChO"), tree.GetInt("yChO"), tree.GetInt("zChO"));
+            Vec3i to   = new Vec3i(tree.GetInt("xCh"),  tree.GetInt("yCh"),  tree.GetInt("zCh"));
 
             IPlayer pl = claims.capi.World.Player;
             if (pl == null)
@@ -141,9 +141,9 @@ namespace claims.src.playerMovements
             }
 
             if ((int)(from.X / claims.config.ZONE_PLOTS_LENGTH) != (int)(to.X / claims.config.ZONE_PLOTS_LENGTH) ||
-                (int)(from.Y / claims.config.ZONE_PLOTS_LENGTH) != (int)(to.Y / claims.config.ZONE_PLOTS_LENGTH))
+                (int)(from.Z / claims.config.ZONE_PLOTS_LENGTH) != (int)(to.Z / claims.config.ZONE_PLOTS_LENGTH))
             {
-                handleZoneChange(to, pl);
+                handleZoneChange(new Vec2i(to.X, to.Z), pl);
             }
 
             claims.clientDataStorage.getSavedPlot(to, out SavedPlotInfo toPlot);
@@ -221,18 +221,25 @@ namespace claims.src.playerMovements
         public void checkPlayerMove(float dt)
         {
             player = claims.capi.World.Player;
-            if ((playerLastPos.X / PlotPosition.plotSize != (int)(player.Entity.Pos.X / PlotPosition.plotSize)) || playerLastPos.Z / PlotPosition.plotSize != (int)(player.Entity.Pos.Z / PlotPosition.plotSize))
+            bool _plotChanged = (playerLastPos.X / PlotPosition.plotSize != (int)(player.Entity.Pos.X / PlotPosition.plotSize))
+                             || (playerLastPos.Z / PlotPosition.plotSize != (int)(player.Entity.Pos.Z / PlotPosition.plotSize))
+                             || (claims.config.ENABLE_3D_PLOTS
+                                 && playerLastPos.Y / PlotPosition.plotSize != (int)(player.Entity.Pos.Y / PlotPosition.plotSize));
+            if (_plotChanged)
             {
                 TreeAttribute tree = new TreeAttribute();
                 tree.SetString("playerUID", player.PlayerUID);
                 //new plot
-                tree.SetInt("xCh", (int)player.Entity.Pos.X / PlotPosition.plotSize);
-                tree.SetInt("zCh", (int)player.Entity.Pos.Z / PlotPosition.plotSize);
+                tree.SetInt("xCh",  (int)player.Entity.Pos.X / PlotPosition.plotSize);
+                tree.SetInt("zCh",  (int)player.Entity.Pos.Z / PlotPosition.plotSize);
+                tree.SetInt("yCh",  (int)player.Entity.Pos.Y / PlotPosition.plotSize);
                 //old plot
-                tree.SetInt("xChO", (int)playerLastPos.X / PlotPosition.plotSize);
-                tree.SetInt("zChO", (int)playerLastPos.Z / PlotPosition.plotSize);
+                tree.SetInt("xChO", playerLastPos.X / PlotPosition.plotSize);
+                tree.SetInt("zChO", playerLastPos.Z / PlotPosition.plotSize);
+                tree.SetInt("yChO", playerLastPos.Y / PlotPosition.plotSize);
                 claims.capi.World.Api.Event.PushEvent("claimsPlayerChangePlot", tree);
                 playerLastPos.X = (int)player.Entity.Pos.X;
+                playerLastPos.Y = (int)player.Entity.Pos.Y;
                 playerLastPos.Z = (int)player.Entity.Pos.Z;
             }
         }

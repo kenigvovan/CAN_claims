@@ -20,5 +20,6 @@ namespace claims.src
         bool GetCityByName(string name, out City city);
 
         void ClearCacheForPlayersInPlot(Plot plot);
+        bool Has3DPlotAt(int plotX, int plotZ);
     }
 }

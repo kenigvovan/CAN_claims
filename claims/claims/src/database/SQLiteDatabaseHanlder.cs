@@ -295,6 +295,38 @@ namespace claims.src.database
                 try { command.CommandText = "SELECT lastpaidprice FROM PLOTS LIMIT 1"; command.ExecuteScalar(); }
                 catch { command.CommandText = "ALTER TABLE PLOTS ADD COLUMN lastpaidprice INTEGER DEFAULT 0"; command.ExecuteNonQuery(); }
 
+                //plot Y layer (-1 = column/legacy, >= 0 = 3D layer index)
+                try { command.CommandText = "SELECT y FROM PLOTS LIMIT 1"; command.ExecuteScalar(); }
+                catch { command.CommandText = "ALTER TABLE PLOTS ADD COLUMN y INTEGER DEFAULT -1"; command.ExecuteNonQuery(); }
+
+                // Migrate PLOTS PRIMARY KEY from (x,z) to (x,y,z) to support multiple 3D layers per column
+                try
+                {
+                    command.CommandText = "SELECT sql FROM sqlite_master WHERE type='table' AND name='PLOTS'";
+                    var plotSql = command.ExecuteScalar()?.ToString() ?? "";
+                    var normalized = plotSql.Replace(" ", "").ToLowerInvariant();
+                    bool hasNewPK = normalized.Contains("primarykey(x,y,z)") || normalized.Contains("primarykey(x,z,y)");
+                    if (!hasNewPK && normalized.Contains("primarykey"))
+                    {
+                        command.CommandText = "ALTER TABLE PLOTS RENAME TO PLOTS_LEGACY_3D";
+                        command.ExecuteNonQuery();
+                        command.CommandText = SQLiteTables.plotTable;
+                        command.ExecuteNonQuery();
+                        command.CommandText =
+                            "INSERT OR IGNORE INTO PLOTS (name,x,z,y,city,ownerofplot,type,price,customtax,perms,plotgroupguid,markednopvp,plotdesc,extraBought,wascaptured,timestampclaimed,lastpaidprice)" +
+                            " SELECT name,x,z,COALESCE(y,-1),city,ownerofplot,type,price,customtax,perms,plotgroupguid,markednopvp,plotdesc,extraBought,COALESCE(wascaptured,0),COALESCE(timestampclaimed,0),COALESCE(lastpaidprice,0)" +
+                            " FROM PLOTS_LEGACY_3D";
+                        command.ExecuteNonQuery();
+                        command.CommandText = "DROP TABLE PLOTS_LEGACY_3D";
+                        command.ExecuteNonQuery();
+                        claims.sapi.Logger.Notification("[claims] PLOTS table migrated: PRIMARY KEY updated to (x, y, z) for 3D plot support.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    claims.sapi.Logger.Error("[claims] PLOTS 3D migration error: " + ex.Message);
+                }
+
                 try { command.CommandText = "SELECT eventlog FROM CITIES LIMIT 1"; command.ExecuteScalar(); }
                 catch { command.CommandText = "ALTER TABLE CITIES ADD COLUMN eventlog TEXT DEFAULT \"\""; command.ExecuteNonQuery(); }
 
@@ -822,7 +854,7 @@ namespace claims.src.database
             MessageHandler.sendDebugMsg("Load dummy plots.");
             try
             {
-                DataTable dt = readFromDatabase("SELECT x, z, city FROM PLOTS", new Dictionary<string, object> { });
+                DataTable dt = readFromDatabase("SELECT x, z, y, city FROM PLOTS", new Dictionary<string, object> { });
                 foreach (DataRow it in dt.Rows)
                 {
                     if (it["city"].ToString() != "")
@@ -830,9 +862,12 @@ namespace claims.src.database
                         claims.dataStorage.getCityByGUID(it["city"].ToString(), out City city);
                         if (city != null)
                         {
-                            Plot tmp = new Plot(new Vec2i(int.Parse(it["x"].ToString()), int.Parse(it["z"].ToString())));
+                            int _x = int.Parse(it["x"].ToString()), _z = int.Parse(it["z"].ToString());
+                            int _y = it.Table.Columns.Contains("y") ? int.Parse(it["y"].ToString()) : PlotPosition.COLUMN_Y;
+                            PlotPosition pp = new PlotPosition(_x, _z) { LayerY = _y };
+                            Plot tmp = new Plot(pp);
                             tmp.setCity(city);
-                            claims.dataStorage.addClaimedPlot(new PlotPosition(int.Parse(it["x"].ToString()), int.Parse(it["z"].ToString())), tmp);
+                            claims.dataStorage.addClaimedPlot(pp, tmp);
                             city.getCityPlots().Add(tmp);
                         }
                         continue;
@@ -853,6 +888,7 @@ namespace claims.src.database
                 { "@name", plot.GetPartName() },
                 { "@x", plot.getPos().X },
                 { "@z", plot.getPos().Y},
+                { "@y", plot.plotPosition.LayerY },
                 { "@city", plot.hasCity() ? plot.getCity().Guid :"" },
                 { "@ownerofplot", plot.hasPlotOwner() ? plot.getPlotOwner().Guid : ""},
                 { "@type", (int)plot.Type },
@@ -876,7 +912,8 @@ namespace claims.src.database
         {
             Dictionary<string, object> tmpDict = new Dictionary<string, object> {
                 { "@x", plot.getPos().X},
-                { "@z", plot.getPos().Y }
+                { "@z", plot.getPos().Y },
+                { "@y", plot.plotPosition.LayerY }
             };
 
             queryQueue.Enqueue(new QuerryInfo("PLOTS", QuerryType.DELETE, tmpDict));
@@ -885,7 +922,9 @@ namespace claims.src.database
 
         public override bool loadPlot(DataRow it)
         {
-            claims.dataStorage.GetPlot(new PlotPosition(int.Parse(it["x"].ToString()), int.Parse(it["z"].ToString())), out Plot plot);
+            int _lx = int.Parse(it["x"].ToString()), _lz = int.Parse(it["z"].ToString());
+            int _ly = it.Table.Columns.Contains("y") ? int.Parse(it["y"].ToString()) : PlotPosition.COLUMN_Y;
+            claims.dataStorage.GetPlot(new PlotPosition(_lx, _lz) { LayerY = _ly }, out Plot plot);
             if (plot == null)
             {
                 MessageHandler.sendErrorMsg("loadPlot at " + it["x"].ToString() + " " + it["z"].ToString() + " failed");

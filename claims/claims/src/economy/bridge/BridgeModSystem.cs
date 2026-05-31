@@ -16,15 +16,17 @@ namespace claims.src.economy.bridge
             api.Event.ServerRunPhase(EnumServerRunPhase.ModsAndConfigReady, InstallAdapter);
         }
 
-        public override void StopServerSide()
+        public override void Dispose()
         {
-            base.StopServerSide();
-            if (!_adapterInstalled) return;
-            caneconomy.src.implementations.VirtualMoney.VirtualMoneyEconomyHandler.AccountBalanceChanged -= claims.RaiseAccountBalanceChanged;
-            caneconomy.caneconomy.OnBlockRemovedBlockEntityOpenableContainer -= RealBankActions.OnBlockRemoved;
-            caneconomy.caneconomy.OnReceivedClientPacketBlockEntitySign -= RealBankActions.OnButtonSave;
-            claims.economyProvider = new NoopMoneyProvider();
-            _adapterInstalled = false;
+            if (_adapterInstalled)
+            {
+                caneconomy.src.implementations.VirtualMoney.VirtualMoneyEconomyHandler.AccountBalanceChanged -= claims.RaiseAccountBalanceChanged;
+                caneconomy.caneconomy.OnBlockRemovedBlockEntityOpenableContainer -= RealBankActions.OnBlockRemoved;
+                caneconomy.caneconomy.OnReceivedClientPacketBlockEntitySign -= RealBankActions.OnButtonSave;
+                claims.economyProvider = new NoopMoneyProvider();
+                _adapterInstalled = false;
+            }
+            base.Dispose();
         }
 
         private void InstallAdapter()

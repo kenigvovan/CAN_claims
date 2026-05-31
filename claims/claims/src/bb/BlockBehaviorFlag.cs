@@ -82,7 +82,7 @@ namespace claims.src.bb
         {
             if (world.BlockAccessor.GetBlockEntity(pos)?.GetBehavior<BlockEntityBehaviorFlag>() is BlockEntityBehaviorFlag beh)
             {                
-                if (beh.TimesToBreak-- > 0)
+                if (--beh.TimesToBreak > 0)
                 {
                     handling = EnumHandling.PreventDefault;
                     //byPlayer?.Entity.World.BlockAccessor.MarkBlockDirty(pos);

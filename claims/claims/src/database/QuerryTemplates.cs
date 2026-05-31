@@ -34,11 +34,11 @@
         public static readonly string UPDATE_WORLD = "UPDATE WORLDS SET name=@name, guid=@guid, pvpeverywhere=@pvpeverywhere, fireeverywhere=@fireeverywhere,blasteverywhere=@blasteverywhere,fireforbidden=@fireforbidden,pvpforbidden=@pvpforbidden,blastforbidden=@blastforbidden where guid=@guid";
 
         //PLOT
-        public static readonly string DELETE_PLOT = "DELETE FROM PLOTS WHERE x=@x AND z=@z";
-        public static readonly string INSERT_PLOT = "INSERT INTO PLOTS (name, x,z,city,ownerofplot,type,price,customtax,perms,plotgroupguid, markednopvp, plotdesc, extraBought, wascaptured, timestampclaimed, lastpaidprice)" +
-                                                    " VALUES (@name,@x,@z,@city,@ownerofplot,@type,@price,@customtax,@perms,@plotgroupguid, @markednopvp, @plotdesc, @extraBought, @wascaptured, @timestampclaimed, @lastpaidprice)";
-        public static readonly string UPDATE_PLOT = "UPDATE PLOTS SET name=@name, x=@x,z=@z,city=@city, ownerofplot=@ownerofplot, type=@type,price=@price,customtax=@customtax,perms=@perms, plotgroupguid=@plotgroupguid, markednopvp=@markednopvp, plotdesc=@plotdesc, extraBought=@extraBought, wascaptured=@wascaptured, timestampclaimed=@timestampclaimed, lastpaidprice=@lastpaidprice" +
-                                                    " where x=@x and z=@z";
+        public static readonly string DELETE_PLOT = "DELETE FROM PLOTS WHERE x=@x AND z=@z AND y=@y";
+        public static readonly string INSERT_PLOT = "INSERT INTO PLOTS (name, x,z,y,city,ownerofplot,type,price,customtax,perms,plotgroupguid, markednopvp, plotdesc, extraBought, wascaptured, timestampclaimed, lastpaidprice)" +
+                                                    " VALUES (@name,@x,@z,@y,@city,@ownerofplot,@type,@price,@customtax,@perms,@plotgroupguid, @markednopvp, @plotdesc, @extraBought, @wascaptured, @timestampclaimed, @lastpaidprice)";
+        public static readonly string UPDATE_PLOT = "UPDATE PLOTS SET name=@name, x=@x,z=@z,y=@y,city=@city, ownerofplot=@ownerofplot, type=@type,price=@price,customtax=@customtax,perms=@perms, plotgroupguid=@plotgroupguid, markednopvp=@markednopvp, plotdesc=@plotdesc, extraBought=@extraBought, wascaptured=@wascaptured, timestampclaimed=@timestampclaimed, lastpaidprice=@lastpaidprice" +
+                                                    " where x=@x and z=@z and y=@y";
 
         //CONFLICT
         public static readonly string DELETE_CONFLICT = "DELETE FROM CONFLICTS WHERE guid=@guid";

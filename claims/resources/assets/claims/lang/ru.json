@@ -5,7 +5,9 @@
   //PLOT
   "plot_already_claimed": "Чанк уже запривачен.",
   "plot_has_been_claimed": "Чанк {0}/{1} был запривачен. Заплачено {2}.",
+  "plot_has_been_claimed_3d": "Чанк {0}/{2} слой {1} был запривачен. Заплачено {3}.",
   "plot_has_been_unclaimed": "Чанк {0}/{1} был разпривачен.",
+  "plot_has_been_unclaimed_3d": "Чанк {0}/{2} слой {1} был разпривачен.",
   "plot_not_claimed": "Данный чанк не запривачен.",
   "need_type": "Нужен тип чанка.",
   "no_such_plot_type": "Тип чанка не найден.",

@@ -272,6 +272,7 @@ namespace claims.src.timers
                                 plot.Price = -1;
                                 plot.Type = PlotType.DEFAULT;
                                 plot.saveToDatabase();
+                                it.PlayerPlots.Remove(plot);
                             }
                         }
                     }

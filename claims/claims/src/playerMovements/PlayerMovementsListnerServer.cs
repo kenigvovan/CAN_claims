@@ -27,14 +27,15 @@ namespace claims.src
         // zone -> set of uids subscribed to this zone (reverse index for fast push)
         public Dictionary<Vec2i, HashSet<string>> zoneSubscribers;
 
-        public Dictionary<Vec2i, HashSet<Vec2i>> PlotWhichShouldBeUpdated;
-        public Dictionary<Vec2i, HashSet<Vec2i>> PlotWhichShouldBeRemoved;
+        // Vec3i plot key: X=gridX, Y=layerY (-1 for column), Z=gridZ
+        public Dictionary<Vec2i, HashSet<Vec3i>> PlotWhichShouldBeUpdated;
+        public Dictionary<Vec2i, HashSet<Vec3i>> PlotWhichShouldBeRemoved;
         public PlayerMovementsListnerServer()
         {
             playerSubscriptions = new Dictionary<string, HashSet<Vec2i>>();
             zoneSubscribers = new Dictionary<Vec2i, HashSet<string>>();
-            PlotWhichShouldBeUpdated = new Dictionary<Vec2i, HashSet<Vec2i>>();
-            PlotWhichShouldBeRemoved = new Dictionary<Vec2i, HashSet<Vec2i>>();
+            PlotWhichShouldBeUpdated = new Dictionary<Vec2i, HashSet<Vec3i>>();
+            PlotWhichShouldBeRemoved = new Dictionary<Vec2i, HashSet<Vec3i>>();
 
             claims.sapi.Event.Timer(checkAndSendUpdates, 10);
         }
@@ -213,7 +214,7 @@ namespace claims.src
             Vec2i fromv = new Vec2i(tree.GetInt("xChO"), tree.GetInt("zChO"));
             Vec2i tov = new Vec2i(tree.GetInt("xCh"), tree.GetInt("zCh"));
 
-            PlotPosition to = new PlotPosition(tov);
+            PlotPosition to = new PlotPosition(tov) { LayerY = tree.GetInt("yCh") };
             IServerPlayer pl = claims.sapi.World.PlayerByUid(playerInfo.Guid) as IServerPlayer;
             
             if (playerInfo.PlayerCache.LastChunk == null)
@@ -222,7 +223,7 @@ namespace claims.src
             }
             else
             {
-                playerInfo.PlayerCache.setPlotPosition(PlotPosition.fromXZ((int)pl.Entity.Pos.X, (int)pl.Entity.Pos.Z));
+                playerInfo.PlayerCache.setPlotPosition(PlotPosition.fromPlayerPos(pl.Entity.Pos));
                 playerInfo.PlayerCache.Reset();
             }
 
@@ -274,7 +275,9 @@ namespace claims.src
                 if (claims.dataStorage.getLastPlayerPos(it.PlayerUID, out Vec3i lastPlayerPos))
                 {
                     Vec3i playerCurrentPos = it.Entity.Pos.XYZInt;
-                    if ((lastPlayerPos.X != playerCurrentPos.X || lastPlayerPos.Z != playerCurrentPos.Z))
+                    bool _anyMoved = lastPlayerPos.X != playerCurrentPos.X || lastPlayerPos.Z != playerCurrentPos.Z
+                        || (claims.config.ENABLE_3D_PLOTS && lastPlayerPos.Y / PlotPosition.plotSize != playerCurrentPos.Y / PlotPosition.plotSize);
+                    if (_anyMoved)
                     {
                         //Player moved
                         claims.dataStorage.GetPlayerByUid(it.PlayerUID, out PlayerInfo playerInfo);
@@ -291,19 +294,25 @@ namespace claims.src
                         }
 
                         //If player is now in a different plot
-                        if (lastPlayerPos != null && (lastPlayerPos.X / PlotPosition.plotSize != (playerCurrentPos.X / PlotPosition.plotSize)) || lastPlayerPos.Z / PlotPosition.plotSize != (playerCurrentPos.Z / PlotPosition.plotSize))
+                        bool _plotChanged = (lastPlayerPos.X / PlotPosition.plotSize != playerCurrentPos.X / PlotPosition.plotSize)
+                                         || (lastPlayerPos.Z / PlotPosition.plotSize != playerCurrentPos.Z / PlotPosition.plotSize)
+                                         || (claims.config.ENABLE_3D_PLOTS
+                                             && lastPlayerPos.Y / PlotPosition.plotSize != playerCurrentPos.Y / PlotPosition.plotSize);
+                        if (lastPlayerPos != null && _plotChanged)
                         {
                             TreeAttribute tree = new TreeAttribute();
                             tree.SetString("playerUID", it.PlayerUID);
                             //new plot
                             tree.SetInt("xCh", playerCurrentPos.X / PlotPosition.plotSize);
                             tree.SetInt("zCh", playerCurrentPos.Z / PlotPosition.plotSize);
+                            tree.SetInt("yCh", playerCurrentPos.Y / PlotPosition.plotSize);
                             //old plot
                             tree.SetInt("xChO", (int)lastPlayerPos.X / PlotPosition.plotSize);
                             tree.SetInt("zChO", (int)lastPlayerPos.Z / PlotPosition.plotSize);
+                            tree.SetInt("yChO", (int)lastPlayerPos.Y / PlotPosition.plotSize);
 
                             playerInfo.PlayerCache.Reset();
-                            playerInfo.PlayerCache.setPlotPosition(PlotPosition.fromXZ((int)it.Entity.Pos.X, (int)it.Entity.Pos.Z));
+                            playerInfo.PlayerCache.setPlotPosition(PlotPosition.fromPlayerPos(it.Entity.Pos));
 
                             claims.sapi.World.Api.Event.PushEvent("claimsPlayerChangePlot", tree);
                         }
@@ -329,9 +338,11 @@ namespace claims.src
                     //new plot
                     tree.SetInt("xCh", playerCurrentPos.X / PlotPosition.plotSize);
                     tree.SetInt("zCh", playerCurrentPos.Z / PlotPosition.plotSize);
+                    tree.SetInt("yCh", playerCurrentPos.Y / PlotPosition.plotSize);
                     //old plot
                     tree.SetInt("xChO", playerCurrentPos.X / PlotPosition.plotSize);
                     tree.SetInt("zChO", playerCurrentPos.Z / PlotPosition.plotSize);
+                    tree.SetInt("yChO", playerCurrentPos.Y / PlotPosition.plotSize);
                     if (playerInfo.PlayerCache.LastChunk == null)
                     {
                         //events.OnBlockAction.InitPlayerCache((IServerPlayer)it);
@@ -339,7 +350,9 @@ namespace claims.src
                     else
                     {
                         playerInfo.PlayerCache.Reset();
-                        playerInfo.PlayerCache.setPlotPosition(PlotPosition.fromXZ(playerCurrentPos.X, playerCurrentPos.Z));
+                        playerInfo.PlayerCache.setPlotPosition(claims.config.ENABLE_3D_PLOTS
+                            ? PlotPosition.fromXZY(playerCurrentPos.X, playerCurrentPos.Z, playerCurrentPos.Y)
+                            : PlotPosition.fromXZ(playerCurrentPos.X, playerCurrentPos.Z));
                     }
                     claims.sapi.World.Api.Event.PushEvent("claimsPlayerChangePlot", tree);
                 }
@@ -371,17 +384,17 @@ namespace claims.src
             }
 
             // Build snapshot for newly subscribed zones only
-            HashSet<Tuple<Vec2i, long, List<KeyValuePair<Vec2i, SavedPlotInfo>>>> snapshot
-                = new HashSet<Tuple<Vec2i, long, List<KeyValuePair<Vec2i, SavedPlotInfo>>>>();
+            HashSet<Tuple<Vec2i, long, List<KeyValuePair<Vec3i, SavedPlotInfo>>>> snapshot
+                = new HashSet<Tuple<Vec2i, long, List<KeyValuePair<Vec3i, SavedPlotInfo>>>>();
             foreach (var zone in toSubscribe)
             {
                 Subscribe(uid, zone);
                 if (claims.dataStorage.getZone(zone, out ServerZoneInfo serverZoneInfo))
                 {
-                    List<KeyValuePair<Vec2i, SavedPlotInfo>> preparedSavedPlots = new List<KeyValuePair<Vec2i, SavedPlotInfo>>();
+                    List<KeyValuePair<Vec3i, SavedPlotInfo>> preparedSavedPlots = new List<KeyValuePair<Vec3i, SavedPlotInfo>>();
                     foreach (Plot plot in serverZoneInfo.zonePlots)
                     {
-                        preparedSavedPlots.Add(new KeyValuePair<Vec2i, SavedPlotInfo>(plot.getPos(),
+                        preparedSavedPlots.Add(new KeyValuePair<Vec3i, SavedPlotInfo>(plot.getPlotKey(),
                             new SavedPlotInfo((int)plot.Price, plot.getPermsHandler().pvpFlag,
                                 player.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canBlockDestroyWithOutCacheUpdate(playerInfo, plot),
                                 player.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canBlockUseWithOutCacheUpdate(playerInfo, plot),
@@ -391,12 +404,12 @@ namespace claims.src
                                 plot.Type == PlotType.TAVERN ? plot.GetClientInnerClaimFromDefault(playerInfo) : null,
                                 plot.getCity().Alliance?.Guid ?? "")));
                     }
-                    snapshot.Add(new Tuple<Vec2i, long, List<KeyValuePair<Vec2i, SavedPlotInfo>>>(zone, 0L, preparedSavedPlots));
+                    snapshot.Add(new Tuple<Vec2i, long, List<KeyValuePair<Vec3i, SavedPlotInfo>>>(zone, 0L, preparedSavedPlots));
                 }
                 else
                 {
                     // Zone exists but is empty (or doesn't exist) - send empty so client clears any stale data
-                    snapshot.Add(new Tuple<Vec2i, long, List<KeyValuePair<Vec2i, SavedPlotInfo>>>(zone, 0L, new List<KeyValuePair<Vec2i, SavedPlotInfo>>()));
+                    snapshot.Add(new Tuple<Vec2i, long, List<KeyValuePair<Vec3i, SavedPlotInfo>>>(zone, 0L, new List<KeyValuePair<Vec3i, SavedPlotInfo>>()));
                 }
             }
 
@@ -422,7 +435,7 @@ namespace claims.src
             if (PlotWhichShouldBeRemoved.Count > 0)
             {
                 // For each subscriber, collect the plots in zones they're subscribed to
-                Dictionary<string, HashSet<Vec2i>> perPlayerRemoves = new Dictionary<string, HashSet<Vec2i>>();
+                Dictionary<string, HashSet<Vec3i>> perPlayerRemoves = new Dictionary<string, HashSet<Vec3i>>();
                 foreach (var zoneEntry in PlotWhichShouldBeRemoved)
                 {
                     if (!zoneSubscribers.TryGetValue(zoneEntry.Key, out var subs)) continue;
@@ -430,7 +443,7 @@ namespace claims.src
                     {
                         if (!perPlayerRemoves.TryGetValue(uid, out var set))
                         {
-                            set = new HashSet<Vec2i>();
+                            set = new HashSet<Vec3i>();
                             perPlayerRemoves[uid] = set;
                         }
                         foreach (var coord in zoneEntry.Value) set.Add(coord);
@@ -452,7 +465,7 @@ namespace claims.src
 
             if (PlotWhichShouldBeUpdated.Count > 0)
             {
-                Dictionary<string, List<Vec2i>> perPlayerUpdates = new Dictionary<string, List<Vec2i>>();
+                Dictionary<string, List<Vec3i>> perPlayerUpdates = new Dictionary<string, List<Vec3i>>();
                 foreach (var zoneEntry in PlotWhichShouldBeUpdated)
                 {
                     if (!zoneSubscribers.TryGetValue(zoneEntry.Key, out var subs)) continue;
@@ -460,7 +473,7 @@ namespace claims.src
                     {
                         if (!perPlayerUpdates.TryGetValue(uid, out var list))
                         {
-                            list = new List<Vec2i>();
+                            list = new List<Vec3i>();
                             perPlayerUpdates[uid] = list;
                         }
                         foreach (var coord in zoneEntry.Value) list.Add(coord);
@@ -473,13 +486,13 @@ namespace claims.src
                     if (pl == null) continue;
                     if (!claims.dataStorage.GetPlayerByUid(pair.Key, out PlayerInfo playerInfo)) continue;
 
-                    List<Tuple<Vec2i, SavedPlotInfo>> updatePlotsForPlayer = new List<Tuple<Vec2i, SavedPlotInfo>>();
+                    List<Tuple<Vec3i, SavedPlotInfo>> updatePlotsForPlayer = new List<Tuple<Vec3i, SavedPlotInfo>>();
                     foreach (var coord in pair.Value)
                     {
-                        tmpPlotPosition.setXY(coord);
+                        tmpPlotPosition.setXYZ(coord);
                         if (claims.dataStorage.GetPlot(tmpPlotPosition, out Plot plot))
                         {
-                            updatePlotsForPlayer.Add(new Tuple<Vec2i, SavedPlotInfo>(plot.getPos(), new SavedPlotInfo((int)plot.Price, plot.getPermsHandler().pvpFlag,
+                            updatePlotsForPlayer.Add(new Tuple<Vec3i, SavedPlotInfo>(plot.getPlotKey(), new SavedPlotInfo((int)plot.Price, plot.getPermsHandler().pvpFlag,
                                 pl.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canBlockDestroyWithOutCacheUpdate(playerInfo, plot),
                                 pl.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canBlockUseWithOutCacheUpdate(playerInfo, plot),
                                 pl.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canAttackAnimalsWithOutCacheUpdate(playerInfo, plot),
@@ -501,31 +514,21 @@ namespace claims.src
             }
         }
 
-        public void markPlotToWasRemoved(Vec2i vec)
+        public void markPlotToWasRemoved(Vec3i vec)
         {
-            var tmpVec = new Vec2i(vec.X / claims.config.ZONE_PLOTS_LENGTH, vec.Y / claims.config.ZONE_PLOTS_LENGTH);
-            if (PlotWhichShouldBeRemoved.TryGetValue(tmpVec,
-                out HashSet<Vec2i> hs))
-            {
-                hs.Add(vec);            
-            }
-            else
-            {
-                PlotWhichShouldBeRemoved.Add(tmpVec, new HashSet<Vec2i> { vec });
-            }
-        }
-        public void markPlotToWasReUpdated(Vec2i vec)
-        {
-            var tmpVec = new Vec2i(vec.X / claims.config.ZONE_PLOTS_LENGTH, vec.Y / claims.config.ZONE_PLOTS_LENGTH);
-            if (PlotWhichShouldBeUpdated.TryGetValue(tmpVec,
-                out HashSet<Vec2i> hs))
-            {
+            var zoneKey = new Vec2i(vec.X / claims.config.ZONE_PLOTS_LENGTH, vec.Z / claims.config.ZONE_PLOTS_LENGTH);
+            if (PlotWhichShouldBeRemoved.TryGetValue(zoneKey, out HashSet<Vec3i> hs))
                 hs.Add(vec);
-            }
             else
-            {
-                PlotWhichShouldBeUpdated.Add(tmpVec, new HashSet<Vec2i> { vec });
-            }
+                PlotWhichShouldBeRemoved.Add(zoneKey, new HashSet<Vec3i> { vec });
+        }
+        public void markPlotToWasReUpdated(Vec3i vec)
+        {
+            var zoneKey = new Vec2i(vec.X / claims.config.ZONE_PLOTS_LENGTH, vec.Z / claims.config.ZONE_PLOTS_LENGTH);
+            if (PlotWhichShouldBeUpdated.TryGetValue(zoneKey, out HashSet<Vec3i> hs))
+                hs.Add(vec);
+            else
+                PlotWhichShouldBeUpdated.Add(zoneKey, new HashSet<Vec3i> { vec });
         }
     }
 }

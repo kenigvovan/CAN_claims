@@ -78,7 +78,7 @@ namespace claims.src.claimsext.map
             {
                 foreach (var pl in zone.Value.savedPlots)
                 {
-                    OnResChunkPixels(pl.Key.Copy(), "");
+                    OnResChunkPixels(new Vec2i(pl.Key.X, pl.Key.Z), "");
                 }
             }
         }
@@ -110,7 +110,7 @@ namespace claims.src.claimsext.map
                 {
                     foreach(var pl in zone.Value.savedPlots)
                     {
-                        OnResChunkPixels(pl.Key.Copy(), "");
+                        OnResChunkPixels(new Vec2i(pl.Key.X, pl.Key.Z), "");
                     }
                     
                 }
@@ -207,7 +207,7 @@ namespace claims.src.claimsext.map
                 {
                     foreach(var it in clientSavedZone.savedPlots)
                     {
-                        OnResChunkPixels(it.Key, it.Value.cityName);
+                        OnResChunkPixels(new Vec2i(it.Key.X, it.Key.Z), it.Value.cityName);
                     }
                 }
             });
@@ -371,7 +371,7 @@ namespace claims.src.claimsext.map
 
             chunkToCityName.TryGetValue(chunkPos, out string cityName);
 
-            if (!claims.clientDataStorage.getSavedPlot(chunkPos, out SavedPlotInfo savedPlotInfo))
+            if (!claims.clientDataStorage.getSavedPlot(new Vec3i(chunkPos.X, PlotPosition.COLUMN_Y, chunkPos.Y), out SavedPlotInfo savedPlotInfo))
             {
                 /*Task.Factory.StartNew(() =>
                 {
@@ -427,7 +427,7 @@ namespace claims.src.claimsext.map
             SavedPlotInfo plot;
             color &= unchecked((int)0x80ffff11);
             //left
-            if (!claims.clientDataStorage.getSavedPlot(copyVec, out plot) || plot.cityName != cityName)
+            if (!claims.clientDataStorage.getSavedPlot(new Vec3i(copyVec.X, PlotPosition.COLUMN_Y, copyVec.Y), out plot) || plot.cityName != cityName)
             {
                 for (int i = 0; i < ps; i++)
                 {
@@ -438,7 +438,7 @@ namespace claims.src.claimsext.map
             copyVec.X++;
             copyVec.Y++;
             //down
-            if (!claims.clientDataStorage.getSavedPlot(copyVec, out plot) || plot.cityName != cityName)
+            if (!claims.clientDataStorage.getSavedPlot(new Vec3i(copyVec.X, PlotPosition.COLUMN_Y, copyVec.Y), out plot) || plot.cityName != cityName)
             {
                 int lastRow = (ps - 1) * stride;
                 for (int i = 0; i < ps; i++)
@@ -450,7 +450,7 @@ namespace claims.src.claimsext.map
             copyVec.X++;
             copyVec.Y--;
             //right
-            if (!claims.clientDataStorage.getSavedPlot(copyVec, out plot) || plot.cityName != cityName)
+            if (!claims.clientDataStorage.getSavedPlot(new Vec3i(copyVec.X, PlotPosition.COLUMN_Y, copyVec.Y), out plot) || plot.cityName != cityName)
             {
                 for (int i = 0; i < ps; i++)
                 {
@@ -461,7 +461,7 @@ namespace claims.src.claimsext.map
             copyVec.X--;
             copyVec.Y--;
             //up
-            if (!claims.clientDataStorage.getSavedPlot(copyVec, out plot) || plot.cityName != cityName)
+            if (!claims.clientDataStorage.getSavedPlot(new Vec3i(copyVec.X, PlotPosition.COLUMN_Y, copyVec.Y), out plot) || plot.cityName != cityName)
             {
                 for (int i = 0; i < ps; i++)
                 {
@@ -487,7 +487,7 @@ namespace claims.src.claimsext.map
                 for (int worldXOffset = 0; worldXOffset < ppcd; worldXOffset++)
                 {
                     Vec2i tmpVec = new Vec2i(leftUpperCorner.X + worldXOffset, leftUpperCorner.Y + worldZOffset);
-                    if (claims.clientDataStorage.getSavedPlot(tmpVec, out SavedPlotInfo savedPlot))
+                    if (claims.clientDataStorage.getSavedPlot(new Vec3i(tmpVec.X, PlotPosition.COLUMN_Y, tmpVec.Y), out SavedPlotInfo savedPlot))
                         GenerateChunkPart(worldZOffset, worldXOffset, claims.clientDataStorage.ClientGetCityColor(savedPlot.cityName), ref texDataTmp, tmpVec, savedPlot.cityName);
                 }
             }

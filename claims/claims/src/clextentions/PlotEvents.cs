@@ -14,19 +14,20 @@ namespace claims.src.clextentions
             TreeAttribute tree = data as TreeAttribute;
             int chX = tree.GetInt("chX");
             int chZ = tree.GetInt("chZ");
-            
-            PlotStateHandling.broadcastPlotUnclaimedInZone(chX, chZ);
+            int chY = tree.GetInt("chY", PlotPosition.COLUMN_Y);
+            PlotStateHandling.broadcastPlotUnclaimedInZone(chX, chZ, chY);
         }
         public static void updatedPlotHandlerClaimed(string eventName, ref EnumHandling handling, IAttribute data)
         {
             TreeAttribute tree = data as TreeAttribute;
             int chX = tree.GetInt("chX");
             int chZ = tree.GetInt("chZ");
-            
-            if(claims.dataStorage.GetPlot(new PlotPosition(chX, chZ), out var plot))
+            int chY = tree.GetInt("chY", PlotPosition.COLUMN_Y);
+            var pp = new PlotPosition(chX, chZ) { LayerY = chY };
+            if (claims.dataStorage.GetPlot(pp, out var plot))
             {
                 PlotStateHandling.broadcastPlotClaimedInZone(plot);
-            }           
+            }
         }
     }
 }

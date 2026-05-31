@@ -22,7 +22,7 @@ namespace claims.src.part
         {
             foreach(var plot in city.getCityPlots())
             {
-                claims.serverPlayerMovementListener.markPlotToWasRemoved(plot.getPos());
+                claims.serverPlayerMovementListener.markPlotToWasRemoved(plot.getPlotKey());
             }
             demolishCityPlots(city);
             InvitationHandler.deleteAllInvitationsForReceiver(city);
@@ -56,6 +56,24 @@ namespace claims.src.part
                 if (conflict.First.GetCities().Contains(city) || conflict.Second.GetCities().Contains(city))
                 {
                     DemolishConflict(conflict, EnumConflictEndReason.CityDestroyed);
+                }
+            }
+            if (city.HasAlliance())
+            {
+                Alliance alliance = city.Alliance;
+                alliance.Cities.Remove(city);
+                city.Alliance = null;
+                if (alliance.Cities.Count == 0)
+                {
+                    DemolishAlliance(alliance);
+                }
+                else
+                {
+                    if (alliance.MainCity != null && alliance.MainCity.Equals(city))
+                        alliance.MainCity = alliance.Cities[0];
+                    alliance.saveToDatabase();
+                    UsefullPacketsSend.AddToQueueAllianceInfoUpdate(alliance.Guid,
+                        new Dictionary<string, object> { { "value", alliance.Guid } }, EnumPlayerRelatedInfo.NEW_ALLIANCE_ALL);
                 }
             }
             Dictionary<string, ClientCityInfoCellElement> CityStatsCashe =
@@ -99,6 +117,7 @@ namespace claims.src.part
             TreeAttribute tree = new TreeAttribute();
             tree.SetInt("chX", plot.getPos().X);
             tree.SetInt("chZ", plot.getPos().Y);
+            tree.SetInt("chY", plot.plotPosition.LayerY);
             if (city != null)
                 tree.SetString("name", city.GetPartName());
             claims.sapi.World.Api.Event.PushEvent("plotunclaimed", tree);

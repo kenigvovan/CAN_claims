@@ -50,6 +50,7 @@
             "name TEXT," +
             "x INTEGER DEFAULT 0," + //-
             "z INTEGER DEFAULT 0," + //-
+            "y INTEGER DEFAULT -1," +
             "city TEXT," + //-
             "ownerofplot TEXT," +
             "type INTEGER," +
@@ -63,7 +64,7 @@
             "wascaptured INTEGER," +
             "timestampclaimed INTEGER DEFAULT 0," +
             "lastpaidprice INTEGER DEFAULT 0," +
-            "PRIMARY KEY(x, z)" +
+            "PRIMARY KEY(x, z, y)" +
             ");";
 
         public static string plotGroupTable =

@@ -52,8 +52,8 @@ namespace claims.src.gui.plotMovementGui
         {
             base.OnGuiOpened();
             //return;
-            if (claims.clientDataStorage.getSavedPlot(new Vec2i((int)claims.capi.World.Player.Entity.Pos.X / PlotPosition.plotSize,
-                                                                        (int)claims.capi.World.Player.Entity.Pos.Z / PlotPosition.plotSize),
+            var _pp = PlotPosition.fromEntityyPos(claims.capi.World.Player.Entity.Pos);
+            if (claims.clientDataStorage.getSavedPlot(new Vec3i(_pp.X, _pp.LayerY, _pp.Z),
                                                                out SavedPlotInfo savedPlotInfo))
             {
                 claims.updateMovementGUIInfo(savedPlotInfo);

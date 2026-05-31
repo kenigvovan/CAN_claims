@@ -89,10 +89,18 @@ namespace claims.src.beb
             {
                 return;
             }
-            if (this.Api.Side == EnumAppSide.Server && IsCaptureNoLongerValid())
+            if (this.Api.Side == EnumAppSide.Server)
             {
-                CancelCapture();
-                return;
+                if (IsCaptureNoLongerValid())
+                {
+                    CancelCapture();
+                    return;
+                }
+                if (ConflictHandler.TryGetConflictByGuid(this.ConflictGuid, out var c) && !c.ActiveWarTime)
+                {
+                    CancelCapture();
+                    return;
+                }
             }
             this.CapturedPercent += GameMath.Clamp(1.0f - this.CapturedPercent, -deltaTime / this.captureDuration, deltaTime / this.captureDuration);
             if (this.Api.Side == EnumAppSide.Server)
@@ -141,13 +149,13 @@ namespace claims.src.beb
                             IConflictParty defenderParty = defenderCity.HasAlliance()
                                 ? (IConflictParty)defenderCity.Alliance
                                 : (IConflictParty)defenderCity;
-                            IConflictParty attackerParty = attackerCity.HasAlliance()
+                            IConflictParty attackerPartyAnn = attackerCity.HasAlliance()
                                 ? (IConflictParty)attackerCity.Alliance
                                 : (IConflictParty)attackerCity;
 
                             MessageHandler.SendMsgInAlliance(defenderParty,
                                 Lang.Get("claims:city_destroyed_by_war", defenderCity.GetPartName(), attackerCity.GetPartName()));
-                            MessageHandler.SendMsgInAlliance(attackerParty,
+                            MessageHandler.SendMsgInAlliance(attackerPartyAnn,
                                 Lang.Get("claims:we_destroyed_city", defenderCity.GetPartName()));
                         }
 
@@ -230,7 +238,7 @@ namespace claims.src.beb
                         defenderPlot.getCity().saveToDatabase();
 
                         defenderPlot.CheckBorderPlotValue();
-                        claims.serverPlayerMovementListener.markPlotToWasReUpdated(defenderPlot.getPos());
+                        claims.serverPlayerMovementListener.markPlotToWasReUpdated(defenderPlot.getPlotKey());
 
                         UsefullPacketsSend.AddToQueueCityInfoUpdate(defenderPlot.getCity().Guid, EnumPlayerRelatedInfo.CLAIMED_PLOTS, EnumPlayerRelatedInfo.CITY_LOG);
                         UsefullPacketsSend.AddToQueueCityInfoUpdate(defenderCity.Guid, EnumPlayerRelatedInfo.CLAIMED_PLOTS, EnumPlayerRelatedInfo.CITY_LOG);

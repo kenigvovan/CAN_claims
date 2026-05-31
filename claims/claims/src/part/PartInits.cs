@@ -65,7 +65,7 @@ namespace claims.src.part
             city.saveToDatabase();
             newPlot.saveToDatabase();
             claims.dataStorage.ClearCacheForPlayersInPlot(newPlot);
-            claims.serverPlayerMovementListener.markPlotToWasReUpdated(newPlot.getPos());
+            claims.serverPlayerMovementListener.markPlotToWasReUpdated(newPlot.getPlotKey());
 
             MessageHandler.sendGlobalMsg(Lang.Get("claims:new_city_created", StringFunctions.replaceUnderscore(cityName), creator != null ? creator.GetPartName() : ""));
             TreeAttribute tree = new TreeAttribute();

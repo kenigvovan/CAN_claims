@@ -127,7 +127,7 @@ namespace claims.src.events
             {
                 return false;
             }
-            claims.dataStorage.getClaimedPlots().TryGetValue(PlotPosition.fromBlockPos(blockSel.Position), out Plot plot);
+            claims.dataStorage.GetPlot(PlotPosition.fromBlockPos(blockSel.Position), out Plot plot);
             if (plot == null)
             {
                 return true;
@@ -137,7 +137,7 @@ namespace claims.src.events
             {
                 return true;
             }
-            PlotPosition currentPosPlayer = new(blockSel.Position.X, blockSel.Position.Z);
+            PlotPosition currentPosPlayer = PlotPosition.fromBlockPos(blockSel.Position);
             if (currentPosPlayer.Equals(playerInfo.PlayerCache.getLastLocation()))
             {
                 //todo
@@ -229,12 +229,12 @@ namespace claims.src.events
             {
                 return false;
             }
-            claims.dataStorage.getClaimedPlots().TryGetValue(PlotPosition.fromBlockPos(blockSel.Position), out Plot plot);
+            claims.dataStorage.GetPlot(PlotPosition.fromBlockPos(blockSel.Position), out Plot plot);
             if(plot == null)
             {
                 return true;
             }
-            PlotPosition currentPosPlayer = PlotPosition.fromXZ(blockSel.Position.X, blockSel.Position.Z);
+            PlotPosition currentPosPlayer = PlotPosition.fromBlockPos(blockSel.Position);
             if(currentPosPlayer.Equals(playerInfo.PlayerCache.getLastLocation()))
             {
                 if(playerInfo.PlayerCache.getCache()[(int)PermType.USE_PERM].HasValue)
@@ -320,12 +320,12 @@ namespace claims.src.events
             {
                 return false;
             }
-            claims.dataStorage.getClaimedPlots().TryGetValue(PlotPosition.fromXZ((int)vec3.X, (int)vec3.Z), out Plot plot);
+            claims.dataStorage.GetPlot(PlotPosition.fromXZY((int)vec3.X, (int)vec3.Z, (int)vec3.Y), out Plot plot);
             if (plot == null)
             {
                 return true;
             }
-            PlotPosition currentPosPlayer = PlotPosition.fromXZ((int)vec3.X, (int)vec3.Z);
+            PlotPosition currentPosPlayer = PlotPosition.fromXZY((int)vec3.X, (int)vec3.Z, (int)vec3.Y);
             if (currentPosPlayer.Equals(playerInfo.PlayerCache.getLastLocation()))
             {
                 if (playerInfo.PlayerCache.getCache()[(int)PermType.USE_PERM].HasValue)
@@ -389,12 +389,12 @@ namespace claims.src.events
             {
                 return false;
             }
-            claims.dataStorage.getClaimedPlots().TryGetValue(PlotPosition.fromXZ((int)pos.X, (int)pos.Z), out Plot plot);
+            claims.dataStorage.GetPlot(PlotPosition.fromXZY((int)pos.X, (int)pos.Z, (int)pos.Y), out Plot plot);
             if (plot == null)
             {
                 return true;
             }
-            PlotPosition currentPosPlayer = PlotPosition.fromXZ((int)pos.X, (int)pos.Z);
+            PlotPosition currentPosPlayer = PlotPosition.fromXZY((int)pos.X, (int)pos.Z, (int)pos.Y);
             if (currentPosPlayer.Equals(playerInfo.PlayerCache.getLastLocation()))
             {
                 if (playerInfo.PlayerCache.getCache()[(int)PermType.ATTACK_ANIMALS_PERM].HasValue)

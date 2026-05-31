@@ -42,6 +42,9 @@ namespace claims.src.part.structure
         {
             this.plotPosition = plp;
         }
+        // Unique 3D key: X=gridX, Y=layerY (-1 for column plots), Z=gridZ.
+        public Vec3i getPlotKey() =>
+            new Vec3i(plotPosition.X, plotPosition.LayerY, plotPosition.Z);
         /*****************************************************************/
         public bool hasCutomTax()
         {
@@ -343,7 +346,7 @@ namespace claims.src.part.structure
         public void UpdateBorderPlotValue()
         {
             this.CheckBorderPlotValue();
-            PlotPosition posTmp = new PlotPosition(0, 0);
+            PlotPosition posTmp = new PlotPosition(0, 0) { LayerY = this.plotPosition.LayerY };
             for (int i = -1; i <= 1; i++)
             {
                 for (int j = -1; j <= 1; j++)
@@ -356,11 +359,11 @@ namespace claims.src.part.structure
                         targetPlot.CheckBorderPlotValue();
                     }
                 }
-            }          
+            }
         }
         public void CheckBorderPlotValue()
         {
-            PlotPosition posTmp = new PlotPosition(0, 0);
+            PlotPosition posTmp = new PlotPosition(0, 0) { LayerY = this.plotPosition.LayerY };
             for (int i = -1; i <= 1; i++)
             {
                 for (int j = -1; j <= 1; j++)
@@ -371,7 +374,7 @@ namespace claims.src.part.structure
                     if (!claims.dataStorage.GetPlot(posTmp, out var nearPlot))
                     {
                         this.BorderPlot = true;
-                        return;                      
+                        return;
                     }
                     else
                     {
