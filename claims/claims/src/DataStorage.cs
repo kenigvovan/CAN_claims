@@ -559,9 +559,11 @@ namespace claims.src
         {
             claimant = "claims";
             //find zone with saved plots on client
-            Vec2i tmpVec = new Vec2i(blockSel.Position.X / claims.config.ZONE_BLOCKS_LENGTH, blockSel.Position.Z / claims.config.ZONE_BLOCKS_LENGTH);
-            if (ClientSavedPlotsInZones.TryGetValue(new Vec2i(blockSel.Position.X / claims.config.ZONE_BLOCKS_LENGTH, blockSel.Position.Z / claims.config.ZONE_BLOCKS_LENGTH),
-                out ClientSavedZone clientSavedZone))
+            // Zone key must be consistent with addClientSavedPlots: gridX / ZONE_PLOTS_LENGTH
+            // where gridX = worldX / plotSize, so zone = worldX / (plotSize * ZONE_PLOTS_LENGTH)
+            int zoneBlocksLen = PlotPosition.plotSize * claims.config.ZONE_PLOTS_LENGTH;
+            Vec2i tmpVec = new Vec2i(blockSel.Position.X / zoneBlocksLen, blockSel.Position.Z / zoneBlocksLen);
+            if (ClientSavedPlotsInZones.TryGetValue(tmpVec, out ClientSavedZone clientSavedZone))
             {
                 //if zone exists we check if plot on pos exists
                 //reuse vec again

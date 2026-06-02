@@ -16,9 +16,9 @@ namespace claims.src.economy.bridge
             api.Event.ServerRunPhase(EnumServerRunPhase.ModsAndConfigReady, InstallAdapter);
         }
 
-        public override void StopServerSide()
+        public override void Dispose()
         {
-            base.StopServerSide();
+            base.Dispose();
             if (!_adapterInstalled) return;
             caneconomy.src.implementations.VirtualMoney.VirtualMoneyEconomyHandler.AccountBalanceChanged -= claims.RaiseAccountBalanceChanged;
             caneconomy.caneconomy.OnBlockRemovedBlockEntityOpenableContainer -= RealBankActions.OnBlockRemoved;
@@ -37,7 +37,9 @@ namespace claims.src.economy.bridge
             if (caneCfg != null)
             {
                 claims.config.SELECTED_ECONOMY_HANDLER = caneCfg.SELECTED_ECONOMY_HANDLER;
-                claims.config.COINS_VALUES_TO_CODE = caneCfg.COINS_VALUES_TO_CODE;
+                var ordered = new System.Collections.Generic.OrderedDictionary<decimal, string>();
+                foreach (var kv in caneCfg.COINS_VALUES_TO_CODE) ordered.Add(kv.Key, kv.Value);
+                claims.config.COINS_VALUES_TO_CODE = ordered;
             }
 
             caneconomy.src.implementations.VirtualMoney.VirtualMoneyEconomyHandler.AccountBalanceChanged += claims.RaiseAccountBalanceChanged;

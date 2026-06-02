@@ -173,7 +173,7 @@ namespace claims.src
         public int[] PLOT_COLORS;
 
         public int SEND_CITY_UPDATES_EVERY_N_SECONDS = 60;
-        public int CHECK_FOR_PACKETS_TO_SEND_EVERY_N_SECONDS = 10;
+        public int CHECK_FOR_PACKETS_TO_SEND_EVERY_N_SECONDS = 1;
 
         //INNER CLAIM
         public int MAX_NUMBER_INNER_CLAIM_PER_TAVERN = 3;
@@ -183,7 +183,9 @@ namespace claims.src
         public int MAX_NUMBER_TAVERN_PER_CITY = 3;
         public bool SEND_CITY_BANKS_COORDS = true;
         public int ZONE_PLOTS_LENGTH = 32;
-        public int ZONE_BLOCKS_LENGTH = 512;
+        // Computed — always equals PLOT_SIZE * ZONE_PLOTS_LENGTH. JSON value ignored.
+        [Newtonsoft.Json.JsonIgnore]
+        public int ZONE_BLOCKS_LENGTH => PLOT_SIZE * ZONE_PLOTS_LENGTH;
 
         public int AREA_REGION_SIZE = 512;
         public int AREA_MAP_SIZE = 2000;

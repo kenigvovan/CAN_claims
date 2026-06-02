@@ -20,7 +20,7 @@ namespace claims.src.claimsext.map
     public class PlotsMapLayer : RGBMapLayer
     {
         //static claimsext modInstance;
-        int chunksize = 16;
+        int chunksize;
         IWorldChunk[] chunksTmp;
 
         object chunksToGenLock = new object();
@@ -177,25 +177,17 @@ namespace claims.src.claimsext.map
         float diskSaveAccum = 0f;
         Dictionary<Vec2i, MapPieceDB> toSaveList = new Dictionary<Vec2i, MapPieceDB>();
 
-        public async void clearZoneSavedPlotsFromMap(Vec2i zoneCord)
+        public void clearZoneSavedPlotsFromMap(Vec2i zoneCord)
         {
-            //foreach loadedMapData if in zone we delete it
-            //after that we call add savedplot and generate new map plots
-            Vec2i tmpVec = zoneCord.Copy();
-            tmpVec.X = zoneCord.X * 4;
-            tmpVec.Y = zoneCord.Y * 4;
-            for(int i = 0; i < 4; i++)
-            {
-                tmpVec.X += i;
-                for(int j = 0; j < 4; j++)
-                {
-                    tmpVec.Y += j;
-                    if(this.loadedMapData.TryGetValue(tmpVec, out CANMultiChunkMapComponent comp))
-                    {
-                        this.loadedMapData.TryRemove(tmpVec, out _);
-                    }
-                }
-            }
+            int ppcd = chunksize / PlotPosition.plotSize;
+            int cl = CANMultiChunkMapComponent.ChunkLen;
+            // How many mcords (multi-chunks) a single zone spans per axis
+            int mCordsPerZone = Math.Max(1, claims.config.ZONE_PLOTS_LENGTH / (cl * ppcd));
+            int baseX = zoneCord.X * mCordsPerZone;
+            int baseY = zoneCord.Y * mCordsPerZone;
+            for (int i = 0; i < mCordsPerZone; i++)
+                for (int j = 0; j < mCordsPerZone; j++)
+                    loadedMapData.TryRemove(new Vec2i(baseX + i, baseY + j), out _);
         }
         public async void generateFromZoneSavedPlotsOnMap(Vec2i zoneCord)
         {
@@ -322,7 +314,8 @@ namespace claims.src.claimsext.map
                     double mouseX = args.X - mapElem.Bounds.renderX;
                     double mouseY = args.Y - mapElem.Bounds.renderY;
 
-                    if (Math.Abs(viewPos.X - mouseX) < 8 * mapElem.ZoomLevel && Math.Abs(viewPos.Y - mouseY) < 8 * mapElem.ZoomLevel)
+                    float halfPlot = PlotPosition.plotSize / 2f * mapElem.ZoomLevel;
+                    if (Math.Abs(viewPos.X - mouseX) < halfPlot && Math.Abs(viewPos.Y - mouseY) < halfPlot)
                     {
                         if (savedPlot.Value.cityName.Length > 0)
                         {
@@ -347,21 +340,23 @@ namespace claims.src.claimsext.map
         }
         void loadFromChunkPixels(Vec2i cord, int[] pixels, string structureName)
         {
+            if (pixels == null) return;
             int ppcd = chunksize / PlotPosition.plotSize;
-            Vec2i mcord = new Vec2i(cord.X / ppcd / CANMultiChunkMapComponent.ChunkLen, cord.Y / ppcd / CANMultiChunkMapComponent.ChunkLen);
+            int gameChunkX = cord.X / ppcd;
+            int gameChunkY = cord.Y / ppcd;
+            if (gameChunkX < 0 || gameChunkY < 0) return;
+            Vec2i mcord = new Vec2i(gameChunkX / CANMultiChunkMapComponent.ChunkLen, gameChunkY / CANMultiChunkMapComponent.ChunkLen);
             Vec2i baseCord = new Vec2i(mcord.X * CANMultiChunkMapComponent.ChunkLen, mcord.Y * CANMultiChunkMapComponent.ChunkLen);
+            int dx = gameChunkX - baseCord.X;
+            int dz = gameChunkY - baseCord.Y;
+            if (dx < 0 || dx >= CANMultiChunkMapComponent.ChunkLen || dz < 0 || dz >= CANMultiChunkMapComponent.ChunkLen) return;
             api.Event.EnqueueMainThreadTask(() =>
             {
                 if (!loadedMapData.TryGetValue(mcord, out CANMultiChunkMapComponent mccomp))
                 {
                     loadedMapData[mcord] = mccomp = new CANMultiChunkMapComponent(api as ICoreClientAPI, baseCord);
-                    mccomp.setChunk(cord.X / ppcd - baseCord.X, cord.Y / ppcd - baseCord.Y, pixels);
                 }
-                else
-                {
-                    mccomp.setChunk(cord.X / ppcd - baseCord.X, cord.Y / ppcd - baseCord.Y, pixels);
-                    return;
-                }
+                mccomp.setChunk(dx, dz, pixels);
             }, "plotmaplayerready");
         }
 
