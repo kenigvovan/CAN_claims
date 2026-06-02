@@ -52,27 +52,32 @@ namespace claims.src.database
                 claims.sapi.Logger.Error("[claims] SQLiteDatabaseHanlder::initializeTables error.");
             }
 
-            claims.sapi.Event.Timer((() =>
-            {
-                while (!this.queryQueue.IsEmpty)
-                {
-                    this.queryQueue.TryDequeue(out QuerryInfo query);
+            claims.sapi.Event.Timer(drainQueue, 0.5);
+        }
 
-                    if (query.action == QuerryType.UPDATE)
-                    {
-                        updateDatabase(query);
-                    }
-                    else if (query.action == QuerryType.INSERT)
-                    {
-                        insertToDatabase(query);
-                    }
-                    else
-                    {
-                        deleteFromDatabase(query);
-                    }
+        /// <summary>
+        /// Executes every pending query in the queue synchronously.
+        /// Called periodically by the 0.5s timer and on demand by <see cref="saveEveryThing"/>.
+        /// </summary>
+        private void drainQueue()
+        {
+            while (!this.queryQueue.IsEmpty)
+            {
+                this.queryQueue.TryDequeue(out QuerryInfo query);
+
+                if (query.action == QuerryType.UPDATE)
+                {
+                    updateDatabase(query);
+                }
+                else if (query.action == QuerryType.INSERT)
+                {
+                    insertToDatabase(query);
+                }
+                else
+                {
+                    deleteFromDatabase(query);
                 }
             }
-            ), 0.5);
         }
         public SqliteConnection getConnection()
         {
@@ -1022,7 +1027,8 @@ namespace claims.src.database
         //OTHER
         public override bool saveEveryThing()
         {
-            throw new NotImplementedException();
+            drainQueue();
+            return true;
         }
 
         public ConcurrentQueue<QuerryInfo> getQueue()

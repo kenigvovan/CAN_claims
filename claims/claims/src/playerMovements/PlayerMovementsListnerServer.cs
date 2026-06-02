@@ -280,7 +280,7 @@ namespace claims.src
                         claims.dataStorage.GetPlayerByUid(it.PlayerUID, out PlayerInfo playerInfo);
                         if (playerInfo == null)
                         {
-                            return;
+                            continue;
                         }
                         if (claims.config.PLAYER_MOVEMENT_CANCEL_TELEPORTATION
                                                                  && playerInfo.AwaitForTeleporation
@@ -291,7 +291,7 @@ namespace claims.src
                         }
 
                         //If player is now in a different plot
-                        if (lastPlayerPos != null && (lastPlayerPos.X / PlotPosition.plotSize != (playerCurrentPos.X / PlotPosition.plotSize)) || lastPlayerPos.Z / PlotPosition.plotSize != (playerCurrentPos.Z / PlotPosition.plotSize))
+                        if (lastPlayerPos != null && (lastPlayerPos.X / PlotPosition.plotSize != (playerCurrentPos.X / PlotPosition.plotSize) || lastPlayerPos.Z / PlotPosition.plotSize != (playerCurrentPos.Z / PlotPosition.plotSize)))
                         {
                             TreeAttribute tree = new TreeAttribute();
                             tree.SetString("playerUID", it.PlayerUID);
@@ -318,7 +318,7 @@ namespace claims.src
                     claims.dataStorage.GetPlayerByUid(it.PlayerUID, out PlayerInfo playerInfo);
                     if (playerInfo == null)
                     {
-                        return;
+                        continue;
                     }
                     Vec3i playerCurrentPos = it.Entity.Pos.XYZInt;
                     claims.dataStorage.setLastPlayerPos(it.PlayerUID, playerCurrentPos.Clone());

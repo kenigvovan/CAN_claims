@@ -70,80 +70,24 @@ namespace claims.src.commands.register
                     /////////
                     .BeginSub("claim")
                         .WithDesc("Claim new plot for the city.")
-                        .WithPreCondition((TextCommandCallingArgs args) => {                           
-                            if (args.Caller.Player is IServerPlayer player)
-                            {
-                                if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_CLAIM_PLOT }))
-                                {
-                                    return TextCommandResult.Success();
-                                }
-                                else
-                                {
-                                    return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));                                   
-                                }
-
-                            }
-                            return TextCommandResult.Error("");
-                        })
+                        .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_CLAIM_PLOT))
                         .HandleWith(commands.CityCommand.ClaimCityPlot)
                     .EndSub()
                     /////////
                     .BeginSub("unclaim")
-                         .WithPreCondition((TextCommandCallingArgs args) => {
-                             if (args.Caller.Player is IServerPlayer player)
-                             {
-                                 if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_UNCLAIM_PLOT }))
-                                 {
-                                     return TextCommandResult.Success();
-                                 }
-                                 else
-                                 {
-                                     return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                 }
-
-                             }
-                             return TextCommandResult.Error("");
-                         })
+                         .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_UNCLAIM_PLOT))
                         .WithDesc("Unclaim city's plot.")
                         .HandleWith(commands.CityCommand.UnclaimCityPlot)
                     .EndSub()                  
                     /////////
                     .BeginSub("extraplot")
                         .WithDesc("Buy an extra plot.")
-                        .WithPreCondition((TextCommandCallingArgs args) => {
-                            if (args.Caller.Player is IServerPlayer player)
-                            {
-                                if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_BUY_EXTRA_PLOT }))
-                                {
-                                    return TextCommandResult.Success();
-                                }
-                                else
-                                {
-                                    return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                }
-
-                            }
-                            return TextCommandResult.Error("");
-                        })
+                        .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_BUY_EXTRA_PLOT))
                         .HandleWith(commands.CityCommand.ProcessExtraPlot)
                     .EndSub()
                     /////////
                     .BeginSub("outpost")
-                        .WithPreCondition((TextCommandCallingArgs args) => {
-                            if (args.Caller.Player is IServerPlayer player)
-                            {
-                                if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_BUY_OUTPOST }))
-                                {
-                                    return TextCommandResult.Success();                                   
-                                }
-                                else
-                                {
-                                    return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                }
-
-                            }
-                            return TextCommandResult.Error("");
-                        })
+                        .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_BUY_OUTPOST))
                         .HandleWith(commands.CityCommand.ClaimOutpost)
                         .WithDesc("Buy outpost.")
                     .EndSub()
@@ -155,60 +99,21 @@ namespace claims.src.commands.register
                     /////////
                     .BeginSub("info")
                         .WithDesc("Show info about city.")
-                        .WithPreCondition((TextCommandCallingArgs args) => {
-                            if (args.Caller.Player is IServerPlayer player)
-                            {
-                                if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_INFO }))
-                                {
-                                    return TextCommandResult.Success();
-                                }
-                                else
-                                {
-                                    return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                }
-                            }
-                            return TextCommandResult.Error("");
-                        })
+                        .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_INFO))
                         .HandleWith(commands.CityCommand.CityInfo)
                         .WithArgs(parsers.Word("cityName"))
                     .EndSub()
                     /////////
                     .BeginSub("invite")
                         .WithDesc("Invite a player to the city.")
-                        .WithPreCondition((TextCommandCallingArgs args) => {
-                            if (args.Caller.Player is IServerPlayer player)
-                            {
-                                if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_INVITE }))
-                                {
-                                    return TextCommandResult.Success();
-                                }
-                                else
-                                {
-                                    return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                }
-                            }
-                            return TextCommandResult.Error("");
-                        })
+                        .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_INVITE))
                         .WithArgs(parsers.Word("playerName"))
                         .HandleWith(commands.CityCommand.InviteToCity)
                     .EndSub()
                     /////////
                     .BeginSub("kick")
                         .HandleWith(commands.CityCommand.CityKick)
-                         .WithPreCondition((TextCommandCallingArgs args) => {
-                             if (args.Caller.Player is IServerPlayer player)
-                             {
-                                 if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_KICK }))
-                                 {
-                                     return TextCommandResult.Success();
-                                 }
-                                 else
-                                 {
-                                     return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                 }
-                             }
-                             return TextCommandResult.Error("");
-                         })
+                         .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_KICK))
                         .WithDesc("Kick a player from the city.")
                         .WithArgs(parsers.Word("playerName"))
                     .EndSub()
@@ -220,20 +125,7 @@ namespace claims.src.commands.register
                       ////////
                       .BeginSub("uninvite")
                          .WithDesc("Delete invitation for player.")
-                         .WithPreCondition((TextCommandCallingArgs args) => {
-                             if (args.Caller.Player is IServerPlayer player)
-                             {
-                                 if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_UNINVITE }))
-                                 {
-                                     return TextCommandResult.Success();
-                                 }
-                                 else
-                                 {
-                                     return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                 }
-                             }
-                             return TextCommandResult.Error("");
-                         })
+                         .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_UNINVITE))
                          .WithArgs(parsers.Word("playerName"))
                          .HandleWith(commands.CityCommand.UninviteToCity)
                      .EndSub()
@@ -247,20 +139,7 @@ namespace claims.src.commands.register
                          .WithDesc("Setters for city.")
                              .BeginSub("permissions")
                                  .WithDesc("Change city permissions.")
-                                 .WithPreCondition((TextCommandCallingArgs args) => {
-                                      if (args.Caller.Player is IServerPlayer player)
-                                      {
-                                          if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_SET_PLOT_ACCESS_PERMISSIONS }))
-                                          {
-                                              return TextCommandResult.Success();
-                                          }
-                                          else
-                                          {
-                                              return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                          }
-                                      }
-                                      return TextCommandResult.Error("");
-                                  })
+                                 .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_SET_PLOT_ACCESS_PERMISSIONS))
                                  .WithAlias("p")
                                  .HandleWith(commands.CityCommand.CitySetPermissions)
                                  .IgnoreAdditionalArgs()
@@ -271,58 +150,19 @@ namespace claims.src.commands.register
                              .EndSub()
                              .BeginSub("name")
                                  .WithDesc("Set city name.")
-                                 .WithPreCondition((TextCommandCallingArgs args) => {
-                                      if (args.Caller.Player is IServerPlayer player)
-                                      {
-                                          if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_SET_NAME, EnumPlayerPermissions.CITY_SET_ALL }))
-                                          {
-                                              return TextCommandResult.Success();
-                                          }
-                                          else
-                                          {
-                                              return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                          }
-                                      }
-                                      return TextCommandResult.Error("");
-                                  })
+                                 .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_SET_NAME, EnumPlayerPermissions.CITY_SET_ALL))
                                  .WithArgs(parsers.Word("cityName"))
                                  .HandleWith(commands.CityCommand.SetCityName)
                              .EndSub()
                              .BeginSub("open")
                                  .WithDesc("Set city open/close.")
-                                 .WithPreCondition((TextCommandCallingArgs args) => {
-                                      if (args.Caller.Player is IServerPlayer player)
-                                      {
-                                          if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_SET_OPEN_STATE, EnumPlayerPermissions.CITY_SET_ALL }))
-                                          {
-                                              return TextCommandResult.Success();
-                                          }
-                                          else
-                                          {
-                                              return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                          }
-                                      }
-                                      return TextCommandResult.Error("");
-                                  })
+                                 .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_SET_OPEN_STATE, EnumPlayerPermissions.CITY_SET_ALL))
                                  .WithArgs(parsers.WordRange("state", "on", "off"))
                                  .HandleWith(commands.CityCommand.CitySetOpen)
                              .EndSub()
                              .BeginSub("fee")
                                  .WithDesc("Set city fee.")
-                                 .WithPreCondition((TextCommandCallingArgs args) => {
-                                     if (args.Caller.Player is IServerPlayer player)
-                                     {
-                                         if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_SET_GLOBAL_FEE, EnumPlayerPermissions.CITY_SET_ALL }))
-                                         {
-                                             return TextCommandResult.Success();
-                                         }
-                                         else
-                                         {
-                                             return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                         }
-                                     }
-                                     return TextCommandResult.Error("");
-                                 })
+                                 .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_SET_GLOBAL_FEE, EnumPlayerPermissions.CITY_SET_ALL))
                                  .WithArgs(parsers.Int("fee"))
                                  .HandleWith(commands.CityCommand.CitySetFee)
                              .EndSub()
@@ -333,96 +173,31 @@ namespace claims.src.commands.register
                              .EndSub()
                              .BeginSub("invmsg")
                                  .WithDesc("Set city's invite msg.")
-                                 .WithPreCondition((TextCommandCallingArgs args) => {
-                                     if (args.Caller.Player is IServerPlayer player)
-                                     {
-                                         if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_SET_ALL, EnumPlayerPermissions.CITY_SET_INV_MSG }))
-                                         {
-                                             return TextCommandResult.Success();
-                                         }
-                                         else
-                                         {
-                                             return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                         }
-                                     }
-                                     return TextCommandResult.Error("");
-                                 })
+                                 .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_SET_ALL, EnumPlayerPermissions.CITY_SET_INV_MSG))
                                  .WithArgs(parsers.OptionalAll("invMsg"))
                                  .HandleWith(commands.CityCommand.CitySetInvMsg)
                              .EndSub()
                              .BeginSub("pvp")
                                  .WithDesc("Set pvp state.")
-                                 .WithPreCondition((TextCommandCallingArgs args) => {
-                                      if (args.Caller.Player is IServerPlayer player)
-                                      {
-                                          if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_SET_ALL, EnumPlayerPermissions.CITY_SET_PVP }))
-                                          {
-                                              return TextCommandResult.Success();
-                                          }
-                                          else
-                                          {
-                                              return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                          }
-                                      }
-                                      return TextCommandResult.Error("");
-                                  })
+                                 .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_SET_ALL, EnumPlayerPermissions.CITY_SET_PVP))
                                  .WithArgs(parsers.WordRange("state", "on", "off"))
                                  .HandleWith(commands.CityCommand.CitySetPvP)
                              .EndSub()
                              .BeginSub("fire")
                                  .WithDesc("Set fire spread state.")
-                                 .WithPreCondition((TextCommandCallingArgs args) => {
-                                      if (args.Caller.Player is IServerPlayer player)
-                                      {
-                                          if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_SET_ALL, EnumPlayerPermissions.CITY_SET_FIRE }))
-                                          {
-                                              return TextCommandResult.Success();
-                                          }
-                                          else
-                                          {
-                                              return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                          }
-                                      }
-                                      return TextCommandResult.Error("");
-                                  })
+                                 .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_SET_ALL, EnumPlayerPermissions.CITY_SET_FIRE))
                                  .WithArgs(parsers.WordRange("state", "on", "off"))
                                  .HandleWith(commands.CityCommand.CitySetFire)
                              .EndSub()
                              .BeginSub("blast")
                                  .WithDesc("Set blast permission state.")
-                                 .WithPreCondition((TextCommandCallingArgs args) => {
-                                     if (args.Caller.Player is IServerPlayer player)
-                                     {
-                                         if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_SET_ALL, EnumPlayerPermissions.CITY_SET_BLAST }))
-                                         {
-                                             return TextCommandResult.Success();
-                                         }
-                                         else
-                                         {
-                                             return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                         }
-                                     }
-                                     return TextCommandResult.Error("");
-                                 })
+                                 .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_SET_ALL, EnumPlayerPermissions.CITY_SET_BLAST))
                                  .WithArgs(parsers.WordRange("state", "on", "off"))
                                  .HandleWith(commands.CityCommand.CitySetBlast)
                              .EndSub()
                              .BeginSub("title")
                                  .WithDesc("Set citizen's title.")
-                                 .WithPreCondition((TextCommandCallingArgs args) => {
-                                      if (args.Caller.Player is IServerPlayer player)
-                                      {
-                                          if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_SET_ALL, EnumPlayerPermissions.CITY_SET_OTHERS_PREFIX }))
-                                          {
-                                              return TextCommandResult.Success();
-                                          }
-                                          else
-                                          {
-                                              return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                          }
-                                      }
-                                      return TextCommandResult.Error("");
-                                  })
+                                 .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_SET_ALL, EnumPlayerPermissions.CITY_SET_OTHERS_PREFIX))
                                  .HandleWith(commands.CityCommand.CitySetCitizenPrefix)
                                  .WithArgs(parsers.OptionalAll("playerName title"))
                              .EndSub()
@@ -440,154 +215,50 @@ namespace claims.src.commands.register
                       /////////
                       .BeginSub("invitesent")
                          .WithDesc("List all invitation city has sent.")
-                          .WithPreCondition((TextCommandCallingArgs args) => {
-                              if (args.Caller.Player is IServerPlayer player)
-                              {
-                                  if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.SHOW_INVITES_SENT }))
-                                  {
-                                      return TextCommandResult.Success();
-                                  }
-                                  else
-                                  {
-                                      return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                  }
-                              }
-                              return TextCommandResult.Error("");
-                          })
+                          .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.SHOW_INVITES_SENT))
                          .HandleWith(commands.CityCommand.ShowInvitesSent)
                          .WithArgs(parsers.OptionalInt("page"))
                      .EndSub()
                       ////////
                      .BeginSub("rank")
                         .BeginSub("list")
-                              .WithPreCondition((TextCommandCallingArgs args) => {
-                                  if (args.Caller.Player is IServerPlayer player)
-                                  {
-                                      if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_SHOW_RANK_OTHERS }))
-                                      {
-                                          return TextCommandResult.Success();
-                                      }
-                                      else
-                                      {
-                                          return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                      }
-                                  }
-                                  return TextCommandResult.Error("");
-                              })
+                              .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_SHOW_RANK_OTHERS))
                              .HandleWith(commands.CityCommand.CityRankList)
                              .WithDesc("List player's ranks.")
                              .WithArgs(parsers.OptionalWord("playerName"))
                          .EndSub()
                          .BeginSub("add")
-                             .WithPreCondition((TextCommandCallingArgs args) => {
-                                 if (args.Caller.Player is IServerPlayer player)
-                                 {
-                                     if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_SET_RANK }))
-                                     {
-                                         return TextCommandResult.Success();
-                                     }
-                                     else
-                                     {
-                                         return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                     }
-                                 }
-                                 return TextCommandResult.Error("");
-                             })
+                             .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_SET_RANK))
                              .HandleWith(commands.CityCommand.CityRankAdd)
                              .WithDesc("Add rank to player.")
                              .WithArgs(parsers.Word("rank"), parsers.Word("playerName"))
                          .EndSub()
                          .BeginSub("remove")
-                               .WithPreCondition((TextCommandCallingArgs args) => {
-                                   if (args.Caller.Player is IServerPlayer player)
-                                   {
-                                       if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_REMOVE_RANK }))
-                                       {
-                                           return TextCommandResult.Success();
-                                       }
-                                       else
-                                       {
-                                           return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                       }
-                                   }
-                                   return TextCommandResult.Error("");
-                               })
+                               .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_REMOVE_RANK))
                              .HandleWith(commands.CityCommand.CityRankRemove)
                              .WithDesc("Remove rank from player.")
                              .WithArgs(parsers.OptionalAll("rank playerName"))
                          .EndSub()
                          .BeginSub("create")
-                              .WithPreCondition((TextCommandCallingArgs args) => {
-                                  if (args.Caller.Player is IServerPlayer player)
-                                  {
-                                      if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_CREATE_CITY_RANK }))
-                                      {
-                                          return TextCommandResult.Success();
-                                      }
-                                      else
-                                      {
-                                          return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                      }
-                                  }
-                                  return TextCommandResult.Error("");
-                              })
+                              .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_CREATE_CITY_RANK))
                              .HandleWith(commands.CityCommand.CityRankCreateCustom)
                              .WithDesc("Create a new rank.")
                              .WithArgs(parsers.Word("rankName"))
                          .EndSub()
                          .BeginSub("delete")
-                              .WithPreCondition((TextCommandCallingArgs args) => {
-                                  if (args.Caller.Player is IServerPlayer player)
-                                  {
-                                      if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_DELETE_CITY_RANK }))
-                                      {
-                                          return TextCommandResult.Success();
-                                      }
-                                      else
-                                      {
-                                          return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                      }
-                                  }
-                                  return TextCommandResult.Error("");
-                              })
+                              .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_DELETE_CITY_RANK))
                              .HandleWith(commands.CityCommand.CityRankDeleteCustom)
                              .WithDesc("Create a new rank.")
                              .WithArgs(parsers.Word("rankName"))
                          .EndSub()
                          .BeginSub("addperm")
-                              .WithPreCondition((TextCommandCallingArgs args) => {
-                                  if (args.Caller.Player is IServerPlayer player)
-                                  {
-                                      if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_ADD_PERMISSION_TO_RANK }))
-                                      {
-                                          return TextCommandResult.Success();
-                                      }
-                                      else
-                                      {
-                                          return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                      }
-                                  }
-                                  return TextCommandResult.Error("");
-                              })
+                              .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_ADD_PERMISSION_TO_RANK))
                              .HandleWith(commands.CityCommand.CityRankAddPermissions)
                              .WithDesc("Add permission to a rank.")
                              .WithArgs(parsers.Word("rankName"), parsers.All("permissions"))
                          .EndSub()
                          .BeginSub("removeperm")
-                              .WithPreCondition((TextCommandCallingArgs args) => {
-                                  if (args.Caller.Player is IServerPlayer player)
-                                  {
-                                      if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_REMOVE_PERMISSION_FROM_RANK }))
-                                      {
-                                          return TextCommandResult.Success();
-                                      }
-                                      else
-                                      {
-                                          return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                      }
-                                  }
-                                  return TextCommandResult.Error("");
-                              })
+                              .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_REMOVE_PERMISSION_FROM_RANK))
                              .HandleWith(commands.CityCommand.CityRankRemovePermissions)
                              .WithDesc("Add permission to a rank.")
                              .WithArgs(parsers.Word("rankName"), parsers.All("permissions"))
@@ -603,76 +274,22 @@ namespace claims.src.commands.register
                      .BeginSub("prison")
                          .BeginSub("list")
                              .WithDesc("List all prison cells in the city.")
-                              .WithPreCondition((TextCommandCallingArgs args) => {
-                                  if (args.Caller.Player is IServerPlayer player)
-                                  {
-                                      if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_PRISON_ALL, EnumPlayerPermissions.CITY_PRISON_LIST }))
-                                      {
-                                          return TextCommandResult.Success();
-                                      }
-                                      else
-                                      {
-                                          return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                      }
-                                  }
-                                  return TextCommandResult.Error("");
-                              })
+                              .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_PRISON_ALL, EnumPlayerPermissions.CITY_PRISON_LIST))
                              .HandleWith(commands.CityCommand.PrisonList)
                          .EndSub()
                          .BeginSub("addcell")
                              .WithDesc("Add new cell in the prison plot.")
-                             .WithPreCondition((TextCommandCallingArgs args) => {
-                                 if (args.Caller.Player is IServerPlayer player)
-                                 {
-                                     if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_PRISON_ALL, EnumPlayerPermissions.CITY_PRISON_ADD_CELL }))
-                                     {
-                                         return TextCommandResult.Success();
-                                     }
-                                     else
-                                     {
-                                         return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                     }
-                                 }
-                                 return TextCommandResult.Error("");
-                             })
+                             .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_PRISON_ALL, EnumPlayerPermissions.CITY_PRISON_ADD_CELL))
                              .HandleWith(commands.CityCommand.AddPrisonCell)
                          .EndSub()
                          .BeginSub("removecell")
-                              .WithPreCondition((TextCommandCallingArgs args) => {
-                                  if (args.Caller.Player is IServerPlayer player)
-                                  {
-                                      if (commands.CityCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_PRISON_ALL, EnumPlayerPermissions.CITY_PRISON_REMOVE_CELL }))
-                                      {
-                                          return TextCommandResult.Success();                              
-                                      }
-                                      else
-                                      {
-                                          return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                      }
-
-                                  }
-                                  return TextCommandResult.Error("");
-                              })
+                              .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_PRISON_ALL, EnumPlayerPermissions.CITY_PRISON_REMOVE_CELL))
                              .WithDesc("Remove prison cell by number.")
                              .HandleWith(commands.CityCommand.RemovePrisonCell)
                              .WithArgs(parsers.Int("prisonCellNumber"))
                          .EndSub()
                          .BeginSub("cremovecell")
-                              .WithPreCondition((TextCommandCallingArgs args) => {
-                                  if (args.Caller.Player is IServerPlayer player)
-                                  {
-                                      if (commands.CityCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_PRISON_ALL, EnumPlayerPermissions.CITY_PRISON_REMOVE_CELL }))
-                                      {
-                                          return TextCommandResult.Success();
-                                      }
-                                      else
-                                      {
-                                          return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                      }
-
-                                  }
-                                  return TextCommandResult.Error("");
-                              })
+                              .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_PRISON_ALL, EnumPlayerPermissions.CITY_PRISON_REMOVE_CELL))
                              .WithDesc("Remove prison cell by number.")
                              .HandleWith(commands.CityCommand.CRemovePrisonCell)
                              .WithArgs(parsers.Int("x"), parsers.Int("y"), parsers.Int("z"))
@@ -701,40 +318,13 @@ namespace claims.src.commands.register
                          .EndSub()
                          .BeginSub("add")
                              .WithDesc("Mark selected player as criminal for the city.")
-                             .WithPreCondition((TextCommandCallingArgs args) => {
-                                 if (args.Caller.Player is IServerPlayer player)
-                                 {
-                                     if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_ADD_CRIMINAL }))
-                                     {
-                                         return TextCommandResult.Success();
-                                     }
-                                     else
-                                     {
-                                         return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                     }
-                                 }
-                                 return TextCommandResult.Error("");
-                             })
+                             .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_ADD_CRIMINAL))
                              .WithArgs(parsers.Word("playerName"))
                              .HandleWith(commands.CityCommand.CityCriminalAdd)
                          .EndSub()
                          .BeginSub("remove")
                               .WithDesc("Remove player from criminals list for the city.")
-                              .WithPreCondition((TextCommandCallingArgs args) => {
-                                  if (args.Caller.Player is IServerPlayer player)
-                                  {
-                                      if (commands.CityCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_REMOVE_CRIMINAL }))
-                                      {
-                                          return TextCommandResult.Success();
-                                      }
-                                      else
-                                      {
-                                          return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                      }
-
-                                  }
-                                  return TextCommandResult.Error("");
-                              })
+                              .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_REMOVE_CRIMINAL))
                              .WithDesc("Remove prison cell by number.")
                              .HandleWith(commands.CityCommand.CityCriminalRemove)
                              .WithArgs(parsers.Word("playerName"))
@@ -763,57 +353,18 @@ namespace claims.src.commands.register
                          .BeginSub("set")
                              .BeginSub("point")
                                  .WithDesc("Set summon point.")
-                                 .WithPreCondition((TextCommandCallingArgs args) => {
-                                     if (args.Caller.Player is IServerPlayer player)
-                                     {
-                                         if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_SET_SUMMON }))
-                                         {
-                                             return TextCommandResult.Success();
-                                         }
-                                         else
-                                         {
-                                             return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                         }
-                                     }
-                                     return TextCommandResult.Error("");
-                                 })
+                                 .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_SET_SUMMON))
                                  .HandleWith(commands.CityCommand.CitySummonSet)
                              .EndSub()
                              .BeginSub("name")
                                  .WithDesc("Set plot's summon point name.")
-                                 .WithPreCondition((TextCommandCallingArgs args) => {
-                                     if (args.Caller.Player is IServerPlayer player)
-                                     {
-                                         if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_SET_SUMMON }))
-                                         {
-                                             return TextCommandResult.Success();
-                                         }
-                                         else
-                                         {
-                                             return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                         }
-                                     }
-                                     return TextCommandResult.Error("");
-                                 })
+                                 .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_SET_SUMMON))
                                  .HandleWith(commands.CityCommand.CitySummonSetName)
                                  .WithArgs(parsers.Word("summonPointName"))
                             .EndSub()
                             .BeginSub("cname")
                                     .WithDesc("Set plot's summon point name by coords.")
-                                    .WithPreCondition((TextCommandCallingArgs args) => {
-                                        if (args.Caller.Player is IServerPlayer player)
-                                        {
-                                            if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_SET_SUMMON }))
-                                            {
-                                                return TextCommandResult.Success();
-                                            }
-                                            else
-                                            {
-                                                return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                            }
-                                        }
-                                        return TextCommandResult.Error("");
-                                    })
+                                    .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_SET_SUMMON))
                                     .HandleWith(commands.CityCommand.CitySummonSetNameByCoords)
                                     .WithArgs(parsers.OptionalVec3i("pointPos"), parsers.Word("summonPointName"))
                             .EndSub()
@@ -843,95 +394,30 @@ namespace claims.src.commands.register
                         .WithAlias("pg")
                          .BeginSub("create")
                              .WithArgs(parsers.Word("groupName"))
-                             .WithPreCondition((TextCommandCallingArgs args) => {
-                                 if (args.Caller.Player is IServerPlayer player)
-                                 {
-                                     if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_PLOTSGROUP_CREATE }))
-                                     {
-                                         return TextCommandResult.Success();
-                                     }
-                                     else
-                                     {
-                                         return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                     }
-                                 }
-                                 return TextCommandResult.Error("");
-                             })
+                             .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_PLOTSGROUP_CREATE))
                              .HandleWith(commands.CityCommand.PlotsGroupCreate)
                              .WithDesc("Create new plotsgroup")
                          .EndSub()
                          .BeginSub("delete")
                              .HandleWith(commands.CityCommand.PlotsGroupDelete)
-                              .WithPreCondition((TextCommandCallingArgs args) => {
-                                  if (args.Caller.Player is IServerPlayer player)
-                                  {
-                                      if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_PLOTSGROUP_REMOVE }))
-                                      {
-                                          return TextCommandResult.Success();
-                                      }
-                                      else
-                                      {
-                                          return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                      }
-                                  }
-                                  return TextCommandResult.Error("");
-                              })
+                              .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_PLOTSGROUP_REMOVE))
                              .WithDesc("Remove plotsgroup")
                              .WithArgs(parsers.Word("groupName"))
                          .EndSub()
                          .BeginSub("list")
                              .HandleWith(commands.CityCommand.PlotsGroupList)
-                             .WithPreCondition((TextCommandCallingArgs args) => {
-                                 if (args.Caller.Player is IServerPlayer player)
-                                 {
-                                     if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_PLOTSGROUP_LIST }))
-                                     {
-                                         return TextCommandResult.Success();
-                                     }
-                                     else
-                                     {
-                                         return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                     }
-                                 }
-                                 return TextCommandResult.Error("");
-                             })
+                             .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_PLOTSGROUP_LIST))
                              .WithDesc("List plotsgroups")
                          .EndSub()
                          .BeginSub("listplayers")
                              .HandleWith(commands.CityCommand.PlotsGroupListPlayers)
-                              .WithPreCondition((TextCommandCallingArgs args) => {
-                                  if (args.Caller.Player is IServerPlayer player)
-                                  {
-                                      if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_PLOTSGROUP_LIST }))
-                                      {
-                                          return TextCommandResult.Success();
-                                      }
-                                      else
-                                      {
-                                          return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                      }
-                                  }
-                                  return TextCommandResult.Error("");
-                              })
+                              .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_PLOTSGROUP_LIST))
                              .WithDesc("List players in the plotsgroup")
                              .WithArgs(parsers.Word("groupName"))
                          .EndSub()
                          .BeginSub("add")
                              .HandleWith(commands.CityCommand.PlotsGroupAddPlayerToGroup)
-                              .WithPreCondition((TextCommandCallingArgs args) => {
-                                  if (args.Caller.Player is IServerPlayer player)
-                                  {
-                                      if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_PLOTSGROUP_ADD_PLAYER }))
-                                      {
-                                          return TextCommandResult.Success();
-                                      }
-                                      else
-                                      {
-                                          return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                      }
-                                  }
-                                  return TextCommandResult.Error("");
-                              })
+                              .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_PLOTSGROUP_ADD_PLAYER))
                              .WithDesc("Add player to the plotsgroup")
                              .WithArgs(parsers.Word("groupName"), parsers.Word("playerName"))
                          .EndSub()
@@ -941,118 +427,37 @@ namespace claims.src.commands.register
                          .EndSub()
                          .BeginSub("kick")
                              .WithDesc("Kick player from the plotsgroup")
-                             .WithPreCondition((TextCommandCallingArgs args) => {
-                                 if (args.Caller.Player is IServerPlayer player)
-                                 {
-                                     if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_PLOTSGROUP_KICK_PLAYER }))
-                                     {
-                                         return TextCommandResult.Success();
-                                     }
-                                     else
-                                     {
-                                         return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                     }
-                                 }
-                                 return TextCommandResult.Error("");
-                             })
+                             .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_PLOTSGROUP_KICK_PLAYER))
                              .HandleWith(commands.CityCommand.PlotsGroupKickPlayerFromGroup)
                              .WithArgs(parsers.Word("groupName"), parsers.Word ("playerName"))
                          .EndSub()
                          .BeginSub("plotadd")
                              .HandleWith(commands.CityCommand.PlotsGroupPlotAdd)
-                             .WithPreCondition((TextCommandCallingArgs args) => {
-                                 if (args.Caller.Player is IServerPlayer player)
-                                 {
-                                     if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_PLOTSGROUP_ADD_PLOT }))
-                                     {
-                                         return TextCommandResult.Success();
-                                     }
-                                     else
-                                     {
-                                         return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                     }
-                                 }
-                                 return TextCommandResult.Error("");
-                             })
+                             .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_PLOTSGROUP_ADD_PLOT))
                              .WithDesc("Add plot to the plotsgroup")
                              .WithArgs(parsers.Word("groupName"))
                          .EndSub()
                          .BeginSub("plotremove")
                              .HandleWith(commands.CityCommand.PlotsGroupPlotRemove)
-                              .WithPreCondition((TextCommandCallingArgs args) => {
-                                  if (args.Caller.Player is IServerPlayer player)
-                                  {
-                                      if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_PLOTSGROUP_REMOVE_PLOT }))
-                                      {
-                                          return TextCommandResult.Success();
-                                      }
-                                      else
-                                      {
-                                          return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                      }
-                                  }
-                                  return TextCommandResult.Error("");
-                              })
+                              .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_PLOTSGROUP_REMOVE_PLOT))
                              .WithDesc("Remove plot from the plotsgroup")
                              .WithArgs(parsers.Word("plotgroup"))
                          .EndSub()
                          .BeginSub("set")
                              .BeginSub("pvp")
-                                .WithPreCondition((TextCommandCallingArgs args) => {
-                                    if (args.Caller.Player is IServerPlayer player)
-                                    {
-                                        if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_PLOTSGROUP_SET_PVP }))
-                                        {
-                                            return TextCommandResult.Success();
-                                        }
-                                        else
-                                        {
-                                            return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                        }
-
-                                    }
-                                    return TextCommandResult.Error("");
-                                })
+                                .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_PLOTSGROUP_SET_PVP))
                                .HandleWith(commands.CityCommand.PlotsGroupSetPvp)
                                .WithDesc("Pvp state")
                                .WithArgs(parsers.Word("groupname"), parsers.WordRange("state", "on", "off"))
                            .EndSub()
                            .BeginSub("fire")
-                               .WithPreCondition((TextCommandCallingArgs args) => {
-                                   if (args.Caller.Player is IServerPlayer player)
-                                   {
-                                       if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_PLOTSGROUP_SET_FIRE }))
-                                       {
-                                           return TextCommandResult.Success();
-                                       }
-                                       else
-                                       {
-                                           return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                       }
-
-                                   }
-                                   return TextCommandResult.Error("");
-                               })
+                               .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_PLOTSGROUP_SET_FIRE))
                                .HandleWith(commands.CityCommand.PlotsGroupSetFire)
                                .WithDesc("Firespread state")
                                .WithArgs(parsers.Word("groupname"), parsers.WordRange("state", "on", "off"))
                            .EndSub()
                            .BeginSub("blast")
-                               .WithPreCondition((TextCommandCallingArgs args) => {
-                                   if (args.Caller.Player is IServerPlayer player)
-                                   {
-                                       if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_PLOTSGROUP_SET_BLAST }))
-                                       {
-                                           return TextCommandResult.Success();
-                                       }
-                                       else
-                                       {
-                                           return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                       }
-
-                                   }
-                                   return TextCommandResult.Error("");
-                               })
+                               .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_PLOTSGROUP_SET_BLAST))
                                .HandleWith(commands.CityCommand.PlotsGroupSetBlast)
                                .WithDesc("Blast state")
                                .WithArgs(parsers.Word("groupname"), parsers.WordRange("state", "on", "off"))
@@ -1060,20 +465,7 @@ namespace claims.src.commands.register
                            .BeginSub("permissions")
                              .HandleWith(commands.CityCommand.PlotsGroupSet)
                              .WithAlias("p")
-                             .WithPreCondition((TextCommandCallingArgs args) => {
-                                 if (args.Caller.Player is IServerPlayer player)
-                                 {
-                                     if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.CITY_PLOTSGROUP_SET }))
-                                     {
-                                         return TextCommandResult.Success();
-                                     }
-                                     else
-                                     {
-                                         return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                     }
-                                 }
-                                 return TextCommandResult.Error("");
-                             })
+                             .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_PLOTSGROUP_SET))
                              .WithArgs(parsers.Word("groupname"),
                                        parsers.WordRange("permgroup", "citizen"),
                                        parsers.WordRange("permgroup", "build", "use", "attack"),
@@ -1135,143 +527,45 @@ namespace claims.src.commands.register
                             .WithAlias("d")
                             .HandleWith(commands.AllianceCommand.DeclareConflict)
                             .WithDesc("Try to start a conflict with an alliance.")
-                            .WithPreCondition((TextCommandCallingArgs args) => {
-                                if (args.Caller.Player is IServerPlayer player)
-                                {
-                                    if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.ALLIANCE_DECLARE_CONFLICT }))
-                                    {
-                                        return TextCommandResult.Success();
-                                    }
-                                    else
-                                    {
-                                        return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                    }
-
-                                }
-                                return TextCommandResult.Error("");
-                            })
+                            .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.ALLIANCE_DECLARE_CONFLICT))
                             .WithArgs(parsers.Word("allianceName"))
                          .EndSub()
                          .BeginSub("revoke")
                             .WithAlias("r")
                             .HandleWith(commands.AllianceCommand.RevokeConflict)
                             .WithDesc("Remove declaration if it's not accepted yet.")
-                            .WithPreCondition((TextCommandCallingArgs args) => {
-                                if (args.Caller.Player is IServerPlayer player)
-                                {
-                                    if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.ALLIANCE_REVOKE_CONFLICT }))
-                                    {
-                                        return TextCommandResult.Success();
-                                    }
-                                    else
-                                    {
-                                        return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                    }
-
-                                }
-                                return TextCommandResult.Error("");
-                            })
+                            .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.ALLIANCE_REVOKE_CONFLICT))
                             .WithArgs(parsers.Word("allianceName"))
                          .EndSub()
                          .BeginSub("accept")
                             .WithAlias("a")
                             .HandleWith(commands.AllianceCommand.AcceptStartConflict)
                             .WithDesc("Accept to start a conflict.")
-                            .WithPreCondition((TextCommandCallingArgs args) => {
-                                if (args.Caller.Player is IServerPlayer player)
-                                {
-                                    if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.ALLIANCE_ACCEPT_CONFLICT }))
-                                    {
-                                        return TextCommandResult.Success();
-                                    }
-                                    else
-                                    {
-                                        return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                    }
-
-                                }
-                                return TextCommandResult.Error("");
-                            })
+                            .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.ALLIANCE_ACCEPT_CONFLICT))
                             .WithArgs(parsers.Word("allianceName"))
                          .EndSub()
                          .BeginSub("deny")
                             .HandleWith(commands.AllianceCommand.DenyStartConflict)
                             .WithDesc("Deny to start a conflict.")
-                            .WithPreCondition((TextCommandCallingArgs args) => {
-                                if (args.Caller.Player is IServerPlayer player)
-                                {
-                                    if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.ALLIANCE_DENY_CONFLICT }))
-                                    {
-                                        return TextCommandResult.Success();
-                                    }
-                                    else
-                                    {
-                                        return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                    }
-
-                                }
-                                return TextCommandResult.Error("");
-                            })
+                            .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.ALLIANCE_DENY_CONFLICT))
                             .WithArgs(parsers.Word("allianceName"))
                          .EndSub()
                          .BeginSub("offerstop")
                             .HandleWith(commands.AllianceCommand.OfferStopConflict)
                             .WithDesc("Offer to stop a conflict.")
-                            .WithPreCondition((TextCommandCallingArgs args) => {
-                                if (args.Caller.Player is IServerPlayer player)
-                                {
-                                    if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.ALLIANCE_OFFER_STOP_CONFLICT }))
-                                    {
-                                        return TextCommandResult.Success();
-                                    }
-                                    else
-                                    {
-                                        return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                    }
-
-                                }
-                                return TextCommandResult.Error("");
-                            })
+                            .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.ALLIANCE_OFFER_STOP_CONFLICT))
                             .WithArgs(parsers.Word("allianceName"))
                          .EndSub()
                          .BeginSub("acceptstop")
                             .HandleWith(commands.AllianceCommand.AcceptStopConflict)
                             .WithDesc("Accept to stop a conflict.")
-                            .WithPreCondition((TextCommandCallingArgs args) => {
-                                if (args.Caller.Player is IServerPlayer player)
-                                {
-                                    if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.ALLIANCE_ACCEPT_STOP_CONFLICT }))
-                                    {
-                                        return TextCommandResult.Success();
-                                    }
-                                    else
-                                    {
-                                        return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                    }
-
-                                }
-                                return TextCommandResult.Error("");
-                            })
+                            .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.ALLIANCE_ACCEPT_STOP_CONFLICT))
                             .WithArgs(parsers.Word("allianceName"))
                          .EndSub()
                          .BeginSub("denystop")
                             .HandleWith(commands.AllianceCommand.DenyStopConflict)
                             .WithDesc("Deny to stop a conflict.")
-                            .WithPreCondition((TextCommandCallingArgs args) => {
-                                if (args.Caller.Player is IServerPlayer player)
-                                {
-                                    if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.ALLIANCE_DENY_STOP_CONFLICT }))
-                                    {
-                                        return TextCommandResult.Success();
-                                    }
-                                    else
-                                    {
-                                        return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                    }
-
-                                }
-                                return TextCommandResult.Error("");
-                            })
+                            .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.ALLIANCE_DENY_STOP_CONFLICT))
                             .WithArgs(parsers.Word("allianceName"))
                          .EndSub()
                      .EndSub()
@@ -1332,84 +626,28 @@ namespace claims.src.commands.register
                          .BeginSub("declare")
                             .WithAlias("d")
                             .HandleWith(commands.AllianceCommand.DeclareUnion)
-                             .WithPreCondition((TextCommandCallingArgs args) => {
-                                 if (args.Caller.Player is IServerPlayer player)
-                                 {
-                                     if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.ALLIANCE_DECLARE_UNION }))
-                                     {
-                                         return TextCommandResult.Success();
-                                     }
-                                     else
-                                     {
-                                         return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                     }
-
-                                 }
-                                 return TextCommandResult.Error("");
-                             })
+                             .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.ALLIANCE_DECLARE_UNION))
                             .WithDesc("Send letter to be allies with the second alliance.")
                             .WithArgs(parsers.Word("allianceName"))
                          .EndSub()
                          .BeginSub("revoke")
                             .WithAlias("r")
                             .HandleWith(commands.AllianceCommand.RevokeUnion)
-                            .WithPreCondition((TextCommandCallingArgs args) => {
-                                if (args.Caller.Player is IServerPlayer player)
-                                {
-                                    if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.ALLIANCE_REVOKE_UNION }))
-                                    {
-                                        return TextCommandResult.Success();
-                                    }
-                                    else
-                                    {
-                                        return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                    }
-
-                                }
-                                return TextCommandResult.Error("");
-                            })
+                            .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.ALLIANCE_REVOKE_UNION))
                             .WithDesc("Revoke union with the alliance.")
                             .WithArgs(parsers.Word("allianceName"))
                          .EndSub()
                          .BeginSub("decline")
                             .WithAlias("dn")
                             .HandleWith(commands.AllianceCommand.UnsendInviteUnion)
-                            .WithPreCondition((TextCommandCallingArgs args) => {
-                                if (args.Caller.Player is IServerPlayer player)
-                                {
-                                    if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.ALLIANCE_DENY_UNION }))
-                                    {
-                                        return TextCommandResult.Success();
-                                    }
-                                    else
-                                    {
-                                        return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                    }
-
-                                }
-                                return TextCommandResult.Error("");
-                            })
+                            .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.ALLIANCE_DENY_UNION))
                             .WithDesc("Decline letter to be allies with the second alliance.")
                             .WithArgs(parsers.Word("allianceName"))
                          .EndSub()
                          .BeginSub("accept")
                             .WithAlias("ac")
                             .HandleWith(commands.AllianceCommand.AcceptInviteUnion)
-                            .WithPreCondition((TextCommandCallingArgs args) => {
-                                if (args.Caller.Player is IServerPlayer player)
-                                {
-                                    if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.ALLIANCE_ACCEPT_UNION }))
-                                    {
-                                        return TextCommandResult.Success();
-                                    }
-                                    else
-                                    {
-                                        return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                    }
-
-                                }
-                                return TextCommandResult.Error("");
-                            })
+                            .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.ALLIANCE_ACCEPT_UNION))
                             .WithDesc("Accept letter to be allies with the second alliance.")
                             .WithArgs(parsers.Word("allianceName"))
                          .EndSub()
@@ -1531,61 +769,19 @@ namespace claims.src.commands.register
                            .IgnoreAdditionalArgs()
                        .EndSub()
                        .BeginSub("pvp")
-                            .WithPreCondition((TextCommandCallingArgs args) => {
-                                if (args.Caller.Player is IServerPlayer player)
-                                {
-                                    if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS, EnumPlayerPermissions.PLOT_SET_PVP }))
-                                    {
-                                        return TextCommandResult.Success();
-                                    }
-                                    else
-                                    {
-                                        return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                    }
-
-                                }
-                                return TextCommandResult.Error("");
-                            })
+                            .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS, EnumPlayerPermissions.PLOT_SET_PVP))
                            .HandleWith(commands.PlotCommand.SetPvp)
                            .WithDesc("Pvp state")
                            .WithArgs(parsers.WordRange("state", "on", "off"))
                        .EndSub()
                        .BeginSub("fire")
-                           .WithPreCondition((TextCommandCallingArgs args) => {
-                               if (args.Caller.Player is IServerPlayer player)
-                               {
-                                   if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS, EnumPlayerPermissions.PLOT_SET_FIRE }))
-                                   {
-                                       return TextCommandResult.Success();
-                                   }
-                                   else
-                                   {
-                                       return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                   }
-
-                               }
-                               return TextCommandResult.Error("");
-                           })
+                           .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS, EnumPlayerPermissions.PLOT_SET_FIRE))
                            .HandleWith(commands.PlotCommand.SetFire)
                            .WithDesc("Firespread state")
                            .WithArgs(parsers.WordRange("state", "on", "off"))
                        .EndSub()
                        .BeginSub("blast")
-                           .WithPreCondition((TextCommandCallingArgs args) => {
-                               if (args.Caller.Player is IServerPlayer player)
-                               {
-                                   if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS, EnumPlayerPermissions.PLOT_SET_BLAST }))
-                                   {
-                                       return TextCommandResult.Success();
-                                   }
-                                   else
-                                   {
-                                       return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                   }
-
-                               }
-                               return TextCommandResult.Error("");
-                           })
+                           .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS, EnumPlayerPermissions.PLOT_SET_BLAST))
                            .HandleWith(commands.PlotCommand.SetBlast)
                            .WithDesc("Blast state")
                            .WithArgs(parsers.WordRange("state", "on", "off"))
@@ -1596,41 +792,13 @@ namespace claims.src.commands.register
                            .WithArgs(parsers.Word("plotName"))
                        .EndSub()
                        .BeginSub("fee")
-                           .WithPreCondition((TextCommandCallingArgs args) => {
-                               if (args.Caller.Player is IServerPlayer player)
-                               {
-                                   if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS, EnumPlayerPermissions.PLOT_SET_FEE }))
-                                   {
-                                       return TextCommandResult.Success();
-                                   }
-                                   else
-                                   {
-                                       return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                   }
-
-                               }
-                               return TextCommandResult.Error("");
-                           })
+                           .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS, EnumPlayerPermissions.PLOT_SET_FEE))
                            .HandleWith(commands.PlotCommand.SetFee)
                            .WithDesc("Set plot fee")
                            .WithArgs(parsers.Int("fee"))
                        .EndSub()
                        .BeginSub("type")
-                            .WithPreCondition((TextCommandCallingArgs args) => {
-                                if (args.Caller.Player is IServerPlayer player)
-                                {
-                                    if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS, EnumPlayerPermissions.PLOT_SET_TYPE }))
-                                    {
-                                        return TextCommandResult.Success();
-                                    }
-                                    else
-                                    {
-                                        return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                    }
-
-                                }
-                                return TextCommandResult.Error("");
-                            })
+                            .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS, EnumPlayerPermissions.PLOT_SET_TYPE))
                            .HandleWith(commands.PlotCommand.SetType)
                            .WithDesc("Set plot type")
                            .WithArgs(parsers.Word("plotType"))
@@ -1638,21 +806,7 @@ namespace claims.src.commands.register
                .EndSub()
                /////////
                .BeginSub("fs")
-                    .WithPreCondition((TextCommandCallingArgs args) => {
-                        if (args.Caller.Player is IServerPlayer player)
-                        {
-                            if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS, EnumPlayerPermissions.PLOT_SET_FS }))
-                            {
-                                return TextCommandResult.Success();
-                            }
-                            else
-                            {
-                                return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                            }
-
-                        }
-                        return TextCommandResult.Error("");
-                    })
+                    .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS, EnumPlayerPermissions.PLOT_SET_FS))
                    .HandleWith(commands.PlotCommand.SetForSale)
                    .WithArgs(parsers.Int("price"))
                    .WithDesc("Set plot for sale")
@@ -1660,21 +814,7 @@ namespace claims.src.commands.register
                .EndSub()
                 /////////
                 .BeginSub("nfs")
-                .WithPreCondition((TextCommandCallingArgs args) => {
-                    if (args.Caller.Player is IServerPlayer player)
-                    {
-                        if (BaseCommand.CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS, EnumPlayerPermissions.PLOT_SET_NFS }))
-                        {
-                            return TextCommandResult.Success();
-                        }
-                        else
-                        {
-                            return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                        }
-
-                    }
-                    return TextCommandResult.Error("");
-                })
+                .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS, EnumPlayerPermissions.PLOT_SET_NFS))
                    .HandleWith(commands.PlotCommand.SetNotForSale)
                    .WithDesc("Remove plot from sale")
                    .WithAlias("notforsale")
@@ -1699,51 +839,17 @@ namespace claims.src.commands.register
             sapi.ChatCommands.Create("cadmin")
                 .RequiresPlayer().RequiresPrivilege(Privilege.controlserver)
                 .BeginSub("nday")
-                     .WithPreCondition((TextCommandCallingArgs args) => {
-
-                         if (args.Caller.Player is IServerPlayer player)
-                         {
-                             if(!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                             {
-                                 return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                             }
-                             return TextCommandResult.Success();
-
-                         }
-                         return TextCommandResult.Error("");
-                     })
+                     .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                     .HandleWith(commands.CAdminCommand.triggerNextDay)
                     .WithDesc("Trigger new day events")
                 .EndSub()
                 .BeginSub("nhour")
-                     .WithPreCondition((TextCommandCallingArgs args) => {
-
-                         if (args.Caller.Player is IServerPlayer player)
-                         {
-                             if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                             {
-                                 return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                             }
-                             return TextCommandResult.Success();
-
-                         }
-                         return TextCommandResult.Error("");
-                     })
+                     .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                     .HandleWith(commands.CAdminCommand.triggerNextHour)
                     .WithDesc("Trigger new hour events")
                 .EndSub()
                 .BeginSub("diag")
-                    .WithPreCondition((TextCommandCallingArgs args) => {
-                        if (args.Caller.Player is IServerPlayer player)
-                        {
-                            if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                            {
-                                return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                            }
-                            return TextCommandResult.Success();
-                        }
-                        return TextCommandResult.Error("");
-                    })
+                    .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                     .HandleWith(commands.CAdminCommand.DiagPlayer)
                     .WithDesc("Diagnose player perms/city/mayor state")
                     .WithArgs(parsers.Word("playerName"))
@@ -1752,253 +858,85 @@ namespace claims.src.commands.register
                     .BeginSub("set")
                        .BeginSub("permissions")
                              .WithAlias("p")
-                               .WithPreCondition((TextCommandCallingArgs args) => {
-
-                                   if (args.Caller.Player is IServerPlayer player)
-                                   {
-                                       if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                       {
-                                           return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                       }
-                                       return TextCommandResult.Success();
-
-                                   }
-                                   return TextCommandResult.Error("");
-                               })
+                               .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                              .HandleWith(commands.CAdminCommand.plotPermissions)
                              .IgnoreAdditionalArgs()
                         .EndSub()
                         .BeginSub("pvp")
-                             .WithPreCondition((TextCommandCallingArgs args) => {
-
-                                 if (args.Caller.Player is IServerPlayer player)
-                                 {
-                                     if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                     {
-                                         return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                     }
-                                     return TextCommandResult.Success();
-
-                                 }
-                                 return TextCommandResult.Error("");
-                             })
+                             .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                             .HandleWith(commands.CAdminCommand.plotPvp)
                             .WithDesc("Pvp state")
                             .WithArgs(parsers.WordRange("state", "on", "off"))
                         .EndSub()
                         .BeginSub("blast")
-                             .WithPreCondition((TextCommandCallingArgs args) => {
-
-                                 if (args.Caller.Player is IServerPlayer player)
-                                 {
-                                     if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                     {
-                                         return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                     }
-                                     return TextCommandResult.Success();
-
-                                 }
-                                 return TextCommandResult.Error("");
-                             })
+                             .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                             .HandleWith(commands.CAdminCommand.plotBlast)
                             .WithDesc("Blast state")
                             .WithArgs(parsers.WordRange("state", "on", "off"))
                         .EndSub()
                         .BeginSub("fire")
-                             .WithPreCondition((TextCommandCallingArgs args) => {
-
-                                 if (args.Caller.Player is IServerPlayer player)
-                                 {
-                                     if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                     {
-                                         return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                     }
-                                     return TextCommandResult.Success();
-
-                                 }
-                                 return TextCommandResult.Error("");
-                             })
+                             .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                             .HandleWith(commands.CAdminCommand.plotFire)
                             .WithDesc("Fire state")
                             .WithArgs(parsers.WordRange("state", "on", "off"))
                         .EndSub()
                     .EndSub()
                     .BeginSub("type")
-                        .WithPreCondition((TextCommandCallingArgs args) => {
-
-                            if (args.Caller.Player is IServerPlayer player)
-                            {
-                                if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                {
-                                    return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                }
-                                return TextCommandResult.Success();
-
-                            }
-                            return TextCommandResult.Error("");
-                        })
+                        .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                         .HandleWith(commands.CAdminCommand.plotType)
                         .WithArgs(parsers.Word("type"))
                     .EndSub()
                     .BeginSub("fee")
-                        .WithPreCondition((TextCommandCallingArgs args) => {
-
-                            if (args.Caller.Player is IServerPlayer player)
-                            {
-                                if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                {
-                                    return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                }
-                                return TextCommandResult.Success();
-
-                            }
-                            return TextCommandResult.Error("");
-                        })
+                        .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                         .HandleWith(commands.CAdminCommand.plotFee)
                         .WithArgs(parsers.Int("fee"))
                     .EndSub()
                     .BeginSub("fs")
-                         .WithPreCondition((TextCommandCallingArgs args) => {
-
-                             if (args.Caller.Player is IServerPlayer player)
-                             {
-                                 if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                 {
-                                     return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                 }
-                                 return TextCommandResult.Success();
-
-                             }
-                             return TextCommandResult.Error("");
-                         })
+                         .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                         .HandleWith(commands.CAdminCommand.plotForSale)
                         .WithArgs(parsers.Int("price"))
                     .EndSub()
                 .EndSub()
                 .BeginSub("city")
                     .BeginSub("new")
-                         .WithPreCondition((TextCommandCallingArgs args) => {
-
-                             if (args.Caller.Player is IServerPlayer player)
-                             {
-                                 if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                 {
-                                     return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                 }
-                                 return TextCommandResult.Success();
-
-                             }
-                             return TextCommandResult.Error("");
-                         })
+                         .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                         .HandleWith(commands.CAdminCommand.cCreateCity)
                         .WithArgs(parsers.Word("cityName"))
                         .WithDesc("New city creation")
                     .EndSub()
                     .BeginSub("delete")
-                        .WithPreCondition((TextCommandCallingArgs args) => {
-
-                            if (args.Caller.Player is IServerPlayer player)
-                            {
-                                if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                {
-                                    return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                }
-                                return TextCommandResult.Success();
-
-                            }
-                            return TextCommandResult.Error("");
-                        })
+                        .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                         .HandleWith(commands.CAdminCommand.cityDelete)
                         .WithDesc("City remove")
                         .WithArgs(parsers.Word("cityName"))
                     .EndSub()
                     .BeginSub("claim")
-                        .WithPreCondition((TextCommandCallingArgs args) => {
-
-                            if (args.Caller.Player is IServerPlayer player)
-                            {
-                                if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                {
-                                    return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                }
-                                return TextCommandResult.Success();
-
-                            }
-                            return TextCommandResult.Error("");
-                        })
+                        .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                         .HandleWith(commands.CAdminCommand.cityClaim)
                         .WithDesc("Claim plot for city")
                         .WithArgs(parsers.Word("cityName"))
                     .EndSub()
                     .BeginSub("radiusclaim")
-                        .WithPreCondition((TextCommandCallingArgs args) => {
-
-                            if (args.Caller.Player is IServerPlayer player)
-                            {
-                                if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                {
-                                    return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                }
-                                return TextCommandResult.Success();
-
-                            }
-                            return TextCommandResult.Error("");
-                        })
+                        .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                         .HandleWith(commands.CAdminCommand.cityRadiusClaim)
                         .WithDesc("Claim plot for city in radius")
                         .WithArgs(parsers.Word("cityName"), parsers.Int("radius"))
                     .EndSub()
                     .BeginSub("unclaim")
-                         .WithPreCondition((TextCommandCallingArgs args) => {
-
-                             if (args.Caller.Player is IServerPlayer player)
-                             {
-                                 if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                 {
-                                     return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                 }
-                                 return TextCommandResult.Success();
-
-                             }
-                             return TextCommandResult.Error("");
-                         })
+                         .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                         .HandleWith(commands.CAdminCommand.cityUnclaim)
                         .WithDesc("Unclaim city plot")
                         .WithArgs(parsers.Word("cityName"))
                     .EndSub()
                     .BeginSub("kick")
-                          .WithPreCondition((TextCommandCallingArgs args) => {
-
-                              if (args.Caller.Player is IServerPlayer player)
-                              {
-                                  if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                  {
-                                      return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                  }
-                                  return TextCommandResult.Success();
-
-                              }
-                              return TextCommandResult.Error("");
-                          })
+                          .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                         .HandleWith(commands.CAdminCommand.cCityPlayerKick)
                         .WithDesc("Kick player from city")
                         .WithArgs(parsers.Word("cityName"), parsers.Word("playerName"))
                         .IgnoreAdditionalArgs()
                     .EndSub()
                     .BeginSub("add")
-                          .WithPreCondition((TextCommandCallingArgs args) => {
-
-                              if (args.Caller.Player is IServerPlayer player)
-                              {
-                                  if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                  {
-                                      return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                  }
-                                  return TextCommandResult.Success();
-
-                              }
-                              return TextCommandResult.Error("");
-                          })
+                          .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                         .HandleWith(commands.CAdminCommand.cCityPlayerAdd)
                         .WithArgs(parsers.Word("cityName"), parsers.Word("playerName"))
                         .WithDesc("Add player to the city")
@@ -2006,155 +944,47 @@ namespace claims.src.commands.register
                     .EndSub()
                     .BeginSub("set")
                         .BeginSub("name")
-                            .WithPreCondition((TextCommandCallingArgs args) => {
-
-                                if (args.Caller.Player is IServerPlayer player)
-                                {
-                                    if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                    {
-                                        return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                    }
-                                    return TextCommandResult.Success();
-
-                                }
-                                return TextCommandResult.Error("");
-                            })
+                            .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                             .HandleWith(commands.CAdminCommand.cCitySetName)
                             .WithArgs(parsers.Word("cityName"), parsers.Word("newName"))
                         .EndSub()
                         .BeginSub("pvp")
-                            .WithPreCondition((TextCommandCallingArgs args) => {
-
-                                if (args.Caller.Player is IServerPlayer player)
-                                {
-                                    if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                    {
-                                        return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                    }
-                                    return TextCommandResult.Success();
-
-                                }
-                                return TextCommandResult.Error("");
-                            })
+                            .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                             .HandleWith(commands.CAdminCommand.citySetPvp)
                             .WithArgs(parsers.Word("cityName"), parsers.Word("state"))
                         .EndSub()
                         .BeginSub("fire")
-                            .WithPreCondition((TextCommandCallingArgs args) => {
-
-                                if (args.Caller.Player is IServerPlayer player)
-                                {
-                                    if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                    {
-                                        return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                    }
-                                    return TextCommandResult.Success();
-
-                                }
-                                return TextCommandResult.Error("");
-                            })
+                            .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                             .HandleWith(commands.CAdminCommand.citySetFire)
                             .WithArgs(parsers.Word("cityName"), parsers.Word("state"))
                         .EndSub()
                         .BeginSub("blast")
-                            .WithPreCondition((TextCommandCallingArgs args) => {
-
-                                if (args.Caller.Player is IServerPlayer player)
-                                {
-                                    if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                    {
-                                        return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                    }
-                                    return TextCommandResult.Success();
-
-                                }
-                                return TextCommandResult.Error("");
-                            })
+                            .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                             .HandleWith(commands.CAdminCommand.citySetBlast)
                             .WithArgs(parsers.Word("cityName"), parsers.Word("state"))
                         .EndSub()
                         .BeginSub("open")
-                            .WithPreCondition((TextCommandCallingArgs args) => {
-
-                                if (args.Caller.Player is IServerPlayer player)
-                                {
-                                    if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                    {
-                                        return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                    }
-                                    return TextCommandResult.Success();
-
-                                }
-                                return TextCommandResult.Error("");
-                            })
+                            .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                             .HandleWith(commands.CAdminCommand.citySetOpenClosed)
                             .WithArgs(parsers.Word("cityName"), parsers.Word("state"))
                         .EndSub()
                         .BeginSub("technical")
-                             .WithPreCondition((TextCommandCallingArgs args) => {
-
-                                 if (args.Caller.Player is IServerPlayer player)
-                                 {
-                                     if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                     {
-                                         return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                     }
-                                     return TextCommandResult.Success();
-
-                                 }
-                                 return TextCommandResult.Error("");
-                             })
+                             .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                             .HandleWith(commands.CAdminCommand.citySetTechnical)
                             .WithArgs(parsers.Word("cityName"), parsers.Word("state"))
                         .EndSub()
                         .BeginSub("fee")
-                             .WithPreCondition((TextCommandCallingArgs args) => {
-
-                                 if (args.Caller.Player is IServerPlayer player)
-                                 {
-                                     if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                     {
-                                         return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                     }
-                                     return TextCommandResult.Success();
-
-                                 }
-                                 return TextCommandResult.Error("");
-                             })
+                             .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                             .HandleWith(commands.CAdminCommand.citySetFee)
                             .WithArgs(parsers.Word("cityName"), parsers.Int("fee"))
                         .EndSub()
                         .BeginSub("mayor")
-                             .WithPreCondition((TextCommandCallingArgs args) => {
-
-                                 if (args.Caller.Player is IServerPlayer player)
-                                 {
-                                     if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                     {
-                                         return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                     }
-                                     return TextCommandResult.Success();
-
-                                 }
-                                 return TextCommandResult.Error("");
-                             })
+                             .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                             .HandleWith(commands.CAdminCommand.citySetMayor)
                             .WithArgs(parsers.Word("cityName"), parsers.Word("newMayorName"))
                         .EndSub()
                         .BeginSub("bonusclaims")
-                             .WithPreCondition((TextCommandCallingArgs args) => {
-
-                                 if (args.Caller.Player is IServerPlayer player)
-                                 {
-                                     if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                     {
-                                         return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                     }
-                                     return TextCommandResult.Success();
-
-                                 }
-                                 return TextCommandResult.Error("");
-                             })
+                             .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                             .HandleWith(commands.CAdminCommand.citySetBonusPlots)
                             .WithArgs(parsers.Word("cityName"), parsers.Int("bonusClaimAmount"))
                         .EndSub()
@@ -2165,49 +995,13 @@ namespace claims.src.commands.register
                     .IgnoreAdditionalArgs()
                 .EndSub()*/
                 .BeginSub("world")
-                    .WithPreCondition((TextCommandCallingArgs args) => {
-
-                        if (args.Caller.Player is IServerPlayer player)
-                        {
-                            if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                            {
-                                return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                            }
-                            return TextCommandResult.Success();
-
-                        }
-                        return TextCommandResult.Error("");
-                    })
+                    .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                         .BeginSub("info")
-                             .WithPreCondition((TextCommandCallingArgs args) => {
-
-                                 if (args.Caller.Player is IServerPlayer player)
-                                 {
-                                     if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                     {
-                                         return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                     }
-                                     return TextCommandResult.Success();
-
-                                 }
-                                 return TextCommandResult.Error("");
-                             })
+                             .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                             .HandleWith(commands.CAdminCommand.worldInfo)
                         .EndSub()
                         .BeginSub("set")
-                             .WithPreCondition((TextCommandCallingArgs args) => {
-
-                                 if (args.Caller.Player is IServerPlayer player)
-                                 {
-                                     if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                                     {
-                                         return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                                     }
-                                     return TextCommandResult.Success();
-
-                                 }
-                                 return TextCommandResult.Error("");
-                             })
+                             .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                              .WithArgs(parsers.WordRange("param", "blastew", "pvpew", "fireew", "pvpfb", "firefb", "blastfb"), parsers.WordRange("state", "on", "off"))
                             .HandleWith(commands.CAdminCommand.worldSet)
                         .EndSub()
@@ -2219,53 +1013,17 @@ namespace claims.src.commands.register
                     .IgnoreAdditionalArgs()
                 .EndSub()*/
                 .BeginSub("backup")
-                    .WithPreCondition((TextCommandCallingArgs args) => {
-
-                        if (args.Caller.Player is IServerPlayer player)
-                        {
-                            if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                            {
-                                return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                            }
-                            return TextCommandResult.Success();
-
-                        }
-                        return TextCommandResult.Error("");
-                    })
+                    .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                     .HandleWith(commands.CAdminCommand.processBackup)
                 .EndSub()
                 .BeginSub("startwar")
                     .WithArgs(parsers.Word("firstParty"), parsers.Word("secondParty"))
-                    .WithPreCondition((TextCommandCallingArgs args) => {
-
-                        if (args.Caller.Player is IServerPlayer player)
-                        {
-                            if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                            {
-                                return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                            }
-                            return TextCommandResult.Success();
-
-                        }
-                        return TextCommandResult.Error("");
-                    })
+                    .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                     .HandleWith(commands.CAdminCommand.StartWarTime)
                 .EndSub()
                 .BeginSub("setbattledate")
                     .WithArgs(parsers.Word("firstParty"), parsers.Word("secondParty"), parsers.OptionalInt("minutesUntilStart"), parsers.OptionalInt("battleDurationMinutes"))
-                    .WithPreCondition((TextCommandCallingArgs args) => {
-
-                        if (args.Caller.Player is IServerPlayer player)
-                        {
-                            if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
-                            {
-                                return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
-                            }
-                            return TextCommandResult.Success();
-
-                        }
-                        return TextCommandResult.Error("");
-                    })
+                    .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                     .HandleWith(commands.CAdminCommand.SetBattleDate)
                 .EndSub()
                 ;

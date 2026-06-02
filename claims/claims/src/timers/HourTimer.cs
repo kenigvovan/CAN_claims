@@ -1,5 +1,4 @@
-﻿using System.Threading;
-using claims.src.auxialiry;
+﻿using claims.src.auxialiry;
 using claims.src.delayed.invitations;
 using claims.src.part;
 using Vintagestory.API.Common;
@@ -43,10 +42,7 @@ namespace claims.src.timers
 
             claims.sapi.Event.RegisterCallback((dt =>
             {
-                new Thread(new ThreadStart(() =>
-                {
-                    new HourTimer().Run();
-                })).Start();
+                new HourTimer().Run();
             }), (int)TimeFunctions.getSecondsBeforeNextHourStart() * 1000);
         }
     }

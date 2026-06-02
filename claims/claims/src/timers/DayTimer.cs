@@ -7,7 +7,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
-using System.Threading;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 
@@ -61,10 +60,7 @@ namespace claims.src.timers
             {
                 claims.sapi.Event.RegisterCallback((dt =>
                 {
-                    new Thread(new ThreadStart(() =>
-                    {
-                        new DayTimer().Run(true);
-                    })).Start();
+                    new DayTimer().Run(true);
                 }), (int)TimeFunctions.getSecondsBeforeNextDayStart() * 1000);
             }
         }
