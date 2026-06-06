@@ -1,56 +1,44 @@
-﻿using System.Collections.Generic;
-using claims.src.auxialiry;
+using System.Collections.Generic;
 using claims.src.part.interfaces;
 
 namespace claims.src.delayed.invitations
 {
     public class InvitationHandler
     {
-        static List<Invitation> invites = new List<Invitation>();
+        static ExpiringList<Invitation> invites = new();
 
         public static void findAndDeleteOverdueInvitations()
         {
-            long timestampNow = TimeFunctions.getEpochSeconds();
-            foreach (Invitation invitation in invites.ToArray())
-            {
-                if (invitation.getTimeStamp() < timestampNow)
+            invites.ExpireOverdue(
+                inv => inv.getTimeStamp(),
+                inv =>
                 {
-                    invitation.getReceiver().deleteReceivedInvitation(invitation);
-                    invitation.getSender().deleteSentInvitation(invitation);
-                    invites.Remove(invitation);
-                }
-            }
+                    inv.getReceiver().deleteReceivedInvitation(inv);
+                    inv.getSender().deleteSentInvitation(inv);
+                });
         }
 
-        public List<Invitation> getAllInvitations()
-        {
-            return invites;
-        }
         public static bool addNewInvite(Invitation invitation)
         {
-            foreach (var it in invites)
+            foreach (var it in invites.Snapshot())
             {
                 if (it.getSender().Equals(invitation.getSender()) && it.getReceiver().Equals(invitation.getReceiver()))
-                {
                     return false;
-                }
             }
             if (invitation.getSender().GetSentInvitations().Count >= invitation.getSender().getMaxSentInvitations())
-            {
                 return false;
-            }
             if (invitation.getReceiver().getReceivedInvitations().Count >= invitation.getReceiver().getMaxReceivedInvitations())
-            {
                 return false;
-            }
+
             invites.Add(invitation);
             invitation.getReceiver().addReceivedInvitation(invitation);
             invitation.getSender().addSentInvitation(invitation);
             return true;
         }
+
         public static bool removeInvitationIfExists(ISender sender, IReceiver receiver)
         {
-            foreach (var it in invites)
+            foreach (var it in invites.Snapshot())
             {
                 if (it.getSender().Equals(sender) && it.getReceiver().Equals(receiver))
                 {
@@ -62,21 +50,21 @@ namespace claims.src.delayed.invitations
             }
             return false;
         }
+
         public static List<Invitation> getInvitesForReceiver(IReceiver receiver)
         {
-            List<Invitation> outInvitations = new List<Invitation>();
-            foreach (var it in invites)
+            List<Invitation> result = new();
+            foreach (var it in invites.Snapshot())
             {
                 if (it.getReceiver().Equals(receiver))
-                {
-                    outInvitations.Add(it);
-                }
+                    result.Add(it);
             }
-            return outInvitations;
+            return result;
         }
+
         public static void deleteAllInvitationsForReceiver(IReceiver receiver)
         {
-            foreach (var it in invites.ToArray())
+            foreach (var it in invites.Snapshot())
             {
                 if (it.getReceiver() == receiver)
                 {
@@ -85,9 +73,10 @@ namespace claims.src.delayed.invitations
                 }
             }
         }
+
         public static void deleteAllInvitationsForSender(ISender sender)
         {
-            foreach (var it in invites.ToArray())
+            foreach (var it in invites.Snapshot())
             {
                 if (it.getSender() == sender)
                 {
