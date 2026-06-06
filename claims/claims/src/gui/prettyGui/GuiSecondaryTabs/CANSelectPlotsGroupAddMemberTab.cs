@@ -25,23 +25,23 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
         public override void DrawTab()
         {
             ImGui.SetNextWindowPos(
-                new Vector2(capi.ModLoader.GetModSystem<claimsGui>().mainWindowPos.X + capi.ModLoader.GetModSystem<claimsGui>().mainWindowSize.X, capi.ModLoader.GetModSystem<claimsGui>().mainWindowPos.Y)
+                new Vector2(GuiSys.mainWindowPos.X + GuiSys.mainWindowSize.X, GuiSys.mainWindowPos.Y)
             );
 
             ImGuiWindowFlags flags1 =
                  ImGuiWindowFlags.NoScrollWithMouse;
-            ImGui.Begin("ClaimsDetails", p_open: ref capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowOpen, flags1);
+            ImGui.Begin("ClaimsDetails", p_open: ref GuiSys.secondaryWindowOpen, flags1);
             
             ImGui.Text(Lang.Get(TitleString));
             
-            ImGui.InputText("", ref capi.ModLoader.GetModSystem<claimsGui>().textInput2, 256);
-            PlotsGroupCellElement cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.PlotsGroupCells.FirstOrDefault(gr => gr.Guid.Equals(capi.ModLoader.GetModSystem<claimsGui>().textInput), null);
+            ImGui.InputText("", ref GuiSys.textInput2, 256);
+            PlotsGroupCellElement cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.PlotsGroupCells.FirstOrDefault(gr => gr.Guid.Equals(GuiSys.textInput), null);
             if (cell != null)
             {
                 if (ImGui.Button(Lang.Get(ButtonString)))
                 {
                     ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                    string memberToAdd = capi.ModLoader.GetModSystem<claimsGui>().textInput2;
+                    string memberToAdd = GuiSys.textInput2;
                     clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup,
                         string.Format("/c plotsgroup add {0} {1}", cell.Name, memberToAdd), EnumChatType.Macro, "");
                     // Optimistic local update
@@ -50,8 +50,8 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                     {
                         cell.PlayersNames.Add(memberToAdd);
                     }
-                    capi.ModLoader.GetModSystem<claimsGui>().textInput2 = "";
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.NONE;                   
+                    GuiSys.textInput2 = "";
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.NONE;                   
                 }
 
             }

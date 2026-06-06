@@ -26,7 +26,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
             if (ImGui.Button(Lang.Get("claims:gui-back")))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.CITY;
+                GuiSys.selectedTab = EnumSelectedTab.CITY;
             }
 
             ImGui.Separator();

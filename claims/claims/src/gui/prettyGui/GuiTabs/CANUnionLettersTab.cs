@@ -104,7 +104,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 5);
             if (ImGui.ImageButton("newunion", this.iconHandler.GetOrLoadIcon("tower-flag"), new Vector2(32)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.ALLIANCE_SEND_NEW_UNION_LETTER_NEED_NAME;
+                GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.ALLIANCE_SEND_NEW_UNION_LETTER_NEED_NAME;
             }
             if (ImGui.IsItemHovered())
             {
@@ -113,7 +113,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.SameLine();
             if (ImGui.ImageButton("leaveunion", this.iconHandler.GetOrLoadIcon("exit-door"), new Vector2(32)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.ALLIANCE_CANCEL_UNION_SELECT;
+                GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.ALLIANCE_CANCEL_UNION_SELECT;
             }
             if (ImGui.IsItemHovered())
             {
@@ -129,7 +129,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
             if (ImGui.ImageButton("allianceinfo", this.iconHandler.GetOrLoadIcon("vertical-banner"), new Vector2(60)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.AllianceInfoPage;
+                GuiSys.selectedTab = EnumSelectedTab.AllianceInfoPage;
             }
             if (ImGui.IsItemHovered())
             {
@@ -138,7 +138,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.SameLine();
             if (ImGui.ImageButton("conflictletters", this.iconHandler.GetOrLoadIcon("envelope"), new Vector2(60)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.ConflictLettersPage;
+                GuiSys.selectedTab = EnumSelectedTab.ConflictLettersPage;
             }
             if (ImGui.IsItemHovered())
             {
@@ -147,7 +147,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.SameLine();
             if (ImGui.ImageButton("conflictspage", this.iconHandler.GetOrLoadIcon("frog-mouth-helm"), new Vector2(60)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.ConflictsPage;
+                GuiSys.selectedTab = EnumSelectedTab.ConflictsPage;
             }
             if (ImGui.IsItemHovered())
             {

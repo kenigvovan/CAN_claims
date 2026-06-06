@@ -23,19 +23,19 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
         public override void DrawTab()
         {
             ImGui.SetNextWindowPos(
-                new Vector2(capi.ModLoader.GetModSystem<claimsGui>().mainWindowPos.X + capi.ModLoader.GetModSystem<claimsGui>().mainWindowSize.X, capi.ModLoader.GetModSystem<claimsGui>().mainWindowPos.Y)
+                new Vector2(GuiSys.mainWindowPos.X + GuiSys.mainWindowSize.X, GuiSys.mainWindowPos.Y)
             );
 
             ImGuiWindowFlags flags1 =
                  ImGuiWindowFlags.NoScrollWithMouse;
-            ImGui.Begin("ClaimsDetails", p_open: ref capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowOpen, flags1);
+            ImGui.Begin("ClaimsDetails", p_open: ref GuiSys.secondaryWindowOpen, flags1);
             ImGui.Text(Lang.Get(TitleString));
-            ImGui.InputText("", ref capi.ModLoader.GetModSystem<claimsGui>().textInput, 256);
+            ImGui.InputText("", ref GuiSys.textInput, 256);
             
             if(ImGui.Button((Lang.Get(ButtonString))))
             {
                 ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                string inputValue = capi.ModLoader.GetModSystem<claimsGui>().textInput;
+                string inputValue = GuiSys.textInput;
                 clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, CommandCallOnClick + inputValue, EnumChatType.Macro, "");
                 // Optimistic local updates
                 var perms = claims.clientDataStorage.clientPlayerInfo.PlayerPermissions;
@@ -57,8 +57,8 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                 {
                     claims.clientDataStorage.clientPlayerInfo.CurrentPlotInfo.PlotName = inputValue;
                 }
-                capi.ModLoader.GetModSystem<claimsGui>().textInput = "";
-                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.NONE;
+                GuiSys.textInput = "";
+                GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.NONE;
             }
             ImGui.End();
         }

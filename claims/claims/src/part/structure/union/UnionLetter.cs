@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Threading;
 
 namespace claims.src.part.structure.union
 {
@@ -8,10 +7,10 @@ namespace claims.src.part.structure.union
         public Alliance From { get; set; }
         public Alliance To { get; set; }
         public long TimeStampExpire { get; set; }
-        public Thread OnAccept { get; }
-        public Thread OnDeny { get; }
+        public Action OnAccept { get; }
+        public Action OnDeny { get; }
         public string Guid { get; }
-        public UnionLetter(Alliance from, Alliance to, long timeStampExpire, Thread onAccept, Thread OnDeny, string guid)
+        public UnionLetter(Alliance from, Alliance to, long timeStampExpire, Action onAccept, Action OnDeny, string guid)
         {
             From = from;
             To = to;

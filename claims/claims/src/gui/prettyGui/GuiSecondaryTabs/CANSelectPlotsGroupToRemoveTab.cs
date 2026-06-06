@@ -22,24 +22,24 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
         public override void DrawTab()
         {
             ImGui.SetNextWindowPos(
-                new Vector2(capi.ModLoader.GetModSystem<claimsGui>().mainWindowPos.X + capi.ModLoader.GetModSystem<claimsGui>().mainWindowSize.X, capi.ModLoader.GetModSystem<claimsGui>().mainWindowPos.Y)
+                new Vector2(GuiSys.mainWindowPos.X + GuiSys.mainWindowSize.X, GuiSys.mainWindowPos.Y)
             );
 
             ImGuiWindowFlags flags1 =
                  ImGuiWindowFlags.NoScrollWithMouse;
-            ImGui.Begin("ClaimsDetails", p_open: ref capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowOpen, flags1);
+            ImGui.Begin("ClaimsDetails", p_open: ref GuiSys.secondaryWindowOpen, flags1);
             
             ImGui.Text(Lang.Get(TitleString));
             var plotsGroupsArray = claims.clientDataStorage.clientPlayerInfo.CityInfo.PlotsGroupCells.Select(gr => gr.Name).ToArray();
-            ImGui.Combo("Name", ref capi.ModLoader.GetModSystem<claimsGui>().selectedComboFirst, plotsGroupsArray, plotsGroupsArray.Length);
+            ImGui.Combo("Name", ref GuiSys.selectedComboFirst, plotsGroupsArray, plotsGroupsArray.Length);
 
             if (ImGui.Button(Lang.Get(ButtonString)))
             {
-                if (claims.clientDataStorage.clientPlayerInfo.CityInfo.PlotsGroupCells.Count > capi.ModLoader.GetModSystem<claimsGui>().selectedComboFirst)
+                if (claims.clientDataStorage.clientPlayerInfo.CityInfo.PlotsGroupCells.Count > GuiSys.selectedComboFirst)
                 {
-                    string plotsGroupName = claims.clientDataStorage.clientPlayerInfo.CityInfo.PlotsGroupCells[capi.ModLoader.GetModSystem<claimsGui>().selectedComboFirst].Name;
-                    capi.ModLoader.GetModSystem<claimsGui>().textInput = plotsGroupName;
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_PLOTSGROUP_REMOVE_CONFIRM;
+                    string plotsGroupName = claims.clientDataStorage.clientPlayerInfo.CityInfo.PlotsGroupCells[GuiSys.selectedComboFirst].Name;
+                    GuiSys.textInput = plotsGroupName;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.CITY_PLOTSGROUP_REMOVE_CONFIRM;
                 }         
             }
             ImGui.End();

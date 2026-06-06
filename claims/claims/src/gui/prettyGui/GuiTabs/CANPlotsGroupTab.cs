@@ -32,8 +32,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
             {
                 if (ImGui.ImageButton("addnewplotsgroup", this.iconHandler.GetOrLoadIcon("expander"), new Vector2(16)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().textInput = "";
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_PLOTSGROUP_ADD_NEW_NEED_NAME;
+                    GuiSys.textInput = "";
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.CITY_PLOTSGROUP_ADD_NEW_NEED_NAME;
                 }
                 if (ImGui.IsItemHovered())
                 {
@@ -45,8 +45,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
             {
                 if (ImGui.ImageButton("removeplotsgroup", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(16)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().textInput = "";
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_PLOTSGROUP_REMOVE_SELECT;
+                    GuiSys.textInput = "";
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.CITY_PLOTSGROUP_REMOVE_SELECT;
                 }
                 if (ImGui.IsItemHovered())
                 {
@@ -56,7 +56,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             }
             if (ImGui.ImageButton("showreceivedplotsgroupinvites", this.iconHandler.GetOrLoadIcon("circle"), new Vector2(16)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.PLOTSGROUPRECEIVEDINVITES;
+                GuiSys.selectedTab = EnumSelectedTab.PLOTSGROUPRECEIVEDINVITES;
             }
             if (ImGui.IsItemHovered())
             {
@@ -79,8 +79,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
                 if (ImGui.Button("Info##" + i))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.PlotsGroupInfoPage;
-                    capi.ModLoader.GetModSystem<claimsGui>().textInput = plotsGroup.Guid;
+                    GuiSys.selectedTab = EnumSelectedTab.PlotsGroupInfoPage;
+                    GuiSys.textInput = plotsGroup.Guid;
                 }
 
                 ImGui.EndGroup();

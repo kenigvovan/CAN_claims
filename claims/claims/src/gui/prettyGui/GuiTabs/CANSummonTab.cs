@@ -58,8 +58,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SameLine();
                 if (ImGui.ImageButton("removecell", this.iconHandler.GetOrLoadIcon("highlighter"), new Vector2(16)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_SUMMON_NEED_NAME;
-                    capi.ModLoader.GetModSystem<claimsGui>().selectedPos = summonCell.SpawnPosition;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.CITY_SUMMON_NEED_NAME;
+                    GuiSys.selectedPos = summonCell.SpawnPosition;
                 }
 
                 ImGui.EndGroup();

@@ -84,6 +84,12 @@ namespace claims.src.database
             return SqliteConnection;
         }
 
+        private void TryAlterTable(string checkSql, string alterSql)
+        {
+            try { new SqliteCommand(checkSql, SqliteConnection).ExecuteScalar(); }
+            catch { new SqliteCommand(alterSql, SqliteConnection).ExecuteNonQuery(); }
+        }
+
         public bool initializeTables()
         {
             try
@@ -119,189 +125,52 @@ namespace claims.src.database
                 command = new SqliteCommand(SQLiteTables.conflictsTable, SqliteConnection);
                 command.ExecuteNonQuery();
 
-                //templerespawnpoints
-                try
-                {
-                    command.CommandText = "SELECT templerespawnpoints FROM CITIES LIMIT 1";
-                    command.ExecuteNonQuery();
+                int dbVersion = Convert.ToInt32(new SqliteCommand("PRAGMA user_version", SqliteConnection).ExecuteScalar());
 
-                }
-                catch
+                if (dbVersion < 1)
                 {
-                    command.CommandText = "ALTER TABLE CITIES ADD COLUMN templerespawnpoints TEXT DEFAULT \"\"";
-                    command.ExecuteNonQuery();
-                }
-                //alliance
-                try
-                {
-                    command.CommandText = "SELECT alliance FROM CITIES LIMIT 1";
-                    command.ExecuteNonQuery();
+                    TryAlterTable("SELECT templerespawnpoints FROM CITIES LIMIT 1",
+                        "ALTER TABLE CITIES ADD COLUMN templerespawnpoints TEXT DEFAULT \"\"");
+                    TryAlterTable("SELECT alliance FROM CITIES LIMIT 1",
+                        "ALTER TABLE CITIES ADD COLUMN alliance TEXT DEFAULT \"\"");
+                    TryAlterTable("SELECT alliancetitles FROM PLAYERS LIMIT 1",
+                        "ALTER TABLE PLAYERS ADD COLUMN alliancetitles TEXT DEFAULT \"\"");
+                    TryAlterTable("SELECT prefix FROM ALLIANCIES LIMIT 1",
+                        "ALTER TABLE ALLIANCIES ADD COLUMN prefix TEXT DEFAULT \"\"");
+                    TryAlterTable("SELECT timestampcreated FROM ALLIANCIES LIMIT 1",
+                        "ALTER TABLE ALLIANCIES ADD COLUMN timestampcreated TEXT DEFAULT 0");
+                    TryAlterTable("SELECT firstwarranges FROM CONFLICTS LIMIT 1",
+                        "ALTER TABLE CONFLICTS ADD COLUMN firstwarranges TEXT DEFAULT \"\"");
+                    TryAlterTable("SELECT secondwarranges FROM CONFLICTS LIMIT 1",
+                        "ALTER TABLE CONFLICTS ADD COLUMN secondwarranges TEXT DEFAULT \"\"");
+                    TryAlterTable("SELECT nextbattledatestart FROM CONFLICTS LIMIT 1",
+                        "ALTER TABLE CONFLICTS ADD COLUMN nextbattledatestart TEXT DEFAULT \"0001-01-01T00:00:00\"");
+                    TryAlterTable("SELECT nextbattledateend FROM CONFLICTS LIMIT 1",
+                        "ALTER TABLE CONFLICTS ADD COLUMN nextbattledateend TEXT DEFAULT \"0001-01-01T00:00:00\"");
+                    TryAlterTable("SELECT hostiles FROM CITIES LIMIT 1",
+                        "ALTER TABLE CITIES ADD COLUMN hostiles TEXT DEFAULT \"\"");
+                    TryAlterTable("SELECT comrades FROM CITIES LIMIT 1",
+                        "ALTER TABLE CITIES ADD COLUMN comrades TEXT DEFAULT \"\"");
+                    TryAlterTable("SELECT wascaptured FROM PLOTS LIMIT 1",
+                        "ALTER TABLE PLOTS ADD COLUMN wascaptured INTEGER DEFAULT 0");
+                    TryAlterTable("SELECT ranks FROM CITIES LIMIT 1",
+                        "ALTER TABLE CITIES ADD COLUMN ranks TEXT DEFAULT \"\"");
+                    TryAlterTable("SELECT firstside_type FROM CONFLICTS LIMIT 1",
+                        "ALTER TABLE CONFLICTS ADD COLUMN firstside_type TEXT DEFAULT 'alliance'");
+                    TryAlterTable("SELECT secondside_type FROM CONFLICTS LIMIT 1",
+                        "ALTER TABLE CONFLICTS ADD COLUMN secondside_type TEXT DEFAULT 'alliance'");
+                    TryAlterTable("SELECT startedby_type FROM CONFLICTS LIMIT 1",
+                        "ALTER TABLE CONFLICTS ADD COLUMN startedby_type TEXT DEFAULT 'alliance'");
+                    TryAlterTable("SELECT timestampclaimed FROM PLOTS LIMIT 1",
+                        "ALTER TABLE PLOTS ADD COLUMN timestampclaimed INTEGER DEFAULT 0");
+                    TryAlterTable("SELECT lastpaidprice FROM PLOTS LIMIT 1",
+                        "ALTER TABLE PLOTS ADD COLUMN lastpaidprice INTEGER DEFAULT 0");
+                    TryAlterTable("SELECT eventlog FROM CITIES LIMIT 1",
+                        "ALTER TABLE CITIES ADD COLUMN eventlog TEXT DEFAULT \"\"");
 
+                    new SqliteCommand("PRAGMA user_version = 1", SqliteConnection).ExecuteNonQuery();
                 }
-                catch
-                {
-                    command.CommandText = "ALTER TABLE CITIES ADD COLUMN alliance TEXT DEFAULT \"\"";
-                    command.ExecuteNonQuery();
-                }
-
-                //alliancetitles
-                try
-                {
-                    command.CommandText = "SELECT alliancetitles FROM PLAYERS LIMIT 1";
-                    command.ExecuteNonQuery();
-
-                }
-                catch
-                {
-                    command.CommandText = "ALTER TABLE PLAYERS ADD COLUMN alliancetitles TEXT DEFAULT \"\"";
-                    command.ExecuteNonQuery();
-                }
-                //alliance prefix
-                try
-                {
-                    command.CommandText = "SELECT prefix FROM ALLIANCIES LIMIT 1";
-                    command.ExecuteNonQuery();
-
-                }
-                catch
-                {
-                    command.CommandText = "ALTER TABLE ALLIANCIES ADD COLUMN prefix TEXT DEFAULT \"\"";
-                    command.ExecuteNonQuery();
-                }
-
-                //alliance timestampcreated
-                try
-                {
-                    command.CommandText = "SELECT timestampcreated FROM ALLIANCIES LIMIT 1";
-                    command.ExecuteNonQuery();
-
-                }
-                catch
-                {
-                    command.CommandText = "ALTER TABLE ALLIANCIES ADD COLUMN timestampcreated TEXT DEFAULT 0";
-                    command.ExecuteNonQuery();
-                }
-
-                //conflict firstwarranges
-                try
-                {
-                    command.CommandText = "SELECT firstwarranges FROM CONFLICTS LIMIT 1";
-                    command.ExecuteNonQuery();
-
-                }
-                catch
-                {
-                    command.CommandText = "ALTER TABLE CONFLICTS ADD COLUMN firstwarranges TEXT DEFAULT \"\"";
-                    command.ExecuteNonQuery();
-                }
-
-                //conflict secondwarranges
-                try
-                {
-                    command.CommandText = "SELECT secondwarranges FROM CONFLICTS LIMIT 1";
-                    command.ExecuteNonQuery();
-
-                }
-                catch
-                {
-                    command.CommandText = "ALTER TABLE CONFLICTS ADD COLUMN secondwarranges TEXT DEFAULT \"\"";
-                    command.ExecuteNonQuery();
-                }
-                //conflict nextbattledatestart
-                try
-                {
-                    command.CommandText = "SELECT nextbattledatestart FROM CONFLICTS LIMIT 1";
-                    command.ExecuteNonQuery();
-
-                }
-                catch
-                {
-                    command.CommandText = "ALTER TABLE CONFLICTS ADD COLUMN nextbattledatestart TEXT DEFAULT \"0001-01-01T00:00:00\"";
-                    command.ExecuteNonQuery();
-                }
-                //conflict nextbattledateend
-                try
-                {
-                    command.CommandText = "SELECT nextbattledateend FROM CONFLICTS LIMIT 1";
-                    command.ExecuteNonQuery();
-
-                }
-                catch
-                {
-                    command.CommandText = "ALTER TABLE CONFLICTS ADD COLUMN nextbattledateend TEXT DEFAULT \"0001-01-01T00:00:00\"";
-                    command.ExecuteNonQuery();
-                }
-
-                //city hotiles
-                try
-                {
-                    command.CommandText = "SELECT hostiles FROM CITIES LIMIT 1";
-                    command.ExecuteNonQuery();
-
-                }
-                catch
-                {
-                    command.CommandText = "ALTER TABLE CITIES ADD COLUMN hostiles TEXT DEFAULT \"\"";
-                    command.ExecuteNonQuery();
-                }
-
-                //city comrades
-                try
-                {
-                    command.CommandText = "SELECT comrades FROM CITIES LIMIT 1";
-                    command.ExecuteNonQuery();
-
-                }
-                catch
-                {
-                    command.CommandText = "ALTER TABLE CITIES ADD COLUMN comrades TEXT DEFAULT \"\"";
-                    command.ExecuteNonQuery();
-                }
-
-                //wascaptured
-                try
-                {
-                    command.CommandText = "SELECT wascaptured FROM PLOTS LIMIT 1";
-                    command.ExecuteNonQuery();
-
-                }
-                catch
-                {
-                    command.CommandText = "ALTER TABLE PLOTS ADD COLUMN wascaptured INTEGER DEFAULT 0";
-                    command.ExecuteNonQuery();
-                }
-
-                //city ranks
-                try
-                {
-                    command.CommandText = "SELECT ranks FROM CITIES LIMIT 1";
-                    command.ExecuteNonQuery();
-
-                }
-                catch
-                {
-                    command.CommandText = "ALTER TABLE CITIES ADD COLUMN ranks TEXT DEFAULT \"\"";
-                    command.ExecuteNonQuery();
-                }
-
-                //conflict party types
-                try { command.CommandText = "SELECT firstside_type FROM CONFLICTS LIMIT 1"; command.ExecuteScalar(); }
-                catch { command.CommandText = "ALTER TABLE CONFLICTS ADD COLUMN firstside_type TEXT DEFAULT 'alliance'"; command.ExecuteNonQuery(); }
-                try { command.CommandText = "SELECT secondside_type FROM CONFLICTS LIMIT 1"; command.ExecuteScalar(); }
-                catch { command.CommandText = "ALTER TABLE CONFLICTS ADD COLUMN secondside_type TEXT DEFAULT 'alliance'"; command.ExecuteNonQuery(); }
-                try { command.CommandText = "SELECT startedby_type FROM CONFLICTS LIMIT 1"; command.ExecuteScalar(); }
-                catch { command.CommandText = "ALTER TABLE CONFLICTS ADD COLUMN startedby_type TEXT DEFAULT 'alliance'"; command.ExecuteNonQuery(); }
-
-                //plot claim timestamp
-                try { command.CommandText = "SELECT timestampclaimed FROM PLOTS LIMIT 1"; command.ExecuteScalar(); }
-                catch { command.CommandText = "ALTER TABLE PLOTS ADD COLUMN timestampclaimed INTEGER DEFAULT 0"; command.ExecuteNonQuery(); }
-
-                //plot last paid price
-                try { command.CommandText = "SELECT lastpaidprice FROM PLOTS LIMIT 1"; command.ExecuteScalar(); }
-                catch { command.CommandText = "ALTER TABLE PLOTS ADD COLUMN lastpaidprice INTEGER DEFAULT 0"; command.ExecuteNonQuery(); }
-
-                try { command.CommandText = "SELECT eventlog FROM CITIES LIMIT 1"; command.ExecuteScalar(); }
-                catch { command.CommandText = "ALTER TABLE CITIES ADD COLUMN eventlog TEXT DEFAULT \"\""; command.ExecuteNonQuery(); }
+                // Future: if (dbVersion < 2) { ... new SqliteCommand("PRAGMA user_version = 2", SqliteConnection).ExecuteNonQuery(); }
 
             }
             catch (Exception ex)
@@ -866,7 +735,7 @@ namespace claims.src.database
                 { "@perms", plot.getPermsHandler().ToString() },
                 { "@plotgroupguid", plot.hasPlotGroup() ? plot.getPlotGroup().Guid : "" },
                 { "@markednopvp", plot.MarkedNoPvp },
-                { "@plotdesc",  PlotInfo.getPlotDescByType(plot) },
+                { "@plotdesc", plot.PlotDesc?.Serialize(plot) ?? "" },
                 { "@extraBought", plot.extraBought },
                 { "@wascaptured", plot.WasCaptured },
                 { "@timestampclaimed", plot.TimeStampClaimed },
@@ -911,31 +780,11 @@ namespace claims.src.database
             if (claims.dataStorage.getCityPlotsGroupsDict().TryGetValue(it["plotgroupguid"].ToString(), out CityPlotsGroup cityPlotsGroup))
                 plot.setPlotGroup(cityPlotsGroup);
             plot.MarkedNoPvp = it["markednopvp"].ToString().Equals("0") ? false : true;
-            switch (plot.Type)
+            PlotDesc plotDesc = PlotDesc.Load(plot.Type);
+            if (plotDesc != null)
             {
-                case PlotType.SUMMON:
-                    try
-                    {
-                        PlotDescSummon tmp = JsonConvert.DeserializeObject<PlotDescSummon>(it["plotdesc"].ToString());
-                        plot.PlotDesc = tmp;
-                        plot.getCity().summonPlots.Add(plot);
-                    }
-                    catch
-                    {
-                        return false;
-                    }                  
-                    break;
-                case PlotType.PRISON:
-                    PlotDescPrison tmpPri = new PlotDescPrison(it["plotdesc"].ToString());
-                    plot.PlotDesc = tmpPri;
-                    claims.dataStorage.getPrison(tmpPri.getPrisonGuid(), out Prison prison);
-                    plot.Prison = prison;
-                    break;
-                case PlotType.TAVERN:
-                    PlotDescTavern tmpTav = new PlotDescTavern();
-                    plot.PlotDesc = tmpTav;
-                    tmpTav.fromLoadStringInnerClaims(it["plotdesc"].ToString());
-                    break;
+                plotDesc.Deserialize(it["plotdesc"].ToString(), plot);
+                plot.PlotDesc = plotDesc;
             }
             plot.extraBought = it["extraBought"].ToString().Equals("0") ? false : true;
             plot.WasCaptured = it["wascaptured"].ToString().Equals("0") ? false : true;
@@ -1022,7 +871,15 @@ namespace claims.src.database
 
         public override bool loadWorldInfo(DataRow it)
         {
-            throw new NotImplementedException();
+            claims.dataStorage.setWorldInfo(new WorldInfo(it["name"].ToString(), it["guid"].ToString()));
+            var world = claims.dataStorage.getWorldInfo();
+            world.fireEverywhere = !it["fireeverywhere"].ToString().Equals("0");
+            world.pvpEverywhere = !it["pvpeverywhere"].ToString().Equals("0");
+            world.blastEverywhere = !it["blasteverywhere"].ToString().Equals("0");
+            world.fireForbidden = !it["fireforbidden"].ToString().Equals("0");
+            world.pvpForbidden = !it["pvpforbidden"].ToString().Equals("0");
+            world.blastForbidden = !it["blastforbidden"].ToString().Equals("0");
+            return true;
         }
         //OTHER
         public override bool saveEveryThing()

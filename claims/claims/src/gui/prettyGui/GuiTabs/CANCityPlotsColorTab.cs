@@ -137,7 +137,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() + availY - 40);
             if (ImGui.Button(Lang.Get("claims:gui-back-button")))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.CITY;
+                GuiSys.selectedTab = EnumSelectedTab.CITY;
             }
         }
 

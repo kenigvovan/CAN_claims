@@ -44,7 +44,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     ImGui.SetWindowFontScale(1.3f);
                     if (ImGui.Button(text))
                     {
-                        capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.SELECT_NEW_CITY_NAME;
+                        GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.SELECT_NEW_CITY_NAME;
                     }
                     ImGui.SetWindowFontScale(1.0f);
                     ImGui.PopStyleColor(4);
@@ -123,7 +123,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.25f, 1.0f));
                     if (ImGui.ImageButton("claimplot", this.iconHandler.GetOrLoadIcon("expander"), new Vector2(16)))
                     {
-                        capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CLAIM_CITY_PLOT_CONFIRM;
+                        GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.CLAIM_CITY_PLOT_CONFIRM;
                     }
                     ImGui.PopStyleColor(3);
                     if (ImGui.IsItemHovered())
@@ -139,7 +139,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.6f, 0.2f, 0.15f, 1.0f));
                     if (ImGui.ImageButton("unclaimplot", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(16)))
                     {
-                        capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.UNCLAIM_CITY_PLOT_CONFIRM;
+                        GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.UNCLAIM_CITY_PLOT_CONFIRM;
                     }
                     ImGui.PopStyleColor(3);
                     if (ImGui.IsItemHovered())
@@ -152,7 +152,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     ImGui.SameLine();
                     if (ImGui.ImageButton("setplotpermissions", this.iconHandler.GetOrLoadIcon("medal"), new Vector2(16)))
                     {
-                        capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_PLOTS_PERMISSIONS;
+                        GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.CITY_PLOTS_PERMISSIONS;
                     }
                     if (ImGui.IsItemHovered())
                     {
@@ -178,7 +178,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.25f, 1.0f));
                     if (ImGui.ImageButton("inviteplayer", this.iconHandler.GetOrLoadIcon("expander"), new Vector2(16)))
                     {
-                        capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.INVITE_TO_CITY_NEED_NAME;
+                        GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.INVITE_TO_CITY_NEED_NAME;
                     }
                     ImGui.PopStyleColor(3);
                     if (ImGui.IsItemHovered())
@@ -194,7 +194,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.6f, 0.2f, 0.15f, 1.0f));
                     if (ImGui.ImageButton("kickplayer", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(16)))
                     {
-                        capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.KICK_FROM_CITY_NEED_NAME;
+                        GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.KICK_FROM_CITY_NEED_NAME;
                     }
                     ImGui.PopStyleColor(3);
                     if (ImGui.IsItemHovered())
@@ -207,7 +207,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     ImGui.SameLine();
                     if (ImGui.ImageButton("uninviteplayer", this.iconHandler.GetOrLoadIcon("anticlockwise-rotation"), new Vector2(16)))
                     {
-                        capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.UNINVITE_TO_CITY;
+                        GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.UNINVITE_TO_CITY;
                     }
                     if (ImGui.IsItemHovered())
                     {
@@ -227,7 +227,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                         ImGui.SameLine();
                         if (ImGui.SmallButton("+##citydeposit"))
                         {
-                            capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_DEPOSIT_CONFIRM;
+                            GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.CITY_DEPOSIT_CONFIRM;
                         }
                         if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-city-deposit-tooltip"));
                         if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_WITHDRAW_MONEY))
@@ -235,8 +235,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
                             ImGui.SameLine();
                             if (ImGui.SmallButton("-##citywithdraw"))
                             {
-                                capi.ModLoader.GetModSystem<claimsGui>().intInput = 0;
-                                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_WITHDRAW;
+                                GuiSys.intInput = 0;
+                                GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.CITY_WITHDRAW;
                             }
                             if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-city-withdraw-tooltip"));
                         }
@@ -264,7 +264,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     ImGui.SameLine();
                     if (ImGui.ImageButton("setcityfee", this.iconHandler.GetOrLoadIcon("medal"), new Vector2(16)))
                     {
-                        capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_SET_FEE;
+                        GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.CITY_SET_FEE;
                     }
                     if (ImGui.IsItemHovered())
                     {
@@ -278,7 +278,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
                 if (ImGui.ImageButton("leavecity", this.iconHandler.GetOrLoadIcon("exit-door"), new Vector2(60)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.LEAVE_CITY_CONFIRM;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.LEAVE_CITY_CONFIRM;
                 }
                 if (ImGui.IsItemHovered())
                 {
@@ -290,7 +290,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 {
                     if (ImGui.ImageButton("ranks", this.iconHandler.GetOrLoadIcon("achievement"), new Vector2(60)))
                     {
-                        capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.RANKS;
+                        GuiSys.selectedTab = EnumSelectedTab.RANKS;
                     }
                 }
                 if (ImGui.IsItemHovered())
@@ -302,7 +302,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 {
                     if (ImGui.ImageButton("plotscolors", this.iconHandler.GetOrLoadIcon("large-paint-brush"), new Vector2(60)))
                     {
-                        capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.CityPlotsColorSelector;
+                        GuiSys.selectedTab = EnumSelectedTab.CityPlotsColorSelector;
                     }
                 }
                 if (ImGui.IsItemHovered())
@@ -314,7 +314,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 {
                     if (ImGui.ImageButton("alliance", this.iconHandler.GetOrLoadIcon("vertical-banner"), new Vector2(60)))
                     {
-                        capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.AllianceInfoPage;
+                        GuiSys.selectedTab = EnumSelectedTab.AllianceInfoPage;
                     }
                 }
                 if (ImGui.IsItemHovered())
@@ -324,8 +324,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SameLine();
                 if (ImGui.ImageButton("conflictletterscity", this.iconHandler.GetOrLoadIcon("envelope"), new Vector2(60)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().conflictSourceTab = EnumSelectedTab.CITY;
-                    capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.ConflictLettersPage;
+                    GuiSys.conflictSourceTab = EnumSelectedTab.CITY;
+                    GuiSys.selectedTab = EnumSelectedTab.ConflictLettersPage;
                 }
                 if (ImGui.IsItemHovered())
                 {
@@ -334,8 +334,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SameLine();
                 if (ImGui.ImageButton("conflictspagecity", this.iconHandler.GetOrLoadIcon("frog-mouth-helm"), new Vector2(60)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().conflictSourceTab = EnumSelectedTab.CITY;
-                    capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.ConflictsPage;
+                    GuiSys.conflictSourceTab = EnumSelectedTab.CITY;
+                    GuiSys.selectedTab = EnumSelectedTab.ConflictsPage;
                 }
                 if (ImGui.IsItemHovered())
                 {
@@ -344,7 +344,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SameLine();
                 if (ImGui.ImageButton("citylog", this.iconHandler.GetOrLoadIcon("files"), new Vector2(60)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.CityLog;
+                    GuiSys.selectedTab = EnumSelectedTab.CityLog;
                 }
                 if (ImGui.IsItemHovered())
                 {
@@ -353,7 +353,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SameLine();
                 if (ImGui.ImageButton("citymap", this.iconHandler.GetOrLoadIcon("huts-village"), new Vector2(60)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.CityMap;
+                    GuiSys.selectedTab = EnumSelectedTab.CityMap;
                 }
                 if (ImGui.IsItemHovered())
                 {
@@ -368,7 +368,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.25f, 1.0f));
                 if (ImGui.ImageButton("createcity", this.iconHandler.GetOrLoadIcon("queen-crown"), new Vector2(60)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.NEED_NAME;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.NEED_NAME;
                 }
                 ImGui.PopStyleColor(3);
                 if (ImGui.IsItemHovered())

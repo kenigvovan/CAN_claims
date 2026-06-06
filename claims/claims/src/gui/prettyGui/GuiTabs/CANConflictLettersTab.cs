@@ -161,11 +161,11 @@ namespace claims.src.gui.prettyGui.GuiTabs
             {
                 if (claims.clientDataStorage.clientPlayerInfo.AllianceInfo != null)
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.ALLIANCE_SEND_NEW_CONFLICT_LETTER_NEED_NAME;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.ALLIANCE_SEND_NEW_CONFLICT_LETTER_NEED_NAME;
                 }
                 else
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_SEND_NEW_CONFLICT_LETTER_NEED_NAME;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.CITY_SEND_NEW_CONFLICT_LETTER_NEED_NAME;
                 }
             }
             if (ImGui.IsItemHovered())
@@ -182,12 +182,12 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
             if (ImGui.ImageButton("allianceinfo", this.iconHandler.GetOrLoadIcon("vertical-banner"), new Vector2(60)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = capi.ModLoader.GetModSystem<claimsGui>().conflictSourceTab;
+                GuiSys.selectedTab = GuiSys.conflictSourceTab;
             }
             ImGui.SameLine();
             if (ImGui.ImageButton("conflictletters", this.iconHandler.GetOrLoadIcon("envelope"), new Vector2(60)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.ConflictLettersPage;
+                GuiSys.selectedTab = EnumSelectedTab.ConflictLettersPage;
             }
             if (ImGui.IsItemHovered())
             {
@@ -196,7 +196,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.SameLine();
             if (ImGui.ImageButton("conflictspage", this.iconHandler.GetOrLoadIcon("frog-mouth-helm"), new Vector2(60)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.ConflictsPage;
+                GuiSys.selectedTab = EnumSelectedTab.ConflictsPage;
             }
             if (ImGui.IsItemHovered())
             {

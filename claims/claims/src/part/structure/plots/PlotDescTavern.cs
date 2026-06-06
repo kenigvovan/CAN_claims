@@ -1,16 +1,29 @@
 ﻿using claims.src.auxialiry;
-using System;
+using claims.src.part.structure;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
 
 namespace claims.src.part.structure.plots
 {
-    public class PlotDescTavern: PlotDesc
+    public class PlotDescTavern : PlotDesc
     {
+        public override string Serialize(Plot plot) => toSaveStringInnerClaims();
+        public override void Deserialize(string data, Plot plot) => fromLoadStringInnerClaims(data);
+        public override bool Validate(Plot plot, IServerPlayer player, ref TextCommandResult tcr)
+        {
+            int count = plot.getCity().getCityPlots().Count(p => p.Type == PlotType.TAVERN);
+            if (count >= claims.config.MAX_NUMBER_TAVERN_PER_CITY)
+            {
+                tcr.StatusMessage = "claims:too_much_taverns";
+                tcr.MessageParams = new object[] { claims.config.MAX_NUMBER_TAVERN_PER_CITY };
+                return false;
+            }
+            return true;
+        }
         public List<InnerClaim> innerClaims = new();
         public string innerClaimsToString()
         {

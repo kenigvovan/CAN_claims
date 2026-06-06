@@ -43,7 +43,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SetWindowFontScale(1.3f);
                 if (ImGui.Button(text))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.SELECT_NEW_ALLIANCE_NAME;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.SELECT_NEW_ALLIANCE_NAME;
                 }
                 ImGui.SetWindowFontScale(1.0f);
                 ImGui.PopStyleColor(4);
@@ -86,7 +86,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     ImGui.SameLine();
                     if (ImGui.ImageButton("allianceprefix", this.iconHandler.GetOrLoadIcon("soldering-iron"), new Vector2(14)))
                     {
-                        capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.ALLIANCE_PREFIX_NEED_NAME;
+                        GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.ALLIANCE_PREFIX_NEED_NAME;
                     }
                     if (ImGui.IsItemHovered())
                     {
@@ -125,7 +125,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.25f, 1.0f));
                 if (ImGui.ImageButton("invitecity", this.iconHandler.GetOrLoadIcon("expander"), new Vector2(16)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.INVITE_TO_ALLIANCE_NEED_NAME;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.INVITE_TO_ALLIANCE_NEED_NAME;
                 }
                 ImGui.PopStyleColor(3);
                 if (ImGui.IsItemHovered())
@@ -138,7 +138,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.6f, 0.2f, 0.15f, 1.0f));
                 if (ImGui.ImageButton("kickcity", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(16)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.KICK_FROM_ALLIANCE_NEED_NAME;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.KICK_FROM_ALLIANCE_NEED_NAME;
                 }
                 ImGui.PopStyleColor(3);
                 if (ImGui.IsItemHovered())
@@ -148,7 +148,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SameLine();
                 if (ImGui.ImageButton("uninvitecity", this.iconHandler.GetOrLoadIcon("anticlockwise-rotation"), new Vector2(16)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.KICK_FROM_ALLIANCE_NEED_NAME;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.KICK_FROM_ALLIANCE_NEED_NAME;
                 }
                 if (ImGui.IsItemHovered())
                 {
@@ -165,7 +165,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
                 if (ImGui.ImageButton("leavealliance", this.iconHandler.GetOrLoadIcon("exit-door"), new Vector2(60)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.LEAVE_ALLIANCE_CONFIRM;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.LEAVE_ALLIANCE_CONFIRM;
                 }
                 if (ImGui.IsItemHovered())
                 {
@@ -174,8 +174,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SameLine();
                 if (ImGui.ImageButton("conflictletters", this.iconHandler.GetOrLoadIcon("envelope"), new Vector2(60)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().conflictSourceTab = EnumSelectedTab.AllianceInfoPage;
-                    capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.ConflictLettersPage;
+                    GuiSys.conflictSourceTab = EnumSelectedTab.AllianceInfoPage;
+                    GuiSys.selectedTab = EnumSelectedTab.ConflictLettersPage;
                 }
                 if (ImGui.IsItemHovered())
                 {
@@ -184,8 +184,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SameLine();
                 if (ImGui.ImageButton("conflictspage", this.iconHandler.GetOrLoadIcon("frog-mouth-helm"), new Vector2(60)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().conflictSourceTab = EnumSelectedTab.AllianceInfoPage;
-                    capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.ConflictsPage;
+                    GuiSys.conflictSourceTab = EnumSelectedTab.AllianceInfoPage;
+                    GuiSys.selectedTab = EnumSelectedTab.ConflictsPage;
                 }
                 if (ImGui.IsItemHovered())
                 {
@@ -194,7 +194,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SameLine();
                 if (ImGui.ImageButton("unionspage", this.iconHandler.GetOrLoadIcon("tower-flag"), new Vector2(60)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.UnionLettersPage;
+                    GuiSys.selectedTab = EnumSelectedTab.UnionLettersPage;
                 }
                 if (ImGui.IsItemHovered())
                 {
@@ -209,7 +209,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.25f, 1.0f));
                 if (ImGui.ImageButton("createalliance", this.iconHandler.GetOrLoadIcon("queen-crown"), new Vector2(60)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.NEW_ALLIANCE_NEED_NAME;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.NEW_ALLIANCE_NEED_NAME;
                 }
                 ImGui.PopStyleColor(3);
                 if (ImGui.IsItemHovered())

@@ -31,7 +31,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             {
                 if (ImGui.ImageButton("addcriminal", this.iconHandler.GetOrLoadIcon("expander"), new Vector2(16)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.ADD_CRIMINAL_NEED_NAME;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.ADD_CRIMINAL_NEED_NAME;
                 }
                 ImGui.SameLine();
             }
@@ -39,7 +39,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             {
                 if (ImGui.ImageButton("removecriminal", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(16)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.REMOVE_CRIMINAL;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.REMOVE_CRIMINAL;
                 }
             }
 
@@ -63,8 +63,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.Text(text);
                 if (ImGui.ImageButton("removecell", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(16)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_PRISON_REMOVE_CELL_CONFIRM;
-                    capi.ModLoader.GetModSystem<claimsGui>().selectedPos = prisonCell.SpawnPosition;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.CITY_PRISON_REMOVE_CELL_CONFIRM;
+                    GuiSys.selectedPos = prisonCell.SpawnPosition;
                 }
 
                 string AllPlayers = "";

@@ -180,7 +180,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             var clientInfo = claims.clientDataStorage.clientPlayerInfo;
             if (clientInfo?.CityInfo == null) return;
 
-            var cell = clientInfo.CityInfo.ClientConflictCellElements.FirstOrDefault(c => c.Guid == capi.ModLoader.GetModSystem<claimsGui>().textInput);
+            var cell = clientInfo.CityInfo.ClientConflictCellElements.FirstOrDefault(c => c.Guid == GuiSys.textInput);
             if (cell == null)
             {
                 return;
@@ -301,10 +301,10 @@ namespace claims.src.gui.prettyGui.GuiTabs
             {
                 if (ImGui.BeginTabItem("Selected"))
                 {
-                    if (capi.ModLoader.GetModSystem<claimsGui>().selectedWarrangeTab != 0)
+                    if (GuiSys.selectedWarrangeTab != 0)
                     {
                         FillWarRangeArrays(cell.WarRanges);
-                        capi.ModLoader.GetModSystem<claimsGui>().selectedWarrangeTab = 0;
+                        GuiSys.selectedWarrangeTab = 0;
                     }
 
                     ImGui.BeginChild("InvitesScroll", new Vector2(0, 300), true);
@@ -330,7 +330,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
                 if (ImGui.BeginTabItem("Suggested"))
                 {
-                    if (capi.ModLoader.GetModSystem<claimsGui>().selectedWarrangeTab != 1)
+                    if (GuiSys.selectedWarrangeTab != 1)
                     {
                         string ourName = claims.clientDataStorage.clientPlayerInfo.AllianceInfo?.Name
                             ?? claims.clientDataStorage.clientPlayerInfo.CityInfo?.Name ?? "";
@@ -342,7 +342,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                         {
                             FillTwoWarRangesArrays(cell.SecondWarRanges, cell.FirstWarRanges);
                         }
-                        capi.ModLoader.GetModSystem<claimsGui>().selectedWarrangeTab = 1;
+                        GuiSys.selectedWarrangeTab = 1;
                     }
 
                     ImGui.BeginChild("InvitesScroll", new Vector2(0, 300), true);
@@ -398,7 +398,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     ?? claims.clientDataStorage.clientPlayerInfo.CityInfo?.Name ?? "";
                 string ourPartyGuid = ourName.Equals(cell.FirstPartyName) ? cell.FirstPartyGuid : cell.SecondPartyGuid;
 
-                int activeTab = capi.ModLoader.GetModSystem<claimsGui>().selectedWarrangeTab;
+                int activeTab = GuiSys.selectedWarrangeTab;
                 bool[][] warRangesByDay = new bool[7][];
                 for (int d = 0; d < 7; d++)
                 {
@@ -533,12 +533,12 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
             if (ImGui.ImageButton("allianceinfo", this.iconHandler.GetOrLoadIcon("vertical-banner"), new Vector2(60)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = capi.ModLoader.GetModSystem<claimsGui>().conflictSourceTab;
+                GuiSys.selectedTab = GuiSys.conflictSourceTab;
             }
             ImGui.SameLine();
             if (ImGui.ImageButton("conflictletters", this.iconHandler.GetOrLoadIcon("envelope"), new Vector2(60)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.ConflictLettersPage;
+                GuiSys.selectedTab = EnumSelectedTab.ConflictLettersPage;
             }
             if (ImGui.IsItemHovered())
             {

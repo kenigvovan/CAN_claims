@@ -27,7 +27,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             {
                 return;
             }
-            CityRankCellElement cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.CityRanks.FirstOrDefault(rc => rc.Name.Equals(capi.ModLoader.GetModSystem<claimsGui>().textInput), null);
+            CityRankCellElement cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.CityRanks.FirstOrDefault(rc => rc.Name.Equals(GuiSys.textInput), null);
             if (cell == null)
             {
                 return;
@@ -38,7 +38,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             Vector4 sectionColor = new Vector4(0.4f, 0.7f, 1.0f, 1.0f);
             Vector4 permColor = new Vector4(0.7f, 0.9f, 0.7f, 1.0f);
 
-            var gui = capi.ModLoader.GetModSystem<claimsGui>();
+            var gui = GuiSys;
 
             // --- Rank name header ---
             ImGui.PushStyleColor(ImGuiCol.Text, nameColor);

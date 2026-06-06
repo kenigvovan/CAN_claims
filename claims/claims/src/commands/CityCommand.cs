@@ -52,12 +52,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult ProcessListCities(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (playerInfo == null)
-            {
-                return TextCommandResult.Error("claims:no_such_player_info");
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             return SuccessWithParams("claims:cities_list", new object[] { StringFunctions.makeFeasibleStringFromNames(StringFunctions.getNamesOfCities("", claims.dataStorage.getCitiesList()), ' ') });
         }
         public static TextCommandResult CityInfo(TextCommandCallingArgs args)
@@ -84,12 +79,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult CreateNewCity(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (playerInfo == null)
-            {
-                return TextCommandResult.Error("claims:no_such_player_info");
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (playerInfo.hasCity())
             {
                 return TextCommandResult.Error("claims:you_already_have_city");
@@ -162,14 +152,9 @@ namespace claims.src.commands
         }
         public static TextCommandResult DeleteCity(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new TextCommandResult();
             tcr.Status = EnumCommandStatus.Error;
-            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (playerInfo == null)
-            {
-                return TextCommandResult.Error("claims:no_such_player_info");
-            }
             City city = playerInfo.City;
             if (city == null)
             {
@@ -199,13 +184,7 @@ namespace claims.src.commands
         /*==============================================================================================*/
         public static TextCommandResult ClaimCityPlot(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-
-
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Error("claims:no_such_player_info");
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
 
             City city = playerInfo.City;
             if (city == null)
@@ -274,13 +253,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult UnclaimCityPlot(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-
-            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (playerInfo == null)
-            {
-                return TextCommandResult.Error("claims:no_such_player_info");
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             City city = playerInfo.City;
             if (city == null)
             {
@@ -323,11 +296,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult ClaimOutpost(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Error("claims:no_such_player_info");
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.hasCity())
             {
                 return TextCommandResult.Error("claims:you_dont_have_city");
@@ -391,12 +360,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult ProcessExtraPlot(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (playerInfo == null)
-            {
-                return TextCommandResult.Error("claims:no_such_player_info");
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.hasCity())
             {
                 return TextCommandResult.Error("claims:you_dont_have_city");
@@ -457,13 +421,7 @@ namespace claims.src.commands
         /*==============================================================================================*/
         public static TextCommandResult InviteToCity(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-
-            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (playerInfo == null)
-            {
-                return TextCommandResult.Success("claims:no_such_player_info");
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             City city = playerInfo.City;
             if (city == null)
             {
@@ -535,12 +493,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult CityKick(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success("claims:no_such_player_info");
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             City city = playerInfo.City;
             if (city == null)
             {
@@ -590,13 +543,9 @@ namespace claims.src.commands
         }
         public static TextCommandResult CityLeave(TextCommandCallingArgs args)
         {
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new TextCommandResult();
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
             tcr.Status = EnumCommandStatus.Error;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success("claims:no_such_player_info");
-            }
             City city = playerInfo.City;
             if (city == null)
             {
@@ -620,12 +569,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult UninviteToCity(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success("claims:no_such_player_info");
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             City city = playerInfo.City;
             if (city == null)
             {
@@ -669,11 +613,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult ShowInvitesSent(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success("claims:no_such_player_info");
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (args.LastArg == null)
             {
                 return TextCommandResult.Success(StringFunctions.getNthPageOf(playerInfo.City.GetSentInvitations(), 1));
@@ -690,12 +630,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult CityJoin(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success("claims:no_such_player_info");
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (playerInfo.hasCity())
             {
                 return TextCommandResult.Success("claims:has_city_or_village");
@@ -742,13 +677,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult SetCityName(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-
-            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (playerInfo == null)
-            {
-                return TextCommandResult.Success("claims:no_such_player_info");
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.hasCity())
             {
                 return TextCommandResult.Success("claims:you_dont_have_city");
@@ -872,7 +801,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult CitySetCitizenPrefix(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if(args.LastArg == null)
             {
                 return TextCommandResult.Error("claims:no_paramaters");
@@ -881,10 +810,6 @@ namespace claims.src.commands
             if (playerName_title.Length < 1)
             {
                 return TextCommandResult.Error("claims:no_paramaters");
-            }
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Error("claims:no_such_player_info");
             }
             if (!playerInfo.hasCity())
             {
@@ -980,15 +905,9 @@ namespace claims.src.commands
         }
         public static TextCommandResult CitySetMayor(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new();
             tcr.Status = EnumCommandStatus.Success;
-
-            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (playerInfo == null)
-            {
-                return TextCommandResult.Success("claims:no_such_player_info");
-            }
             City city = playerInfo.City;
             if (city == null)
             {
@@ -1033,13 +952,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult CitySetPlotsColor(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-
-            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (playerInfo == null)
-            {
-                return TextCommandResult.Success("claims:no_such_player");
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.hasCity())
             {
                 return TextCommandResult.Success("claims:no_city");
@@ -1061,13 +974,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult CitySetPlotsColorInt(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-
-            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (playerInfo == null)
-            {
-                return TextCommandResult.Success("claims:no_such_player");
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.hasCity())
             {
                 return TextCommandResult.Success("claims:no_city");
@@ -1098,13 +1005,9 @@ namespace claims.src.commands
         /*==============================================================================================*/
         public static TextCommandResult CityRankList(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new TextCommandResult();
             tcr.Status = EnumCommandStatus.Success;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success("claims:no_such_player_info");
-            }
             if (args.LastArg == null)
             {
                 return TextCommandResult.Success(StringFunctions.concatStringsWithPrefixAndDelim(
@@ -1205,13 +1108,9 @@ namespace claims.src.commands
         /*NEW RANKS*/
         public static TextCommandResult CityRankCreateCustom(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new TextCommandResult();
             tcr.Status = EnumCommandStatus.Success;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success("claims:no_such_player_info");
-            }
             string rank_name = (string)args.Parsers[0].GetValue();
 
             if(!playerInfo.hasCity())
@@ -1242,13 +1141,9 @@ namespace claims.src.commands
         }
         public static TextCommandResult CityRankDeleteCustom(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new TextCommandResult();
             tcr.Status = EnumCommandStatus.Success;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success("claims:no_such_player_info");
-            }
             string rank_name = (string)args.Parsers[0].GetValue();
 
             if (!playerInfo.hasCity())
@@ -1279,13 +1174,9 @@ namespace claims.src.commands
         }
         public static TextCommandResult CityRankAddPermissions(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new TextCommandResult();
             tcr.Status = EnumCommandStatus.Success;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success("claims:no_such_player_info");
-            }
             if(!playerInfo.hasCity())
             {
                 return TextCommandResult.Success("claims:you_dont_have_city");
@@ -1333,13 +1224,9 @@ namespace claims.src.commands
         }
         public static TextCommandResult CityRankRemovePermissions(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new TextCommandResult();
             tcr.Status = EnumCommandStatus.Success;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success("claims:no_such_player_info");
-            }
             if (!playerInfo.hasCity())
             {
                 return TextCommandResult.Success("claims:you_dont_have_city");
@@ -1439,16 +1326,10 @@ namespace claims.src.commands
         }
         public static TextCommandResult CRemovePrisonCell(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new();
             tcr.Status = EnumCommandStatus.Error;
             City city = null;
-
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                tcr.StatusMessage = "claims:no_such_player_info";
-                return tcr;
-            }
             if (!playerInfo.hasCity())
             {
                 tcr.StatusMessage = "claims:you_dont_have_city";
@@ -1645,16 +1526,9 @@ namespace claims.src.commands
         /*==============================================================================================*/
         public static TextCommandResult CityCriminalList(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new();
             tcr.Status = EnumCommandStatus.Error;
-
-            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (playerInfo == null)
-            {
-                tcr.StatusMessage = "claims:no_such_player_info";
-                return tcr;
-            }
             City city = playerInfo.City;
             if (city == null)
             {
@@ -1669,16 +1543,9 @@ namespace claims.src.commands
         }
         public static TextCommandResult CityCriminalAdd(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new();
             tcr.Status = EnumCommandStatus.Error;
-
-            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (playerInfo == null)
-            {
-                tcr.StatusMessage = "claims:no_such_player_info";
-                return tcr;
-            }
             City city = playerInfo.City;
             if (city == null)
             {
@@ -1712,16 +1579,9 @@ namespace claims.src.commands
         }
         public static TextCommandResult CityCriminalRemove(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new();
             tcr.Status = EnumCommandStatus.Error;
-
-            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (playerInfo == null)
-            {
-                tcr.StatusMessage = "claims:no_such_player_info";
-                return tcr;
-            }
             City city = playerInfo.City;
             if (city == null)
             {
@@ -1993,14 +1853,9 @@ namespace claims.src.commands
         }
         public static TextCommandResult CitySummonList(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new();
             tcr.Status = EnumCommandStatus.Error;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                tcr.StatusMessage = "claims:no_such_player_info";
-                return tcr;
-            }
             if (!playerInfo.hasCity())
             {
                 tcr.StatusMessage = "claims:you_dont_have_city";
@@ -2082,16 +1937,9 @@ namespace claims.src.commands
         /*==============================================================================================*/
         public static TextCommandResult PlotsGroupCreate(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new();
             tcr.Status = EnumCommandStatus.Error;
-
-            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (playerInfo == null)
-            {
-                tcr.StatusMessage = "claims:no_such_player_info";
-                return tcr;
-            }
             City city = playerInfo.City;
             if (city == null)
             {
@@ -2160,16 +2008,9 @@ namespace claims.src.commands
         }
         public static TextCommandResult PlotsGroupDelete(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new();
             tcr.Status = EnumCommandStatus.Error;
-
-            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (playerInfo == null)
-            {
-                tcr.StatusMessage = "claims:no_such_player_info";
-                return tcr;
-            }
             City city = playerInfo.City;
             if (city == null)
             {
@@ -2225,15 +2066,9 @@ namespace claims.src.commands
         }
         public static TextCommandResult PlotsGroupList(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new();
             tcr.Status = EnumCommandStatus.Error;
-
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                tcr.StatusMessage = "claims:no_such_player_info";
-                return tcr;
-            }
             City city = playerInfo.City;
             if (city == null)
             {
@@ -2254,16 +2089,9 @@ namespace claims.src.commands
         }
         public static TextCommandResult PlotsGroupListPlayers(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new();
             tcr.Status = EnumCommandStatus.Error;
-
-            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (playerInfo == null)
-            {
-                tcr.StatusMessage = "claims:no_such_player_info";
-                return tcr;
-            }
             City city = playerInfo.City;
             if (city == null)
             {
@@ -2304,16 +2132,9 @@ namespace claims.src.commands
         }
         public static TextCommandResult PlotsGroupAddPlayerToGroup(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new();
             tcr.Status = EnumCommandStatus.Error;
-
-            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (playerInfo == null)
-            {
-                tcr.StatusMessage = "claims:no_such_player_info";
-                return tcr;
-            }
             City city = playerInfo.City;
             if (city == null)
             {
@@ -2425,16 +2246,9 @@ namespace claims.src.commands
         }
         public static TextCommandResult PlotsGroupKickPlayerFromGroup(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new();
             tcr.Status = EnumCommandStatus.Error;
-
-            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (playerInfo == null)
-            {
-                MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:no_such_player_info"));
-                return tcr;
-            }
             City city = playerInfo.City;
             if (city == null)
             {
@@ -2502,17 +2316,11 @@ namespace claims.src.commands
         }
         public static TextCommandResult PlotsGroupPlotAdd(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new();
             tcr.Status = EnumCommandStatus.Error;
 
             //ADD PLOTGROUPNAME
-            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (playerInfo == null)
-            {
-                tcr.StatusMessage = "claims:no_such_player_info";
-                return tcr;
-            }
             City city = playerInfo.City;
             if (city == null)
             {
@@ -2572,17 +2380,10 @@ namespace claims.src.commands
         }
         public static TextCommandResult PlotsGroupPlotRemove(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new();
             tcr.Status = EnumCommandStatus.Error;
             //ADD PLOTGROUPNAME
-
-            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (playerInfo == null)
-            {
-                tcr.StatusMessage = "claims:no_such_player_info";
-                return tcr;
-            }
             City city = playerInfo.City;
             if (city == null)
             {
@@ -2633,15 +2434,9 @@ namespace claims.src.commands
         }
         public static TextCommandResult PlotsGroupSet(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new();
             tcr.Status = EnumCommandStatus.Success;
-
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:no_such_player_info"));
-                return tcr;
-            }
             City city = playerInfo.City;
             if (city == null)
             {
@@ -2869,14 +2664,9 @@ namespace claims.src.commands
         
         public static TextCommandResult processCityRankList(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new TextCommandResult();
             tcr.Status = EnumCommandStatus.Success;
-            if (!claims.dataStorage.getPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                tcr.StatusMessage = "claims:no_such_player_info";
-                return tcr;
-            }
             if (args.LastArg == null)
             {
                 MessageHandler.sendMsgToPlayer(player, StringFunctions.concatStringsWithPrefixAndDelim(
@@ -2974,19 +2764,13 @@ namespace claims.src.commands
         //ADD PLAYER TO GROUP
         public static TextCommandResult PlotsGroupAddTo(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             TextCommandResult tcr = new TextCommandResult();
             tcr.Status = EnumCommandStatus.Error;
 
             if (args.RawArgs.Length < 2)
             {
                 tcr.StatusMessage = "claims:need_name_for_group_and_player";
-                return tcr;
-            }
-            claims.dataStorage.getPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (playerInfo == null)
-            {
-                tcr.StatusMessage = "claims:no_such_player_info";
                 return tcr;
             }
             City city = playerInfo.City;
@@ -3158,9 +2942,7 @@ namespace claims.src.commands
 
         public static TextCommandResult DeclareCityConflict(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.hasCity())
                 return TextCommandResult.Success(Lang.Get("claims:no_city"));
             if (playerInfo.HasAlliance())
@@ -3191,7 +2973,7 @@ namespace claims.src.commands
                 long timestamp = TimeFunctions.getEpochSeconds() + claims.config.DELAY_FOR_CONFLICT_ACTIVATED;
                 string newConflictGuid = ConflictLetter.GetUnusedGuid().ToString();
                 if (ConflictHandler.addConflictLetter(new ConflictLetter(ourCity, targetParty, LetterPurpose.START_CONFLICT, timestamp,
-                    new Thread(new ThreadStart(() =>
+                    () =>
                     {
                         if (!ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.START_CONFLICT, out var letter)) return;
                         Conflict newConflict = new Conflict("", newConflictGuid);
@@ -3219,8 +3001,8 @@ namespace claims.src.commands
                         MessageHandler.sendMsgInCity(ourCity, Lang.Get("claims:conflict_created_with", targetParty.GetPartName()));
                         foreach (var c in targetParty.GetCities())
                             MessageHandler.sendMsgInCity(c, Lang.Get("claims:conflict_created_with", ourCity.getPartNameReplaceUnder()));
-                    })),
-                    new Thread(new ThreadStart(() =>
+                    },
+                    () =>
                     {
                         if (ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.START_CONFLICT, out var denyLetter))
                         {
@@ -3231,7 +3013,7 @@ namespace claims.src.commands
                         }
                         MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:conflict_denied"));
                         ConflictHandler.removeConflictLetter(ourCity, targetParty, LetterPurpose.START_CONFLICT);
-                    })),
+                    },
                     newConflictGuid)))
                 {
                     ConflictHandler.TryGetConflictLetter(newConflictGuid, out ConflictLetter conflictLetter);
@@ -3273,9 +3055,7 @@ namespace claims.src.commands
 
         public static TextCommandResult RevokeCityConflict(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.hasCity() || playerInfo.HasAlliance() || !playerInfo.City.isMayor(playerInfo))
                 return TextCommandResult.Success(Lang.Get("claims:no_city"));
 
@@ -3298,9 +3078,7 @@ namespace claims.src.commands
 
         public static TextCommandResult AcceptStartCityConflict(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.hasCity() || playerInfo.HasAlliance() || !playerInfo.City.isMayor(playerInfo))
                 return TextCommandResult.Success(Lang.Get("claims:no_city"));
 
@@ -3313,15 +3091,13 @@ namespace claims.src.commands
                 return TextCommandResult.Success(Lang.Get("claims:conflict_already_exists"));
             if (!ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.START_CONFLICT, out var letter))
                 return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
-            letter.OnAccept.Start();
+            letter.OnAccept?.Invoke();
             return TextCommandResult.Success();
         }
 
         public static TextCommandResult DenyStartCityConflict(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.hasCity() || playerInfo.HasAlliance() || !playerInfo.City.isMayor(playerInfo))
                 return TextCommandResult.Success(Lang.Get("claims:no_city"));
 
@@ -3332,15 +3108,13 @@ namespace claims.src.commands
                 return TextCommandResult.Success(errorMsg);
             if (!ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.START_CONFLICT, out var letter))
                 return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
-            letter.OnDeny.Start();
+            letter.OnDeny?.Invoke();
             return TextCommandResult.Success();
         }
 
         public static TextCommandResult OfferStopCityConflict(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.hasCity() || playerInfo.HasAlliance() || !playerInfo.City.isMayor(playerInfo))
                 return TextCommandResult.Success(Lang.Get("claims:no_city"));
 
@@ -3360,7 +3134,7 @@ namespace claims.src.commands
             {
                 long timestamp = TimeFunctions.getEpochSeconds() + claims.config.DELAY_FOR_CONFLICT_ACTIVATED;
                 if (ConflictHandler.addConflictLetter(new ConflictLetter(ourCity, targetParty, LetterPurpose.END_CONFLICT, timestamp,
-                    new Thread(new ThreadStart(() =>
+                    () =>
                     {
                         if (!ConflictHandler.TryGetConflictWithSides(ourCity, targetParty, out Conflict c)) return;
                         if (ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.END_CONFLICT, out var acceptLetter))
@@ -3374,8 +3148,8 @@ namespace claims.src.commands
                         PartDemolition.DemolishConflict(c);
                         foreach (var city in targetParty.GetCities())
                             MessageHandler.sendMsgInCity(city, Lang.Get("claims:conflict_stopped_with", ourCity.getPartNameReplaceUnder()));
-                    })),
-                    new Thread(new ThreadStart(() =>
+                    },
+                    () =>
                     {
                         if (ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.END_CONFLICT, out var denyLetter))
                         {
@@ -3386,7 +3160,7 @@ namespace claims.src.commands
                         }
                         MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:conflict_stop_denied"));
                         ConflictHandler.removeConflictLetter(ourCity, targetParty, LetterPurpose.END_CONFLICT);
-                    })),
+                    },
                     conflict.Guid)))
                 {
                     return TextCommandResult.Success(Lang.Get("claims:conflict_letter_sent"));
@@ -3402,9 +3176,7 @@ namespace claims.src.commands
 
         public static TextCommandResult AcceptStopCityConflict(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.hasCity() || playerInfo.HasAlliance() || !playerInfo.City.isMayor(playerInfo))
                 return TextCommandResult.Success(Lang.Get("claims:no_city"));
 
@@ -3417,7 +3189,7 @@ namespace claims.src.commands
                 return TextCommandResult.Success(Lang.Get("claims:no_conflict_found"));
             if (!ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.END_CONFLICT, out var letter))
                 return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
-            letter.OnAccept.Start();
+            letter.OnAccept?.Invoke();
             UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourCity,
                 new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
             UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
@@ -3431,9 +3203,7 @@ namespace claims.src.commands
 
         public static TextCommandResult DenyStopCityConflict(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.hasCity() || playerInfo.HasAlliance() || !playerInfo.City.isMayor(playerInfo))
                 return TextCommandResult.Success(Lang.Get("claims:no_city"));
 
@@ -3446,7 +3216,7 @@ namespace claims.src.commands
                 return TextCommandResult.Success(Lang.Get("claims:no_conflict_found"));
             if (!ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.END_CONFLICT, out var letter))
                 return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
-            letter.OnDeny.Start();
+            letter.OnDeny?.Invoke();
             UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourCity,
                 new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
             UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,

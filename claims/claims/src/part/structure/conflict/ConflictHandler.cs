@@ -49,7 +49,7 @@ namespace claims.src.part.structure.conflict
                 if (letter.TimeStampExpire < now)
                 {
                     conflictLettersList.Remove(letter);
-                    letter.OnDeny?.Start();
+                    letter.OnDeny?.Invoke();
                 }
             }
         }

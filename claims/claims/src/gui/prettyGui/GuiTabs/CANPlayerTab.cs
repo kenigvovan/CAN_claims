@@ -26,14 +26,14 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.SameLine();
             if (ImGui.ImageButton("addfriend", this.iconHandler.GetOrLoadIcon("expander"), new Vector2(15)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.ADD_FRIEND_NEED_NAME;
+                GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.ADD_FRIEND_NEED_NAME;
             }
 
             ImGui.SameLine();
 
             if (ImGui.ImageButton("removefriend", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(15)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.REMOVE_FRIEND;
+                GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.REMOVE_FRIEND;
             }
             if (claims.clientDataStorage.clientPlayerInfo.PlayerNextPayments.Count > 0)
             {
@@ -46,7 +46,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
             if (ImGui.ImageButton("citylist", this.iconHandler.GetOrLoadIcon("village"), new Vector2(60)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.CITIESLISTPAGE;
+                GuiSys.selectedTab = EnumSelectedTab.CITIESLISTPAGE;
             }
             if (ImGui.IsItemHovered())
             {
@@ -55,7 +55,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.SameLine();
             if (ImGui.ImageButton("alliancelist", this.iconHandler.GetOrLoadIcon("vertical-banner"), new Vector2(60)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.AllianceListPage;
+                GuiSys.selectedTab = EnumSelectedTab.AllianceListPage;
             }
             if (ImGui.IsItemHovered())
             {

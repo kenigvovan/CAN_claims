@@ -42,7 +42,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.25f, 1.0f));
                 if (ImGui.ImageButton("createrank", this.iconHandler.GetOrLoadIcon("circle"), new Vector2(16)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_RANK_CREATION_NEED_NAME;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.CITY_RANK_CREATION_NEED_NAME;
                 }
                 ImGui.PopStyleColor(3);
                 if (ImGui.IsItemHovered())
@@ -76,8 +76,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.25f, 1.0f));
                     if (ImGui.ImageButton("promotewithrank" + i.ToString(), this.iconHandler.GetOrLoadIcon("private"), new Vector2(14)))
                     {
-                        capi.ModLoader.GetModSystem<claimsGui>().textInput = rankCell.Name;
-                        capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_RANK_ADD;
+                        GuiSys.textInput = rankCell.Name;
+                        GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.CITY_RANK_ADD;
                     }
                     ImGui.PopStyleColor(3);
                     if (ImGui.IsItemHovered())
@@ -89,8 +89,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SameLine();
                 if (ImGui.ImageButton("openrankinfo" + i.ToString(), this.iconHandler.GetOrLoadIcon("info"), new Vector2(14)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.RANKINFOPAGE;
-                    capi.ModLoader.GetModSystem<claimsGui>().textInput = rankCell.Name;
+                    GuiSys.selectedTab = EnumSelectedTab.RANKINFOPAGE;
+                    GuiSys.textInput = rankCell.Name;
                 }
                 if (ImGui.IsItemHovered())
                 {
@@ -123,9 +123,9 @@ namespace claims.src.gui.prettyGui.GuiTabs
                             ImGui.PushStyleColor(ImGuiCol.Text, citizenColor);
                             if (ImGui.Button(plName))
                             {
-                                capi.ModLoader.GetModSystem<claimsGui>().textInput = rankCell.Name;
-                                capi.ModLoader.GetModSystem<claimsGui>().textInput2 = plName;
-                                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.CITY_RANK_REMOVE_CONFIRM;
+                                GuiSys.textInput = rankCell.Name;
+                                GuiSys.textInput2 = plName;
+                                GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.CITY_RANK_REMOVE_CONFIRM;
                             }
                             ImGui.PopStyleColor(4);
                             if (ImGui.IsItemHovered())

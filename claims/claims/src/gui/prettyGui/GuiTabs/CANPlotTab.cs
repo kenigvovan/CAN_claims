@@ -59,7 +59,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SameLine();
                 if (ImGui.ImageButton("setplotname", this.iconHandler.GetOrLoadIcon("info"), new Vector2(15)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.PLOT_SET_NAME;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.PLOT_SET_NAME;
                 }
                 if (ImGui.IsItemHovered())
                 {
@@ -82,7 +82,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.25f, 1.0f));
                 if (ImGui.ImageButton("plotclaim", this.iconHandler.GetOrLoadIcon("id-card"), new Vector2(15)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.PLOT_CLAIM;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.PLOT_CLAIM;
                 }
                 ImGui.PopStyleColor(3);
                 if (ImGui.IsItemHovered())
@@ -99,7 +99,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.6f, 0.2f, 0.15f, 1.0f));
                 if (ImGui.ImageButton("plotunclaim", this.iconHandler.GetOrLoadIcon("id-card"), new Vector2(15)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.PLOT_UNCLAIM;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.PLOT_UNCLAIM;
                 }
                 ImGui.PopStyleColor(3);
                 if (ImGui.IsItemHovered())
@@ -123,7 +123,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SameLine();
                 if (ImGui.ImageButton("plotsettype", this.iconHandler.GetOrLoadIcon("files"), new Vector2(15)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.PLOT_SET_TYPE;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.PLOT_SET_TYPE;
                 }
                 if (ImGui.IsItemHovered())
                 {
@@ -173,7 +173,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SameLine();
                 if (ImGui.ImageButton("settax", this.iconHandler.GetOrLoadIcon("medal"), new Vector2(15)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.PLOT_SET_TAX;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.PLOT_SET_TAX;
                 }
                 if (ImGui.IsItemHovered())
                 {
@@ -197,7 +197,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.25f, 1.0f));
                 if (ImGui.ImageButton("setplotprice", this.iconHandler.GetOrLoadIcon("medal"), new Vector2(15)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.PLOT_SET_PRICE_NEED_NUMBER;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.PLOT_SET_PRICE_NEED_NUMBER;
                 }
                 ImGui.PopStyleColor(3);
                 if (ImGui.IsItemHovered())
@@ -236,7 +236,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SameLine();
                 if (ImGui.ImageButton("plotpermissions", this.iconHandler.GetOrLoadIcon("medal"), new Vector2(15)))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.PLOT_PERMISSIONS;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.PLOT_PERMISSIONS;
                 }
                 if (ImGui.IsItemHovered())
                 {

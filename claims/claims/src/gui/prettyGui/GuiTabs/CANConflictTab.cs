@@ -83,12 +83,12 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.25f, 1.0f));
                 if (ImGui.Button(Lang.Get("claims:gui_conflict_peace_offer_btn")))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.ALLIANCE_SEND_PEACE_OFFER_CONFIRM;
-                    capi.ModLoader.GetModSystem<claimsGui>().textInput = conflict.Guid;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.ALLIANCE_SEND_PEACE_OFFER_CONFIRM;
+                    GuiSys.textInput = conflict.Guid;
                     string ourName = claims.clientDataStorage.clientPlayerInfo.AllianceInfo?.Name
                         ?? claims.clientDataStorage.clientPlayerInfo.CityInfo?.Name ?? "";
                     string targetAlliance = conflict.FirstPartyName.Equals(ourName) ? conflict.SecondPartyName : conflict.FirstPartyName;
-                    capi.ModLoader.GetModSystem<claimsGui>().textInput2 = targetAlliance;
+                    GuiSys.textInput2 = targetAlliance;
                 }
                 ImGui.PopStyleColor(3);
 
@@ -99,8 +99,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.35f, 0.6f, 1.0f));
                 if (ImGui.Button(Lang.Get("claims:gui_conflict_info_btn")))
                 {
-                    capi.ModLoader.GetModSystem<claimsGui>().textInput = conflict.Guid;
-                    capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.ConflictInfoPage;
+                    GuiSys.textInput = conflict.Guid;
+                    GuiSys.selectedTab = EnumSelectedTab.ConflictInfoPage;
                 }
                 ImGui.PopStyleColor(3);
 
@@ -121,12 +121,12 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
             if (ImGui.ImageButton("allianceinfo", this.iconHandler.GetOrLoadIcon("vertical-banner"), new Vector2(60)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = capi.ModLoader.GetModSystem<claimsGui>().conflictSourceTab;
+                GuiSys.selectedTab = GuiSys.conflictSourceTab;
             }
             ImGui.SameLine();
             if (ImGui.ImageButton("conflictletters", this.iconHandler.GetOrLoadIcon("envelope"), new Vector2(60)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.ConflictLettersPage;
+                GuiSys.selectedTab = EnumSelectedTab.ConflictLettersPage;
             }
             if (ImGui.IsItemHovered())
             {

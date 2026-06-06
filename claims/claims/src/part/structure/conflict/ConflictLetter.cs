@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace claims.src.part.structure.conflict
@@ -14,10 +13,10 @@ namespace claims.src.part.structure.conflict
         public IConflictParty To { get; set; }
         public LetterPurpose Purpose { get; set; }
         public long TimeStampExpire { get; set; }
-        public Thread OnAccept { get; }
-        public Thread OnDeny { get; }
+        public Action OnAccept { get; }
+        public Action OnDeny { get; }
         public string Guid { get; }
-        public ConflictLetter(IConflictParty from, IConflictParty to, LetterPurpose purpose, long timeStampExpire, Thread onAccept, Thread OnDeny, string guid)
+        public ConflictLetter(IConflictParty from, IConflictParty to, LetterPurpose purpose, long timeStampExpire, Action onAccept, Action OnDeny, string guid)
         {
             From = from;
             To = to;
