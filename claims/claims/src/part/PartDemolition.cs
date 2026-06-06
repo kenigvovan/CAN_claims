@@ -89,10 +89,7 @@ namespace claims.src.part
             {
                 city.getCityPlots().Remove(plot);
             }
-            if(plot.Type == PlotType.PRISON || plot.Type == PlotType.SUMMON)
-            {
-                plot.CleanUpCurrentPlotTypeData();
-            }
+            plot.PlotDesc?.OnDeactivated(plot);
             //DataStorage.claimedPlots.TryRemove(plot.chunkLocation, out _);
             claims.getModInstance().getDatabaseHandler().deleteFromDatabasePlot(plot);
             claims.dataStorage.removeClaimedPlot(plot.plotPosition);
