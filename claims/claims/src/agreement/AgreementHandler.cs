@@ -45,7 +45,7 @@ namespace claims.src.agreement
 				agreement.getToken().Cancel();
 				claims.sapi.Event.RegisterCallback((dt =>
 				{
-					agreement.getOnAgree().Start();
+					agreement.getOnAgree()?.Invoke();
 				}), 0);
 				return true;
 			}

@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using claims.src.agreement;
 using claims.src.auxialiry;
 using claims.src.citylog;
@@ -118,7 +117,7 @@ namespace claims.src.commands
             }
 
             AgreementHandler.addNewAgreementOrReplace(new Agreement(
-                new Thread(new ThreadStart(() =>
+                () =>
                 {
                     claims.dataStorage.GetPlot(currentPlotPosition, out plotHere);
                     if (playerInfo.hasCity() || plotHere != null)
@@ -136,7 +135,7 @@ namespace claims.src.commands
                     {
                         PartInits.initNewCity(playerInfo, currentPlotPosition, newCityName);
                     }
-                })), player.PlayerUID));
+                }, player.PlayerUID));
             
             if (player != null)
             {
@@ -171,12 +170,12 @@ namespace claims.src.commands
             }
           
             AgreementHandler.addNewAgreementOrReplace(new Agreement(
-                new Thread(new ThreadStart(() =>
+                () =>
                 {
                     MessageHandler.sendGlobalMsg(Lang.Get("claims:city_has_been_demolished", city.getPartNameReplaceUnder(), playerInfo.getPartNameReplaceUnder()));
 
                     PartDemolition.demolishCity(city, string.Format("Deleted by player {0}", player.PlayerName));
-                })), player.PlayerUID));
+                }, player.PlayerUID));
             return SuccessWithParams("claims:help_agreement_delete_city", new object[] { claims.config.AGREEMENT_COMMAND });
         }
         /*==============================================================================================*/
@@ -444,7 +443,7 @@ namespace claims.src.commands
                 return TextCommandResult.Success("claims:player_has_city_already");
             }
             if (InvitationHandler.addNewInvite(new Invitation(city, targetPlayer, TimeFunctions.getEpochSeconds() + claims.config.HOUR_TIMEOUT_INVITATION_CITY * 60 * 60,
-                new Thread(new ThreadStart(() =>
+                () =>
                 {
                     city.AddLogEntry(EnumCityLogEvent.CitizenJoined, targetPlayer.GetPartName());
                     city.FireCitizenJoined(targetPlayer);
@@ -458,11 +457,11 @@ namespace claims.src.commands
                     claims.sapi.World.Api.Event.PushEvent("updatecityinfo", tree);
                     UsefullPacketsSend.SendPlayerRelatedInfoOnCityJoined(targetPlayer);
                     UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_MEMBERS, EnumPlayerRelatedInfo.MAX_COUNT_PLOTS, EnumPlayerRelatedInfo.CITY_LOG);
-                })),
-                new Thread(new ThreadStart(() =>
+                },
+                () =>
                 {
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:player_disagreed_with_invitation_to_city", targetPlayer.GetPartName(), city.GetPartName()));                  
-                }))
+                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:player_disagreed_with_invitation_to_city", targetPlayer.GetPartName(), city.GetPartName()));
+                }
                 )))
             {
                 MessageHandler.sendMsgToPlayerInfo(targetPlayer, Lang.Get("claims:you_were_invited_to_city", city.GetPartName()));
@@ -2182,7 +2181,7 @@ namespace claims.src.commands
             var timeoutStamp = TimeFunctions.getEpochSeconds() + claims.config.PLOT_GROUP_INVITATION_TIMEOUT * TimeFunctions.secondsInAnHour;
             if (CityPlotsGroupInvitationsHandler.addNewCityPlotGroupInvitation(new CityPlotsGroupInvitation(
                 playerInfo.City, targetPlayer, timeoutStamp,
-               new Thread(new ThreadStart(() =>
+               () =>
                {
                    if (searchedGroup == null)
                    {
@@ -2206,11 +2205,11 @@ namespace claims.src.commands
                            claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
                         }
                     }
-               })),
-               new Thread(new ThreadStart(() =>
+               },
+               () =>
                {
                    //TODO
-               })),
+               },
                searchedGroup.GetPartName())))
             {
                 MessageHandler.sendMsgToPlayerInfo(targetPlayer, Lang.Get("claims:you_were_invited_to_group", city.getPartNameReplaceUnder(), playerInfo.getPartNameReplaceUnder()));
@@ -2823,7 +2822,7 @@ namespace claims.src.commands
             }
             if(CityPlotsGroupInvitationsHandler.addNewCityPlotGroupInvitation(new CityPlotsGroupInvitation(
                 playerInfo.City, targetPlayer, TimeFunctions.getEpochSeconds() + claims.config.PLOT_GROUP_INVITATION_TIMEOUT * TimeFunctions.secondsInAnHour,
-               new Thread(new ThreadStart(() =>
+               () =>
                {
                    if(searchedGroup == null)
                    {
@@ -2831,11 +2830,11 @@ namespace claims.src.commands
                    }
                    searchedGroup.getPlayerInfos().Add(targetPlayer);
                    searchedGroup.saveToDatabase();
-               })),
-               new Thread(new ThreadStart(() =>
+               },
+               () =>
                {
                    //TODO
-               })),
+               },
                searchedGroup.GetPartName())))
             {
                 MessageHandler.sendMsgToPlayerInfo(targetPlayer, Lang.Get("claims:you_were_invited_to_group", city.getPartNameReplaceUnder(), playerInfo.getPartNameReplaceUnder()));

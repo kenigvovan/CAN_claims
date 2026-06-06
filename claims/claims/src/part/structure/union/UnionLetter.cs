@@ -1,8 +1,9 @@
-﻿using System;
+﻿using claims.src.delayed;
+using System;
 
 namespace claims.src.part.structure.union
 {
-    public class UnionLetter
+    public class UnionLetter : IExpirable
     {
         public Alliance From { get; set; }
         public Alliance To { get; set; }
@@ -10,6 +11,7 @@ namespace claims.src.part.structure.union
         public Action OnAccept { get; }
         public Action OnDeny { get; }
         public string Guid { get; }
+        public Action OnExpire => OnDeny;
         public UnionLetter(Alliance from, Alliance to, long timeStampExpire, Action onAccept, Action OnDeny, string guid)
         {
             From = from;

@@ -8,7 +8,6 @@ using claims.src.part.structure;
 using claims.src.part.structure.plots;
 using claims.src.rights;
 using System;
-using System.Threading;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Server;
@@ -169,7 +168,7 @@ namespace claims.src.commands
                     PlayerInfo capturedPlayerInfo = playerInfo;
                     IServerPlayer capturedPlayer = player;
                     AgreementHandler.addNewAgreementOrReplace(new Agreement(
-                        new Thread(new ThreadStart(() =>
+                        () =>
                         {
                             if (captured > 0)
                             {
@@ -178,7 +177,7 @@ namespace claims.src.commands
                             FinishPersonalUnclaim(capturedPlot, capturedPlayerInfo, capturedPlayer);
                             MessageHandler.sendMsgToPlayer(capturedPlayer,
                                 Lang.Get("claims:refund_unclaim_done_reduced", captured));
-                        })),
+                        },
                         player.PlayerUID));
                     string askKey = affordable <= 0
                         ? "claims:refund_unclaim_no_money_ask"

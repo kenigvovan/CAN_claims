@@ -1,13 +1,10 @@
-﻿using claims.src.part;
+﻿using claims.src.delayed;
+using claims.src.part;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace claims.src.part.structure.conflict
 {
-    public class ConflictLetter
+    public class ConflictLetter : IExpirable
     {
         public IConflictParty From { get; set; }
         public IConflictParty To { get; set; }
@@ -16,6 +13,7 @@ namespace claims.src.part.structure.conflict
         public Action OnAccept { get; }
         public Action OnDeny { get; }
         public string Guid { get; }
+        public Action OnExpire => OnDeny;
         public ConflictLetter(IConflictParty from, IConflictParty to, LetterPurpose purpose, long timeStampExpire, Action onAccept, Action OnDeny, string guid)
         {
             From = from;

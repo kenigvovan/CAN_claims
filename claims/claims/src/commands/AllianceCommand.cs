@@ -13,7 +13,6 @@ using claims.src.part.structure.conflict;
 using claims.src.part.structure.union;
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Server;
@@ -61,7 +60,7 @@ namespace claims.src.commands
                 return TextCommandResult.Error(Lang.Get("claims:not_enough_money"));
             }
             AgreementHandler.addNewAgreementOrReplace(new Agreement(
-                new Thread(new ThreadStart(() =>
+                () =>
                 {
                 if (playerInfo.hasCity() && !playerInfo.City.HasAlliance())
                 {
@@ -79,7 +78,7 @@ namespace claims.src.commands
                         MessageHandler.sendGlobalMsg(Lang.Get("claims:alliance_wont_be_created"));
                         return;
                     }
-                })), player.PlayerUID));
+                }, player.PlayerUID));
             return TextCommandResult.Success(Lang.Get("claims:help_agreement_new_alliance", claims.config.AGREEMENT_COMMAND));
         }
         public static TextCommandResult DeleteAlliance(TextCommandCallingArgs args)
@@ -266,7 +265,7 @@ namespace claims.src.commands
             }
             long timeStamp = TimeFunctions.getEpochSeconds() + claims.config.HOUR_TIMEOUT_INVITATION_TO_ALLIANCE * 60;
             if (InvitationHandler.addNewInvite(new Invitation(alliance, city, timeStamp,
-                new Thread(new ThreadStart(() =>
+                () =>
                 {
                     alliance.Cities.Add(city);
                     RightsHandler.AddCityHostilesInAlliance(city, alliance);
@@ -284,13 +283,13 @@ namespace claims.src.commands
                     UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
                         new Dictionary<string, object> { { "value", alliance.Guid } }, EnumPlayerRelatedInfo.TO_ALLIANCE_INVITE_REMOVE);
                     UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_LOG);
-                })),
-                new Thread(new ThreadStart(() =>
+                },
+                () =>
                 {
                     MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:disagrre_with_invitation_to_alliance", playerInfo.GetPartName(), city.GetPartName()));
                     UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
                         new Dictionary<string, object> { { "value", alliance.Guid } }, EnumPlayerRelatedInfo.TO_ALLIANCE_INVITE_REMOVE);
-                }))
+                }
                 )))
             {
                 UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
