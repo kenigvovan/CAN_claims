@@ -160,13 +160,18 @@ namespace claims.src.economy.bridge
                     MessageHandler.sendMsgToPlayer(player as IServerPlayer, Lang.Get("claims:economy_there_is_no_city_in_this_plot"));
                     return;
                 }
+                if (city.Alliance == null)
+                {
+                    MessageHandler.sendMsgToPlayer(player as IServerPlayer, Lang.Get("claims:economy_different_alliance"));
+                    return;
+                }
                 if (signText.Substring(Lang.Get("claims:economy_chest_bank_alliance_sign_prefix").Length) != city.Alliance.GetPartName().Replace("_", " "))
                 {
                     MessageHandler.sendMsgToPlayer(player as IServerPlayer, Lang.Get("claims:economy_different_alliance"));
                     return;
                 }
-                Alliance alliance = playerInfo.Alliance;
-                if (alliance == null || !city.Alliance.Equals(alliance) || !playerInfo.Alliance.IsLeader(playerInfo)) return;
+                Alliance alliance = playerInfo?.Alliance;
+                if (alliance == null || !city.Alliance.Equals(alliance) || !alliance.IsLeader(playerInfo)) return;
 
                 EconomyHandler eh = handler;
                 if (handler.TryGetRealBankInfo(alliance.MoneyAccountName, out RealBankInfo tmpVecAlliance))

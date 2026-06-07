@@ -394,8 +394,12 @@ namespace claims.src.commands
                 return TextCommandResult.Success(Lang.Get("claims:no_such_city"));
             }
             Alliance alliance = playerInfo.Alliance;
+            if (!alliance.Cities.Contains(city))
+            {
+                return TextCommandResult.Success(Lang.Get("claims:no_such_city"));
+            }
             alliance.MainCity = city;
-            alliance.Leader = city.getMayor();           
+            alliance.Leader = city.getMayor();
             alliance.saveToDatabase();
             return TextCommandResult.Success(Lang.Get("claims:capital_changed_to", city.GetPartName(), alliance.GetPartName()));
         }
@@ -622,6 +626,10 @@ namespace claims.src.commands
             if (!playerInfo.HasAlliance())
             {
                 return TextCommandResult.Success(Lang.Get("claims:no_alliance"));
+            }
+            if (!playerInfo.Alliance.IsLeader(playerInfo))
+            {
+                return TextCommandResult.Success(Lang.Get("claims:you_dont_have_right_for_that_command"));
             }
             var (parsedName, targetType) = CityCommand.ParseWarTargetInput((string)args.Parsers[0].GetValue());
             string name = Filter.filterName(parsedName);

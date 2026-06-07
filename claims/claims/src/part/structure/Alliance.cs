@@ -115,7 +115,7 @@ namespace claims.src.part.structure
             List<string> outList = new List<string>
             {
                 "[" + this.getPartNameReplaceUnder() + "]\n",
-                Lang.Get("claims:main_city") + this.MainCity.getPartNameReplaceUnder() + "\n",
+                Lang.Get("claims:main_city") + (this.MainCity?.getPartNameReplaceUnder() ?? "?") + "\n",
                 StringFunctions.makeFeasibleStringFromNames(StringFunctions.getNamesOfCities(Lang.Get("claims:cities"), Cities), ',') + "\n",
             };
             if (claims.economyProvider.SupportsPlayerWallet)

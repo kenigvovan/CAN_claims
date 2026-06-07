@@ -239,8 +239,15 @@ namespace claims.src
         }
         public bool changeCityName(City city, string newName)
         {
-            nameToCityDict.TryRemove(city.GetPartName(), out _);
-            return nameToCityDict.TryAdd(newName, city);
+            if (nameToCityDict.ContainsKey(newName)) return false;
+            string oldName = city.GetPartName();
+            nameToCityDict.TryRemove(oldName, out _);
+            if (!nameToCityDict.TryAdd(newName, city))
+            {
+                nameToCityDict.TryAdd(oldName, city);
+                return false;
+            }
+            return true;
         }
 
         /*==============================================================================================*/

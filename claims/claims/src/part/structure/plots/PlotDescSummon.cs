@@ -1,3 +1,4 @@
+using System;
 using claims.src.auxialiry;
 using claims.src.gui.playerGui.structures;
 using claims.src.gui.playerGui.structures.cellElements;
@@ -27,7 +28,7 @@ namespace claims.src.part.structure.plots
                 JsonConvert.PopulateObject(data, this);
                 plot.getCity().summonPlots.Add(plot);
             }
-            catch { }
+            catch (Exception ex) { claims.sapi.Logger.Warning("[claims] PlotDescSummon.Init failed: " + ex.Message); }
         }
 
         public override bool Validate(Plot plot, IServerPlayer player, ref TextCommandResult tcr)

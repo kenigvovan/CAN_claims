@@ -55,9 +55,9 @@ namespace claims.src.events
             {
                 return;
             }
-            if(plotKilled.hasCity() && plotKilled.getCity().isCitizen(playerInfoAttacker))
+            if(playerInfoAttacker != null && plotKilled.hasCity() && plotKilled.getCity().isCitizen(playerInfoAttacker))
             {
-                if (playerInfoAttacker.City.hasPrison())
+                if (playerInfoAttacker.hasCity() && playerInfoAttacker.City.hasPrison())
                 {
                     if(playerInfoAttacker.City.TryGetRandomPrisonWithCell(out Prison prison))
                     {

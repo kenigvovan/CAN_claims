@@ -1,6 +1,7 @@
 ﻿using claims.src.auxialiry;
 using claims.src.delayed.invitations;
 using claims.src.part;
+using System.Linq;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Server;
@@ -15,7 +16,7 @@ namespace claims.src.timers
             InvitationHandler.findAndDeleteOverdueInvitations();
 
             //prison hours decrease and tp freed players
-            foreach(PlayerInfo player in claims.dataStorage.getPlayersDict().Values)
+            foreach(PlayerInfo player in claims.dataStorage.getPlayersDict().Values.ToArray())
             {
                 if(player.PrisonHoursLeft == 1)
                 {

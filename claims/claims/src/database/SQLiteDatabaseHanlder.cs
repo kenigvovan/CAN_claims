@@ -651,7 +651,7 @@ namespace claims.src.database
                     city.EventLog = JsonConvert.DeserializeObject<List<citylog.CityLogEntry>>(eventlogString) ?? new List<citylog.CityLogEntry>();
                 }
             }
-            catch { }
+            catch (Exception ex) { claims.sapi.Logger.Warning("[claims] Failed to load city data for '{0}': {1}", city.GetPartName(), ex.Message); }
 
             foreach(var citizen in city.getCityCitizens())
             {

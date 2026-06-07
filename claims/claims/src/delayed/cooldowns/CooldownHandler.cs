@@ -1,52 +1,52 @@
-﻿using System.Collections.Generic;
-using claims.src.auxialiry;
+using claims.src.delayed;
 using claims.src.part.interfaces;
 
 namespace claims.src.delayed.cooldowns
 {
     public class CooldownHandler
     {
-        public static Dictionary<ICooldown, HashSet<CooldownInfo>> cooldowns = new Dictionary<ICooldown, HashSet<CooldownInfo>>();
+        private class CooldownEntry
+        {
+            public ICooldown Target { get; }
+            public CooldownType Type { get; }
+            public long Stamp { get; }
+
+            public CooldownEntry(ICooldown target, CooldownType type, long stamp)
+            {
+                Target = target;
+                Type = type;
+                Stamp = stamp;
+            }
+        }
+
+        static readonly ExpiringList<CooldownEntry> cooldowns = new();
 
         public static void processCooldowns()
         {
-            if (cooldowns.Count == 0)
-                return;
+            cooldowns.ExpireOverdue(c => c.Stamp);
+        }
 
-            long timeNow = TimeFunctions.getEpochSeconds();
-            foreach (HashSet<CooldownInfo> cooldownInfo in cooldowns.Values)
-            {
-                cooldownInfo.RemoveWhere(c => c.getStamp() < timeNow);
-            }
-        }
-        public static long hasCooldown(ICooldown canHasCooldown, CooldownType cooldownType)
+        public static long hasCooldown(ICooldown target, CooldownType type)
         {
-            if (!cooldowns.TryGetValue(canHasCooldown, out HashSet<CooldownInfo> infosSet))
+            foreach (var c in cooldowns.Snapshot())
             {
-                return 0;
+                if (c.Target.Equals(target) && c.Type.Equals(type))
+                    return c.Stamp;
             }
-            else
+            return 0;
+        }
+
+        public static void addCooldown(ICooldown target, CooldownInfo info)
+        {
+            foreach (var c in cooldowns.Snapshot())
             {
-                foreach (CooldownInfo cooldown in infosSet)
+                if (c.Target.Equals(target) && c.Type.Equals(info.getType()))
                 {
-                    if (cooldown.getType().Equals(cooldownType))
-                    {
-                        return cooldown.getStamp();
-                    }
+                    cooldowns.Remove(c);
+                    break;
                 }
-                return 0;
             }
-        }
-        public static void addCooldown(ICooldown target, CooldownInfo cooldownInfo)
-        {
-            if (cooldowns.ContainsKey(target))
-            {
-                cooldowns[target].Add(cooldownInfo);
-            }
-            else
-            {
-                cooldowns.Add(target, new HashSet<CooldownInfo> { cooldownInfo });
-            }
+            cooldowns.Add(new CooldownEntry(target, info.getType(), info.getStamp()));
         }
     }
 }

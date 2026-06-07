@@ -34,6 +34,13 @@ namespace claims.src.harmony
     [HarmonyPatch]
     public class harmonyPatches
     {
+        private static readonly MethodInfo _trySpreadIntoBlock = typeof(Vintagestory.GameContent.BlockBehaviorFiniteSpreadingLiquid)
+            .GetMethod("TrySpreadIntoBlock", BindingFlags.NonPublic | BindingFlags.Instance);
+        private static readonly MethodInfo _entityBlockFallingUpdateBlock = typeof(Vintagestory.GameContent.EntityBlockFalling)
+            .GetMethod("UpdateBlock", BindingFlags.NonPublic | BindingFlags.Instance);
+        private static readonly MethodInfo _entityBlockFallingDropItems = typeof(Vintagestory.GameContent.EntityBlockFalling)
+            .GetMethod("DropItems", BindingFlags.NonPublic | BindingFlags.Instance);
+
         public static void Prefix_testBlockAccessInternal(Vintagestory.Common.WorldMap __instance, IPlayer player, BlockSelection blockSel, EnumBlockAccessFlags accessType, out string claimant)
         {
             claimant = "";
@@ -204,7 +211,7 @@ namespace claims.src.harmony
                 return false;
             }
             claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(player.Entity.ServerPos), out Plot tmpPlot);
-            if (playerInfo.isPrisoned() && playerInfo.PrisonedIn.Plot.Equals(tmpPlot))
+            if (playerInfo.isPrisoned() && tmpPlot != null && playerInfo.PrisonedIn.Plot.Equals(tmpPlot))
             {
                 if (Settings.blockedCommandsForPrison.Contains(commandName) || (args.Length > 0 && Settings.blockedCommandsForPrison.Contains(args.Split(' ')[0])))
                 {
@@ -235,9 +242,7 @@ namespace claims.src.harmony
                 claims.dataStorage.GetPlot(PlotPosition.fromBlockPos(pos.AddCopy(facing)), out Plot dest);
                 if (dest == null || (dest == null && source == null) || (source != null && dest.hasCity() && source.hasCity() && dest.getCity().Equals(source.getCity())))
                 {
-                    MethodInfo dynMethod = __instance.GetType().GetMethod("TrySpreadIntoBlock",
-                    BindingFlags.NonPublic | BindingFlags.Instance);
-                    dynMethod.Invoke(__instance, new object[] { ourblock, ourSolid, pos, pos.AddCopy(facing), facing, world });
+                    _trySpreadIntoBlock.Invoke(__instance, new object[] { ourblock, ourSolid, pos, pos.AddCopy(facing), facing, world });
                 }
             }
             return false;
@@ -354,9 +359,7 @@ namespace claims.src.harmony
                 {
                     if (!block.IsLiquid() || __instance.Block.BlockMaterial != EnumBlockMaterial.Snow)
                     {
-                        MethodInfo dynMethod = __instance.GetType().GetMethod("UpdateBlock",
-                         BindingFlags.NonPublic | BindingFlags.Instance);
-                        dynMethod.Invoke(__instance, new object[] { false, finalPos });
+                        _entityBlockFallingUpdateBlock.Invoke(__instance, new object[] { false, finalPos });
                     }
 
                     (__instance.Api as ICoreServerAPI).Network.BroadcastEntityPacket(__instance.EntityId, 1234);
@@ -364,9 +367,7 @@ namespace claims.src.harmony
                 else
                 {
                     // Space is occupied by maybe a torch or some other block we shouldn't replace
-                    MethodInfo dynMethod = __instance.GetType().GetMethod("DropItems",
-                    BindingFlags.NonPublic | BindingFlags.Instance);
-                    dynMethod.Invoke(__instance, new object[] { finalPos });
+                    _entityBlockFallingDropItems.Invoke(__instance, new object[] { finalPos });
                 }
 
                 if (___impactDamageMul > 0)
@@ -440,7 +441,9 @@ namespace claims.src.harmony
                     if (city.HasTempleRespawnPoints())
                     {
                         var nearestP = int.MaxValue;
-                        Vec3i bestP = city.TempleRespawnPoints.First().Value;
+                        var firstEntry = city.TempleRespawnPoints.FirstOrDefault();
+                        if (firstEntry.Value == null) return false;
+                        Vec3i bestP = firstEntry.Value;
                         foreach (var rPoint in city.TempleRespawnPoints)
                         {
                             var tmp = rPoint.Value.DistanceTo(ePos);
