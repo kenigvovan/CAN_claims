@@ -28,14 +28,22 @@ namespace claims.src.harmony
             //Falling block patch
             if (claims.config.FALLING_BLOCKS_TO_CITY_PLOTS_PATCH)
             {
-                harmonyInstance.Patch(typeof(Vintagestory.GameContent.EntityBlockFalling).GetMethod("OnFallToGround"), prefix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Prefix_OnFallToGround")));
+                if (harmonyPatches.EntityBlockFallingUpdateBlock == null || harmonyPatches.EntityBlockFallingDropItems == null)
+                    claims.sapi.Logger.Warning("[claims] FALLING_BLOCKS patch skipped: EntityBlockFalling.UpdateBlock or DropItems not found (VS update?)");
+                else
+                    harmonyInstance.Patch(typeof(Vintagestory.GameContent.EntityBlockFalling).GetMethod("OnFallToGround"), prefix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Prefix_OnFallToGround")));
             }
 
             if (claims.config.WATER_FLOW_CITY_PLOTS_PATCH)
             {
-                harmonyInstance.Patch(typeof(Vintagestory.GameContent.BlockBehaviorFiniteSpreadingLiquid).GetMethod("TrySpreadHorizontal",
-                    BindingFlags.NonPublic | BindingFlags.Instance), prefix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Prefix_TrySpreadHorizontal")));
-                harmonyInstance.Patch(typeof(Vintagestory.GameContent.BlockBehaviorFiniteSpreadingLiquid).GetMethod("FindDownwardPaths"), postfix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Postfix_FindDownwardPaths")));
+                if (harmonyPatches.TrySpreadIntoBlock == null)
+                    claims.sapi.Logger.Warning("[claims] WATER_FLOW patch skipped: BlockBehaviorFiniteSpreadingLiquid.TrySpreadIntoBlock not found (VS update?)");
+                else
+                {
+                    harmonyInstance.Patch(typeof(Vintagestory.GameContent.BlockBehaviorFiniteSpreadingLiquid).GetMethod("TrySpreadHorizontal",
+                        BindingFlags.NonPublic | BindingFlags.Instance), prefix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Prefix_TrySpreadHorizontal")));
+                    harmonyInstance.Patch(typeof(Vintagestory.GameContent.BlockBehaviorFiniteSpreadingLiquid).GetMethod("FindDownwardPaths"), postfix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Postfix_FindDownwardPaths")));
+                }
             }
 
             harmonyInstance.Patch(typeof(Vintagestory.API.Common.EntityAgent).GetMethod("ShouldReceiveDamage"), prefix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Prefix_On_ReceiveDamage")));

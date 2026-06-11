@@ -31,6 +31,10 @@ namespace claims.src.network.handlers
                         return;
                     }
                     List<Tuple<Vec2i, long>> zonesTimestamps = JsonConvert.DeserializeObject<List<Tuple<Vec2i, long>>>(packet.data);
+                    if (zonesTimestamps == null)
+                    {
+                        return;
+                    }
 
                     // Anti-spoof: only allow zones close to player's actual position
                     int zoneBlocks = claims.config.PLOT_SIZE * claims.config.ZONE_PLOTS_LENGTH;

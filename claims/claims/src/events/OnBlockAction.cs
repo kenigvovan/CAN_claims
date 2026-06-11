@@ -216,11 +216,16 @@ namespace claims.src.events
             {
                 if (playerInfo.PlayerCache.getCache()[(int)PermType.USE_PERM].HasValue)
                 {
-                    return playerInfo.PlayerCache.getCache()[(int)PermType.USE_PERM].Value;
+                    if (playerInfo.PlayerCache.getCache()[(int)PermType.USE_PERM].Value)
+                        return true;
+                    if (plot.Type == PlotType.TAVERN)
+                        return checkInnerClaimPerm(PermType.USE_PERM, playerInfo.Guid, plot, vec3);
+                    return false;
                 }
             }
             playerInfo.PlayerCache.setPlotPosition(currentPosPlayer);
-            return EvalPermission(playerInfo, plot, PermType.USE_PERM, updateCache: true);
+            return EvalPermission(playerInfo, plot, PermType.USE_PERM, updateCache: true,
+                tavernFallback: () => plot.Type == PlotType.TAVERN && checkInnerClaimPerm(PermType.USE_PERM, playerInfo.Guid, plot, vec3));
         }
         public static bool canAttackAnimals(IServerPlayer byPlayer, Vec3d pos)
         {

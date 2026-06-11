@@ -559,7 +559,11 @@ namespace claims.src.database
             {
                 if (str.Length == 0)
                     continue;
-                claims.dataStorage.getPlotsGroup(str, out CityPlotsGroup cityPlotsGroup);
+                if (!claims.dataStorage.getPlotsGroup(str, out CityPlotsGroup cityPlotsGroup))
+                {
+                    MessageHandler.sendErrorMsg("loadCity: plot group '" + str + "' of city '" + city.GetPartName() + "' not found, skipped");
+                    continue;
+                }
                 city.getCityPlotsGroups().Add(cityPlotsGroup);
             }
             foreach (string str in it["prisons"].ToString().Split(';'))
@@ -768,9 +772,15 @@ namespace claims.src.database
             plot.SetPartName(it["name"].ToString());
             if (it["ownerofplot"].ToString().Length != 0)
             {
-                claims.dataStorage.GetPlayerByUid(it["ownerofplot"].ToString(), out PlayerInfo playerInfo);
-                playerInfo.PlayerPlots.Add(plot);
-                plot.setPlotOwner(playerInfo);
+                if (claims.dataStorage.GetPlayerByUid(it["ownerofplot"].ToString(), out PlayerInfo playerInfo))
+                {
+                    playerInfo.PlayerPlots.Add(plot);
+                    plot.setPlotOwner(playerInfo);
+                }
+                else
+                {
+                    MessageHandler.sendErrorMsg("loadPlot: owner '" + it["ownerofplot"].ToString() + "' of plot at " + it["x"] + " " + it["z"] + " not found, ownership dropped");
+                }
             }
 
             plot.Type = (PlotType)(int.Parse(it["type"].ToString()));
@@ -1041,7 +1051,11 @@ namespace claims.src.database
                 return false;
             }
 
-            claims.dataStorage.getCityPlotsGroupsDict().TryGetValue(it["guid"].ToString(), out CityPlotsGroup cityPlotsGroup);
+            if (!claims.dataStorage.getCityPlotsGroupsDict().TryGetValue(it["guid"].ToString(), out CityPlotsGroup cityPlotsGroup))
+            {
+                MessageHandler.sendErrorMsg("loadCityPlotGroup: group shell '" + it["guid"] + "' not found, skipped");
+                return false;
+            }
             cityPlotsGroup.City = city;
             claims.dataStorage.addPlotsGroup(cityPlotsGroup);
             cityPlotsGroup.PermsHandler.setPerms(it["perms"].ToString());
@@ -1051,7 +1065,11 @@ namespace claims.src.database
                 if (pl.Length == 0)
                     continue;
 
-                claims.dataStorage.GetPlayerByUid(pl, out PlayerInfo plTmp);
+                if (!claims.dataStorage.GetPlayerByUid(pl, out PlayerInfo plTmp))
+                {
+                    MessageHandler.sendErrorMsg("loadCityPlotGroup: member '" + pl + "' not found, skipped");
+                    continue;
+                }
                 cityPlotsGroup.PlayersList.Add(plTmp);
             }
 
@@ -1132,7 +1150,11 @@ namespace claims.src.database
                 if (str.Length == 0)
                     continue;
 
-                claims.dataStorage.getCityByGUID(str, out City cityToAdd);
+                if (!claims.dataStorage.getCityByGUID(str, out City cityToAdd))
+                {
+                    MessageHandler.sendErrorMsg("loadAlliance: member city '" + str + "' of alliance '" + alliance.GetPartName() + "' not found, skipped");
+                    continue;
+                }
                 alliance.Cities.Add(cityToAdd);
                 cityToAdd.Alliance = alliance;
             }
@@ -1154,14 +1176,18 @@ namespace claims.src.database
                 if (str.Length == 0)
                     continue;
 
-                claims.dataStorage.GetAllianceByGUID(str, out Alliance alliance1);
+                if (!claims.dataStorage.GetAllianceByGUID(str, out Alliance alliance1))
+                {
+                    MessageHandler.sendErrorMsg("loadAlliance: comrade alliance '" + str + "' of '" + alliance.GetPartName() + "' not found, skipped");
+                    continue;
+                }
                 alliance.ComradAlliancies.Add(alliance1);
             }
 
             alliance.AllianceFee = int.Parse(it["allianceFee"].ToString());
             alliance.Neutral = it["neutral"].ToString().Equals("0") ? false : true;
             alliance.Prefix = it["prefix"].ToString();
-            alliance.Leader = alliance.MainCity.getMayor();
+            alliance.Leader = alliance.MainCity?.getMayor();
             alliance.TimeStampCreated = long.Parse(it["timestampcreated"].ToString());
             return true;
         }

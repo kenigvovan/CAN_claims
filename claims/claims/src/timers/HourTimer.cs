@@ -1,4 +1,5 @@
 ﻿using claims.src.auxialiry;
+using claims.src.cityplotsgroups;
 using claims.src.delayed.invitations;
 using claims.src.part;
 using System.Linq;
@@ -14,6 +15,7 @@ namespace claims.src.timers
         {
             //process invites
             InvitationHandler.findAndDeleteOverdueInvitations();
+            CityPlotsGroupInvitationsHandler.updateCityPlotsGroupInvitations();
 
             //prison hours decrease and tp freed players
             foreach(PlayerInfo player in claims.dataStorage.getPlayersDict().Values.ToArray())

@@ -1,12 +1,11 @@
 using System;
-using System.Threading;
 
 namespace claims.src.agreement
 {
     public class Agreement
     {
         Action onAgree;
-        CancellationTokenSource source;
+        long timeoutCallbackId;
         string playerUID;
 
         public Agreement(Action onAgree, string playerUID)
@@ -17,7 +16,7 @@ namespace claims.src.agreement
 
         public string getPlayerUid() => playerUID;
         public Action getOnAgree() => onAgree;
-        public CancellationTokenSource getToken() => source;
-        public void setTokenSource(CancellationTokenSource token) => source = token;
+        public long getTimeoutCallbackId() => timeoutCallbackId;
+        public void setTimeoutCallbackId(long callbackId) => timeoutCallbackId = callbackId;
     }
 }

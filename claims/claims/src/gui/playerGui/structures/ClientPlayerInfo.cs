@@ -468,7 +468,8 @@ namespace claims.src.gui.playerGui.structures
             {
                 foreach (var it_current in this.ReceivedPlotsGroupInvitations.ToArray())
                 {
-                    if (it_current.CityName.Equals(it.CityName))
+                    // Match on both city AND group, otherwise invites to OTHER groups of the same city are lost
+                    if (it_current.CityName.Equals(it.CityName) && it_current.PlotsGroupName.Equals(it.PlotsGroupName))
                     {
                         this.ReceivedPlotsGroupInvitations.Remove(it_current);
                         this.ReceivedPlotsGroupInvitations.Add(it);
@@ -570,6 +571,7 @@ namespace claims.src.gui.playerGui.structures
         }
         private void OnAllianceAllyAdd(string val)
         {
+            if (this.AllianceInfo == null) return;
             List<string> pc = JsonConvert.DeserializeObject<List<string>>(val);
             foreach(var it in pc)
             {
@@ -644,11 +646,10 @@ namespace claims.src.gui.playerGui.structures
         }
         private void OnAllianceAlliesAll(string val)
         {
+            if (this.AllianceInfo == null) return;
             List<string> pc = JsonConvert.DeserializeObject<List<string>>(val);
-            foreach (var it in pc)
-            {
-                this.AllianceInfo.Allies.Add(it);
-            }
+            // "All" is a full snapshot — replace, don't append, or repeated sends duplicate allies
+            this.AllianceInfo.Allies = pc ?? new List<string>();
         }
         private void OnAllianceConflictRemove(string val)
         {

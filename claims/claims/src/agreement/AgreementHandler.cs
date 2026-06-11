@@ -1,6 +1,4 @@
 using System.Collections.Concurrent;
-using System.Threading;
-using System.Threading.Tasks;
 using claims.src.messages;
 using Vintagestory.API.Config;
 using Vintagestory.API.Server;
@@ -14,35 +12,33 @@ namespace claims.src.agreement
 
         public static void addNewAgreementOrReplace(Agreement agreement)
         {
-            if(agreements.TryGetValue(agreement.getPlayerUid(), out _))
+            if(agreements.TryRemove(agreement.getPlayerUid(), out Agreement oldAgreement))
             {
-                agreements.TryRemove(agreement.getPlayerUid(), out _);
+                claims.sapi.Event.UnregisterCallback(oldAgreement.getTimeoutCallbackId());
             }
-            agreements.TryAdd(agreement.getPlayerUid(), agreement);
 
-			var tokenSource = new CancellationTokenSource();
-			agreement.setTokenSource(tokenSource);
-			Task.Run(async delegate
-			{
-				await Task.Delay(claims.config.AGREEMENT_TIMEOUT_SECONDS * 1000, tokenSource.Token);
-				string uid = agreement.getPlayerUid();
-				if (agreements.TryGetValue(uid, out _))
-				{
-					agreements.TryRemove(uid, out _);
-					IServerPlayer onlinePlayer = claims.sapi.World.PlayerByUid(uid) as IServerPlayer;
-					if (onlinePlayer != null)
-					{
-						MessageHandler.sendMsgToPlayer(onlinePlayer, Lang.Get("claims:agreement_timeout"));
-					}
-				}
-			}, tokenSource.Token);
+            //Timeout callback runs on the main server thread (unlike the previous Task.Delay version)
+            long callbackId = claims.sapi.Event.RegisterCallback((dt =>
+            {
+                string uid = agreement.getPlayerUid();
+                if (agreements.TryRemove(uid, out _))
+                {
+                    IServerPlayer onlinePlayer = claims.sapi.World.PlayerByUid(uid) as IServerPlayer;
+                    if (onlinePlayer != null)
+                    {
+                        MessageHandler.sendMsgToPlayer(onlinePlayer, Lang.Get("claims:agreement_timeout"));
+                    }
+                }
+            }), claims.config.AGREEMENT_TIMEOUT_SECONDS * 1000);
+            agreement.setTimeoutCallbackId(callbackId);
+            agreements.TryAdd(agreement.getPlayerUid(), agreement);
 		}
 
 		public static bool agreeFor(IServerPlayer player)
         {
 			if(agreements.TryRemove(player.PlayerUID, out Agreement agreement))
             {
-				agreement.getToken().Cancel();
+				claims.sapi.Event.UnregisterCallback(agreement.getTimeoutCallbackId());
 				claims.sapi.Event.RegisterCallback((dt =>
 				{
 					agreement.getOnAgree()?.Invoke();

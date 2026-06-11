@@ -280,6 +280,11 @@ namespace claims.src.part
         public bool setMayor(PlayerInfo player)
         {
             this.mayor = player;
+            // Leader is checked by Alliance.IsLeader, keep it in sync with the capital's mayor
+            if (HasAlliance() && this.Equals(Alliance.MainCity))
+            {
+                Alliance.Leader = player;
+            }
             return true;
         }
 
@@ -506,7 +511,7 @@ namespace claims.src.part
 
             if (claims.economyProvider.UpdateAccount(this.MoneyAccountName, new Dictionary<string, object> { { "lastknownname", filteredName } }))
             {
-                claims.dataStorage.changeCityName(this, filteredName);
+                if (!claims.dataStorage.changeCityName(this, filteredName)) return false;
                 SetPartName(filteredName);
                 saveToDatabase();
                 UsefullPacketsSend.AddToQueueCityInfoUpdate(Guid, EnumPlayerRelatedInfo.CITY_NAME);

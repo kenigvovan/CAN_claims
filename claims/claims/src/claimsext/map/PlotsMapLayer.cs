@@ -193,16 +193,13 @@ namespace claims.src.claimsext.map
         {
             try
             {
-                await Task.Run(async () =>
+                if (claims.clientDataStorage.getClientSavedZone(zoneCord, out ClientSavedZone clientSavedZone))
                 {
-                    if(claims.clientDataStorage.getClientSavedZone(zoneCord, out ClientSavedZone clientSavedZone))
-                    {
-                        foreach(var it in clientSavedZone.savedPlots)
-                        {
-                            await OnResChunkPixelsAsync(it.Key, it.Value.cityName);
-                        }
-                    }
-                });
+                    var tasks = new System.Collections.Generic.List<Task>();
+                    foreach (var it in clientSavedZone.savedPlots)
+                        tasks.Add(OnResChunkPixelsAsync(it.Key, it.Value.cityName));
+                    await Task.WhenAll(tasks);
+                }
             }
             catch (Exception ex)
             {

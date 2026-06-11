@@ -34,11 +34,11 @@ namespace claims.src.harmony
     [HarmonyPatch]
     public class harmonyPatches
     {
-        private static readonly MethodInfo _trySpreadIntoBlock = typeof(Vintagestory.GameContent.BlockBehaviorFiniteSpreadingLiquid)
+        public static readonly MethodInfo TrySpreadIntoBlock = typeof(Vintagestory.GameContent.BlockBehaviorFiniteSpreadingLiquid)
             .GetMethod("TrySpreadIntoBlock", BindingFlags.NonPublic | BindingFlags.Instance);
-        private static readonly MethodInfo _entityBlockFallingUpdateBlock = typeof(Vintagestory.GameContent.EntityBlockFalling)
+        public static readonly MethodInfo EntityBlockFallingUpdateBlock = typeof(Vintagestory.GameContent.EntityBlockFalling)
             .GetMethod("UpdateBlock", BindingFlags.NonPublic | BindingFlags.Instance);
-        private static readonly MethodInfo _entityBlockFallingDropItems = typeof(Vintagestory.GameContent.EntityBlockFalling)
+        public static readonly MethodInfo EntityBlockFallingDropItems = typeof(Vintagestory.GameContent.EntityBlockFalling)
             .GetMethod("DropItems", BindingFlags.NonPublic | BindingFlags.Instance);
 
         public static void Prefix_testBlockAccessInternal(Vintagestory.Common.WorldMap __instance, IPlayer player, BlockSelection blockSel, EnumBlockAccessFlags accessType, out string claimant)
@@ -242,7 +242,7 @@ namespace claims.src.harmony
                 claims.dataStorage.GetPlot(PlotPosition.fromBlockPos(pos.AddCopy(facing)), out Plot dest);
                 if (dest == null || (dest == null && source == null) || (source != null && dest.hasCity() && source.hasCity() && dest.getCity().Equals(source.getCity())))
                 {
-                    _trySpreadIntoBlock.Invoke(__instance, new object[] { ourblock, ourSolid, pos, pos.AddCopy(facing), facing, world });
+                    TrySpreadIntoBlock.Invoke(__instance, new object[] { ourblock, ourSolid, pos, pos.AddCopy(facing), facing, world });
                 }
             }
             return false;
@@ -359,7 +359,7 @@ namespace claims.src.harmony
                 {
                     if (!block.IsLiquid() || __instance.Block.BlockMaterial != EnumBlockMaterial.Snow)
                     {
-                        _entityBlockFallingUpdateBlock.Invoke(__instance, new object[] { false, finalPos });
+                        EntityBlockFallingUpdateBlock.Invoke(__instance, new object[] { false, finalPos });
                     }
 
                     (__instance.Api as ICoreServerAPI).Network.BroadcastEntityPacket(__instance.EntityId, 1234);
@@ -367,7 +367,7 @@ namespace claims.src.harmony
                 else
                 {
                     // Space is occupied by maybe a torch or some other block we shouldn't replace
-                    _entityBlockFallingDropItems.Invoke(__instance, new object[] { finalPos });
+                    EntityBlockFallingDropItems.Invoke(__instance, new object[] { finalPos });
                 }
 
                 if (___impactDamageMul > 0)

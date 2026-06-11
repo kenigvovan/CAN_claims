@@ -1,17 +1,12 @@
-using claims.src.auxialiry;
-using System.Collections.Generic;
-using System.Linq;
-
 namespace claims.src.delayed
 {
-    public class LetterRegistry<T> where T : IExpirable
+    public class LetterRegistry<T> : ExpiringList<T> where T : IExpirable
     {
-        readonly HashSet<T> items = new();
-
-        public bool Add(T item) => items.Add(item);
-        public bool Remove(T item) => items.Remove(item);
-        public void Clear() => items.Clear();
-        public IEnumerable<T> All => items;
+        public override bool Add(T item)
+        {
+            if (items.Contains(item)) return false;
+            return base.Add(item);
+        }
 
         public bool TryGetByGuid(string guid, out T item)
         {
@@ -25,17 +20,6 @@ namespace claims.src.delayed
 
         public bool GuidIsFree(string guid) => !TryGetByGuid(guid, out _);
 
-        public void ExpireOverdue()
-        {
-            long now = TimeFunctions.getEpochSeconds();
-            foreach (var it in items.ToArray())
-            {
-                if (it.TimeStampExpire < now)
-                {
-                    items.Remove(it);
-                    it.OnExpire?.Invoke();
-                }
-            }
-        }
+        public void ExpireOverdue() => ExpireOverdue(it => it.TimeStampExpire, it => it.OnExpire?.Invoke());
     }
 }

@@ -307,10 +307,6 @@ namespace claims.src.commands
             city.AddLogEntry(EnumCityLogEvent.MayorChanged, targetPlayer.GetPartName());
             city.FireMayorChanged(targetPlayer);
             city.setMayor(targetPlayer);
-            if(city.HasAlliance())
-            {
-                city.Alliance.Leader = targetPlayer;
-            }
             RightsHandler.reapplyRights(playerInfo);
             RightsHandler.reapplyRights(targetPlayer);
             MessageHandler.sendMsgInCity(city, Lang.Get("claims:player_now_is_a_mayor", targetPlayer.GetPartName()));

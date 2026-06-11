@@ -6,10 +6,16 @@ namespace claims.src.delayed
 {
     public class ExpiringList<T>
     {
-        readonly List<T> items = new();
+        protected readonly List<T> items = new();
 
-        public void Add(T item) => items.Add(item);
+        public virtual bool Add(T item)
+        {
+            items.Add(item);
+            return true;
+        }
         public bool Remove(T item) => items.Remove(item);
+        public void Clear() => items.Clear();
+        public IEnumerable<T> All => items;
 
         // Safe snapshot for caller-side iteration (avoids modification-during-foreach).
         public T[] Snapshot() => items.ToArray();
@@ -22,7 +28,9 @@ namespace claims.src.delayed
                 if (getExpiry(it) < now)
                 {
                     items.Remove(it);
-                    onExpire?.Invoke(it);
+                    // A throwing callback must not abort the rest of the sweep or escape into the timer
+                    try { onExpire?.Invoke(it); }
+                    catch (Exception ex) { claims.sapi?.Logger.Error("[claims] ExpiringList onExpire callback failed: " + ex); }
                 }
             }
         }

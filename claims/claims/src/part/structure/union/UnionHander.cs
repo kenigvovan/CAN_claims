@@ -2,6 +2,7 @@ using claims.src.delayed;
 using claims.src.part.structure;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace claims.src.part.structure.union
 {
@@ -17,7 +18,7 @@ namespace claims.src.part.structure.union
 
         public static bool removeUnionLetter(Alliance from, Alliance to)
         {
-            foreach (var it in registry.All)
+            foreach (var it in registry.All.ToArray())
             {
                 if ((it.From.Equals(from) && it.To.Equals(to)) ||
                     (it.From.Equals(to) && it.To.Equals(from)))
