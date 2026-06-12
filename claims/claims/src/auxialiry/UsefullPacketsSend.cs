@@ -296,6 +296,14 @@ namespace claims.src.auxialiry
                 //nobody need this info since nobody from the city is online
                 if(onlinePlayersFromCity.Count == 0) continue;
 
+                // If a full "ALL" packet is present, incremental adds are redundant
+                if (listToUpdate.ContainsKey(EnumPlayerRelatedInfo.CITY_PRISON_CELL_ALL))
+                    listToUpdate.Remove(EnumPlayerRelatedInfo.CITY_ADD_PRISON_CELL);
+                if (listToUpdate.ContainsKey(EnumPlayerRelatedInfo.CITY_SUMMON_POINT_ALL))
+                    listToUpdate.Remove(EnumPlayerRelatedInfo.CITY_SUMMON_POINT_ADD);
+                if (listToUpdate.ContainsKey(EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_ALL))
+                    listToUpdate.Remove(EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_ADD);
+
                 Dictionary<EnumPlayerRelatedInfo, string> collector = CollectFullInfo(null, city, listToUpdate);
                 
                 //collector now contains only general info for all citizens

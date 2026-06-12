@@ -339,7 +339,10 @@ namespace claims.src.gui.playerGui.structures
             HashSet<PrisonCellElement> pc = JsonConvert.DeserializeObject<HashSet<PrisonCellElement>>(val);
             foreach (var it in pc)
             {
-                CityInfo.PrisonCells.Add(it);
+                if (!CityInfo.PrisonCells.Any(existing => existing.SpawnPosition.Equals(it.SpawnPosition)))
+                {
+                    CityInfo.PrisonCells.Add(it);
+                }
             }
         }
         private void OnCityCityPrisonCellRemoved(string val)
@@ -432,6 +435,7 @@ namespace claims.src.gui.playerGui.structures
         }
         private void OnCityCitySummonPlotsgroupAdd(string val)
         {
+            if (CityInfo == null) return;
             HashSet<PlotsGroupCellElement> pc = JsonConvert.DeserializeObject<HashSet<PlotsGroupCellElement>>(val);
             foreach (var it in pc)
             {

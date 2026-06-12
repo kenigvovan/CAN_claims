@@ -42,6 +42,10 @@ namespace claims.src.commands.register
               .RequiresPlayer().RequiresPrivilege(Privilege.chat)
               .WithArgs(parsers.Word("cityName"), parsers.Word("groupName"));
 
+            sapi.ChatCommands.Create("plotsgroupdeny").HandleWith(commands.AcceptCommand.onDenyPlotGroup)
+              .RequiresPlayer().RequiresPrivilege(Privilege.chat)
+              .WithArgs(parsers.Word("cityName"), parsers.Word("groupName"));
+
             sapi.ChatCommands.Create("plotsgroupleave").HandleWith(commands.AcceptCommand.onLeavePlotGroup)
               .RequiresPlayer().RequiresPrivilege(Privilege.chat)
               .WithArgs(parsers.Word("cityName"), parsers.Word("groupName"));

@@ -1,6 +1,7 @@
 ﻿using claims.src.gui.playerGui.GuiElements;
 using claims.src.gui.playerGui.structures.cellElements;
 using Vintagestory.API.Client;
+using Vintagestory.API.Config;
 
 namespace claims.src.gui.playerGui.GuiPages
 {
@@ -37,7 +38,7 @@ namespace claims.src.gui.playerGui.GuiPages
 
             ElementBounds scrollbarBounds = insetBounds.CopyOffsetedSibling(logtextBounds.fixedWidth + 7).WithFixedWidth(20);
 
-            compo.AddStaticText("Summon points",
+            compo.AddStaticText(Lang.Get("claims:gui-summon-points-title"),
                 CairoFont.WhiteMediumText().WithOrientation(EnumTextOrientation.Center),
                 invitationTextBounds);
             if (clientInfo.CityInfo == null)

@@ -1,8 +1,10 @@
-﻿using System.Numerics;
+using System.Numerics;
 using claims.src.auxialiry;
 using ImGuiNET;
 using Vintagestory.API.Client;
+using Vintagestory.API.Common;
 using Vintagestory.API.Config;
+using Vintagestory.Client.NoObf;
 
 namespace claims.src.gui.prettyGui.GuiTabs
 {
@@ -20,72 +22,128 @@ namespace claims.src.gui.prettyGui.GuiTabs
             {
                 return;
             }
-            ImGui.Text(Lang.Get("claims:gui-criminals", clientInfo.CityInfo.Criminals.Count));
+
+            Vector4 titleColor = new Vector4(0.4f, 0.7f, 1.0f, 1.0f);
+            Vector4 criminalColor = new Vector4(1.0f, 0.45f, 0.35f, 1.0f);
+            Vector4 labelColor = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
+            Vector4 sectionColor = new Vector4(0.4f, 0.7f, 1.0f, 1.0f);
+
+            // Title
+            ImGui.PushStyleColor(ImGuiCol.Text, titleColor);
+            ImGui.SetWindowFontScale(1.2f);
+            string titleText = Lang.Get("claims:gui-prison-tooltip");
+            float windowWidth = ImGui.GetWindowSize().X;
+            float textWidth = ImGui.CalcTextSize(titleText).X;
+            ImGui.SetCursorPosX((windowWidth - textWidth) * 0.5f);
+            ImGui.Text(titleText);
+            ImGui.SetWindowFontScale(1.0f);
+            ImGui.PopStyleColor();
             if (ImGui.IsItemHovered())
+                ImGui.SetTooltip(Lang.Get("claims:gui-prison-description"));
+
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            // Criminals count (red-ish)
+            var perms = clientInfo.PlayerPermissions;
+            ImGui.PushStyleColor(ImGuiCol.Text, criminalColor);
+            ImGui.Text(Lang.Get("claims:gui-criminals", clientInfo.CityInfo.Criminals.Count));
+            ImGui.PopStyleColor();
+            if (ImGui.IsItemHovered() && clientInfo.CityInfo.Criminals.Count > 0)
             {
                 ImGui.SetTooltip(StringFunctions.concatStringsWithDelim(clientInfo.CityInfo.Criminals, ','));
             }
 
-            var perms = clientInfo.PlayerPermissions;
-            if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_ADD_CRIMINAL))
+            if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_ADD_CRIMINAL) || perms.HasPermission(rights.EnumPlayerPermissions.CITY_CRIMINAL_ALL))
             {
+                ImGui.SameLine();
                 if (ImGui.ImageButton("addcriminal", this.iconHandler.GetOrLoadIcon("expander"), new Vector2(16)))
                 {
                     GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.ADD_CRIMINAL_NEED_NAME;
                 }
-                ImGui.SameLine();
+                if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-prison-add-criminal-tooltip"));
             }
-            if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_REMOVE_CRIMINAL))
+            if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_REMOVE_CRIMINAL) || perms.HasPermission(rights.EnumPlayerPermissions.CITY_CRIMINAL_ALL))
             {
+                ImGui.SameLine();
                 if (ImGui.ImageButton("removecriminal", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(16)))
                 {
                     GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.REMOVE_CRIMINAL;
                 }
+                if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-prison-remove-criminal-tooltip"));
             }
 
-            ImGui.Text(Lang.Get("claims:gui-prison-cells-title"));
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
 
-            ImGui.BeginChild("InvitesScroll", new Vector2(0, 300), true);
+            // Prison cells section header
+            ImGui.PushStyleColor(ImGuiCol.Text, sectionColor);
+            ImGui.Text(Lang.Get("claims:gui-prison-cells-title"));
+            ImGui.PopStyleColor();
+
+            if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_PRISON_ADD_CELL) || perms.HasPermission(rights.EnumPlayerPermissions.CITY_PRISON_ALL))
+            {
+                ImGui.SameLine();
+                if (ImGui.ImageButton("addprisoncell", this.iconHandler.GetOrLoadIcon("expander"), new Vector2(16)))
+                {
+                    ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
+                    clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/c prison addcell", EnumChatType.Macro, "");
+                }
+                if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-prison-add-cell-tooltip"));
+            }
+
+            ImGui.Spacing();
+
+            ImGui.BeginChild("InvitesScroll", new Vector2(0, 0), false);
             int i = 0;
-            foreach (var prisonCell in claims.clientDataStorage.clientPlayerInfo.CityInfo.PrisonCells)
+            foreach (var prisonCell in clientInfo.CityInfo.PrisonCells)
             {
                 ImGui.PushID(i);
-
-                Vector2 start = ImGui.GetCursorScreenPos();
-                float width = ImGui.GetContentRegionAvail().X;
-
                 ImGui.BeginGroup();
 
-                var text = Lang.Get("claims:gui-prison-cell-coords",
+                var coords = Lang.Get("claims:gui-prison-cell-coords",
                                     (prisonCell.SpawnPosition.X - capi.World.DefaultSpawnPosition.AsBlockPos.X).ToString(),
                                     (prisonCell.SpawnPosition.Y - capi.World.DefaultSpawnPosition.AsBlockPos.Y).ToString(),
                                     (prisonCell.SpawnPosition.Z - capi.World.DefaultSpawnPosition.AsBlockPos.Z).ToString());
-                ImGui.Text(text);
-                if (ImGui.ImageButton("removecell", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(16)))
+
+                ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
+                ImGui.Text(coords);
+                ImGui.PopStyleColor();
+
+                if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_PRISON_REMOVE_CELL) || perms.HasPermission(rights.EnumPlayerPermissions.CITY_PRISON_ALL))
                 {
-                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.CITY_PRISON_REMOVE_CELL_CONFIRM;
-                    GuiSys.selectedPos = prisonCell.SpawnPosition;
+                    ImGui.SameLine();
+                    if (ImGui.ImageButton("removecell", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(16)))
+                    {
+                        GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.CITY_PRISON_REMOVE_CELL_CONFIRM;
+                        GuiSys.selectedPos = prisonCell.SpawnPosition;
+                    }
+                    if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-prison-remove-cell-tooltip"));
                 }
 
-                string AllPlayers = "";
                 if (prisonCell.Players.Count > 0)
                 {
-                    AllPlayers = string.Join(", ", prisonCell.Players);
+                    ImGui.PushStyleColor(ImGuiCol.Text, criminalColor);
+                    ImGui.Text(string.Join(", ", prisonCell.Players));
+                    ImGui.PopStyleColor();
+                }
+                else
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
+                    ImGui.Text(Lang.Get("claims:gui-prison-cell-empty"));
+                    ImGui.PopStyleColor();
                 }
 
-                ImGui.Text(AllPlayers);
-
                 ImGui.EndGroup();
-
-                Vector2 end = ImGui.GetItemRectMax();
-                var draw = ImGui.GetWindowDrawList();
-
                 ImGui.PopID();
 
-                ImGui.Dummy(new Vector2(0, 8));
+                ImGui.Dummy(new Vector2(0, 4));
                 ImGui.Separator();
+                ImGui.Dummy(new Vector2(0, 4));
+                i++;
             }
-            ImGui.EndChild();           
+            ImGui.EndChild();
         }
     }
 }

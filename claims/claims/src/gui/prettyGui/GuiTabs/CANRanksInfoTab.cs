@@ -54,6 +54,15 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.Separator();
             ImGui.Spacing();
 
+            if (ImGui.Button(Lang.Get("claims:gui-back")))
+            {
+                GuiSys.selectedTab = EnumSelectedTab.RANKS;
+            }
+
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
             // --- Members ---
             ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
             ImGui.Text(Lang.Get("claims:gui-rank-members", cell.Citizens.Count));

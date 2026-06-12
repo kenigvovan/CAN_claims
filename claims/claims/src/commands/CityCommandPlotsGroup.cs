@@ -305,6 +305,20 @@ namespace claims.src.commands
                            claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
                         }
                     }
+                   UsefullPacketsSend.AddToQueuePlayerInfoUpdate(targetPlayer.Guid,
+                    new Dictionary<string, object> { { "value", new ClientToPlotsGroupInvitation(city.GetPartName(), searchedGroup.GetPartName(), 0) } },
+                    EnumPlayerRelatedInfo.TO_PLOTS_GROUP_INVITE_REMOVE);
+                   if (!(targetPlayer.hasCity() && targetPlayer.City.Guid.Equals(city.Guid)))
+                   {
+                       UsefullPacketsSend.AddToQueuePlayerInfoUpdate(targetPlayer.Guid,
+                        new Dictionary<string, object> { { "value", new PlotsGroupCellElement(searchedGroup.Guid,
+                                                                                              searchedGroup.GetPartName(),
+                                                                                              searchedGroup.City.GetPartName(),
+                                                                                              searchedGroup.PlayersList.Select(ele => ele.GetPartName()).ToList(),
+                                                                                              searchedGroup.PermsHandler,
+                                                                                              searchedGroup.PlotsGroupFee)} },
+                        EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_ADD);
+                   }
                },
                () =>
                {

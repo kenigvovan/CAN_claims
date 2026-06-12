@@ -95,7 +95,7 @@ namespace claims.src.events
             {
                 return false;
             }
-            var block = byPlayer.Entity.World.BlockAccessor.GetBlock(pos);
+            var block = claims.sapi.World.BlockAccessor.GetBlock(pos);
             if (block?.GetBehavior<BlockBehaviorFlag>() == null)
             {
                 return false;

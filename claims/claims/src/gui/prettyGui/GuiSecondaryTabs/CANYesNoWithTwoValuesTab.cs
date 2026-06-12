@@ -31,7 +31,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             ImGuiWindowFlags flags1 =
                  ImGuiWindowFlags.NoScrollWithMouse;
             ImGui.Begin("ClaimsDetails", p_open: ref GuiSys.secondaryWindowOpen, flags1);
-            
+
             ImGui.Text(Lang.Get(TitleString, GuiSys.textInput, GuiSys.textInput2));
             //ImGui.InputText("", ref GuiSys.textInput, 256);
 

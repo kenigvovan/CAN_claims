@@ -29,6 +29,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.Text(text);
             ImGui.SetWindowFontScale(1.0f);
             ImGui.PopStyleColor();
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip(Lang.Get("claims:gui-ranks-description"));
 
             ImGui.SameLine();
 
