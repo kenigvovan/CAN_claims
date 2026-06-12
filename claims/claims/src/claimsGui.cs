@@ -1,5 +1,7 @@
-﻿using System.Numerics;
+using System.Collections.Generic;
+using System.Numerics;
 using claims.src.gui.prettyGui;
+using claims.src.network.packets;
 using claims.src.rights;
 using ImGuiNET;
 using Vintagestory.API.Client;
@@ -42,6 +44,20 @@ namespace claims.src
         public string[] multiSelectItems2 = { };
         public bool[] selectedItems2 = { };
         public int selectedWarrangeTab = -1;
+
+        private int _adminActiveButton = -1;
+        private bool _isAdmin = false;
+        private bool _adminChecked = false;
+        private bool _adminPanelVisible = true;
+        public Dictionary<string, AdminCityFlagsItem> AdminCityFlags { get; } = new Dictionary<string, AdminCityFlagsItem>();
+        public AdminWorldFlags AdminWorldState { get; set; }
+
+        private static readonly string[] AdminTabIcons    = { "queen-crown", "highlighter", "sword-brandish", "soldering-iron" };
+        private static readonly string[] AdminTabTooltips = { "Admin: World Settings", "Admin: Cities", "Admin: War", "Admin: Player & Plot" };
+        private static readonly EnumSelectedTab[] AdminTabOrder = { EnumSelectedTab.ADMIN_WORLD, EnumSelectedTab.ADMIN_CITIES, EnumSelectedTab.ADMIN_WAR, EnumSelectedTab.ADMIN_PLAYER };
+        private static readonly Vector4 AdminBtnColor  = new Vector4(0.50f, 0.12f, 0.12f, 1.0f);
+        private static readonly Vector4 AdminBtnActive = new Vector4(0.70f, 0.22f, 0.22f, 1.0f);
+
         public override double ExecuteOrder()
         {
             return 1;
@@ -54,7 +70,6 @@ namespace claims.src
             this.imguiSys = api.ModLoader.GetModSystem<ImGuiModSystem>();
             iconHandler = new IconHandler(api);
             imageHandler = new ImageHandler(api);
-            tabDrawHandler = new TabDrawHandler(api, iconHandler);
             secondaryTabDrawHandler = new SecondaryTabDrawHandler(api, iconHandler);
             if (claims.config?.BalanceHudOverride.HasValue == true)
                 showBalanceHud = claims.config.BalanceHudOverride.Value;
@@ -73,6 +88,7 @@ namespace claims.src
                 });
             api.Event.LevelFinalize += () =>
             {
+                tabDrawHandler = new TabDrawHandler(api, iconHandler);
                 api.ModLoader.GetModSystem<ImGuiModSystem>().Draw += Draw;
                 api.ModLoader.GetModSystem<ImGuiModSystem>().Draw += DrawBalanceHUD;
             };
@@ -128,10 +144,27 @@ namespace claims.src
             this.prettyGuiState.IsOpen = true;
             this.imguiSys.Show();
         }
+        private void CheckAdminRole()
+        {
+            if (_adminChecked) return;
+            var role = capi.World?.Player?.Role;
+            if (role == null) return;
+            _adminChecked = true;
+            bool wasAdmin = _isAdmin;
+            _isAdmin = claims.config?.ROLE_CODES_WITH_ADMIN_RIGHTS?.Contains(role.Code) == true;
+            if (_isAdmin && !wasAdmin)
+            {
+                tabDrawHandler.RegisterAdminTabs(capi, iconHandler);
+                claims.clientChannel.SendPacket(new SavedPlotsPacket { type = network.packets.PacketsContentEnum.ADMIN_REQUEST_CITY_FLAGS });
+            }
+        }
+
         private CallbackGUIStatus Draw(float deltaSeconds)
         {
             // Reset each frame — will be set to true by ImGuiInventoryGrid.Draw() if active
             ImGuiInventoryGrid.SuppressMouseDrop = false;
+
+            CheckAdminRole();
 
             if(!this.prettyGuiState.IsOpen)
             {
@@ -149,10 +182,6 @@ namespace claims.src
                  ImGuiWindowFlags.NoScrollWithMouse;
             ImGui.PushStyleColor(ImGuiCol.WindowBg, new Vector4(0.252f, 0.161f, 0.016f, 1f));
             ImGui.Begin("Claims", p_open: ref this.prettyGuiState.IsOpen,  flags1);
-
-            
-
-
 
             ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.8f, 0.4f, 0.8f, 1.0f));
             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.5f, 0.9f, 1.0f));
@@ -178,16 +207,8 @@ namespace claims.src
                 p0.Y + ImGui.GetWindowHeight()
             );
 
-            /*draw.AddImage(
-                guiTex.TextureId,
-                p0,
-                p1
-            );*/
-            //ImGui.ImageButton("c", guiTex.TextureId, new Vector2(120));
-            //int te = capi.Assets
             for (int i = 0; i < labels.Length; i++)
             {
-
                 ImGui.PushID(i);
 
                 if (active_button == i)
@@ -196,6 +217,7 @@ namespace claims.src
                 if (ImGui.ImageButton("", this.iconHandler.GetOrLoadIcon(labels[i]), new Vector2(60)))
                 {
                     active_button = i;
+                    _adminActiveButton = -1;
                     selectedTab = tabOrder[i];
                 }
 
@@ -210,13 +232,40 @@ namespace claims.src
                 ImGui.PopID();
                 ImGui.SameLine();
             }
+
+            if (_isAdmin)
+            {
+                ImGui.PushStyleColor(ImGuiCol.Button, _adminPanelVisible
+                    ? new Vector4(0.50f, 0.12f, 0.12f, 1.0f)
+                    : new Vector4(0.25f, 0.08f, 0.08f, 1.0f));
+                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.65f, 0.18f, 0.18f, 1.0f));
+                ImGui.PushStyleColor(ImGuiCol.ButtonActive,  new Vector4(0.35f, 0.08f, 0.08f, 1.0f));
+                if (ImGui.Button("##adminToggle", new Vector2(10, 60)))
+                {
+                    _adminPanelVisible = !_adminPanelVisible;
+                    if (!_adminPanelVisible && System.Array.IndexOf(AdminTabOrder, selectedTab) >= 0)
+                    {
+                        selectedTab = EnumSelectedTab.CITY;
+                        active_button = 0;
+                        _adminActiveButton = -1;
+                    }
+                }
+                ImGui.PopStyleColor(3);
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip(_adminPanelVisible ? "Hide admin tabs" : "Show admin tabs");
+                ImGui.SameLine();
+
+                if (_adminPanelVisible)
+                    DrawAdminButtons();
+            }
+
             ImGui.NewLine();
             ImGui.Separator();
             this.tabDrawHandler.DrawTab(this.selectedTab);
             this.mainWindowPos = ImGui.GetWindowPos();
             this.mainWindowSize = ImGui.GetWindowSize();
-          
-            
+
+
             ImGui.End();
             if (this.secondaryWindowTab != EnumSecondaryWindowTab.NONE && this.secondaryWindowOpen)
             {
@@ -225,6 +274,41 @@ namespace claims.src
 
             ImGui.End();
             return CallbackGUIStatus.GrabMouse;
+        }
+
+        private void DrawAdminButtons()
+        {
+            ImGui.PushStyleColor(ImGuiCol.Button, AdminBtnColor);
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, AdminBtnActive);
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.35f, 0.08f, 0.08f, 1.0f));
+
+            for (int j = 0; j < AdminTabIcons.Length; j++)
+            {
+                ImGui.PushID(1000 + j);
+
+                if (_adminActiveButton == j)
+                    ImGui.PushStyleColor(ImGuiCol.Button, ImGui.GetStyle().Colors[23]);
+
+                if (ImGui.ImageButton("", this.iconHandler.GetOrLoadIcon(AdminTabIcons[j]), new Vector2(60)))
+                {
+                    _adminActiveButton = j;
+                    active_button = -1;
+                    selectedTab = AdminTabOrder[j];
+                }
+
+                if (_adminActiveButton == j)
+                    ImGui.PopStyleColor();
+
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(AdminTabTooltips[j]);
+                }
+
+                ImGui.PopID();
+                ImGui.SameLine();
+            }
+
+            ImGui.PopStyleColor(3);
         }
     }
 }

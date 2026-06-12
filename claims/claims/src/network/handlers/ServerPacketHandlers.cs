@@ -78,6 +78,46 @@ namespace claims.src.network.handlers
                         }
                     }                                      
                 }
+                else if (packet.type == PacketsContentEnum.ADMIN_REQUEST_CITY_FLAGS)
+                {
+                    if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
+                        return;
+                    var cities = new System.Collections.Generic.List<AdminCityFlagsItem>();
+                    bool hasBalance = claims.economyProvider != null;
+                    foreach (var city in claims.dataStorage.getCitiesList())
+                    {
+                        var ph = city.getPermsHandler();
+                        cities.Add(new AdminCityFlagsItem
+                        {
+                            Guid = city.Guid,
+                            Name = city.GetPartName(),
+                            Pvp = ph.pvpFlag,
+                            Fire = ph.fireFlag,
+                            Blast = ph.blastFlag,
+                            Technical = city.isTechnicalCity(),
+                            Open = city.openCity,
+                            CitizenCount = city.getCityCitizens().Count,
+                            PlotCount = city.getCityPlots().Count,
+                            HasBalance = hasBalance,
+                            Balance = hasBalance ? (double)claims.economyProvider.GetBalance(city.MoneyAccountName) : 0
+                        });
+                    }
+                    var wi = claims.dataStorage.getWorldInfo();
+                    var worldFlags = new AdminWorldFlags
+                    {
+                        PvpEverywhere = wi.pvpEverywhere,
+                        PvpForbidden = wi.pvpForbidden,
+                        FireEverywhere = wi.fireEverywhere,
+                        FireForbidden = wi.fireForbidden,
+                        BlastEverywhere = wi.blastEverywhere,
+                        BlastForbidden = wi.blastForbidden
+                    };
+                    claims.serverChannel.SendPacket(new SavedPlotsPacket
+                    {
+                        type = PacketsContentEnum.ADMIN_CITY_FLAGS_ALL,
+                        data = JsonConvert.SerializeObject(new AdminDataPacket { Cities = cities, World = worldFlags })
+                    }, player);
+                }
                 else if (packet.type == PacketsContentEnum.CITY_CITIZENS_RANKS_REQUEST)
                 {
 

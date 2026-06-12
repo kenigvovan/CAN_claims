@@ -36,6 +36,18 @@ namespace claims.src.gui.prettyGui
             this.TabDictionary.Add(EnumSelectedTab.CityMap, new CANCityMapTab(capi, iconHandler));
             this.iconHandler = iconHandler;
         }
+        public void RegisterAdminTabs(ICoreClientAPI capi, IconHandler iconHandler)
+        {
+            if (!TabDictionary.ContainsKey(EnumSelectedTab.ADMIN_WORLD))
+                TabDictionary.Add(EnumSelectedTab.ADMIN_WORLD,  new CANAdminWorldTab(capi, iconHandler));
+            if (!TabDictionary.ContainsKey(EnumSelectedTab.ADMIN_CITIES))
+                TabDictionary.Add(EnumSelectedTab.ADMIN_CITIES, new CANAdminCitiesTab(capi, iconHandler));
+            if (!TabDictionary.ContainsKey(EnumSelectedTab.ADMIN_WAR))
+                TabDictionary.Add(EnumSelectedTab.ADMIN_WAR,    new CANAdminWarTab(capi, iconHandler));
+            if (!TabDictionary.ContainsKey(EnumSelectedTab.ADMIN_PLAYER))
+                TabDictionary.Add(EnumSelectedTab.ADMIN_PLAYER, new CANAdminPlayerTab(capi, iconHandler));
+        }
+
         public void DrawTab(EnumSelectedTab selectedTab)
         {
             if (this.TabDictionary.TryGetValue(selectedTab, out var guiTab))

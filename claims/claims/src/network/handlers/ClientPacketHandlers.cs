@@ -8,6 +8,7 @@ using claims.src.network.packets;
 using claims.src.playerMovements;
 using Newtonsoft.Json;
 using Vintagestory.API.MathTools;
+using claims.src;
 
 namespace claims.src.network.handlers
 {
@@ -147,6 +148,18 @@ namespace claims.src.network.handlers
                         if (claims.CANCityGui?.IsOpened() ?? false)
                         {
                             claims.CANCityGui.BuildMainWindow();
+                        }
+                        break;
+                    case PacketsContentEnum.ADMIN_CITY_FLAGS_ALL:
+                        var adminData = JsonConvert.DeserializeObject<AdminDataPacket>(packet.data);
+                        if (adminData != null)
+                        {
+                            var gui = claims.capi.ModLoader.GetModSystem<claimsGui>();
+                            gui.AdminCityFlags.Clear();
+                            if (adminData.Cities != null)
+                                foreach (var item in adminData.Cities)
+                                    gui.AdminCityFlags[item.Name] = item;
+                            gui.AdminWorldState = adminData.World;
                         }
                         break;
                 }
