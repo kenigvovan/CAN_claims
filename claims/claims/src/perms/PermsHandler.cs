@@ -305,6 +305,7 @@ namespace claims.src.perms
         }
         public void setPerms(string loadedStr)
         {
+            blastFlag = false;
             foreach(string it in loadedStr.Split(';'))
             {
                 if (it.Length == 0)

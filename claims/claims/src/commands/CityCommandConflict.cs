@@ -73,6 +73,8 @@ namespace claims.src.commands
                         if (!ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.START_CONFLICT, out var letter)) return;
                         Conflict newConflict = new Conflict("", newConflictGuid);
                         RightsHandler.SetPartiesHostile(ourCity, targetParty, newConflict);
+                        if (targetParty is Alliance targetAllianceForAlly)
+                            RightsHandler.AllianceAllySetHostileOnNewConflictStarted(targetAllianceForAlly, ourCity, newConflict);
                         claims.dataStorage.TryAddConflict(newConflict);
                         UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourCity,
                             new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
@@ -129,6 +131,8 @@ namespace claims.src.commands
             {
                 Conflict newConflict = new Conflict("", Alliance.GetUnusedGuid());
                 RightsHandler.SetPartiesHostile(ourCity, targetParty, newConflict);
+                if (targetParty is Alliance targetAllianceForAlly)
+                    RightsHandler.AllianceAllySetHostileOnNewConflictStarted(targetAllianceForAlly, ourCity, newConflict);
                 claims.dataStorage.TryAddConflict(newConflict);
                 newConflict.First = ourCity;
                 newConflict.StartedBy = ourCity;

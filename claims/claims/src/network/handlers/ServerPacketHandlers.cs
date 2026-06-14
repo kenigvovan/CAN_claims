@@ -166,6 +166,9 @@ namespace claims.src.network.handlers
                     return;
                 }
 
+                if (conflict.ActiveWarTime)
+                    return;
+
                 bool getFirst = true;
                 if(conflict.First.Equals(ourParty))
                 {

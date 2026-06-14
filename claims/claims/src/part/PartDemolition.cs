@@ -205,7 +205,8 @@ namespace claims.src.part
                 firstAlliance.FireConflictEnded(conflict.Second, reason);
             if (conflict.Second is Alliance secondAlliance)
                 secondAlliance.FireConflictEnded(conflict.First, reason);
-            claims.getModInstance().getDatabaseHandler().deleteFromDatabaseConflict(conflict);
+            if (conflict.State != ConflictState.FIRST_WON && conflict.State != ConflictState.SECOND_WON)
+                claims.getModInstance().getDatabaseHandler().deleteFromDatabaseConflict(conflict);
         }
         public static void DemolishUnion(Alliance first, Alliance second)
         {

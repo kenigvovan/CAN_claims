@@ -240,13 +240,6 @@ namespace claims.src.auxialiry
                 }
                 else
                 {
-                    foreach(var it in additionalInfo)
-                    {
-                        if(it.Value is System.Collections.IList list)
-                        {
-                            var k = list as IEnumerable<object>;
-                        }
-                    }
                     playerHashSet.Add(toUpdate, additionalInfo.ToDictionary(k => k.Key,
                                                                             k => k.Value is System.Collections.IList list
                                                                                     ? list.Cast<object>().ToList()

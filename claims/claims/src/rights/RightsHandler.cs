@@ -305,13 +305,14 @@ namespace claims.src
         // Keep Alliance-typed overload for backward compatibility with alliance conflict code
         public static void SetAllianciesHostile(Alliance first, Alliance second, Conflict conflict)
             => SetPartiesHostile(first, second, conflict);
-        public static void AllianceAllySetHostileOnNewConflictStarted(Alliance first, Alliance second, Conflict conflict)
+        public static void AllianceAllySetHostileOnNewConflictStarted(IConflictParty first, IConflictParty second, Conflict conflict)
         {
-            foreach(var it in first.ComradAlliancies)
+            if (first is not Alliance firstAlliance) return;
+            foreach(var it in firstAlliance.ComradAlliancies)
             {
                 if(it != second && !it.HostileParties.Contains(second))
                 {
-                    SetAllianciesHostile(it, second, conflict);
+                    SetPartiesHostile(it, second, conflict);
                     string newConflictGuid = ConflictLetter.GetUnusedGuid().ToString();
                     Conflict newConflict = new Conflict("", newConflictGuid);
                     claims.dataStorage.TryAddConflict(newConflict);

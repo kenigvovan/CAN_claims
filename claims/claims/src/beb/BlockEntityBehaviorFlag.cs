@@ -197,6 +197,7 @@ namespace claims.src.beb
                                 runningConflict.State = ConflictState.FIRST_WON;
                             else if (runningConflict.Second.Equals(attackerParty))
                                 runningConflict.State = ConflictState.SECOND_WON;
+                            runningConflict.saveToDatabase();
                             PartDemolition.DemolishConflict(runningConflict, EnumConflictEndReason.CityDestroyed);
                         }
 
