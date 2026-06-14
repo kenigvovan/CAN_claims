@@ -315,7 +315,7 @@ namespace claims.src
                     string newConflictGuid = ConflictLetter.GetUnusedGuid().ToString();
                     Conflict newConflict = new Conflict("", newConflictGuid);
                     claims.dataStorage.TryAddConflict(newConflict);
-                    newConflict.First = first;
+                    newConflict.First = it;
                     newConflict.Second = second;
                     newConflict.StartedBy = first;
                     newConflict.State = ConflictState.CREATED;
@@ -323,13 +323,13 @@ namespace claims.src
                     newConflict.MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES;
 
                     var allyConflictCell = ClientConflictCellElement.FromConflict(newConflict);
-                    UsefullPacketsSend.AddToQueueAllianceInfoUpdate(first.Guid,
+                    UsefullPacketsSend.AddToQueueAllianceInfoUpdate(it.Guid,
                                 new Dictionary<string, object> { { "value", allyConflictCell } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
                     UsefullPacketsSend.AddToQueueAllianceInfoUpdate(second.Guid,
                         new Dictionary<string, object> { { "value", allyConflictCell } },
                         EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
 
-                    first.saveToDatabase();
+                    it.saveToDatabase();
                     second.saveToDatabase();
                     newConflict.saveToDatabase(false);
                 }

@@ -1,6 +1,5 @@
 ﻿using System.Linq;
 using System.Numerics;
-using System.Runtime.ConstrainedExecution;
 using claims.src.gui.playerGui.structures.cellElements;
 using claims.src.perms;
 using ImGuiNET;
@@ -66,7 +65,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             var permsHandler = cell.PermsHandler;
             ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
             bool pvp = permsHandler.pvpFlag;
-            if (ImGui.Checkbox("PVP", ref pvp))
+            if (ImGui.Checkbox(Lang.Get("claims:gui-admin-flag-pvp") + "##pg", ref pvp))
             {
                 clientEventManager.TriggerNewClientChatLine(
                     GlobalConstants.CurrentChatGroup,
@@ -79,7 +78,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
 
             // ===== FIRE =====
             bool fire = permsHandler.fireFlag;
-            if (ImGui.Checkbox("Fire", ref fire))
+            if (ImGui.Checkbox(Lang.Get("claims:gui-admin-flag-fire") + "##pg", ref fire))
             {
                 clientEventManager.TriggerNewClientChatLine(
                     GlobalConstants.CurrentChatGroup,
@@ -91,7 +90,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             }
 
             bool blast = !permsHandler.blastFlag;
-            if (ImGui.Checkbox("Blast", ref blast))
+            if (ImGui.Checkbox(Lang.Get("claims:gui-admin-flag-blast") + "##pg", ref blast))
             {
                 clientEventManager.TriggerNewClientChatLine(
                     GlobalConstants.CurrentChatGroup,
@@ -106,11 +105,11 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
 
             ImGui.Text(Lang.Get("claims:gui-build-title"));
             DrawPermTriple(
-                "Friend##build",
-                "Citizen##build",
-                "Stranger##build",
+                Lang.Get("claims:gui-admin-group-friend")  + "##build",
+                Lang.Get("claims:gui-admin-group-citizen") + "##build",
+                Lang.Get("claims:gui-admin-group-stranger")+ "##build",
                 perms.type.PermType.BUILD_AND_DESTROY_PERM,
-            "build",
+                "build",
                 permsHandler,
                 clientEventManager,
                 cell
@@ -121,28 +120,28 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             ImGui.Text(Lang.Get("claims:gui-use-title"));
 
             DrawPermTriple(
-                "Friend##use",
-                "Citizen##use",
-                "Stranger##use",
+                Lang.Get("claims:gui-admin-group-friend")  + "##use",
+                Lang.Get("claims:gui-admin-group-citizen") + "##use",
+                Lang.Get("claims:gui-admin-group-stranger")+ "##use",
                 perms.type.PermType.USE_PERM,
                 "use",
                 permsHandler,
-                                clientEventManager, cell
-
+                clientEventManager,
+                cell
             );
 
             ImGui.Separator();
             ImGui.Text(Lang.Get("claims:gui-attack-animals-title"));
 
             DrawPermTriple(
-                "Friend##attack",
-                "Citizen##attack",
-                "Stranger##attack",
+                Lang.Get("claims:gui-admin-group-friend")  + "##attack",
+                Lang.Get("claims:gui-admin-group-citizen") + "##attack",
+                Lang.Get("claims:gui-admin-group-stranger")+ "##attack",
                 perms.type.PermType.ATTACK_ANIMALS_PERM,
                 "attack",
                 permsHandler,
-                clientEventManager, cell
-
+                clientEventManager,
+                cell
             );
 
             ImGui.End();

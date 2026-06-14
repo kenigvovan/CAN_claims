@@ -27,8 +27,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
         public override void DrawTab()
         {
             AdminHeader(
-                "[ADMIN] War & Conflict",
-                "Force-start wars and override scheduled battle dates."
+                Lang.Get("claims:gui-admin-war-title"),
+                Lang.Get("claims:gui-admin-war-subtitle")
             );
 
             DrawPartiesSection();
@@ -51,16 +51,16 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
         private void DrawPartiesSection()
         {
-            SectionTitle("Parties");
-            Hint("Enter the exact name of a city or alliance for each side.\nNames are case-sensitive.");
+            SectionTitle(Lang.Get("claims:gui-admin-parties"));
+            Hint(Lang.Get("claims:gui-admin-parties-hint"));
             ImGui.Spacing();
 
-            Label("First party: ");
+            Label(Lang.Get("claims:gui-admin-first-party"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(220);
             ImGui.InputText("##firstparty", ref _firstParty, 128);
 
-            Label("Second party:");
+            Label(Lang.Get("claims:gui-admin-second-party"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(220);
             ImGui.InputText("##secondparty", ref _secondParty, 128);
@@ -73,39 +73,39 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.PushStyleColor(ImGuiCol.Button,        WarBtn);
             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, WarBtnH);
             ImGui.PushStyleColor(ImGuiCol.ButtonActive,  WarBtnA);
-            if (ImGui.Button("  Force Start War  ") && valid)
+            if (ImGui.Button(Lang.Get("claims:gui-admin-force-start-war")) && valid)
                 Send("/cadmin startwar " + _firstParty + " " + _secondParty);
             ImGui.PopStyleColor(3);
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Immediately creates a war declaration between the two parties,\nskipping the proposal phase.");
+                ImGui.SetTooltip(Lang.Get("claims:gui-admin-force-start-war-tooltip"));
 
             ImGui.SameLine();
 
             ImGui.PushStyleColor(ImGuiCol.Button,        ColRedBtn);
             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ColRedBtnH);
             ImGui.PushStyleColor(ImGuiCol.ButtonActive,  ColRedBtnA);
-            if (ImGui.Button("  Force End War  ") && valid)
+            if (ImGui.Button(Lang.Get("claims:gui-admin-force-end-war")) && valid)
                 Send("/cadmin endwar " + _firstParty + " " + _secondParty);
             ImGui.PopStyleColor(3);
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Immediately ends the conflict between the two parties with a forced peace.");
+                ImGui.SetTooltip(Lang.Get("claims:gui-admin-force-end-war-tooltip"));
 
             if (!valid) ImGui.EndDisabled();
         }
 
         private void DrawBattleDateSection()
         {
-            SectionTitle("Override Battle Date");
-            Hint("Reschedules the next battle for an existing conflict between the two parties above.");
+            SectionTitle(Lang.Get("claims:gui-admin-override-battle"));
+            Hint(Lang.Get("claims:gui-admin-override-battle-hint"));
             ImGui.Spacing();
 
-            Label("Start in (min): ");
+            Label(Lang.Get("claims:gui-admin-start-in-min"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(80);
             ImGui.InputInt("##minstart", ref _minutesUntilStart, 0, 0);
             if (_minutesUntilStart < 1) _minutesUntilStart = 1;
 
-            Label("Duration (min): ");
+            Label(Lang.Get("claims:gui-admin-duration-min"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(80);
             ImGui.InputInt("##battledur", ref _battleDuration, 0, 0);
@@ -115,63 +115,63 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
             bool valid = _firstParty.Length > 0 && _secondParty.Length > 0;
             if (!valid) ImGui.BeginDisabled();
-            if (ImGui.Button("Set Battle Date") && valid)
+            if (ImGui.Button(Lang.Get("claims:gui-admin-set-battle-date")) && valid)
                 Send("/cadmin setbattledate " + _firstParty + " " + _secondParty
                     + " " + _minutesUntilStart + " " + _battleDuration);
             if (!valid) ImGui.EndDisabled();
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Overrides the scheduled battle time for the conflict between the two parties.");
+                ImGui.SetTooltip(Lang.Get("claims:gui-admin-set-battle-date-tooltip"));
         }
 
         private void DrawActiveConflicts()
         {
-            SectionTitle("Your City's Active Conflicts");
+            SectionTitle(Lang.Get("claims:gui-admin-active-conflicts"));
 
             var cityInfo = claims.clientDataStorage?.clientPlayerInfo?.CityInfo;
             if (cityInfo?.ClientConflictCellElements == null || cityInfo.ClientConflictCellElements.Count == 0)
             {
-                Hint("No active conflicts found for your city.");
+                Hint(Lang.Get("claims:gui-admin-no-active-conflicts"));
                 return;
             }
 
-            Hint("Click 'Use' to auto-fill the party names above.");
+            Hint(Lang.Get("claims:gui-admin-use-hint"));
             ImGui.Spacing();
 
             foreach (var conflict in cityInfo.ClientConflictCellElements)
             {
                 ImGui.PushStyleColor(ImGuiCol.Text, ColValue);
-                ImGui.Text(conflict.FirstPartyName + "  vs  " + conflict.SecondPartyName);
+                ImGui.Text(conflict.FirstPartyName + " " + Lang.Get("claims:gui-admin-vs") + " " + conflict.SecondPartyName);
                 ImGui.PopStyleColor();
                 ImGui.SameLine();
-                if (ImGui.SmallButton("Use##" + conflict.Guid))
+                if (ImGui.SmallButton(Lang.Get("claims:gui-admin-use") + "##" + conflict.Guid))
                 {
                     _firstParty  = conflict.FirstPartyName;
                     _secondParty = conflict.SecondPartyName;
                 }
                 if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip("Copy these party names into the fields above.");
+                    ImGui.SetTooltip(Lang.Get("claims:gui-admin-use-tooltip"));
             }
         }
 
         private void DrawUtility()
         {
-            SectionTitle("Utility");
-            Hint("These commands execute immediately and affect the entire server.");
+            SectionTitle(Lang.Get("claims:gui-admin-utility"));
+            Hint(Lang.Get("claims:gui-admin-utility-hint"));
             ImGui.Spacing();
 
-            if (ImGui.Button("Force Backup"))
+            if (ImGui.Button(Lang.Get("claims:gui-admin-force-backup")))
                 Send("/cadmin backup");
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Immediately save a backup copy of the claims database.");
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-admin-force-backup-tooltip"));
             ImGui.SameLine();
 
-            if (ImGui.Button("Force NDay"))
+            if (ImGui.Button(Lang.Get("claims:gui-admin-force-nday")))
                 Send("/cadmin nday");
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Trigger next-day events right now (daily taxes, etc.).");
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-admin-force-nday-tooltip"));
             ImGui.SameLine();
 
-            if (ImGui.Button("Force NHour"))
+            if (ImGui.Button(Lang.Get("claims:gui-admin-force-nhour")))
                 Send("/cadmin nhour");
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Trigger next-hour events right now.");
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-admin-force-nhour-tooltip"));
         }
 
         private void Send(string cmd) =>

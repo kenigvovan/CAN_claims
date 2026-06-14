@@ -137,7 +137,7 @@ namespace claims.src.events
             {
                 return true;
             }
-            PlotPosition currentPosPlayer = new(blockSel.Position.X, blockSel.Position.Z);
+            PlotPosition currentPosPlayer = PlotPosition.fromBlockPos(blockSel.Position);
             if (currentPosPlayer.Equals(playerInfo.PlayerCache.getLastLocation()))
             {
                 //todo

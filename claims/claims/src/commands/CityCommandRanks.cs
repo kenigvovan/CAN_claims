@@ -94,8 +94,8 @@ namespace claims.src.commands
             MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:rank_added_to_player", targetPlayer.GetPartName(), rank_name));
             MessageHandler.sendMsgToPlayerInfo(targetPlayer, Lang.Get("claims:you_got_now_rank", rank_name));
             targetPlayer.saveToDatabase();
-            UsefullPacketsSend.AddToQueueCityInfoUpdate(targetPlayer.Guid, EnumPlayerRelatedInfo.PLAYER_CITY_TITLES);
-            UsefullPacketsSend.AddToQueueCityInfoUpdate(targetPlayer.Guid, EnumPlayerRelatedInfo.PLAYER_PERMISSIONS);
+            UsefullPacketsSend.AddToQueuePlayerInfoUpdate(targetPlayer.Guid, EnumPlayerRelatedInfo.PLAYER_CITY_TITLES);
+            UsefullPacketsSend.AddToQueuePlayerInfoUpdate(targetPlayer.Guid, EnumPlayerRelatedInfo.PLAYER_PERMISSIONS);
             UsefullPacketsSend.AddToQueuePlayerInfoUpdate(player.PlayerUID, EnumPlayerRelatedInfo.CITY_CITIZENS_RANKS);
 
             tcr.Status = EnumCommandStatus.Success;
@@ -131,8 +131,8 @@ namespace claims.src.commands
             RightsHandler.reapplyRights(targetPlayer);
             MessageHandler.sendMsgToPlayerInfo(targetPlayer, Lang.Get("claims:rank_was_deleted", rank_and_player_name[0], targetPlayer.GetPartName()));
             targetPlayer.saveToDatabase();
-            UsefullPacketsSend.AddToQueueCityInfoUpdate(targetPlayer.Guid, EnumPlayerRelatedInfo.PLAYER_CITY_TITLES);
-            UsefullPacketsSend.AddToQueueCityInfoUpdate(targetPlayer.Guid, EnumPlayerRelatedInfo.PLAYER_PERMISSIONS);
+            UsefullPacketsSend.AddToQueuePlayerInfoUpdate(targetPlayer.Guid, EnumPlayerRelatedInfo.PLAYER_CITY_TITLES);
+            UsefullPacketsSend.AddToQueuePlayerInfoUpdate(targetPlayer.Guid, EnumPlayerRelatedInfo.PLAYER_PERMISSIONS);
             UsefullPacketsSend.AddToQueuePlayerInfoUpdate(player.PlayerUID, EnumPlayerRelatedInfo.CITY_CITIZENS_RANKS);
             return SuccessWithParams("claims:rank_removed_from_player", new object[] { rank_and_player_name[0], targetPlayer.GetPartName() });
         }

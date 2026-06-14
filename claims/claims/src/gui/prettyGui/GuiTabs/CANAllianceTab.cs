@@ -21,38 +21,20 @@ namespace claims.src.gui.prettyGui.GuiTabs
         }
         public override void DrawTab()
         {
-            Vector4 labelColor = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
-            Vector4 nameColor = new Vector4(1.0f, 0.85f, 0.3f, 1.0f);
-            Vector4 sectionColor = new Vector4(0.4f, 0.7f, 1.0f, 1.0f);
-
             if (claims.clientDataStorage.clientPlayerInfo?.AllianceInfo != null)
             {
                 var clientInfo = claims.clientDataStorage.clientPlayerInfo;
 
                 // --- Alliance name (centered, clickable) ---
                 string text = clientInfo.AllianceInfo.Name;
-                ImGui.SetWindowFontScale(1.3f);
-                float textWidth = ImGui.CalcTextSize(text).X;
-                ImGui.SetWindowFontScale(1.0f);
-                float windowWidth = ImGui.GetWindowSize().X;
-                ImGui.SetCursorPosX((windowWidth - textWidth) * 0.5f);
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0, 0, 0, 0));
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(1, 1, 1, 0.1f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(1, 1, 1, 0.05f));
-                ImGui.PushStyleColor(ImGuiCol.Text, nameColor);
-                ImGui.SetWindowFontScale(1.3f);
-                if (ImGui.Button(text))
-                {
+                if (CenteredTitleButton(text, ColValue))
                     GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.SELECT_NEW_ALLIANCE_NAME;
-                }
-                ImGui.SetWindowFontScale(1.0f);
-                ImGui.PopStyleColor(4);
 
                 ImGui.Separator();
                 ImGui.Spacing();
 
                 // --- Info table ---
-                if (ImGui.BeginTable("AllianceInfoTable", 2, ImGuiTableFlags.None))
+                if (ImGui.BeginTable("AllianceInfoTable", 2, TableFlags))
                 {
                     ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 130);
                     ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
@@ -60,49 +42,38 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     // Leader
                     ImGui.TableNextRow();
                     ImGui.TableNextColumn();
-                    ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-                    ImGui.Text(Lang.Get("claims:gui-alliancelist-leader-label"));
-                    ImGui.PopStyleColor();
+                    Label(Lang.Get("claims:gui-alliancelist-leader-label"));
                     ImGui.TableNextColumn();
                     ImGui.Text(clientInfo.AllianceInfo.LeaderName ?? "");
 
                     // Created
                     ImGui.TableNextRow();
                     ImGui.TableNextColumn();
-                    ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-                    ImGui.Text(Lang.Get("claims:gui-city-tab-created"));
-                    ImGui.PopStyleColor();
+                    Label(Lang.Get("claims:gui-city-tab-created"));
                     ImGui.TableNextColumn();
                     ImGui.Text(TimeFunctions.getDateFromEpochSeconds(clientInfo.AllianceInfo.TimeStampCreated));
 
                     // Prefix
                     ImGui.TableNextRow();
                     ImGui.TableNextColumn();
-                    ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-                    ImGui.Text(Lang.Get("claims:gui-alliance-prefix-label"));
-                    ImGui.PopStyleColor();
+                    Label(Lang.Get("claims:gui-alliance-prefix-label"));
                     ImGui.TableNextColumn();
                     ImGui.Text(clientInfo.AllianceInfo.Prefix ?? "");
                     ImGui.SameLine();
-                    if (ImGui.ImageButton("allianceprefix", this.iconHandler.GetOrLoadIcon("soldering-iron"), new Vector2(14)))
-                    {
+                    if (IconButton("allianceprefix", "soldering-iron", 14, Lang.Get("claims:gui-set-alliance-prefix")))
                         GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.ALLIANCE_PREFIX_NEED_NAME;
-                    }
-                    if (ImGui.IsItemHovered())
-                    {
-                        ImGui.SetTooltip(Lang.Get("claims:gui-set-alliance-prefix"));
-                    }
 
                     if (claims.config.SELECTED_ECONOMY_HANDLER == "VIRTUAL_MONEY")
                     {
                         // Balance
                         ImGui.TableNextRow();
                         ImGui.TableNextColumn();
-                        ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-                        ImGui.Text(Lang.Get("claims:gui-alliance-balance-label"));
-                        ImGui.PopStyleColor();
+                        Label(Lang.Get("claims:gui-alliance-balance-label"));
                         ImGui.TableNextColumn();
-                        ImGui.Text(clientInfo.AllianceInfo.Balance.ToString());
+                        double alBal = clientInfo.AllianceInfo.Balance;
+                        if (alBal < 0) ImGui.PushStyleColor(ImGuiCol.Text, ColDanger);
+                        ImGui.Text(alBal.ToString("F0"));
+                        if (alBal < 0) ImGui.PopStyleColor();
                     }
 
                     ImGui.EndTable();
@@ -120,102 +91,45 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 }
                 ImGui.SameLine();
 
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.55f, 0.3f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.65f, 0.4f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.25f, 1.0f));
-                if (ImGui.ImageButton("invitecity", this.iconHandler.GetOrLoadIcon("expander"), new Vector2(16)))
-                {
+                if (GreenIconButton("invitecity", "expander", 16, Lang.Get("claims:gui-invite-city")))
                     GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.INVITE_TO_ALLIANCE_NEED_NAME;
-                }
-                ImGui.PopStyleColor(3);
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(Lang.Get("claims:gui-invite-city"));
-                }
                 ImGui.SameLine();
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.7f, 0.25f, 0.2f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.35f, 0.3f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.6f, 0.2f, 0.15f, 1.0f));
-                if (ImGui.ImageButton("kickcity", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(16)))
-                {
+                if (RedIconButton("kickcity", "contract", 16, Lang.Get("claims:gui-kick-city")))
                     GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.KICK_FROM_ALLIANCE_NEED_NAME;
-                }
-                ImGui.PopStyleColor(3);
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(Lang.Get("claims:gui-kick-city"));
-                }
                 ImGui.SameLine();
-                if (ImGui.ImageButton("uninvitecity", this.iconHandler.GetOrLoadIcon("anticlockwise-rotation"), new Vector2(16)))
-                {
-                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.KICK_FROM_ALLIANCE_NEED_NAME;
-                }
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(Lang.Get("claims:gui-uninvite-city"));
-                }
+                if (IconButton("uninvitecity", "anticlockwise-rotation", 16, Lang.Get("claims:gui-uninvite-city")))
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.UNINVITE_TO_ALLIANCE;
 
                 // --- Allies ---
                 ImGui.Spacing();
                 ImGui.Text(Lang.Get("claims:gui-allies-list", string.Join(", ", clientInfo.AllianceInfo.Allies)));
 
                 // --- Bottom navigation ---
-                float availY = ImGui.GetContentRegionAvail().Y;
-                ImGui.SetCursorPosY(ImGui.GetCursorPosY() + availY - 80);
+                AlignBottom();
 
-                if (ImGui.ImageButton("leavealliance", this.iconHandler.GetOrLoadIcon("exit-door"), new Vector2(60)))
-                {
+                if (IconButton("leavealliance", "exit-door", 60, Lang.Get("claims:gui-leavealliance")))
                     GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.LEAVE_ALLIANCE_CONFIRM;
-                }
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(Lang.Get("claims:gui-leavealliance"));
-                }
                 ImGui.SameLine();
-                if (ImGui.ImageButton("conflictletters", this.iconHandler.GetOrLoadIcon("envelope"), new Vector2(60)))
+                if (IconButton("conflictletters", "envelope", 60, Lang.Get("claims:gui-conflict-letters")))
                 {
                     GuiSys.conflictSourceTab = EnumSelectedTab.AllianceInfoPage;
                     GuiSys.selectedTab = EnumSelectedTab.ConflictLettersPage;
                 }
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(Lang.Get("claims:gui-conflict-letters"));
-                }
                 ImGui.SameLine();
-                if (ImGui.ImageButton("conflictspage", this.iconHandler.GetOrLoadIcon("frog-mouth-helm"), new Vector2(60)))
+                if (IconButton("conflictspage", "frog-mouth-helm", 60, Lang.Get("claims:gui-conflicts-page")))
                 {
                     GuiSys.conflictSourceTab = EnumSelectedTab.AllianceInfoPage;
                     GuiSys.selectedTab = EnumSelectedTab.ConflictsPage;
                 }
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(Lang.Get("claims:gui-conflicts-page"));
-                }
                 ImGui.SameLine();
-                if (ImGui.ImageButton("unionspage", this.iconHandler.GetOrLoadIcon("tower-flag"), new Vector2(60)))
-                {
+                if (IconButton("unionspage", "tower-flag", 60, Lang.Get("claims:gui-unions-letters-page")))
                     GuiSys.selectedTab = EnumSelectedTab.UnionLettersPage;
-                }
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(Lang.Get("claims:gui-unions-letters-page"));
-                }
             }
             else
             {
                 // --- No alliance: create button ---
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.55f, 0.3f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.65f, 0.4f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.25f, 1.0f));
-                if (ImGui.ImageButton("createalliance", this.iconHandler.GetOrLoadIcon("queen-crown"), new Vector2(60)))
-                {
+                if (GreenIconButton("createalliance", "queen-crown", 60, Lang.Get("claims:gui-new-alliance-button")))
                     GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.NEW_ALLIANCE_NEED_NAME;
-                }
-                ImGui.PopStyleColor(3);
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(Lang.Get("claims:gui-new-alliance-button"));
-                }
 
                 // --- Invitations ---
                 if (claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientToAllianceInvitations.Count > 0)
@@ -224,7 +138,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     ImGui.Separator();
                     ImGui.Spacing();
 
-                    ImGui.PushStyleColor(ImGuiCol.Text, nameColor);
+                    ImGui.PushStyleColor(ImGuiCol.Text, ColValue);
                     ImGui.SetWindowFontScale(1.15f);
                     ImGui.Text(Lang.Get("claims:gui-to-alliance-invites"));
                     ImGui.SetWindowFontScale(1.0f);
@@ -237,22 +151,11 @@ namespace claims.src.gui.prettyGui.GuiTabs
                         ImGui.PushID(i);
                         ImGui.BeginGroup();
 
-                        ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-                        ImGui.Text(Lang.Get("claims:gui-alliance-invite-alliance-label"));
-                        ImGui.PopStyleColor();
-                        ImGui.SameLine(0, 0);
-                        ImGui.Text(invite.AllianceName ?? "");
+                        LabelValue(Lang.Get("claims:gui-alliance-invite-alliance-label"), invite.AllianceName ?? "");
+                        LabelValue(Lang.Get("claims:gui-city-tab-invite-expires"),
+                            TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(invite.TimeoutStamp, true));
 
-                        ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-                        ImGui.Text(Lang.Get("claims:gui-city-tab-invite-expires"));
-                        ImGui.PopStyleColor();
-                        ImGui.SameLine(0, 0);
-                        ImGui.Text(TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(invite.TimeoutStamp, true));
-
-                        ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.55f, 0.3f, 1.0f));
-                        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.65f, 0.4f, 1.0f));
-                        ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.25f, 1.0f));
-                        if (ImGui.Button(Lang.Get("claims:gui-city-tab-accept")))
+                        if (GreenButton(Lang.Get("claims:gui-city-tab-accept")))
                         {
                             ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                             clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/c inviteaccept " + invite.AllianceName, EnumChatType.Macro, "");
@@ -262,7 +165,6 @@ namespace claims.src.gui.prettyGui.GuiTabs
                                 toRemove.Add(cell);
                             }
                         }
-                        ImGui.PopStyleColor(3);
 
                         ImGui.EndGroup();
                         ImGui.PopID();
@@ -272,7 +174,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                         ImGui.Spacing();
                     }
                     ImGui.EndChild();
-                    if (toRemove.Count() > 0)
+                    if (toRemove.Count > 0)
                     {
                         foreach (var it in toRemove)
                             claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientToAllianceInvitations.Remove(it);

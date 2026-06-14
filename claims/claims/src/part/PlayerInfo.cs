@@ -21,7 +21,7 @@ namespace claims.src.part
         public Prison PrisonedIn { get; set; }
         public bool AwaitForTeleporation { get; set; }
         public City City { get; private set; }     
-        public Alliance Alliance { get { return City.Alliance; } }
+        public Alliance Alliance { get { return City?.Alliance; } }
         public HashSet<PlayerInfo> Friends { get; set; }
         public HashSet<Plot> PlayerPlots { get; set; }
         public PermsHandler PermsHandler { get; set; }

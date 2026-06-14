@@ -33,6 +33,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                  ImGuiWindowFlags.NoScrollWithMouse;
             ImGui.Begin("ClaimsDetails", p_open: ref GuiSys.secondaryWindowOpen, flags1);
             PlotsGroupCellElement cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.PlotsGroupCells.FirstOrDefault(gr => gr.Guid.Equals(GuiSys.textInput), null);
+            if (cell == null) { ImGui.End(); return; }
             ImGui.Text(Lang.Get(TitleString, cell.Name));
 
             ImGui.Combo("Name", ref GuiSys.selectedComboFirst, cell.PlayersNames.ToArray(), cell.PlayersNames.Count);

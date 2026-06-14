@@ -219,9 +219,21 @@ namespace claims.src.commands
             alliance.FireCityLeft(city, EnumCityLeaveReason.Kicked);
             foreach (PlayerInfo playerInCity in city.getPlayerInfos())
             {
+                playerInCity.ClearAllAllianceTitles();
                 RightsHandler.reapplyRights(playerInCity);
             }
+            foreach (var comradeAlliance in alliance.ComradAlliancies)
+            {
+                foreach (var comCity in comradeAlliance.Cities)
+                {
+                    comCity.ComradeCities.Remove(city);
+                    comCity.saveToDatabase();
+                }
+            }
+            city.ComradeCities.Clear();
             RightsHandler.RemoveCityHostilesInAlliance(city, alliance);
+            city.HostileCities.Clear();
+            city.Alliance = null;
             alliance.saveToDatabase();
             city.saveToDatabase();
             UsefullPacketsSend.AddToQueueAllianceInfoUpdate(alliance.Guid, new Dictionary<string, object> { { "value", alliance.Guid } }, EnumPlayerRelatedInfo.NEW_ALLIANCE_ALL);
@@ -883,11 +895,6 @@ namespace claims.src.commands
             }
 
             letter.OnAccept?.Invoke();
-            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty, new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourAlliance, new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-
-            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty, new Dictionary<string, object> { { "value", letter.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_REMOVE);
-            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourAlliance, new Dictionary<string, object> { { "value", letter.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_REMOVE);
             return TextCommandResult.Success();
         }
         public static TextCommandResult DenyStopConflict(TextCommandCallingArgs args)
@@ -923,8 +930,6 @@ namespace claims.src.commands
             }
 
             letter.OnDeny?.Invoke();
-            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty, new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourAlliance, new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
             return TextCommandResult.Success();
         }
         public static TextCommandResult DeclareUnion(TextCommandCallingArgs args)

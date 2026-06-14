@@ -344,7 +344,11 @@ namespace claims.src.commands
                 }
                 else
                 {
-                    city.Alliance.Cities.Remove(city);
+                    var alliance = city.Alliance;
+                    alliance.Cities.Remove(city);
+                    city.Alliance = null;
+                    alliance.saveToDatabase();
+                    UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.OWN_ALLIANCE_REMOVE);
                 }
             }
 

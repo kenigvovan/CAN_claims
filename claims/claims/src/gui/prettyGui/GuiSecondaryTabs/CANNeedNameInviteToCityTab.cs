@@ -1,5 +1,4 @@
-﻿using System.Drawing;
-using System.Numerics;
+﻿using System.Numerics;
 using ImGuiNET;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -26,10 +25,10 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                  ImGuiWindowFlags.NoScrollWithMouse;
             ImGui.Begin("ClaimsDetails", p_open: ref GuiSys.secondaryWindowOpen, flags1);
             
-            ImGui.Text("Enter player's name:");
+            ImGui.Text(Lang.Get("claims:gui-enter-player-name"));
             ImGui.InputText("", ref GuiSys.textInput, 256);
 
-            if(ImGui.Button("Invite"))
+            if(ImGui.Button(Lang.Get("claims:gui-invite-button")))
             {
                 ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                 clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/city invite " + GuiSys.textInput, EnumChatType.Macro, "");

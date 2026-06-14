@@ -20,26 +20,26 @@ namespace claims.src.gui.prettyGui.GuiTabs
         public override void DrawTab()
         {
             AdminHeader(
-                "[ADMIN] World Settings",
-                "Global rules that override all city and plot-level settings."
+                Lang.Get("claims:gui-admin-world-title"),
+                Lang.Get("claims:gui-admin-world-subtitle")
             );
 
             var w = GuiSys.AdminWorldState;
 
             if (w == null)
             {
-                Hint("Loading world flags from server...");
+                Hint(Lang.Get("claims:gui-admin-world-loading"));
                 return;
             }
 
             // PVP
             DrawFlagSection(
-                "PVP",
-                "Everywhere##pvp", w.PvpEverywhere,
-                "Forces PVP everywhere on the server.\nPlayers can attack each other in any area,\nregardless of plot or city settings.",
+                Lang.Get("claims:gui-admin-pvp"),
+                Lang.Get("claims:gui-admin-everywhere") + "##pvp", w.PvpEverywhere,
+                Lang.Get("claims:gui-admin-pvp-ew-tooltip"),
                 v => { w.PvpEverywhere = v; Send("pvpew", v); },
-                "Forbidden##pvp", w.PvpForbidden,
-                "Blocks PVP everywhere on the server.\nOverrides any plot or city that has PVP enabled.",
+                Lang.Get("claims:gui-admin-forbidden") + "##pvp", w.PvpForbidden,
+                Lang.Get("claims:gui-admin-pvp-fb-tooltip"),
                 v => { w.PvpForbidden = v; Send("pvpfb", v); }
             );
 
@@ -47,12 +47,12 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
             // Fire
             DrawFlagSection(
-                "Fire Spread",
-                "Everywhere##fire", w.FireEverywhere,
-                "Fire spreads in all areas, including\nplots and cities where it is normally disabled.",
+                Lang.Get("claims:gui-admin-fire-spread"),
+                Lang.Get("claims:gui-admin-everywhere") + "##fire", w.FireEverywhere,
+                Lang.Get("claims:gui-admin-fire-ew-tooltip"),
                 v => { w.FireEverywhere = v; Send("fireew", v); },
-                "Forbidden##fire", w.FireForbidden,
-                "Prevents fire from spreading anywhere.\nOverrides city and plot fire settings.",
+                Lang.Get("claims:gui-admin-forbidden") + "##fire", w.FireForbidden,
+                Lang.Get("claims:gui-admin-fire-fb-tooltip"),
                 v => { w.FireForbidden = v; Send("firefb", v); }
             );
 
@@ -60,41 +60,41 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
             // Blast
             DrawFlagSection(
-                "Explosions",
-                "Everywhere##blast", w.BlastEverywhere,
-                "Bombs and explosives can be used anywhere,\nincluding plots that normally forbid them.",
+                Lang.Get("claims:gui-admin-explosions"),
+                Lang.Get("claims:gui-admin-everywhere") + "##blast", w.BlastEverywhere,
+                Lang.Get("claims:gui-admin-blast-ew-tooltip"),
                 v => { w.BlastEverywhere = v; Send("blastew", v); },
-                "Forbidden##blast", w.BlastForbidden,
-                "Prevents all bomb use on the entire server.\nNo explosive can be ignited regardless of plot settings.",
+                Lang.Get("claims:gui-admin-forbidden") + "##blast", w.BlastForbidden,
+                Lang.Get("claims:gui-admin-blast-fb-tooltip"),
                 v => { w.BlastForbidden = v; Send("blastfb", v); }
             );
 
             ImGui.Spacing();
             ImGui.Separator();
 
-            SectionTitle("Diagnostics / Utility");
-            Hint("These trigger server events immediately. Useful for testing or emergency resets.");
+            SectionTitle(Lang.Get("claims:gui-admin-diagnostics"));
+            Hint(Lang.Get("claims:gui-admin-diagnostics-hint"));
             ImGui.Spacing();
 
-            if (ImGui.Button("Force NDay"))
+            if (ImGui.Button(Lang.Get("claims:gui-admin-force-nday")))
             {
                 SendCmd("/cadmin nday");
             }
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Advance to the next in-game day immediately.");
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-admin-nday-world-tooltip"));
             ImGui.SameLine();
 
-            if (ImGui.Button("Force NHour"))
+            if (ImGui.Button(Lang.Get("claims:gui-admin-force-nhour")))
             {
                 SendCmd("/cadmin nhour");
             }
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Advance to the next in-game hour immediately.");
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-admin-nhour-world-tooltip"));
             ImGui.SameLine();
 
-            if (ImGui.Button("Force Backup"))
+            if (ImGui.Button(Lang.Get("claims:gui-admin-force-backup")))
             {
                 SendCmd("/cadmin backup");
             }
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Immediately write a backup of the claims database.");
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-admin-backup-world-tooltip"));
         }
 
         private void DrawFlagSection(
@@ -111,7 +111,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             if (valB) ImGui.BeginDisabled();
             bool a = valA;
             if (ImGui.Checkbox(labelA, ref a)) onA(a);
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip(valB ? "Disabled while Forbidden is active." : tipA);
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip(valB ? Lang.Get("claims:gui-admin-disabled-forbidden") : tipA);
             if (valB) ImGui.EndDisabled();
 
             ImGui.SameLine(200);
@@ -120,7 +120,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             if (valA) ImGui.BeginDisabled();
             bool b = valB;
             if (ImGui.Checkbox(labelB, ref b)) onB(b);
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip(valA ? "Disabled while Everywhere is active." : tipB);
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip(valA ? Lang.Get("claims:gui-admin-disabled-everywhere") : tipB);
             if (valA) ImGui.EndDisabled();
         }
 

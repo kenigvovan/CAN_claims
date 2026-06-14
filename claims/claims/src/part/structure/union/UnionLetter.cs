@@ -36,10 +36,7 @@ namespace claims.src.part.structure.union
         }
         public override int GetHashCode()
         {
-            int hash = 13;
-            hash = (hash * 7) + this.From.GetHashCode();
-            hash = (hash * 7) + this.To.GetHashCode();
-            return hash;
+            return From.GetHashCode() ^ To.GetHashCode();
         }
         public static Guid GetUnusedGuid()
         {

@@ -10,6 +10,9 @@ namespace claims.src.gui.prettyGui.GuiTabs
 {
     public class CANPrisonTab : CANGuiTab
     {
+        // Criminals/occupants use a warning red distinct from the parchment theme.
+        static readonly Vector4 CriminalColor = new Vector4(1.0f, 0.45f, 0.35f, 1.0f);
+
         public CANPrisonTab(ICoreClientAPI capi, IconHandler iconHandler)
         {
             this.capi = capi;
@@ -23,21 +26,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 return;
             }
 
-            Vector4 titleColor = new Vector4(0.4f, 0.7f, 1.0f, 1.0f);
-            Vector4 criminalColor = new Vector4(1.0f, 0.45f, 0.35f, 1.0f);
-            Vector4 labelColor = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
-            Vector4 sectionColor = new Vector4(0.4f, 0.7f, 1.0f, 1.0f);
-
             // Title
-            ImGui.PushStyleColor(ImGuiCol.Text, titleColor);
-            ImGui.SetWindowFontScale(1.2f);
-            string titleText = Lang.Get("claims:gui-prison-tooltip");
-            float windowWidth = ImGui.GetWindowSize().X;
-            float textWidth = ImGui.CalcTextSize(titleText).X;
-            ImGui.SetCursorPosX((windowWidth - textWidth) * 0.5f);
-            ImGui.Text(titleText);
-            ImGui.SetWindowFontScale(1.0f);
-            ImGui.PopStyleColor();
+            CenteredTitle(Lang.Get("claims:gui-prison-tooltip"), ColSection, 1.2f);
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip(Lang.Get("claims:gui-prison-description"));
 
@@ -46,7 +36,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
             // Criminals count (red-ish)
             var perms = clientInfo.PlayerPermissions;
-            ImGui.PushStyleColor(ImGuiCol.Text, criminalColor);
+            ImGui.PushStyleColor(ImGuiCol.Text, CriminalColor);
             ImGui.Text(Lang.Get("claims:gui-criminals", clientInfo.CityInfo.Criminals.Count));
             ImGui.PopStyleColor();
             if (ImGui.IsItemHovered() && clientInfo.CityInfo.Criminals.Count > 0)
@@ -57,20 +47,14 @@ namespace claims.src.gui.prettyGui.GuiTabs
             if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_ADD_CRIMINAL) || perms.HasPermission(rights.EnumPlayerPermissions.CITY_CRIMINAL_ALL))
             {
                 ImGui.SameLine();
-                if (ImGui.ImageButton("addcriminal", this.iconHandler.GetOrLoadIcon("expander"), new Vector2(16)))
-                {
+                if (GreenIconButton("addcriminal", "expander", 16, Lang.Get("claims:gui-prison-add-criminal-tooltip")))
                     GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.ADD_CRIMINAL_NEED_NAME;
-                }
-                if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-prison-add-criminal-tooltip"));
             }
             if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_REMOVE_CRIMINAL) || perms.HasPermission(rights.EnumPlayerPermissions.CITY_CRIMINAL_ALL))
             {
                 ImGui.SameLine();
-                if (ImGui.ImageButton("removecriminal", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(16)))
-                {
+                if (RedIconButton("removecriminal", "contract", 16, Lang.Get("claims:gui-prison-remove-criminal-tooltip")))
                     GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.REMOVE_CRIMINAL;
-                }
-                if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-prison-remove-criminal-tooltip"));
             }
 
             ImGui.Spacing();
@@ -78,19 +62,18 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.Spacing();
 
             // Prison cells section header
-            ImGui.PushStyleColor(ImGuiCol.Text, sectionColor);
+            ImGui.PushStyleColor(ImGuiCol.Text, ColSection);
             ImGui.Text(Lang.Get("claims:gui-prison-cells-title"));
             ImGui.PopStyleColor();
 
             if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_PRISON_ADD_CELL) || perms.HasPermission(rights.EnumPlayerPermissions.CITY_PRISON_ALL))
             {
                 ImGui.SameLine();
-                if (ImGui.ImageButton("addprisoncell", this.iconHandler.GetOrLoadIcon("expander"), new Vector2(16)))
+                if (GreenIconButton("addprisoncell", "expander", 16, Lang.Get("claims:gui-prison-add-cell-tooltip")))
                 {
                     ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                     clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/c prison addcell", EnumChatType.Macro, "");
                 }
-                if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-prison-add-cell-tooltip"));
             }
 
             ImGui.Spacing();
@@ -107,32 +90,27 @@ namespace claims.src.gui.prettyGui.GuiTabs
                                     (prisonCell.SpawnPosition.Y - capi.World.DefaultSpawnPosition.AsBlockPos.Y).ToString(),
                                     (prisonCell.SpawnPosition.Z - capi.World.DefaultSpawnPosition.AsBlockPos.Z).ToString());
 
-                ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-                ImGui.Text(coords);
-                ImGui.PopStyleColor();
+                Label(coords);
 
                 if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_PRISON_REMOVE_CELL) || perms.HasPermission(rights.EnumPlayerPermissions.CITY_PRISON_ALL))
                 {
                     ImGui.SameLine();
-                    if (ImGui.ImageButton("removecell", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(16)))
+                    if (RedIconButton("removecell", "contract", 16, Lang.Get("claims:gui-prison-remove-cell-tooltip")))
                     {
                         GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.CITY_PRISON_REMOVE_CELL_CONFIRM;
                         GuiSys.selectedPos = prisonCell.SpawnPosition;
                     }
-                    if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-prison-remove-cell-tooltip"));
                 }
 
                 if (prisonCell.Players.Count > 0)
                 {
-                    ImGui.PushStyleColor(ImGuiCol.Text, criminalColor);
+                    ImGui.PushStyleColor(ImGuiCol.Text, CriminalColor);
                     ImGui.Text(string.Join(", ", prisonCell.Players));
                     ImGui.PopStyleColor();
                 }
                 else
                 {
-                    ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-                    ImGui.Text(Lang.Get("claims:gui-prison-cell-empty"));
-                    ImGui.PopStyleColor();
+                    Label(Lang.Get("claims:gui-prison-cell-empty"));
                 }
 
                 ImGui.EndGroup();

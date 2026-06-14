@@ -285,14 +285,6 @@ namespace claims.src.commands
             if (!ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.END_CONFLICT, out var letter))
                 return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
             letter.OnAccept?.Invoke();
-            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourCity,
-                new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
-                new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourCity,
-                new Dictionary<string, object> { { "value", letter.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_REMOVE);
-            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
-                new Dictionary<string, object> { { "value", letter.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_REMOVE);
             return TextCommandResult.Success();
         }
 
@@ -312,10 +304,6 @@ namespace claims.src.commands
             if (!ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.END_CONFLICT, out var letter))
                 return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
             letter.OnDeny?.Invoke();
-            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourCity,
-                new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
-                new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
             return TextCommandResult.Success();
         }
     }

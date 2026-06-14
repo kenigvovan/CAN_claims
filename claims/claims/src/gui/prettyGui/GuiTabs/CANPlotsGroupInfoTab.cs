@@ -1,6 +1,5 @@
 using System.Linq;
 using System.Numerics;
-using claims.src.auxialiry;
 using claims.src.gui.playerGui.structures.cellElements;
 using ImGuiNET;
 using Vintagestory.API.Client;
@@ -29,66 +28,51 @@ namespace claims.src.gui.prettyGui.GuiTabs
             var clientInfo = claims.clientDataStorage.clientPlayerInfo;
             var perms = clientInfo.PlayerPermissions;
 
-            Vector4 nameColor = new Vector4(1.0f, 0.85f, 0.3f, 1.0f);
-            Vector4 labelColor = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
-            Vector4 sectionColor = new Vector4(0.4f, 0.7f, 1.0f, 1.0f);
-
             // City label (gray, small, centered)
-            float windowWidth = ImGui.GetWindowSize().X;
-            ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-            string cityLabel = Lang.Get("claims:gui-plotsgroup-city-label", cell.CityName);
-            float cityLabelWidth = ImGui.CalcTextSize(cityLabel).X;
-            ImGui.SetCursorPosX((windowWidth - cityLabelWidth) * 0.5f);
-            ImGui.Text(cityLabel);
-            ImGui.PopStyleColor();
+            CenteredTitle(Lang.Get("claims:gui-plotsgroup-city-label", cell.CityName), ColLabel, 1.0f);
 
             // Group name (gold, large, centered)
-            ImGui.PushStyleColor(ImGuiCol.Text, nameColor);
-            ImGui.SetWindowFontScale(1.3f);
-            float nameWidth = ImGui.CalcTextSize(cell.Name).X;
-            ImGui.SetCursorPosX((windowWidth - nameWidth) * 0.5f);
-            ImGui.Text(cell.Name);
-            ImGui.SetWindowFontScale(1.0f);
-            ImGui.PopStyleColor();
+            CenteredTitle(cell.Name, ColValue);
 
             ImGui.Separator();
             ImGui.Spacing();
 
-            if (ImGui.Button(Lang.Get("claims:gui-back")))
-            {
+            if (BackButton())
                 GuiSys.selectedTab = EnumSelectedTab.PlotsGroup;
-            }
 
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
 
             // Members section
-            ImGui.PushStyleColor(ImGuiCol.Text, sectionColor);
+            ImGui.PushStyleColor(ImGuiCol.Text, ColSection);
             ImGui.Text(Lang.Get("claims:gui-group-members", cell.PlayersNames.Count));
             ImGui.PopStyleColor();
-            if (ImGui.IsItemHovered() && cell.PlayersNames.Count > 0)
-            {
-                ImGui.SetTooltip(StringFunctions.concatStringsWithDelim(cell.PlayersNames, ','));
-            }
 
             if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_PLOTSGROUP_ADD_PLAYER))
             {
                 ImGui.SameLine();
-                if (ImGui.ImageButton("addplotsgroupmember", this.iconHandler.GetOrLoadIcon("expander"), new Vector2(16)))
-                {
+                if (GreenIconButton("addplotsgroupmember", "expander", 16, Lang.Get("claims:gui-add-plotsgroup-member")))
                     GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.ADD_PLOTSGROUP_MEMBER_NEED_NAME;
-                }
-                if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-add-plotsgroup-member"));
             }
             if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_PLOTSGROUP_KICK_PLAYER))
             {
                 ImGui.SameLine();
-                if (ImGui.ImageButton("removeplotsgroupmember", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(16)))
-                {
+                if (RedIconButton("removeplotsgroupmember", "contract", 16, Lang.Get("claims:gui-remove-plotsgroup-member")))
                     GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.REMOVE_PLOTSGROUP_MEMBER_SELECT;
+            }
+
+            if (cell.PlayersNames.Count > 0)
+            {
+                ImGui.Spacing();
+                ImGui.BeginChild("MembersList", new Vector2(0, 120), true);
+                foreach (var name in cell.PlayersNames)
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Text, ColValue);
+                    ImGui.Text(name);
+                    ImGui.PopStyleColor();
                 }
-                if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-remove-plotsgroup-member"));
+                ImGui.EndChild();
             }
 
             ImGui.Spacing();
@@ -98,29 +82,23 @@ namespace claims.src.gui.prettyGui.GuiTabs
             // Plot actions
             if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_PLOTSGROUP_ADD_PLOT))
             {
-                if (ImGui.ImageButton("plotsgrpupaddplot", this.iconHandler.GetOrLoadIcon("expander"), new Vector2(16)))
-                {
+                if (GreenIconButton("plotsgrpupaddplot", "expander", 16, Lang.Get("claims:gui-plotsgroup-add-plot")))
                     GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.CITY_PLOTSGROUP_PLOT_CLAIM_CONFIRM;
-                }
-                if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-plotsgroup-add-plot"));
-                ImGui.SameLine();
+                if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_PLOTSGROUP_REMOVE_PLOT) ||
+                    perms.HasPermission(rights.EnumPlayerPermissions.CITY_PLOTSGROUP_SET))
+                    ImGui.SameLine();
             }
             if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_PLOTSGROUP_REMOVE_PLOT))
             {
-                if (ImGui.ImageButton("plotsgrpupremoveplot", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(16)))
-                {
+                if (RedIconButton("plotsgrpupremoveplot", "contract", 16, Lang.Get("claims:gui-plotsgroup-remove-plot")))
                     GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.CITY_PLOTSGROUP_PLOT_UNCLAIM_CONFIRM;
-                }
-                if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-plotsgroup-remove-plot"));
-                ImGui.SameLine();
+                if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_PLOTSGROUP_SET))
+                    ImGui.SameLine();
             }
             if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_PLOTSGROUP_SET))
             {
-                if (ImGui.ImageButton("plotsgrpuppermissions", this.iconHandler.GetOrLoadIcon("medal"), new Vector2(16)))
-                {
+                if (IconButton("plotsgrpuppermissions", "medal", 16, Lang.Get("claims:gui-plot-permissions")))
                     GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.CITY_PLOTSGROUP_PERMISSIONS;
-                }
-                if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-plot-permissions"));
             }
         }
     }

@@ -1,5 +1,4 @@
-﻿using System.Drawing;
-using System.Linq;
+﻿using System.Linq;
 using System.Numerics;
 using ImGuiNET;
 using Vintagestory.API.Client;
@@ -28,11 +27,11 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             ImGui.Begin("ClaimsDetails", p_open: ref GuiSys.secondaryWindowOpen, flags1);
             if (claims.clientDataStorage.clientPlayerInfo?.CityInfo == null) { ImGui.End(); return; }
 
-            ImGui.Text("Select player's name:");
+            ImGui.Text(Lang.Get("claims:gui-kick-select-player"));
 
             ImGui.Combo("Name", ref GuiSys.selectedComboFirst, claims.clientDataStorage.clientPlayerInfo.CityInfo.PlayersNames.ToArray(), claims.clientDataStorage.clientPlayerInfo.CityInfo.PlayersNames.Count);
 
-            if (ImGui.Button("Kick"))
+            if (ImGui.Button(Lang.Get("claims:gui-kick-button")))
             {
                 if (claims.clientDataStorage.clientPlayerInfo.CityInfo.PlayersNames.Count > GuiSys.selectedComboFirst)
                 {

@@ -1,5 +1,4 @@
-﻿using System.Drawing;
-using System.Numerics;
+﻿using System.Numerics;
 using ImGuiNET;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -28,7 +27,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             
             ImGui.Text(Lang.Get("claims:gui-agree-city-creation", GuiSys.textInput));
 
-            if(ImGui.Button("Agree"))
+            if(ImGui.Button(Lang.Get("claims:gui-agree-button")))
             {
                 ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                 clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/agree", EnumChatType.Macro, "");

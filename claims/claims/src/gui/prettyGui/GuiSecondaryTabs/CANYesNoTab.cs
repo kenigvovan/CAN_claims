@@ -34,12 +34,15 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             
             ImGui.Text(Lang.Get(TitleString, GuiSys.textInput2, GuiSys.textInput));
 
-            if(ImGui.Button(Lang.Get(this.YesButtonString)))
+            if (ImGui.Button(Lang.Get(this.YesButtonString)))
             {
                 ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                 clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, this.CommandToCallOnYes, EnumChatType.Macro, "");
                 GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.NONE;
             }
+            ImGui.SameLine();
+            if (ImGui.Button(Lang.Get(this.NoButtonString)))
+                GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.NONE;
             ImGui.End();
         }
     }

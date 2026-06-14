@@ -11,8 +11,6 @@ namespace claims.src.gui.prettyGui.GuiTabs
 {
     public class CANAdminCitiesTab : CANGuiTab
     {
-        private static readonly Vector4 NameColor  = new Vector4(1.0f, 0.85f, 0.3f, 1.0f);
-        private static readonly Vector4 WarnColor  = new Vector4(1.0f, 0.35f, 0.35f, 1.0f);
 
         private string _filter          = "";
         private string _selectedCityName = null;
@@ -33,8 +31,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
         public override void DrawTab()
         {
             AdminHeader(
-                "[ADMIN] City Management",
-                "Create, configure and manage all cities on the server."
+                Lang.Get("claims:gui-admin-cities-title"),
+                Lang.Get("claims:gui-admin-cities-subtitle")
             );
 
             float windowWidth = ImGui.GetWindowSize().X;
@@ -51,35 +49,35 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.BeginChild("AdminCityList", new Vector2(width, 0), true);
 
             // --- Create city ---
-            Label("New city:");
+            Label(Lang.Get("claims:gui-admin-new-city"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(-60);
             ImGui.InputText("##createcity", ref _createCityInput, 64);
             ImGui.SameLine();
-            if (ImGui.Button("Create") && _createCityInput.Length > 0)
+            if (ImGui.Button(Lang.Get("claims:gui-admin-create")) && _createCityInput.Length > 0)
             {
                 Send("/cadmin city new " + _createCityInput);
                 _createCityInput = "";
             }
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Create a new city at your current standing position.");
+                ImGui.SetTooltip(Lang.Get("claims:gui-admin-create-tooltip"));
 
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
 
             // --- Refresh ---
-            if (ImGui.Button("Refresh##citylist"))
+            if (ImGui.Button(Lang.Get("claims:gui-admin-refresh") + "##citylist"))
                 claims.clientChannel.SendPacket(new SavedPlotsPacket { type = PacketsContentEnum.ADMIN_REQUEST_CITY_FLAGS });
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Re-fetch all city flags and stats from the server.");
+                ImGui.SetTooltip(Lang.Get("claims:gui-admin-refresh-cities-tooltip"));
 
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
 
             // --- Filter + list ---
-            Label("Filter:");
+            Label(Lang.Get("claims:gui-admin-filter"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(-1);
             ImGui.InputText("##adminfilter", ref _filter, 128);
@@ -88,7 +86,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             var cities = claims.clientDataStorage?.clientPlayerInfo?.AllCitiesList;
             if (cities == null)
             {
-                Hint("No city data received yet.");
+                Hint(Lang.Get("claims:gui-admin-no-city-data"));
                 ImGui.EndChild();
                 return;
             }
@@ -106,7 +104,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 shown++;
                 ImGui.PushID(idx);
                 bool selected = _selectedCityName == city.Name;
-                if (selected) ImGui.PushStyleColor(ImGuiCol.Text, NameColor);
+                if (selected) ImGui.PushStyleColor(ImGuiCol.Text, ColValue);
                 if (ImGui.Selectable(city.Name, selected))
                 {
                     _selectedCityName = city.Name;
@@ -122,7 +120,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             }
 
             if (shown == 0)
-                Hint("No cities match the filter.");
+                Hint(Lang.Get("claims:gui-admin-no-cities-match"));
 
             ImGui.EndChild();
         }
@@ -135,13 +133,13 @@ namespace claims.src.gui.prettyGui.GuiTabs
             {
                 ImGui.Spacing();
                 ImGui.Spacing();
-                Hint("← Select a city from the list to see management options.");
+                Hint(Lang.Get("claims:gui-admin-select-city-hint"));
                 ImGui.EndChild();
                 return;
             }
 
             // City name header
-            ImGui.PushStyleColor(ImGuiCol.Text, NameColor);
+            ImGui.PushStyleColor(ImGuiCol.Text, ColValue);
             ImGui.SetWindowFontScale(1.15f);
             ImGui.Text(_selectedCityName);
             ImGui.SetWindowFontScale(1.0f);
@@ -151,23 +149,23 @@ namespace claims.src.gui.prettyGui.GuiTabs
             if (flags != null)
             {
                 ImGui.PushStyleColor(ImGuiCol.Text, ColHint);
-                string stats = flags.CitizenCount + " citizens  |  " + flags.PlotCount + " plots";
-                if (flags.HasBalance) stats += "  |  balance: " + flags.Balance;
+                string stats = Lang.Get("claims:gui-admin-city-stats", flags.CitizenCount, flags.PlotCount);
+                if (flags.HasBalance) stats += Lang.Get("claims:gui-admin-city-stats-balance", flags.Balance);
                 ImGui.Text(stats);
                 ImGui.PopStyleColor();
             }
             ImGui.Separator();
 
             // --- Rename ---
-            SectionTitle("Rename");
-            Label("New name:");
+            SectionTitle(Lang.Get("claims:gui-admin-rename-section"));
+            Label(Lang.Get("claims:gui-admin-new-name"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(160);
             ImGui.InputText("##rename", ref _renameInput, 128);
             ImGui.SameLine();
             bool canRename = _renameInput.Length > 0;
             if (!canRename) ImGui.BeginDisabled();
-            if (ImGui.Button("Rename##city") && canRename)
+            if (ImGui.Button(Lang.Get("claims:gui-admin-rename") + "##city") && canRename)
             {
                 Send("/cadmin city set name " + _selectedCityName + " " + _renameInput);
                 _selectedCityName = _renameInput;
@@ -179,10 +177,10 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.Separator();
 
             // --- Player operations ---
-            SectionTitle("Player Operations");
-            Hint("Enter the exact player name, then use one of the actions below.");
+            SectionTitle(Lang.Get("claims:gui-admin-player-ops"));
+            Hint(Lang.Get("claims:gui-admin-player-ops-hint"));
             ImGui.Spacing();
-            Label("Player:");
+            Label(Lang.Get("claims:gui-admin-player"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(180);
             ImGui.InputText("##adminplayer", ref _playerInput, 128);
@@ -191,123 +189,123 @@ namespace claims.src.gui.prettyGui.GuiTabs
             bool hasPlayer = _playerInput.Length > 0;
             if (!hasPlayer) ImGui.BeginDisabled();
 
-            if (ImGui.Button("Set Mayor"))
+            if (ImGui.Button(Lang.Get("claims:gui-admin-set-mayor")))
                 Send("/cadmin city set mayor " + _selectedCityName + " " + _playerInput);
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Transfers mayoralty to the specified player.");
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-admin-set-mayor-tooltip"));
             ImGui.SameLine();
 
-            if (ImGui.Button("Add to City"))
+            if (ImGui.Button(Lang.Get("claims:gui-admin-add-to-city")))
                 Send("/cadmin city add " + _selectedCityName + " " + _playerInput);
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Force-adds a player to this city without an invitation.");
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-admin-add-to-city-tooltip"));
             ImGui.SameLine();
 
-            if (ImGui.Button("Kick from City"))
+            if (ImGui.Button(Lang.Get("claims:gui-admin-kick-from-city")))
                 Send("/cadmin city kick " + _selectedCityName + " " + _playerInput);
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Removes the player from this city.");
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-admin-kick-from-city-tooltip"));
 
             if (!hasPlayer) ImGui.EndDisabled();
 
             ImGui.Separator();
 
             // --- Flags ---
-            SectionTitle("City Flags");
-            Hint("Default flags applied to all plots in this city unless a plot overrides them.");
+            SectionTitle(Lang.Get("claims:gui-admin-city-flags"));
+            Hint(Lang.Get("claims:gui-admin-city-flags-hint"));
             ImGui.Spacing();
 
             if (flags == null)
             {
-                Hint("Flag data loading...");
+                Hint(Lang.Get("claims:gui-admin-flag-loading"));
             }
             else
             {
-                DrawFlagCheckbox("Open",      "open",      flags.Open,      v => flags.Open      = v, "Anyone can join the city without an invitation.");
+                DrawFlagCheckbox(Lang.Get("claims:gui-admin-flag-open"),      "open",      flags.Open,      v => flags.Open      = v, Lang.Get("claims:gui-admin-flag-open-tooltip"));
                 ImGui.SameLine(80);
-                DrawFlagCheckbox("PVP",       "pvp",       flags.Pvp,       v => flags.Pvp       = v, "Players can attack each other inside this city.");
+                DrawFlagCheckbox(Lang.Get("claims:gui-admin-flag-pvp"),       "pvp",       flags.Pvp,       v => flags.Pvp       = v, Lang.Get("claims:gui-admin-flag-pvp-tooltip"));
                 ImGui.SameLine(160);
-                DrawFlagCheckbox("Fire",      "fire",      flags.Fire,      v => flags.Fire      = v, "Fire can spread within this city.");
+                DrawFlagCheckbox(Lang.Get("claims:gui-admin-flag-fire"),      "fire",      flags.Fire,      v => flags.Fire      = v, Lang.Get("claims:gui-admin-flag-fire-tooltip"));
                 ImGui.SameLine(240);
-                DrawFlagCheckbox("Blast",     "blast",     flags.Blast,     v => flags.Blast     = v, "Explosives can be used within this city.");
+                DrawFlagCheckbox(Lang.Get("claims:gui-admin-flag-blast"),     "blast",     flags.Blast,     v => flags.Blast     = v, Lang.Get("claims:gui-admin-flag-blast-tooltip"));
                 ImGui.SameLine(320);
-                DrawFlagCheckbox("Technical", "technical", flags.Technical, v => flags.Technical = v, "Marks this as a technical/system city (hidden from regular players).");
+                DrawFlagCheckbox(Lang.Get("claims:gui-admin-flag-technical"), "technical", flags.Technical, v => flags.Technical = v, Lang.Get("claims:gui-admin-flag-technical-tooltip"));
             }
 
             ImGui.Separator();
 
             // --- Numbers ---
-            SectionTitle("Capacity & Economy");
-            Label("Bonus claims:");
+            SectionTitle(Lang.Get("claims:gui-admin-capacity-economy"));
+            Label(Lang.Get("claims:gui-admin-bonus-claims"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(80);
             ImGui.InputInt("##bonusclaims", ref _bonusClaimsInput, 0, 0);
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Extra plot claims beyond the city's base allowance.");
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-admin-bonus-claims-tooltip"));
             ImGui.SameLine();
-            if (ImGui.Button("Apply##bonusclaims"))
+            if (ImGui.Button(Lang.Get("claims:gui-admin-apply") + "##bonusclaims"))
                 Send("/cadmin city set bonusclaims " + _selectedCityName + " " + _bonusClaimsInput);
 
             ImGui.Spacing();
 
-            Label("Join fee:   ");
+            Label(Lang.Get("claims:gui-admin-join-fee"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(80);
             ImGui.InputInt("##cityfee", ref _cityFeeInput, 0, 0);
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Cost a player pays to join this city (in server currency).");
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-admin-join-fee-tooltip"));
             ImGui.SameLine();
-            if (ImGui.Button("Apply##cityfee"))
+            if (ImGui.Button(Lang.Get("claims:gui-admin-apply") + "##cityfee"))
                 Send("/cadmin city set fee " + _selectedCityName + " " + _cityFeeInput);
 
             ImGui.Separator();
 
             // --- Plot claiming ---
-            SectionTitle("Plot Claiming");
-            Hint("These commands operate on the plot tile at your current standing position.");
+            SectionTitle(Lang.Get("claims:gui-admin-plot-claiming"));
+            Hint(Lang.Get("claims:gui-admin-plot-claiming-hint"));
             ImGui.Spacing();
 
-            if (ImGui.Button("Claim##city"))
+            if (ImGui.Button(Lang.Get("claims:gui-admin-claim") + "##city"))
                 Send("/cadmin city claim " + _selectedCityName);
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Claim the plot under your feet for this city.");
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-admin-claim-tooltip"));
             ImGui.SameLine();
 
-            if (ImGui.Button("Unclaim##city"))
+            if (ImGui.Button(Lang.Get("claims:gui-admin-unclaim") + "##city"))
                 Send("/cadmin city unclaim " + _selectedCityName);
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Release the plot under your feet from this city.");
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-admin-unclaim-tooltip"));
 
             ImGui.Spacing();
-            Label("Radius:");
+            Label(Lang.Get("claims:gui-admin-radius"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(60);
             ImGui.InputInt("##radius", ref _radiusInput, 0, 0);
             ImGui.SameLine();
             bool canClaim = _radiusInput > 0;
             if (!canClaim) ImGui.BeginDisabled();
-            if (ImGui.Button("Radius Claim##city") && canClaim)
+            if (ImGui.Button(Lang.Get("claims:gui-admin-radius-claim") + "##city") && canClaim)
                 Send("/cadmin city radiusclaim " + _selectedCityName + " " + _radiusInput);
             if (!canClaim) ImGui.EndDisabled();
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Claim all plots within the given radius around your position.");
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-admin-radius-claim-tooltip"));
 
             ImGui.Separator();
 
             // --- Delete ---
-            SectionTitle("Danger Zone");
+            SectionTitle(Lang.Get("claims:gui-admin-danger-zone"));
             if (!_confirmDelete)
             {
                 ImGui.PushStyleColor(ImGuiCol.Button,        ColRedBtn);
                 ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ColRedBtnH);
                 ImGui.PushStyleColor(ImGuiCol.ButtonActive,  ColRedBtnA);
-                if (ImGui.Button("Delete City")) _confirmDelete = true;
+                if (ImGui.Button(Lang.Get("claims:gui-admin-delete-city"))) _confirmDelete = true;
                 ImGui.PopStyleColor(3);
-                if (ImGui.IsItemHovered()) ImGui.SetTooltip("Permanently delete this city along with all plots, citizens and conflicts.\nThis action cannot be undone.");
+                if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-admin-delete-city-tooltip"));
             }
             else
             {
-                ImGui.PushStyleColor(ImGuiCol.Text, WarnColor);
-                ImGui.TextWrapped("This will permanently delete ALL plots, citizens and conflict records for this city!");
+                ImGui.PushStyleColor(ImGuiCol.Text, ColDanger);
+                ImGui.TextWrapped(Lang.Get("claims:gui-admin-delete-city-warn"));
                 ImGui.PopStyleColor();
                 ImGui.Spacing();
 
                 ImGui.PushStyleColor(ImGuiCol.Button,        ColRedBtn);
                 ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ColRedBtnH);
                 ImGui.PushStyleColor(ImGuiCol.ButtonActive,  ColRedBtnA);
-                if (ImGui.Button("CONFIRM DELETE"))
+                if (ImGui.Button(Lang.Get("claims:gui-admin-confirm-delete")))
                 {
                     Send("/cadmin city delete " + _selectedCityName);
                     _selectedCityName = null;
@@ -315,7 +313,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 }
                 ImGui.PopStyleColor(3);
                 ImGui.SameLine();
-                if (ImGui.Button("Cancel")) _confirmDelete = false;
+                if (ImGui.Button(Lang.Get("claims:gui-admin-cancel"))) _confirmDelete = false;
             }
 
             ImGui.EndChild();

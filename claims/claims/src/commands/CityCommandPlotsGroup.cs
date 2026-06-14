@@ -412,7 +412,7 @@ namespace claims.src.commands
                 new Dictionary<string, object> { { "value", new PlotsGroupCellElement(searchedGroup.Guid,
                                                                                       searchedGroup.GetPartName(),
                                                                                       searchedGroup.City.GetPartName(),
-                                                                                      new List<string>(),
+                                                                                      searchedGroup.PlayersList.Select(ele => ele.GetPartName()).ToList(),
                                                                                       searchedGroup.PermsHandler,
                                                                                       searchedGroup.PlotsGroupFee)} },
                 EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_UPDATE);

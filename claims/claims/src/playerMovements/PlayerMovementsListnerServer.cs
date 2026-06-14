@@ -215,10 +215,11 @@ namespace claims.src
 
             PlotPosition to = new PlotPosition(tov);
             IServerPlayer pl = claims.sapi.World.PlayerByUid(playerInfo.Guid) as IServerPlayer;
-            
+            if (pl == null) return;
+
             if (playerInfo.PlayerCache.LastChunk == null)
             {
-                events.OnBlockAction.InitPlayerCache((IServerPlayer)pl);
+                events.OnBlockAction.InitPlayerCache(pl);
             }
             else
             {

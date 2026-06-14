@@ -20,14 +20,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
         }
         public override void DrawTab()
         {
-            Vector4 titleColor = new Vector4(0.4f, 0.7f, 1.0f, 1.0f);
-            Vector4 groupNameColor = new Vector4(1.0f, 0.85f, 0.3f, 1.0f);
-            Vector4 labelColor = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
-
-            if (ImGui.Button(Lang.Get("claims:gui-back")))
-            {
+            if (BackButton())
                 GuiSys.selectedTab = EnumSelectedTab.PlotsGroup;
-            }
 
             ImGui.Spacing();
             ImGui.Separator();
@@ -35,7 +29,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
             if (claims.clientDataStorage.clientPlayerInfo.ReceivedPlotsGroupInvitations.Count > 0)
             {
-                ImGui.PushStyleColor(ImGuiCol.Text, titleColor);
+                ImGui.PushStyleColor(ImGuiCol.Text, ColSection);
                 ImGui.Text(Lang.Get("claims:gui-invites-list-title"));
                 ImGui.PopStyleColor();
 
@@ -50,16 +44,14 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     ImGui.PushID(i);
                     ImGui.BeginGroup();
 
-                    ImGui.PushStyleColor(ImGuiCol.Text, groupNameColor);
+                    ImGui.PushStyleColor(ImGuiCol.Text, ColValue);
                     ImGui.Text(invite.PlotsGroupName);
                     ImGui.PopStyleColor();
 
                     ImGui.SameLine();
-                    ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-                    ImGui.Text("  " + invite.CityName);
-                    ImGui.PopStyleColor();
+                    Label("  " + invite.CityName);
 
-                    if (ImGui.ImageButton("acceptplotsgroup", this.iconHandler.GetOrLoadIcon("expander"), new Vector2(16)))
+                    if (GreenIconButton("acceptplotsgroup", "expander", 16, Lang.Get("claims:gui-plotsgroup-accept-tooltip")))
                     {
                         ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                         clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/plotsgroupaccept "
@@ -70,10 +62,9 @@ namespace claims.src.gui.prettyGui.GuiTabs
                             toRemove.Add(cell);
                         }
                     }
-                    if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-plotsgroup-accept-tooltip"));
 
                     ImGui.SameLine();
-                    if (ImGui.ImageButton("declineplotsgroup", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(16)))
+                    if (RedIconButton("declineplotsgroup", "contract", 16, Lang.Get("claims:gui-plotsgroup-decline-tooltip")))
                     {
                         ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                         clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/plotsgroupdeny "
@@ -84,7 +75,6 @@ namespace claims.src.gui.prettyGui.GuiTabs
                             toRemove.Add(cell);
                         }
                     }
-                    if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-plotsgroup-decline-tooltip"));
 
                     ImGui.EndGroup();
                     ImGui.PopID();
@@ -95,7 +85,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     i++;
                 }
                 ImGui.EndChild();
-                if (toRemove.Count() > 0)
+                if (toRemove.Count > 0)
                 {
                     foreach (var it in toRemove)
                         claims.clientDataStorage.clientPlayerInfo.ReceivedPlotsGroupInvitations.Remove(it);
@@ -104,9 +94,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             }
             else
             {
-                ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-                ImGui.Text(Lang.Get("claims:gui-no-plotsgroup-invites"));
-                ImGui.PopStyleColor();
+                Label(Lang.Get("claims:gui-no-plotsgroup-invites"));
             }
         }
     }

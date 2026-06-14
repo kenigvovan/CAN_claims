@@ -69,8 +69,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.Separator();
             ImGui.Spacing();
 
-            Vector4 headerColor = new Vector4(1.0f, 0.85f, 0.3f, 1.0f);
-            ImGui.PushStyleColor(ImGuiCol.Text, headerColor);
+            ImGui.PushStyleColor(ImGuiCol.Text, ColValue);
             ImGui.Text(Lang.Get("claims:gui-city-map-title"));
             ImGui.PopStyleColor();
 

@@ -223,7 +223,7 @@ namespace claims.src.commands
 
             targetPlayer.Prefix = filteredName;
             targetPlayer.saveToDatabase();
-            UsefullPacketsSend.AddToQueuePlayerInfoUpdate(targetPlayer.GetPartName(), EnumPlayerRelatedInfo.PLAYER_PREFIX);
+            UsefullPacketsSend.AddToQueuePlayerInfoUpdate(targetPlayer.Guid, EnumPlayerRelatedInfo.PLAYER_PREFIX);
             return TextCommandResult.Success();
         }
         public static TextCommandResult CitySetOpen(TextCommandCallingArgs args)

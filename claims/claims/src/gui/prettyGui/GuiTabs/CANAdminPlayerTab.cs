@@ -29,8 +29,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
         public override void DrawTab()
         {
             AdminHeader(
-                "[ADMIN] Player & Plot",
-                "Diagnose players and directly edit plots at your current position."
+                Lang.Get("claims:gui-admin-player-plot-title"),
+                Lang.Get("claims:gui-admin-player-plot-subtitle")
             );
 
             DrawPlayerDiag();
@@ -43,11 +43,11 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
         private void DrawPlayerDiag()
         {
-            SectionTitle("Player Diagnostic");
-            Hint("Shows the player's city membership, permissions, mayor status and role in chat.");
+            SectionTitle(Lang.Get("claims:gui-admin-player-diag"));
+            Hint(Lang.Get("claims:gui-admin-player-diag-hint"));
             ImGui.Spacing();
 
-            Label("Player name:");
+            Label(Lang.Get("claims:gui-admin-player-name"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(180);
             ImGui.InputText("##diagplayer", ref _diagPlayer, 128);
@@ -55,30 +55,30 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
             bool hasName = _diagPlayer.Length > 0;
             if (!hasName) ImGui.BeginDisabled();
-            if (ImGui.Button("Diag##player") && hasName)
+            if (ImGui.Button(Lang.Get("claims:gui-admin-diag") + "##player") && hasName)
                 Send("/cadmin diag " + _diagPlayer);
             if (!hasName) ImGui.EndDisabled();
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Run diagnostic for this player. Results appear in chat.");
+                ImGui.SetTooltip(Lang.Get("claims:gui-admin-diag-tooltip"));
         }
 
         private void DrawPlotAtPosition()
         {
-            SectionTitle("Plot at Your Position");
-            Hint("Stand on a plot tile, then press Refresh to load its current state.");
+            SectionTitle(Lang.Get("claims:gui-admin-plot-at-position"));
+            Hint(Lang.Get("claims:gui-admin-plot-at-position-hint"));
             ImGui.Spacing();
 
-            if (ImGui.Button("Refresh Plot Info"))
+            if (ImGui.Button(Lang.Get("claims:gui-admin-refresh-plot")))
                 claims.clientChannel.SendPacket(new SavedPlotsPacket { type = PacketsContentEnum.CURRENT_PLOT_CLIENT_REQUEST });
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Requests the server to send data for the plot you are standing on.");
+                ImGui.SetTooltip(Lang.Get("claims:gui-admin-refresh-plot-tooltip"));
 
             var plot = claims.clientDataStorage?.clientPlayerInfo?.CurrentPlotInfo;
 
             if (plot == null)
             {
                 ImGui.Spacing();
-                Hint("No plot data loaded — stand on a claimed plot and press Refresh.");
+                Hint(Lang.Get("claims:gui-admin-no-plot-data"));
                 return;
             }
 
@@ -94,27 +94,27 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
             // Plot identity
             ImGui.PushStyleColor(ImGuiCol.Text, ColValue);
-            ImGui.Text(plot.PlotName ?? "(unnamed)");
+            ImGui.Text(plot.PlotName ?? Lang.Get("claims:gui-admin-unnamed"));
             ImGui.PopStyleColor();
             ImGui.SameLine();
-            Hint("in city: " + (plot.OwnerName?.Length > 0 ? plot.OwnerName : "(none)"));
+            Hint(Lang.Get("claims:gui-admin-in-city", plot.OwnerName?.Length > 0 ? plot.OwnerName : Lang.Get("claims:gui-admin-none")));
 
             ImGui.Separator();
             ImGui.Spacing();
 
             // Flags
-            Label("Flags:");
+            Label(Lang.Get("claims:gui-admin-flags"));
             ImGui.SameLine();
-            DrawPlotFlag("PVP",   "pvp",   plot.PermsHandler.pvpFlag,   v => plot.PermsHandler.pvpFlag   = v, "Allow players to attack each other on this plot.");
+            DrawPlotFlag(Lang.Get("claims:gui-admin-flag-pvp"),   "pvp",   plot.PermsHandler.pvpFlag,   v => plot.PermsHandler.pvpFlag   = v, Lang.Get("claims:gui-admin-plot-pvp-tooltip"));
             ImGui.SameLine();
-            DrawPlotFlag("Fire",  "fire",  plot.PermsHandler.fireFlag,  v => plot.PermsHandler.fireFlag  = v, "Allow fire to spread on this plot.");
+            DrawPlotFlag(Lang.Get("claims:gui-admin-flag-fire"),  "fire",  plot.PermsHandler.fireFlag,  v => plot.PermsHandler.fireFlag  = v, Lang.Get("claims:gui-admin-plot-fire-tooltip"));
             ImGui.SameLine();
-            DrawPlotFlag("Blast", "blast", plot.PermsHandler.blastFlag, v => plot.PermsHandler.blastFlag = v, "Allow explosives to be used on this plot.");
+            DrawPlotFlag(Lang.Get("claims:gui-admin-flag-blast"), "blast", plot.PermsHandler.blastFlag, v => plot.PermsHandler.blastFlag = v, Lang.Get("claims:gui-admin-plot-blast-tooltip"));
 
             ImGui.Spacing();
 
             // Type
-            Label("Type:  ");
+            Label(Lang.Get("claims:gui-admin-type"));
             ImGui.SameLine();
             string currentTypeName = plot.PlotType.ToString().ToLowerInvariant();
             ImGui.SetNextItemWidth(160);
@@ -133,30 +133,30 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 }
                 ImGui.EndCombo();
             }
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Changes the functional type of this plot (affects special mechanics).");
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-admin-plot-type-tooltip"));
 
             ImGui.Spacing();
 
             // Tax fee
-            Label("Tax fee:       ");
+            Label(Lang.Get("claims:gui-admin-tax-fee"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(80);
             ImGui.InputInt("##plotfee", ref _plotFeeInput, 0, 0);
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Custom tax fee charged to the plot owner each period. 0 = use city default.");
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-admin-tax-fee-tooltip"));
             ImGui.SameLine();
-            if (ImGui.Button("Apply##plotfee"))
+            if (ImGui.Button(Lang.Get("claims:gui-admin-apply") + "##plotfee"))
                 Send("/cadmin plot fee " + _plotFeeInput);
 
             ImGui.Spacing();
 
             // For-sale price
-            Label("For-sale price:");
+            Label(Lang.Get("claims:gui-admin-fs-price"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(80);
             ImGui.InputInt("##plotfs", ref _plotFsInput, 0, 0);
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Put this plot up for sale at the given price. 0 = not for sale.");
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-admin-fs-price-tooltip"));
             ImGui.SameLine();
-            if (ImGui.Button("Apply##plotfs"))
+            if (ImGui.Button(Lang.Get("claims:gui-admin-apply") + "##plotfs"))
                 Send("/cadmin plot fs " + _plotFsInput);
 
             ImGui.Spacing();
@@ -164,29 +164,31 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.Spacing();
 
             // Permissions table (read-only, from already-loaded PermsHandler)
-            Label("Permissions:");
-            HelpMarker("use / build / attack for each group. + = allowed, - = denied.");
+            Label(Lang.Get("claims:gui-admin-permissions"));
+            HelpMarker(Lang.Get("claims:gui-admin-permissions-help"));
             ImGui.Spacing();
             var ph = plot.PermsHandler;
-            DrawPermRow("Citizen", "citizen", ph.CitizenPerms);
-            DrawPermRow("Stranger", "stranger", ph.StrangerPerms);
-            DrawPermRow("Ally",    "ally",    ph.AlliancePerms);
-            DrawPermRow("Friend",  "friend",  ph.ComradePerms);
+            DrawPermRow(Lang.Get("claims:gui-admin-group-citizen"),  "citizen",  ph.CitizenPerms);
+            DrawPermRow(Lang.Get("claims:gui-admin-group-stranger"), "stranger", ph.StrangerPerms);
+            DrawPermRow(Lang.Get("claims:gui-admin-group-ally"),     "ally",     ph.AlliancePerms);
+            DrawPermRow(Lang.Get("claims:gui-admin-group-friend"),   "friend",   ph.ComradePerms);
         }
 
-        private static readonly string[] PermLabels = { "use", "build", "attack" };
+        // Command tokens (stay English — used verbatim in /cadmin commands).
+        private static readonly string[] PermTokens = { "use", "build", "attack" };
+        private static readonly string[] PermLangKeys = { "claims:gui-admin-perm-use", "claims:gui-admin-perm-build", "claims:gui-admin-perm-attack" };
 
         private void DrawPermRow(string group, string groupCmd, bool[] perms)
         {
             Label(group + ":");
             ImGui.SameLine(80);
-            for (int i = 0; i < perms.Length && i < PermLabels.Length; i++)
+            for (int i = 0; i < perms.Length && i < PermTokens.Length; i++)
             {
                 bool val = perms[i];
-                if (ImGui.Checkbox(PermLabels[i] + "##perm_" + groupCmd + "_" + i, ref val))
+                if (ImGui.Checkbox(Lang.Get(PermLangKeys[i]) + "##perm_" + groupCmd + "_" + i, ref val))
                 {
                     perms[i] = val;
-                    Send("/cadmin plot set permissions " + groupCmd + " " + PermLabels[i] + (val ? " on" : " off"));
+                    Send("/cadmin plot set permissions " + groupCmd + " " + PermTokens[i] + (val ? " on" : " off"));
                 }
                 if (i < perms.Length - 1) ImGui.SameLine();
             }

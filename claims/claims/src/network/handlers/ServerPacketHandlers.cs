@@ -120,26 +120,9 @@ namespace claims.src.network.handlers
                 }
                 else if (packet.type == PacketsContentEnum.CITY_CITIZENS_RANKS_REQUEST)
                 {
-
-                    //get player
-                    //city
-                    //skip if not mayor
-                    //send dict with ranks
-                    //add handler on client
-                    var currentPos = player.Entity.Pos;
-                    if (claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(currentPos), out Plot plot))
-                    {
-                        CurrentPlotInfo cpi = new CurrentPlotInfo(plot.GetPartName(), plot.getPlotOwner()?.GetPartName() ?? "",
-                            plot.Type, plot.getCustomTax(), plot.Price, plot.getPermsHandler(), plot.extraBought, plot.getPos());
-                        string serializedZones = JsonConvert.SerializeObject(cpi);
-
-                        claims.serverChannel.SendPacket(new SavedPlotsPacket()
-                        {
-                            type = PacketsContentEnum.CURRENT_PLOT_INFO,
-                            data = serializedZones
-
-                        }, player);
-                    }
+                    claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo rankRequester);
+                    if (rankRequester == null || !rankRequester.hasCity()) return;
+                    UsefullPacketsSend.AddToQueuePlayerInfoUpdate(player.PlayerUID, EnumPlayerRelatedInfo.CITY_CITIZENS_RANKS);
                 }
             });
             claims.serverChannel.SetMessageHandler<PlayerGuiRelatedInfoPacket>((player, packet) =>
