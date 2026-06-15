@@ -195,8 +195,8 @@ namespace claims.src.part.structure
             {
                 outStrings.Add(Lang.Get("claims:plot_owner", getPlotOwner().GetPartName()) + "\n");
             }
-            PlotInfo.dictPlotTypes.TryGetValue(this.Type, out PlotInfo plotInfo);
-            outStrings.Add(Lang.Get("claims:" + plotInfo.getFullName()) + "\n");
+            if (PlotInfo.dictPlotTypes.TryGetValue(this.Type, out PlotInfo plotInfo))
+                outStrings.Add(Lang.Get("claims:" + plotInfo.getFullName()) + "\n");
             if(customTax > 0)
             {
                 outStrings.Add(Lang.Get("claims:custom_plottax", customTax));
@@ -244,7 +244,8 @@ namespace claims.src.part.structure
                     }
                     else
                     {
-                        if (!nearPlot.getCity().Equals(this.getCity()))
+                        City nearCity = nearPlot.getCity();
+                        if (nearCity == null || !nearCity.Equals(this.getCity()))
                         {
                             this.BorderPlot = true;
                             return;

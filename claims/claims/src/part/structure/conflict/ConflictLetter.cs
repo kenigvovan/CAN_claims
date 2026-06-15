@@ -32,9 +32,9 @@ namespace claims.src.part.structure.conflict
                 return false;
 
             return ((
-                (this.From == ((ConflictLetter)obj).From && this.To == ((ConflictLetter)obj).To)
+                (this.From.Equals(((ConflictLetter)obj).From) && this.To.Equals(((ConflictLetter)obj).To))
                 ||
-                (this.From == ((ConflictLetter)obj).To && this.To == ((ConflictLetter)obj).From)
+                (this.From.Equals(((ConflictLetter)obj).To) && this.To.Equals(((ConflictLetter)obj).From))
                 )
                 &&
                 (this.Purpose == ((ConflictLetter)obj).Purpose));

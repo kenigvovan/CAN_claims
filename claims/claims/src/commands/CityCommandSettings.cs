@@ -59,10 +59,11 @@ namespace claims.src.commands
                 return TextCommandResult.Success("claims:not_enough_money");
             }
 
-            if (city.rename((string)args.LastArg))
+            if (claims.economyProvider.Withdraw(playerInfo.City.MoneyAccountName, (decimal)claims.config.CITY_NAME_CHANGE_COST) == MoneyOperationResult.Success)
             {
-                if (claims.economyProvider.Withdraw(playerInfo.City.MoneyAccountName, (decimal)claims.config.CITY_NAME_CHANGE_COST) == MoneyOperationResult.Success)
+                if (city.rename((string)args.LastArg))
                 {
+                    city.saveToDatabase();
                     return SuccessWithParams("claims:city_name_changed_to", new object[] { (string)args.LastArg });
                 }
             }

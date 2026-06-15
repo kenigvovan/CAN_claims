@@ -39,6 +39,7 @@ namespace claims.src.part.structure.plots
 
         public override void OnDeactivated(Plot plot)
         {
+            if (plot.Prison == null) return;
             EntityPos ep = claims.sapi.World.DefaultSpawnPosition;
             foreach (PrisonCellInfo cell in plot.Prison.getPrisonCells())
             {
@@ -65,7 +66,8 @@ namespace claims.src.part.structure.plots
                 plot.Prison.City.getPrisons().Remove(plot.Prison);
                 plot.Prison.City.saveToDatabase();
             }
-            plot.Prison.Plot.Type = PlotType.DEFAULT;
+            if (plot.Prison.Plot != null)
+                plot.Prison.Plot.Type = PlotType.DEFAULT;
             claims.getModInstance().getDatabaseHandler().deleteFromDatabasePrison(plot.Prison);
             plot.Prison = null;
             plot.saveToDatabase();

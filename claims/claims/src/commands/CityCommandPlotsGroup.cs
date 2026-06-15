@@ -174,11 +174,6 @@ namespace claims.src.commands
                 tcr.StatusMessage = "claims:you_dont_have_city";
                 return tcr;
             }
-            if (!city.Equals(playerInfo.City))
-            {
-                tcr.StatusMessage = "claims:player_should_be_in_same_city";
-                return tcr;
-            }
             MessageHandler.sendMsgToPlayer(player,
                 StringFunctions.makeFeasibleStringFromNames(
                     StringFunctions.getNamesOfPartsForChat(Lang.Get("claims:city_groups"),
@@ -195,11 +190,6 @@ namespace claims.src.commands
             if (city == null)
             {
                 tcr.StatusMessage = "claims:you_dont_have_city";
-                return tcr;
-            }
-            if (!city.Equals(playerInfo.City))
-            {
-                tcr.StatusMessage = "claims:player_should_be_in_same_city";
                 return tcr;
             }
             string name = Filter.filterName((string)args.LastArg);
@@ -506,7 +496,7 @@ namespace claims.src.commands
 
             claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(player.Entity.ServerPos), out Plot plot);
             //NO CLAIMED PLOT HERE || VILLAGE HERE || PLOT NOT OURS
-            if (plot == null || !plot.getCity().Equals(playerInfo.City) || !plot.hasCityPlotsGroup())
+            if (plot == null || !plot.hasCity() || !plot.getCity().Equals(playerInfo.City) || !plot.hasCityPlotsGroup())
             {
                 tcr.StatusMessage = "claims:cannot_remove_from_group";
                 return tcr;

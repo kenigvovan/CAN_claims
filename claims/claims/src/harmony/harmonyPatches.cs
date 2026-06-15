@@ -76,7 +76,7 @@ namespace claims.src.harmony
                         continue;
                     }
 
-                    if ((tb.getPermsHandler().blastFlag || tb.getCity().getPermsHandler().blastFlag))
+                    if (tb.getPermsHandler().blastFlag || (tb.hasCity() && tb.getCity().getPermsHandler().blastFlag))
                     {
                         __result = true;
                         return false;
@@ -193,7 +193,7 @@ namespace claims.src.harmony
                         continue;
                     }
 
-                    if ((tb.getPermsHandler().blastFlag || tb.getCity().getPermsHandler().blastFlag))
+                    if (tb.getPermsHandler().blastFlag || (tb.hasCity() && tb.getCity().getPermsHandler().blastFlag))
                     {
                         __result = true;
                         return false;

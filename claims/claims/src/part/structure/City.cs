@@ -76,6 +76,7 @@ namespace claims.src.part
         }
         public bool AddNewCityRank(string rankName, CustomCityRank rank)
         {
+            if (CustomCityRanks.ContainsKey(rankName)) return false;
             CustomCityRanks.Add(rankName, rank);
             return true;
         }

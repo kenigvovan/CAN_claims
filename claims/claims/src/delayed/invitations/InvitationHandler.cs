@@ -68,6 +68,7 @@ namespace claims.src.delayed.invitations
             {
                 if (it.getReceiver() == receiver)
                 {
+                    it.getReceiver().deleteReceivedInvitation(it);
                     it.getSender().deleteSentInvitation(it);
                     invites.Remove(it);
                 }

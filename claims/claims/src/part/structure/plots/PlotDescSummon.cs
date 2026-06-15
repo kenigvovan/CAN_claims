@@ -26,7 +26,8 @@ namespace claims.src.part.structure.plots
             try
             {
                 JsonConvert.PopulateObject(data, this);
-                plot.getCity().summonPlots.Add(plot);
+                if (plot.hasCity())
+                    plot.getCity().summonPlots.Add(plot);
             }
             catch (Exception ex) { claims.sapi.Logger.Warning("[claims] PlotDescSummon.Init failed: " + ex.Message); }
         }

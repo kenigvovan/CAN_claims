@@ -410,6 +410,8 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Success(Lang.Get("claims:no_such_city"));
             }
+            if (!city.HasMayor())
+                return TextCommandResult.Success(Lang.Get("claims:city_has_no_mayor"));
             alliance.MainCity = city;
             alliance.Leader = city.getMayor();
             alliance.saveToDatabase();
@@ -533,6 +535,13 @@ namespace claims.src.commands
                             foreach (var city in targetParty.GetCities())
                                 city.AddLogEntry(EnumCityLogEvent.ConflictDeclared, ourAlliance.GetPartName());
 
+                            newConflict.First = ourAlliance;
+                            newConflict.Second = targetParty;
+                            newConflict.StartedBy = ourAlliance;
+                            newConflict.State = ConflictState.CREATED;
+                            newConflict.TimeStampStarted = TimeFunctions.getEpochSeconds();
+                            newConflict.MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES;
+
                             RightsHandler.SetPartiesHostile(ourAlliance, targetParty, newConflict);
                             if (targetParty is Alliance targetAllianceForAlly)
                             {
@@ -546,12 +555,6 @@ namespace claims.src.commands
                             UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
                                 new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
 
-                            newConflict.First = ourAlliance;
-                            newConflict.Second = targetParty;
-                            newConflict.StartedBy = ourAlliance;
-                            newConflict.State = ConflictState.CREATED;
-                            newConflict.TimeStampStarted = TimeFunctions.getEpochSeconds();
-                            newConflict.MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES;
                             ourAlliance.FireConflictDeclared(targetParty);
                             var conflictCellElement = ClientConflictCellElement.FromConflict(newConflict);
                             UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourAlliance,
@@ -562,7 +565,6 @@ namespace claims.src.commands
                             targetParty.saveToDatabase();
                             ourAlliance.saveToDatabase();
                             newConflict.saveToDatabase(false);
-                            ConflictHandler.removeConflictLetter(letter);
                             foreach (var c in targetParty.GetCities())
                                 MessageHandler.sendMsgInCity(c, Lang.Get("claims:conflict_created_with", ourAlliance.getPartNameReplaceUnder()));
                         },
@@ -607,6 +609,11 @@ namespace claims.src.commands
                 }
 
                 Conflict newConflict = new Conflict("", Alliance.GetUnusedGuid());
+                newConflict.First = ourAlliance;
+                newConflict.StartedBy = ourAlliance;
+                newConflict.Second = targetParty;
+                newConflict.State = ConflictState.CREATED;
+                newConflict.MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES;
 
                 foreach (var city in ourAlliance.GetCities())
                     city.AddLogEntry(EnumCityLogEvent.ConflictDeclared, targetParty.GetPartName());
@@ -619,11 +626,6 @@ namespace claims.src.commands
                     RightsHandler.AllianceAllySetHostileOnNewConflictStarted(ourAlliance, targetAllianceForAlly2, newConflict);
                 }
                 claims.dataStorage.TryAddConflict(newConflict);
-                newConflict.First = ourAlliance;
-                newConflict.StartedBy = ourAlliance;
-                newConflict.Second = targetParty;
-                newConflict.State = ConflictState.CREATED;
-                newConflict.MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES;
                 ourAlliance.FireConflictDeclared(targetParty);
                 targetParty.saveToDatabase();
                 ourAlliance.saveToDatabase();

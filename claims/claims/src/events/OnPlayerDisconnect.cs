@@ -1,5 +1,6 @@
 ﻿using claims.src.auxialiry;
 using claims.src.delayed.teleportation;
+using claims.src.messages;
 using claims.src.part;
 using Vintagestory.API.Server;
 
@@ -27,6 +28,7 @@ namespace claims.src.events
             playerInfo.saveToDatabase();
 
             claims.serverPlayerMovementListener.RemovePlayerFromAllSubscriptions(player.PlayerUID);
+            claims.dataStorage.getPlayerChatDict()[player.PlayerUID] = ClaimsChatType.NONE;
         }
     }
 }

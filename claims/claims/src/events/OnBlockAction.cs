@@ -371,9 +371,10 @@ namespace claims.src.events
         }
         public static void InitPlayerCache(IServerPlayer byPlayer)
         {
+            if (byPlayer.Entity == null) return;
             canBlockDestroy(byPlayer, new BlockSelection(byPlayer.Entity.Pos.AsBlockPos, BlockFacing.NORTH, null), out var _);
             canBlockUse(byPlayer, new BlockSelection(byPlayer.Entity.Pos.AsBlockPos, BlockFacing.NORTH, null));
-            claims.dataStorage.GetPlayerByUid(byPlayer.PlayerUID, out var player);
+            if (!claims.dataStorage.GetPlayerByUid(byPlayer.PlayerUID, out var player) || player == null) return;
             player.PlayerCache.setPlotPosition(PlotPosition.fromEntityyPos(byPlayer.Entity.Pos));
         }
     }

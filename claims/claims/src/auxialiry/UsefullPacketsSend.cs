@@ -321,12 +321,9 @@ namespace claims.src.auxialiry
                         }
                     }
 
-                    if (playerCollector.Count > 0)
-                    {
-                        foreach (var kv in playerCollector)
-                            collector.TryAdd(kv.Key, kv.Value);
-                    }
-                    var mergedCollector = collector;
+                    var mergedCollector = new Dictionary<EnumPlayerRelatedInfo, string>(collector);
+                    foreach (var kv in playerCollector)
+                        mergedCollector.TryAdd(kv.Key, kv.Value);
 
                     claims.serverChannel.SendPacket(
                         new SavedPlotsPacket

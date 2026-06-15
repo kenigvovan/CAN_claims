@@ -72,6 +72,7 @@ namespace claims.src.part.structure.plots
                     continue;
                 }
                 string[] innerClaimParts = it.Split(':');
+                if (innerClaimParts.Length < 4) continue;
 
                 string[] pos1 = innerClaimParts[0].Split(',');
 

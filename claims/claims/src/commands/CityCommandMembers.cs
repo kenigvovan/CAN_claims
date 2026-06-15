@@ -229,6 +229,7 @@ namespace claims.src.commands
         public static TextCommandResult ShowInvitesSent(TextCommandCallingArgs args)
         {
             if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
+            if (!playerInfo.hasCity()) return TextCommandResult.Success("claims:you_dont_have_city");
             if (args.LastArg == null)
             {
                 return TextCommandResult.Success(StringFunctions.getNthPageOf(playerInfo.City.GetSentInvitations(), 1));

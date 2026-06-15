@@ -407,7 +407,11 @@ namespace claims.src.database
 
         public override bool loadPlayerInfo(DataRow it)
         {
-            claims.dataStorage.GetPlayerByUid(it["uid"].ToString(), out PlayerInfo tmp);
+            if (!claims.dataStorage.GetPlayerByUid(it["uid"].ToString(), out PlayerInfo tmp))
+            {
+                MessageHandler.sendErrorMsg("loadPlayerInfo: player '" + it["uid"] + "' not found in dummy set, skipped");
+                return false;
+            }
             tmp.TimeStampFirstJoined = long.Parse(it["timestampfirstjoined"].ToString());
             tmp.TimeStampLasOnline = long.Parse(it["timestamplastonline"].ToString());
             foreach (string str in it["comrades"].ToString().Split(';'))
@@ -420,9 +424,15 @@ namespace claims.src.database
             }
             if (it["city"].ToString().Length != 0)
             {
-                claims.dataStorage.getCityByGUID(it["city"].ToString(), out City city);
-                tmp.setCity(city);
-                city.getCityCitizens().Add(tmp);
+                if (!claims.dataStorage.getCityByGUID(it["city"].ToString(), out City city))
+                {
+                    MessageHandler.sendErrorMsg("loadPlayerInfo: city '" + it["city"] + "' of player '" + tmp.GetPartName() + "' not found, city skipped");
+                }
+                else
+                {
+                    tmp.setCity(city);
+                    city.getCityCitizens().Add(tmp);
+                }
             }
             foreach (string str in it["citytitles"].ToString().Split(';'))
             {
@@ -971,7 +981,11 @@ namespace claims.src.database
 
         public override bool loadPrison(DataRow it)
         {
-            claims.dataStorage.getPrison(it["guid"].ToString(), out Prison prison);
+            if (!claims.dataStorage.getPrison(it["guid"].ToString(), out Prison prison))
+            {
+                MessageHandler.sendErrorMsg("loadPrison: prison '" + it["guid"] + "' not found in dummy set, skipped");
+                return false;
+            }
             prison.DeserializeCells(it["prisonCells"].ToString());
             claims.dataStorage.getCityByGUID(it["city"].ToString(), out City city);
             prison.City = city;
@@ -1009,7 +1023,11 @@ namespace claims.src.database
             DataTable dt = readFromDatabase("SELECT guid, city, name, x, z FROM PRISONS", new Dictionary<string, object> { });
             foreach (DataRow it in dt.Rows)
             {
-                claims.dataStorage.getCityByGUID(it["city"].ToString(), out City city);
+                if (!claims.dataStorage.getCityByGUID(it["city"].ToString(), out City city))
+                {
+                    MessageHandler.sendErrorMsg("loadDummyPrisons: city '" + it["city"] + "' for prison '" + it["guid"] + "' not found, skipped");
+                    continue;
+                }
                 Prison tmp = new Prison(it["name"].ToString(), it["guid"].ToString());
                 claims.dataStorage.addPrison(tmp);
                 city.getPrisons().Add(tmp);
@@ -1142,7 +1160,11 @@ namespace claims.src.database
 
         public override bool loadAlliance(DataRow it)
         {
-            claims.dataStorage.GetAllianceByGUID(it["guid"].ToString(), out Alliance alliance);
+            if (!claims.dataStorage.GetAllianceByGUID(it["guid"].ToString(), out Alliance alliance))
+            {
+                MessageHandler.sendErrorMsg("loadAlliance: alliance '" + it["guid"] + "' not found in dummy set, skipped");
+                return false;
+            }
             claims.dataStorage.getCityByGUID(it["maincity"].ToString(), out City city);
             alliance.MainCity = city;
             foreach (string str in it["cities"].ToString().Split(';'))

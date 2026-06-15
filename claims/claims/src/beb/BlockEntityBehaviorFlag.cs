@@ -226,14 +226,12 @@ namespace claims.src.beb
                         defenderPlot.extraBought = false;
                         defenderCity.saveToDatabase();
                         defenderPlot.saveToDatabase();
-                        defenderPlot.getCity().saveToDatabase();
 
                         defenderPlot.CheckBorderPlotValue();
                         claims.serverPlayerMovementListener.markPlotToWasReUpdated(defenderPlot.getPos());
 
-                        UsefullPacketsSend.AddToQueueCityInfoUpdate(defenderPlot.getCity().Guid, EnumPlayerRelatedInfo.CLAIMED_PLOTS, EnumPlayerRelatedInfo.CITY_LOG);
                         UsefullPacketsSend.AddToQueueCityInfoUpdate(defenderCity.Guid, EnumPlayerRelatedInfo.CLAIMED_PLOTS, EnumPlayerRelatedInfo.CITY_LOG);
-                        defenderPlot.getCity().FirePlotsMapChanged(EnumPlotsMapChangeReason.PlotCapturedByUs);
+                        defenderCity.FirePlotsMapChanged(EnumPlotsMapChangeReason.PlotCapturedByUs);
                         defenderCity.FirePlotsMapChanged(EnumPlotsMapChangeReason.PlotLostToEnemy);
                         UsefullPacketsSend.AddToQueueAllPlayersInfoUpdate(new Dictionary<string, object> { { "value", defenderPlot.getPos() } }, EnumPlayerRelatedInfo.CITY_PLOT_RECOLOR);
                         warTime.PlotAttacks.Remove(PlotPosition.fromBlockPos(this.Pos));

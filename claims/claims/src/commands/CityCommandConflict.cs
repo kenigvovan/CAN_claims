@@ -72,6 +72,12 @@ namespace claims.src.commands
                     {
                         if (!ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.START_CONFLICT, out var letter)) return;
                         Conflict newConflict = new Conflict("", newConflictGuid);
+                        newConflict.First = ourCity;
+                        newConflict.Second = targetParty;
+                        newConflict.StartedBy = ourCity;
+                        newConflict.State = ConflictState.CREATED;
+                        newConflict.TimeStampStarted = TimeFunctions.getEpochSeconds();
+                        newConflict.MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES;
                         RightsHandler.SetPartiesHostile(ourCity, targetParty, newConflict);
                         if (targetParty is Alliance targetAllianceForAlly)
                             RightsHandler.AllianceAllySetHostileOnNewConflictStarted(targetAllianceForAlly, ourCity, newConflict);
@@ -81,12 +87,6 @@ namespace claims.src.commands
                         UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
                             new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
                         ConflictHandler.removeConflictLetter(letter);
-                        newConflict.First = ourCity;
-                        newConflict.Second = targetParty;
-                        newConflict.StartedBy = ourCity;
-                        newConflict.State = ConflictState.CREATED;
-                        newConflict.TimeStampStarted = TimeFunctions.getEpochSeconds();
-                        newConflict.MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES;
                         var conflictCellElement = ClientConflictCellElement.FromConflict(newConflict);
                         UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourCity,
                             new Dictionary<string, object> { { "value", conflictCellElement } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
@@ -130,16 +130,16 @@ namespace claims.src.commands
             else
             {
                 Conflict newConflict = new Conflict("", Alliance.GetUnusedGuid());
-                RightsHandler.SetPartiesHostile(ourCity, targetParty, newConflict);
-                if (targetParty is Alliance targetAllianceForAlly)
-                    RightsHandler.AllianceAllySetHostileOnNewConflictStarted(targetAllianceForAlly, ourCity, newConflict);
-                claims.dataStorage.TryAddConflict(newConflict);
                 newConflict.First = ourCity;
                 newConflict.StartedBy = ourCity;
                 newConflict.Second = targetParty;
                 newConflict.State = ConflictState.CREATED;
                 newConflict.TimeStampStarted = TimeFunctions.getEpochSeconds();
                 newConflict.MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES;
+                RightsHandler.SetPartiesHostile(ourCity, targetParty, newConflict);
+                if (targetParty is Alliance targetAllianceForAlly)
+                    RightsHandler.AllianceAllySetHostileOnNewConflictStarted(targetAllianceForAlly, ourCity, newConflict);
+                claims.dataStorage.TryAddConflict(newConflict);
                 var conflictCellElement = ClientConflictCellElement.FromConflict(newConflict);
                 UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourCity,
                     new Dictionary<string, object> { { "value", conflictCellElement } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);

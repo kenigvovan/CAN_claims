@@ -385,6 +385,7 @@ namespace claims.src
             foreach (var it in claims.config.ALWAYS_ACCESS_BLOCKS)
             {
                 string[] split = it.Split(':');
+                if (split.Length < 2) continue;
                 foreach (var mod in api.ModLoader.Mods)
                 {
                     if (mod.FileName.StartsWith(split[0]))
@@ -556,6 +557,7 @@ namespace claims.src
         }
         public void checkMovementStatus()
         {
+            if (movementClaimGui == null) return;
             if (movementClaimGui.timeStampShouldBeClosed < TimeFunctions.getEpochSeconds())
             {
                 movementClaimGui.TryClose();

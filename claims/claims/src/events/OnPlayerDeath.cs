@@ -31,6 +31,11 @@ namespace claims.src.events
                         UsefullPacketsSend.AddToQueueCityInfoUpdate(playerInfo.PrisonedIn.City.Guid, new Dictionary<string, object> { { "value", new PrisonCellElement(cell.spawnPostion, cell.playerNames) } },
                             EnumPlayerRelatedInfo.CITY_CELL_PRISON_UPDATE);
                     }
+                    else
+                    {
+                        playerInfo.PrisonedIn = null;
+                        playerInfo.PrisonHoursLeft = 0;
+                    }
                 }
             }
         }

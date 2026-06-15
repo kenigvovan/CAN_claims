@@ -266,6 +266,7 @@ namespace claims.src.commands
             }
             Plot chosenPlot = null;
             string searchStr = (string)args.LastArg;
+            if (searchStr == null) return tcr;
             foreach (var it in city.summonPlots)
             {
                 if (it.PlotDesc is PlotDescSummon itDesc && itDesc.Name.Equals(searchStr))

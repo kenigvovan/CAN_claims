@@ -113,6 +113,7 @@ namespace claims.src.part
         }
         public void clearCity(bool clearAlsoEmbassies = false)
         {
+            if (City == null) return;
             City.getPlayerInfos().Remove(this);
             foreach(Plot plot in PlayerPlots.ToArray())
             {
