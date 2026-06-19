@@ -1,4 +1,5 @@
-﻿using claims.src.rights;
+﻿using claims.src.economy;
+using claims.src.rights;
 using System;
 using System.Collections.Generic;
 using Vintagestory.API.Common;
@@ -196,6 +197,11 @@ namespace claims.src
 
         public System.Collections.Generic.OrderedDictionary<decimal, string> COINS_VALUES_TO_CODE = new();
         public System.Collections.Generic.OrderedDictionary<int, decimal> ID_TO_COINS_VALUES = new();
+        // Full coin denomination list shown in the prices GUI. Derived at runtime
+        // from the economy provider and synced to clients via
+        // ConfigUpdateValuesPacket; never persisted to claims.json.
+        [Newtonsoft.Json.JsonIgnore]
+        public System.Collections.Generic.List<CoinDenominationData> COIN_DENOMINATIONS = new();
 
         public bool VERBOSE_LOGGING = true;
         public bool SEND_ANNOUNCEMENTS_PLOT_IN_UNDER_ATTACK = true;

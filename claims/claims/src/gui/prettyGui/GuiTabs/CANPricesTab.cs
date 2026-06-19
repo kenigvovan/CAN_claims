@@ -1,3 +1,4 @@
+using claims.src.economy;
 using claims.src.part.structure;
 using claims.src.part.structure.plots;
 using ImGuiNET;
@@ -30,25 +31,27 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.Separator();
             ImGui.Spacing();
 
-            if (claims.config.COINS_VALUES_TO_CODE != null && claims.config.COINS_VALUES_TO_CODE.Count > 0)
+            if (claims.config.COIN_DENOMINATIONS != null && claims.config.COIN_DENOMINATIONS.Count > 0)
             {
                 if (ImGui.BeginTable("CurrencyTable", 2, TableFlags))
                 {
                     ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthFixed, 80);
                     ImGui.TableSetupColumn("Icon", ImGuiTableColumnFlags.WidthStretch);
 
-                    foreach (var it in claims.config.COINS_VALUES_TO_CODE)
+                    foreach (var coinInfo in claims.config.COIN_DENOMINATIONS)
                     {
                         ImGui.TableNextRow();
 
                         ImGui.TableNextColumn();
                         ImGui.PushStyleColor(ImGuiCol.Text, ColValue);
                         ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 12);
-                        ImGui.Text(it.Key.ToString());
+                        ImGui.Text(coinInfo.Value.ToString());
                         ImGui.PopStyleColor();
 
                         ImGui.TableNextColumn();
-                        ItemStack coin = new ItemStack(capi.World.GetItem(new AssetLocation(it.Value)), 1);
+                        ItemStack coin = new ItemStack(capi.World.GetItem(new AssetLocation(coinInfo.CollectibleCode)), 1);
+                        var attributes = coinInfo.ToTreeAttribute();
+                        if (attributes != null) coin.Attributes = attributes;
                         itemIconAtlas.Draw(coin, new Vector2(48, 48));
                     }
 
