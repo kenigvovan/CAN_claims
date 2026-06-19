@@ -18,7 +18,7 @@ namespace claims.src.gui.playerGui.GuiPages
             currentBounds.fixedY += 15;
             string currencyStr = Lang.Get("claims:gui-currency-item");
             TextExtents textExtents;
-            if (claims.config.COINS_VALUES_TO_CODE != null && claims.config.COINS_VALUES_TO_CODE.Count > 0)
+            if (claims.config.COIN_DENOMINATIONS != null && claims.config.COIN_DENOMINATIONS.Count > 0)
             {
                 var tempBound = currentBounds;
                 textExtents = pricesTabFont.GetTextExtents(currencyStr);
@@ -26,16 +26,19 @@ namespace claims.src.gui.playerGui.GuiPages
                 compo.AddStaticText(currencyStr,
                        pricesTabFont,
                        tempBound, "currency-item");
-                foreach (var it in claims.config.COINS_VALUES_TO_CODE)
+                foreach (var coinInfo in claims.config.COIN_DENOMINATIONS)
                 {
-                    string collectibleCode = it.Value;
+                    string collectibleCode = coinInfo.CollectibleCode;
 
                     tempBound = tempBound.RightCopy();
                     tempBound.fixedWidth = 48;
 
                     ItemStack coin = new ItemStack(compo.Api.World.GetItem(new AssetLocation(collectibleCode)), 1);
+                    var attributes = coinInfo.ToTreeAttribute();
+                    if (attributes != null) coin.Attributes = attributes;
                     ItemstackTextComponent currencyStack = new ItemstackTextComponent(compo.Api, coin, 48);
-                    compo.AddRichtext(new RichTextComponentBase[] { currencyStack }, tempBound, "coin-item" + collectibleCode);
+                    // Coins can share a code but differ by value/attributes, so key on both.
+                    compo.AddRichtext(new RichTextComponentBase[] { currencyStack }, tempBound, "coin-item" + collectibleCode + coinInfo.Value);
                 }
                 currentBounds = currentBounds.BelowCopy(0, 0);
             }

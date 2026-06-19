@@ -59,35 +59,6 @@ namespace claims.src.part.structure.plots
         }
         double cost;
         string fullName;
-        public static string getPlotDescByType(Plot plot)
-        {
-            StringBuilder sb = new StringBuilder();
-            switch(plot.Type)
-            {
-                case PlotType.DEFAULT:
-                    return sb.ToString();
-
-                case PlotType.TOURNAMENT:
-                    return sb.ToString();
-
-                case PlotType.SUMMON:
-                    if((plot.PlotDesc is PlotDescSummon) && (plot.PlotDesc as PlotDescSummon) != null)
-                    {
-                        sb.Append(JsonConvert.SerializeObject(plot.PlotDesc as PlotDescSummon));
-                    }
-                    return sb.ToString();
-                case PlotType.CAMP:
-                    return sb.ToString();
-                case PlotType.PRISON:
-                    sb.Append(plot.Prison.Guid);
-                    return sb.ToString();
-                case PlotType.TAVERN:
-                    if (plot.PlotDesc is PlotDescTavern tavernDesc)
-                        sb.Append(tavernDesc.toSaveStringInnerClaims());
-                    return sb.ToString();
-            }
-            return sb.ToString();
-        }
         public PlotInfo(string fullName, double cost)
         {
             this.cost = cost;

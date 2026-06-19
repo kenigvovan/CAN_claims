@@ -1,4 +1,5 @@
-﻿using claims.src.rights;
+﻿using claims.src.economy;
+using claims.src.rights;
 using System;
 using System.Collections.Generic;
 using Vintagestory.API.Common;
@@ -173,7 +174,7 @@ namespace claims.src
         public int[] PLOT_COLORS;
 
         public int SEND_CITY_UPDATES_EVERY_N_SECONDS = 60;
-        public int CHECK_FOR_PACKETS_TO_SEND_EVERY_N_SECONDS = 10;
+        public int CHECK_FOR_PACKETS_TO_SEND_EVERY_N_SECONDS = 1;
 
         //INNER CLAIM
         public int MAX_NUMBER_INNER_CLAIM_PER_TAVERN = 3;
@@ -183,7 +184,9 @@ namespace claims.src
         public int MAX_NUMBER_TAVERN_PER_CITY = 3;
         public bool SEND_CITY_BANKS_COORDS = true;
         public int ZONE_PLOTS_LENGTH = 32;
-        public int ZONE_BLOCKS_LENGTH = 512;
+        // Computed — always equals PLOT_SIZE * ZONE_PLOTS_LENGTH. JSON value ignored.
+        [Newtonsoft.Json.JsonIgnore]
+        public int ZONE_BLOCKS_LENGTH => PLOT_SIZE * ZONE_PLOTS_LENGTH;
 
         public int AREA_REGION_SIZE = 512;
         public int AREA_MAP_SIZE = 2000;
@@ -194,6 +197,11 @@ namespace claims.src
 
         public System.Collections.Generic.OrderedDictionary<decimal, string> COINS_VALUES_TO_CODE = new();
         public System.Collections.Generic.OrderedDictionary<int, decimal> ID_TO_COINS_VALUES = new();
+        // Full coin denomination list shown in the prices GUI. Derived at runtime
+        // from the economy provider and synced to clients via
+        // ConfigUpdateValuesPacket; never persisted to claims.json.
+        [Newtonsoft.Json.JsonIgnore]
+        public System.Collections.Generic.List<CoinDenominationData> COIN_DENOMINATIONS = new();
 
         public bool VERBOSE_LOGGING = true;
         public bool SEND_ANNOUNCEMENTS_PLOT_IN_UNDER_ATTACK = true;

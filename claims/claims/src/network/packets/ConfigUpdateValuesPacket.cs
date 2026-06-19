@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using claims.src.economy;
 using claims.src.rights;
 using ProtoBuf;
 using Vintagestory.API.Datastructures;
@@ -45,5 +46,73 @@ namespace claims.src.network.packets
         public CITY_AREA_VISIBILITY CITY_AREA_VISIBILITY_STATE;
         [ProtoMember(18)]
         public bool SHOW_BALANCE_HUD_DEFAULT;
+
+        // Plot type costs (feed PlotInfo.dictPlotTypes on the client)
+        [ProtoMember(19)]
+        public double DEFAULT_PLOT_COST;
+        [ProtoMember(20)]
+        public double TOURNAMENT_PLOT_COST;
+        [ProtoMember(21)]
+        public double CAMP_PLOT_COST;
+        [ProtoMember(22)]
+        public double TEMPLE_PLOT_COST;
+        [ProtoMember(23)]
+        public double FARM_PLOT_COST;
+        [ProtoMember(24)]
+        public double SUMMON_PLOT_COST;
+        [ProtoMember(25)]
+        public double EMBASSY_PLOT_COST;
+        [ProtoMember(26)]
+        public double TAVERN_PLOT_COST;
+        [ProtoMember(27)]
+        public double MAIN_CITYPLOT_COST;
+        [ProtoMember(28)]
+        public double PRISON_PLOT_COST;
+
+        // Extra plot costs
+        [ProtoMember(29)]
+        public double OUTPOST_PLOT_COST;
+        [ProtoMember(30)]
+        public double EXTRA_PLOT_COST;
+        [ProtoMember(31)]
+        public double PLOT_NO_PVP_FLAG_COST;
+
+        // Ransom costs
+        [ProtoMember(32)]
+        public double RANSOM_FOR_NO_CITIZEN;
+        [ProtoMember(33)]
+        public double RANSOM_FOR_CITIZEN;
+        [ProtoMember(34)]
+        public double RANSOM_FOR_MAYOR;
+        [ProtoMember(35)]
+        public double RANSOM_FOR_LEADER;
+        [ProtoMember(36)]
+        public double RANSOM_FOR_CHIEF;
+
+        // Alliance economy
+        [ProtoMember(37)]
+        public double ALLIANCE_RENAME_COST;
+        [ProtoMember(38)]
+        public double ALLIANCE_BASE_CARE;
+        [ProtoMember(39)]
+        public double ALLIANCE_MAX_FEE;
+        [ProtoMember(40)]
+        public double NEUTRAL_ALLANCE_PAYMENT;
+
+        // City limits
+        [ProtoMember(41)]
+        public double MAX_CITY_FEE;
+        [ProtoMember(42)]
+        public double CITY_MAX_DEBT;
+
+        // War range grid (client maps server ranges into slots with this)
+        [ProtoMember(43)]
+        public int MIN_RANGE_CELL_DURATION_MINUTES;
+
+        // Full coin denomination list. Replaces COINS_VALUES_TO_CODE for the
+        // prices GUI: preserves every configured coin, including coins that
+        // share a value but differ by attributes.
+        [ProtoMember(44)]
+        public List<CoinDenominationData> COIN_DENOMINATIONS;
     }
 }

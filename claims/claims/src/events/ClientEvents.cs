@@ -38,8 +38,12 @@ namespace claims.src.events
                 return EnumWorldAccessResponse.Granted;
             }
             if (claims.clientDataStorage.getFlagValue(blockSel, accessType, out string localClaimant))
-            {               
-                return EnumWorldAccessResponse.Granted;                 
+            {
+                // localClaimant is empty when no CAN_claims plot exists here.
+                // In that case pass through so vanilla / other mod claims still apply.
+                if (string.IsNullOrEmpty(localClaimant))
+                    return response;
+                return EnumWorldAccessResponse.Granted;
             }
             else
             {

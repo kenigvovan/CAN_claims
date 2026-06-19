@@ -41,9 +41,8 @@ namespace claims.src.economy.bridge
             coinDenominations.Clear();
             var cfg = caneconomy.caneconomy.config;
             if (cfg == null) return;
-            foreach (var it in cfg.EXTENDED_COINS_VALUES_TO_CODE_PRIVATE)
+            foreach (var ci in cfg.EXTENDED_COINS_VALUES_TO_CODE_PRIVATE)
             {
-                var ci = it.Value;
                 coinDenominations.Add(new CoinDisplayInfo(ci.CoinValue, ci.CollectibleCode, ci.CoinAttributes));
             }
         }

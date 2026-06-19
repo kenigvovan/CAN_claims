@@ -25,20 +25,20 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
         public override void DrawTab()
         {
             ImGui.SetNextWindowPos(
-               new Vector2(capi.ModLoader.GetModSystem<claimsGui>().mainWindowPos.X + capi.ModLoader.GetModSystem<claimsGui>().mainWindowSize.X, capi.ModLoader.GetModSystem<claimsGui>().mainWindowPos.Y)
+               new Vector2(GuiSys.mainWindowPos.X + GuiSys.mainWindowSize.X, GuiSys.mainWindowPos.Y)
            );
 
             ImGuiWindowFlags flags1 =
                  ImGuiWindowFlags.NoScrollWithMouse;
-            ImGui.Begin("ClaimsDetails", p_open: ref capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowOpen, flags1);
-            PlotsGroupCellElement cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.PlotsGroupCells.FirstOrDefault(gr => gr.Guid.Equals(capi.ModLoader.GetModSystem<claimsGui>().textInput), null);
+            ImGui.Begin("ClaimsDetails", p_open: ref GuiSys.secondaryWindowOpen, flags1);
+            PlotsGroupCellElement cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.PlotsGroupCells.FirstOrDefault(gr => gr.Guid.Equals(GuiSys.textInput), null);
             if (cell == null) { ImGui.End(); return; }
-            ImGui.Text(Lang.Get(TitleString, capi.ModLoader.GetModSystem<claimsGui>().textInput2, cell.Name));
+            ImGui.Text(Lang.Get(TitleString, GuiSys.textInput2, cell.Name));
 
-            if (ImGui.Button(Lang.Get(ButtonString, capi.ModLoader.GetModSystem<claimsGui>().textInput, capi.ModLoader.GetModSystem<claimsGui>().textInput2)))
+            if (ImGui.Button(Lang.Get(ButtonString, GuiSys.textInput, GuiSys.textInput2)))
             {
                 ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                string memberToKick = capi.ModLoader.GetModSystem<claimsGui>().textInput2;
+                string memberToKick = GuiSys.textInput2;
                 clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup,
                    string.Format("/c plotsgroup kick {0} {1}", cell.Name, memberToKick), EnumChatType.Macro, "");
                 // Optimistic local update
@@ -46,8 +46,8 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                 {
                     cell.PlayersNames.Remove(memberToKick);
                 }
-                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.NONE;
-                capi.ModLoader.GetModSystem<claimsGui>().textInput2 = "";
+                GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.NONE;
+                GuiSys.textInput2 = "";
             }
             ImGui.End();
             }

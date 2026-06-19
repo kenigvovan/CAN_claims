@@ -284,8 +284,8 @@ namespace claims.tests
             var existingLetter = new ConflictLetter(
                 player.City, target, LetterPurpose.START_CONFLICT,
                 long.MaxValue,
-                new Thread(() => { }),
-                new Thread(() => { }),
+                () => { },
+                () => { },
                 "existing-letter-guid");
             ConflictHandler.addConflictLetter(existingLetter);
 
@@ -381,8 +381,7 @@ namespace claims.tests
             var denyArgs = MakeTargetMayorArgs(targetCity, "OurCity");
             var denyResult = CityCommand.DenyStartCityConflict(denyArgs);
 
-            // Wait for the OnDeny thread to finish
-            letter.OnDeny.Join(5000);
+            // OnDeny is invoked synchronously inside DenyStartCityConflict
 
             // Both sides should have ALLIANCE_LETTER_REMOVE queued
             Assert.True(CityHasQueuedUpdate(player.City.Guid, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE),
@@ -446,8 +445,7 @@ namespace claims.tests
             var acceptArgs = MakeTargetMayorArgs(targetCity, "OurCity");
             var acceptResult = CityCommand.AcceptStartCityConflict(acceptArgs);
 
-            // Wait for the OnAccept thread to finish
-            letter.OnAccept.Join(5000);
+            // OnAccept is invoked synchronously inside AcceptStartCityConflict
 
             Assert.True(CityHasQueuedUpdate(player.City.Guid, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE),
                 "Attacker city should receive ALLIANCE_LETTER_REMOVE on accept");

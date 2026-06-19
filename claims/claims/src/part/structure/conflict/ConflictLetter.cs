@@ -1,23 +1,20 @@
-﻿using claims.src.part;
+﻿using claims.src.delayed;
+using claims.src.part;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace claims.src.part.structure.conflict
 {
-    public class ConflictLetter
+    public class ConflictLetter : IExpirable
     {
         public IConflictParty From { get; set; }
         public IConflictParty To { get; set; }
         public LetterPurpose Purpose { get; set; }
         public long TimeStampExpire { get; set; }
-        public Thread OnAccept { get; }
-        public Thread OnDeny { get; }
+        public Action OnAccept { get; }
+        public Action OnDeny { get; }
         public string Guid { get; }
-        public ConflictLetter(IConflictParty from, IConflictParty to, LetterPurpose purpose, long timeStampExpire, Thread onAccept, Thread OnDeny, string guid)
+        public Action OnExpire => OnDeny;
+        public ConflictLetter(IConflictParty from, IConflictParty to, LetterPurpose purpose, long timeStampExpire, Action onAccept, Action OnDeny, string guid)
         {
             From = from;
             To = to;
@@ -35,9 +32,9 @@ namespace claims.src.part.structure.conflict
                 return false;
 
             return ((
-                (this.From == ((ConflictLetter)obj).From && this.To == ((ConflictLetter)obj).To)
+                (this.From.Equals(((ConflictLetter)obj).From) && this.To.Equals(((ConflictLetter)obj).To))
                 ||
-                (this.From == ((ConflictLetter)obj).To && this.To == ((ConflictLetter)obj).From)
+                (this.From.Equals(((ConflictLetter)obj).To) && this.To.Equals(((ConflictLetter)obj).From))
                 )
                 &&
                 (this.Purpose == ((ConflictLetter)obj).Purpose));

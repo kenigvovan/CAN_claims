@@ -1,7 +1,8 @@
-﻿using System.Threading;
-using claims.src.auxialiry;
+﻿using claims.src.auxialiry;
+using claims.src.cityplotsgroups;
 using claims.src.delayed.invitations;
 using claims.src.part;
+using System.Linq;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Server;
@@ -14,9 +15,10 @@ namespace claims.src.timers
         {
             //process invites
             InvitationHandler.findAndDeleteOverdueInvitations();
+            CityPlotsGroupInvitationsHandler.updateCityPlotsGroupInvitations();
 
             //prison hours decrease and tp freed players
-            foreach(PlayerInfo player in claims.dataStorage.getPlayersDict().Values)
+            foreach(PlayerInfo player in claims.dataStorage.getPlayersDict().Values.ToArray())
             {
                 if(player.PrisonHoursLeft == 1)
                 {
@@ -43,10 +45,7 @@ namespace claims.src.timers
 
             claims.sapi.Event.RegisterCallback((dt =>
             {
-                new Thread(new ThreadStart(() =>
-                {
-                    new HourTimer().Run();
-                })).Start();
+                new HourTimer().Run();
             }), (int)TimeFunctions.getSecondsBeforeNextHourStart() * 1000);
         }
     }

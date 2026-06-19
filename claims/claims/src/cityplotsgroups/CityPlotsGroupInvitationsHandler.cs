@@ -22,7 +22,7 @@ namespace claims.src.cityplotsgroups
                 }
                 else
                 {
-                    groupInvites = new HashSet<CityPlotsGroupInvitation>();
+                    groupInvites = new HashSet<CityPlotsGroupInvitation> { invitation };
                     cityInvites[invitation.GroupName] = groupInvites;
                 }
             }

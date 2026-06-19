@@ -96,10 +96,10 @@ namespace claims.src.playerMovements
                 }
             }
 
-            //BOTH HAS VILLAGE OR CITY 
+            //BOTH HAS VILLAGE OR CITY
             if (state == 3)
             {
-                if (toPlot.cityName.Equals(fromPlot.cityName))
+                if (!toPlot.cityName.Equals(fromPlot.cityName))
                 {
                     stringBuilder.Append(StringFunctions.setStringColor(toPlot.cityName, ColorsClaims.DARK_GRAY) + " ");
                 }

@@ -17,13 +17,13 @@ namespace claims.src.commands
                 return TextCommandResult.Error("");
             }
 
-            //try to accept the first and only one invite
+            //try to deny the first and only one invite
             if (args.LastArg == null)
             {
                 int invitationsCount = playerInfo.getReceivedInvitations().Count;
                 if (invitationsCount == 1)
                 {
-                    playerInfo.getReceivedInvitations()[0].accept();
+                    playerInfo.getReceivedInvitations()[0].deny();
                 }
                 return TextCommandResult.Success();
             }

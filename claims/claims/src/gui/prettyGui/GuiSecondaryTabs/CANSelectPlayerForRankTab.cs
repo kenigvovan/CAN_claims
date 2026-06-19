@@ -26,23 +26,23 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
         public override void DrawTab()
         {
             ImGui.SetNextWindowPos(
-                new Vector2(capi.ModLoader.GetModSystem<claimsGui>().mainWindowPos.X + capi.ModLoader.GetModSystem<claimsGui>().mainWindowSize.X, capi.ModLoader.GetModSystem<claimsGui>().mainWindowPos.Y)
+                new Vector2(GuiSys.mainWindowPos.X + GuiSys.mainWindowSize.X, GuiSys.mainWindowPos.Y)
             );
 
             ImGuiWindowFlags flags1 =
                  ImGuiWindowFlags.NoScrollWithMouse;
-            ImGui.Begin("ClaimsDetails", p_open: ref capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowOpen, flags1);
+            ImGui.Begin("ClaimsDetails", p_open: ref GuiSys.secondaryWindowOpen, flags1);
             if (claims.clientDataStorage.clientPlayerInfo?.CityInfo == null) { ImGui.End(); return; }
 
-            ImGui.Text(Lang.Get(TitleString, capi.ModLoader.GetModSystem<claimsGui>().textInput));
-            ImGui.Combo("Name", ref capi.ModLoader.GetModSystem<claimsGui>().selectedComboFirst, claims.clientDataStorage.clientPlayerInfo.CityInfo.PlayersNames.ToArray(), claims.clientDataStorage.clientPlayerInfo.CityInfo.PlayersNames.Count);
+            ImGui.Text(Lang.Get(TitleString, GuiSys.textInput));
+            ImGui.Combo("Name", ref GuiSys.selectedComboFirst, claims.clientDataStorage.clientPlayerInfo.CityInfo.PlayersNames.ToArray(), claims.clientDataStorage.clientPlayerInfo.CityInfo.PlayersNames.Count);
 
             if (ImGui.Button(Lang.Get(YesButtonString)))
             {
                 ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                capi.ModLoader.GetModSystem<claimsGui>().textInput2 = claims.clientDataStorage.clientPlayerInfo.CityInfo.PlayersNames[capi.ModLoader.GetModSystem<claimsGui>().selectedComboFirst];
-                string rankName = capi.ModLoader.GetModSystem<claimsGui>().textInput;
-                string playerName = capi.ModLoader.GetModSystem<claimsGui>().textInput2;
+                GuiSys.textInput2 = claims.clientDataStorage.clientPlayerInfo.CityInfo.PlayersNames[GuiSys.selectedComboFirst];
+                string rankName = GuiSys.textInput;
+                string playerName = GuiSys.textInput2;
                 clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, this.CommandToCallOnYes + " " +
                     rankName + " " + playerName, EnumChatType.Macro, "");
                 // Optimistic local update
@@ -54,12 +54,12 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                         rankCell.Citizens.Add(playerName);
                     }
                 }
-                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.NONE;
+                GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.NONE;
             }
             ImGui.SameLine();
             if (ImGui.Button(Lang.Get(NoButtonString)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.NONE;
+                GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.NONE;
             }
             ImGui.End();
         }

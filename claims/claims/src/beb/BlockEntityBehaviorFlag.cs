@@ -136,14 +136,15 @@ namespace claims.src.beb
                         warTime.PlotAttacks.Remove(PlotPosition.fromBlockPos(this.Pos));
                         TimesToBreak = 0;
 
+                        IConflictParty attackerParty = attackerCity.HasAlliance()
+                            ? (IConflictParty)attackerCity.Alliance
+                            : (IConflictParty)attackerCity;
+
                         if (claims.config.SEND_ANNOUNCEMENTS_PLOT_WAS_CAPTURED)
                         {
                             IConflictParty defenderParty = defenderCity.HasAlliance()
                                 ? (IConflictParty)defenderCity.Alliance
                                 : (IConflictParty)defenderCity;
-                            IConflictParty attackerParty = attackerCity.HasAlliance()
-                                ? (IConflictParty)attackerCity.Alliance
-                                : (IConflictParty)attackerCity;
 
                             MessageHandler.SendMsgInAlliance(defenderParty,
                                 Lang.Get("claims:city_destroyed_by_war", defenderCity.GetPartName(), attackerCity.GetPartName()));
@@ -190,15 +191,13 @@ namespace claims.src.beb
                             }
                         }
 
-                        IConflictParty attackerParty = attackerCity.HasAlliance()
-                            ? (IConflictParty)attackerCity.Alliance
-                            : (IConflictParty)attackerCity;
                         foreach (var runningConflict in defenderCity.RunningConflicts.ToArray())
                         {
                             if (runningConflict.First.Equals(attackerParty))
                                 runningConflict.State = ConflictState.FIRST_WON;
                             else if (runningConflict.Second.Equals(attackerParty))
                                 runningConflict.State = ConflictState.SECOND_WON;
+                            runningConflict.saveToDatabase();
                             PartDemolition.DemolishConflict(runningConflict, EnumConflictEndReason.CityDestroyed);
                         }
 
@@ -227,14 +226,12 @@ namespace claims.src.beb
                         defenderPlot.extraBought = false;
                         defenderCity.saveToDatabase();
                         defenderPlot.saveToDatabase();
-                        defenderPlot.getCity().saveToDatabase();
 
                         defenderPlot.CheckBorderPlotValue();
                         claims.serverPlayerMovementListener.markPlotToWasReUpdated(defenderPlot.getPos());
 
-                        UsefullPacketsSend.AddToQueueCityInfoUpdate(defenderPlot.getCity().Guid, EnumPlayerRelatedInfo.CLAIMED_PLOTS, EnumPlayerRelatedInfo.CITY_LOG);
                         UsefullPacketsSend.AddToQueueCityInfoUpdate(defenderCity.Guid, EnumPlayerRelatedInfo.CLAIMED_PLOTS, EnumPlayerRelatedInfo.CITY_LOG);
-                        defenderPlot.getCity().FirePlotsMapChanged(EnumPlotsMapChangeReason.PlotCapturedByUs);
+                        defenderCity.FirePlotsMapChanged(EnumPlotsMapChangeReason.PlotCapturedByUs);
                         defenderCity.FirePlotsMapChanged(EnumPlotsMapChangeReason.PlotLostToEnemy);
                         UsefullPacketsSend.AddToQueueAllPlayersInfoUpdate(new Dictionary<string, object> { { "value", defenderPlot.getPos() } }, EnumPlayerRelatedInfo.CITY_PLOT_RECOLOR);
                         warTime.PlotAttacks.Remove(PlotPosition.fromBlockPos(this.Pos));

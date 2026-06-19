@@ -21,7 +21,7 @@ namespace claims.src.part
         public Prison PrisonedIn { get; set; }
         public bool AwaitForTeleporation { get; set; }
         public City City { get; private set; }     
-        public Alliance Alliance { get { return City.Alliance; } }
+        public Alliance Alliance { get { return City?.Alliance; } }
         public HashSet<PlayerInfo> Friends { get; set; }
         public HashSet<Plot> PlayerPlots { get; set; }
         public PermsHandler PermsHandler { get; set; }
@@ -113,6 +113,7 @@ namespace claims.src.part
         }
         public void clearCity(bool clearAlsoEmbassies = false)
         {
+            if (City == null) return;
             City.getPlayerInfos().Remove(this);
             foreach(Plot plot in PlayerPlots.ToArray())
             {

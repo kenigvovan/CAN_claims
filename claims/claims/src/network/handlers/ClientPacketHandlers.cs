@@ -8,6 +8,8 @@ using claims.src.network.packets;
 using claims.src.playerMovements;
 using Newtonsoft.Json;
 using Vintagestory.API.MathTools;
+using claims.src;
+using claims.src.part.structure.plots;
 
 namespace claims.src.network.handlers
 {
@@ -83,11 +85,14 @@ namespace claims.src.network.handlers
                     case PacketsContentEnum.AGREE_NEEDED_ON_NEW_CITY_CREATION:
                         //TODO Delete after
                         claims.capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = gui.prettyGui.EnumSecondaryWindowTab.NEED_AGREE;
-                        claims.CANCityGui.CreateNewCityState = gui.playerGui.CANClaimsGui.EnumUpperWindowSelectedState.NEED_AGREE;
-                        claims.CANCityGui.collectedNewCityName = packet.data;
-                        if (claims.CANCityGui?.IsOpened() ?? false)
+                        if (claims.CANCityGui != null)
                         {
-                            claims.CANCityGui.BuildMainWindow();
+                            claims.CANCityGui.CreateNewCityState = gui.playerGui.CANClaimsGui.EnumUpperWindowSelectedState.NEED_AGREE;
+                            claims.CANCityGui.collectedNewCityName = packet.data;
+                            if (claims.CANCityGui.IsOpened())
+                            {
+                                claims.CANCityGui.BuildMainWindow();
+                            }
                         }
                         break;
                     case PacketsContentEnum.OWN_CITY_INFO_ON_JOIN:
@@ -149,6 +154,18 @@ namespace claims.src.network.handlers
                             claims.CANCityGui.BuildMainWindow();
                         }
                         break;
+                    case PacketsContentEnum.ADMIN_CITY_FLAGS_ALL:
+                        var adminData = JsonConvert.DeserializeObject<AdminDataPacket>(packet.data);
+                        if (adminData != null)
+                        {
+                            var gui = claims.capi.ModLoader.GetModSystem<claimsGui>();
+                            gui.AdminCityFlags.Clear();
+                            if (adminData.Cities != null)
+                                foreach (var item in adminData.Cities)
+                                    gui.AdminCityFlags[item.Name] = item;
+                            gui.AdminWorldState = adminData.World;
+                        }
+                        break;
                 }
             });
             claims.clientChannel.SetMessageHandler<PlayerGuiRelatedInfoPacket>((packet) =>
@@ -165,6 +182,7 @@ namespace claims.src.network.handlers
                 claims.config.PLOT_CLAIM_PRICE = packet.NewPlotClaimCost;
                 claims.config.COINS_VALUES_TO_CODE = packet.COINS_VALUES_TO_CODE;
                 claims.config.ID_TO_COINS_VALUES = packet.ID_TO_COINS_VALUES;
+                claims.config.COIN_DENOMINATIONS = packet.COIN_DENOMINATIONS;
                 claims.config.CITY_NAME_CHANGE_COST = packet.CITY_NAME_CHANGE_COST;
                 claims.config.CITY_BASE_CARE = packet.CITY_BASE_CARE;
                 claims.config.PLOT_COLORS = packet.PLOTS_COLORS;
@@ -176,6 +194,42 @@ namespace claims.src.network.handlers
                 claims.config.GUI_SHOW_DEBT = packet.GUI_SHOW_DEBT;
                 claims.config.CITY_AREA_VISIBILITY_STATE = packet.CITY_AREA_VISIBILITY_STATE;
                 claims.config.SHOW_BALANCE_HUD_DEFAULT = packet.SHOW_BALANCE_HUD_DEFAULT;
+
+                claims.config.DEFAULT_PLOT_COST = packet.DEFAULT_PLOT_COST;
+                claims.config.TOURNAMENT_PLOT_COST = packet.TOURNAMENT_PLOT_COST;
+                claims.config.CAMP_PLOT_COST = packet.CAMP_PLOT_COST;
+                claims.config.TEMPLE_PLOT_COST = packet.TEMPLE_PLOT_COST;
+                claims.config.FARM_PLOT_COST = packet.FARM_PLOT_COST;
+                claims.config.SUMMON_PLOT_COST = packet.SUMMON_PLOT_COST;
+                claims.config.EMBASSY_PLOT_COST = packet.EMBASSY_PLOT_COST;
+                claims.config.TAVERN_PLOT_COST = packet.TAVERN_PLOT_COST;
+                claims.config.MAIN_CITYPLOT_COST = packet.MAIN_CITYPLOT_COST;
+                claims.config.PRISON_PLOT_COST = packet.PRISON_PLOT_COST;
+
+                claims.config.OUTPOST_PLOT_COST = packet.OUTPOST_PLOT_COST;
+                claims.config.EXTRA_PLOT_COST = packet.EXTRA_PLOT_COST;
+                claims.config.PLOT_NO_PVP_FLAG_COST = packet.PLOT_NO_PVP_FLAG_COST;
+
+                claims.config.RANSOM_FOR_NO_CITIZEN = packet.RANSOM_FOR_NO_CITIZEN;
+                claims.config.RANSOM_FOR_CITIZEN = packet.RANSOM_FOR_CITIZEN;
+                claims.config.RANSOM_FOR_MAYOR = packet.RANSOM_FOR_MAYOR;
+                claims.config.RANSOM_FOR_LEADER = packet.RANSOM_FOR_LEADER;
+                claims.config.RANSOM_FOR_CHIEF = packet.RANSOM_FOR_CHIEF;
+
+                claims.config.ALLIANCE_RENAME_COST = packet.ALLIANCE_RENAME_COST;
+                claims.config.ALLIANCE_BASE_CARE = packet.ALLIANCE_BASE_CARE;
+                claims.config.ALLIANCE_MAX_FEE = packet.ALLIANCE_MAX_FEE;
+                claims.config.NEUTRAL_ALLANCE_PAYMENT = packet.NEUTRAL_ALLANCE_PAYMENT;
+
+                claims.config.MAX_CITY_FEE = packet.MAX_CITY_FEE;
+                claims.config.CITY_MAX_DEBT = packet.CITY_MAX_DEBT;
+
+                claims.config.MIN_RANGE_CELL_DURATION_MINUTES = packet.MIN_RANGE_CELL_DURATION_MINUTES;
+
+                // Plot type costs are captured into dictPlotTypes at client startup
+                // (before this packet arrives), so rebuild it with the synced values.
+                PlotInfo.initDicts();
+
                 if (!claims.config.BalanceHudOverride.HasValue)
                     claimsGui.showBalanceHud = packet.SHOW_BALANCE_HUD_DEFAULT;
                 if (claims.config.AVAILABLE_CITY_PERMISSIONS == null)

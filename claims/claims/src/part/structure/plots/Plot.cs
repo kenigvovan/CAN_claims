@@ -132,144 +132,13 @@ namespace claims.src.part.structure
                 return false;
             }
 
-            //Remove all saved data for plot type
-            CleanUpCurrentPlotTypeData();
-
-
-            //Set new type and init info needed
-            if (plotType == PlotType.SUMMON)
-            {
-                CityLevelInfo cli = Settings.getCityLevelInfo(getCity().getCityCitizens().Count);
-                if (getCity().summonPlots.Count >= cli.SummonPlots)
-                {
-                    tcr.StatusMessage = "claims:limit_summon_plots";
-                    return false;
-                }
-                Type = PlotType.SUMMON;
-                getCity().summonPlots.Add(this);
-                PlotDescSummon pds = new PlotDescSummon(player.Entity.Pos.XYZ);
-                pds.Name = "Point" + ((int)pds.SummonPoint.X % 10).ToString() + ((int)pds.SummonPoint.Z % 10).ToString();
-                this.PlotDesc = pds;
-                saveToDatabase();
-                getCity().saveToDatabase();
-                UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
-                new Dictionary<string, object> { { "value", new SummonCellElement((this.PlotDesc as PlotDescSummon).SummonPoint.AsVec3i.Clone(),
-                    (this.PlotDesc as PlotDescSummon).Name) } },
-                EnumPlayerRelatedInfo.CITY_SUMMON_POINT_ADD);
-                tcr.StatusMessage = "claims:plot_set_type";
-                tcr.MessageParams = new object[] { newPlotType };
-                return true;
-            }
-            else if (plotType == PlotType.PRISON)
-            {
-                PartInits.initPrison(this, getCity(), player);
-                Type = plotType;
-                tcr.StatusMessage = "claims:plot_set_type";
-                tcr.MessageParams = new object[] { newPlotType };
-                UsefullPacketsSend.AddToQueueCityInfoUpdate(this.getCity().Guid,
-                    new Dictionary<string, object> { { "value", new PrisonCellElement(player.Entity.Pos.AsBlockPos.AsVec3i.Clone(), new HashSet<string>()) } }, EnumPlayerRelatedInfo.CITY_ADD_PRISON_CELL);
-                return true;
-            }
-            else if (plotType == PlotType.TAVERN)
-            {
-                int tavernCount = 0;
-                foreach (var it in getCity().getCityPlots())
-                {
-                    if (it.Type == PlotType.TAVERN)
-                        tavernCount++;
-                }
-                if (tavernCount >= claims.config.MAX_NUMBER_TAVERN_PER_CITY)
-                {
-                    tcr.StatusMessage = "claims:too_much_taverns";
-                    tcr.MessageParams = new object[] { claims.config.MAX_NUMBER_TAVERN_PER_CITY };
-                    return false;
-                }
-                Type = plotType;
-                PlotDescTavern pdt = new PlotDescTavern();
-                PlotDesc = pdt;
-                saveToDatabase();
-                tcr.StatusMessage = "claims:plot_set_type";
-                tcr.MessageParams = new object[] { newPlotType };
-                return true;
-            }
-            else if( plotType == PlotType.TEMPLE)
-            {
-                Type = plotType;
-            }
-
+            PlotDesc newDesc = PlotDesc.Create(plotType, player);
+            if (!newDesc.Validate(this, player, ref tcr)) return false;
+            PlotDesc?.OnDeactivated(this);
             Type = plotType;
-            saveToDatabase();
-            tcr.StatusMessage = "claims:plot_set_type";
-            tcr.MessageParams = new object[] { newPlotType };
+            PlotDesc = newDesc;
+            newDesc.OnActivated(this, player, newPlotType, ref tcr);
             return true;
-        }
-
-        public void CleanUpCurrentPlotTypeData()
-        {
-            PlotType currentPlotType = this.Type;
-            if (currentPlotType == PlotType.SUMMON)
-            {
-                UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
-                new Dictionary<string, object> { { "value", new SummonCellElement((this.PlotDesc as PlotDescSummon).SummonPoint.AsVec3i.Clone(),
-                    (this.PlotDesc as PlotDescSummon).Name) } },
-                EnumPlayerRelatedInfo.CITY_SUMMON_POINT_REMOVE);
-                this.PlotDesc = null;
-                getCity().summonPlots.Remove(this);
-            }
-            else if (currentPlotType == PlotType.PRISON)
-            {
-                EntityPos ep = claims.sapi.World.DefaultSpawnPosition;
-                foreach (PrisonCellInfo cell in Prison.getPrisonCells())
-                {
-                    foreach (PlayerInfo player in cell.getPlayerInfos())
-                    {
-                        IServerPlayer onlinePlayer = claims.sapi.World.PlayerByUid(player.Guid) as IServerPlayer;
-                        if (onlinePlayer != null)
-                        {
-                            onlinePlayer.SetSpawnPosition(new PlayerSpawnPos((int)ep.X, (int)ep.Y, (int)ep.Z));
-                            onlinePlayer.Entity.TeleportToDouble(ep.X, ep.Y, ep.Z);
-                            player.PrisonHoursLeft = 0;
-                        }
-                        else
-                        {
-                            // released while offline; OnPlayerJoin will teleport on next login
-                            player.PrisonHoursLeft = -1;
-                        }
-                        player.PrisonedIn = null;
-                        player.saveToDatabase();
-                    }
-                }
-
-                claims.dataStorage.removePrison(Prison.Guid);
-                if (Prison.City != null)
-                {
-                    Prison.City.getPrisons().Remove(Prison);
-                    Prison.City.saveToDatabase();
-                }
-                Prison.Plot.Type = PlotType.DEFAULT;
-                claims.getModInstance().getDatabaseHandler().deleteFromDatabasePrison(Prison);
-                Prison = null;
-                this.saveToDatabase();                
-            }
-            else if (currentPlotType == PlotType.EMBASSY)
-            {
-                if (!this.hasPlotOwner())
-                {
-                    return;
-                }
-
-                PlayerInfo playerInfo = this.getPlotOwner();
-                if (playerInfo.hasCity() && this.getCity().Equals(playerInfo.City))
-                {
-                    return;
-                }
-                playerInfo.PlayerPlots.Remove(this);
-                playerInfo.saveToDatabase();
-            }
-            else if(currentPlotType == PlotType.TEMPLE)
-            {
-                city.RemoveTempleRespawnPoint(this);
-            }
         }
         public double getCustomTax()
         {
@@ -326,8 +195,8 @@ namespace claims.src.part.structure
             {
                 outStrings.Add(Lang.Get("claims:plot_owner", getPlotOwner().GetPartName()) + "\n");
             }
-            PlotInfo.dictPlotTypes.TryGetValue(this.Type, out PlotInfo plotInfo);
-            outStrings.Add(Lang.Get("claims:" + plotInfo.getFullName()) + "\n");
+            if (PlotInfo.dictPlotTypes.TryGetValue(this.Type, out PlotInfo plotInfo))
+                outStrings.Add(Lang.Get("claims:" + plotInfo.getFullName()) + "\n");
             if(customTax > 0)
             {
                 outStrings.Add(Lang.Get("claims:custom_plottax", customTax));
@@ -375,7 +244,8 @@ namespace claims.src.part.structure
                     }
                     else
                     {
-                        if (!nearPlot.getCity().Equals(this.getCity()))
+                        City nearCity = nearPlot.getCity();
+                        if (nearCity == null || !nearCity.Equals(this.getCity()))
                         {
                             this.BorderPlot = true;
                             return;

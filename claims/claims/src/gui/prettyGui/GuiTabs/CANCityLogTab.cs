@@ -24,16 +24,13 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 return;
             }
 
-            if (ImGui.Button(Lang.Get("claims:gui-back")))
-            {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.CITY;
-            }
+            if (BackButton())
+                GuiSys.selectedTab = EnumSelectedTab.CITY;
 
             ImGui.Separator();
             ImGui.Spacing();
 
-            Vector4 headerColor = new Vector4(1.0f, 0.85f, 0.3f, 1.0f);
-            ImGui.PushStyleColor(ImGuiCol.Text, headerColor);
+            ImGui.PushStyleColor(ImGuiCol.Text, ColValue);
             ImGui.Text(Lang.Get("claims:gui-city-log-title"));
             ImGui.PopStyleColor();
 
@@ -55,7 +52,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 string eventText = FormatEvent(entry);
                 Vector4 entryColor = GetEventColor(entry.EventType);
 
-                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.6f, 0.6f, 1.0f));
+                ImGui.PushStyleColor(ImGuiCol.Text, ColHint);
                 ImGui.Text($"[{dateStr}]");
                 ImGui.PopStyleColor();
                 ImGui.SameLine();
@@ -87,21 +84,29 @@ namespace claims.src.gui.prettyGui.GuiTabs
             };
         }
 
-        private static Vector4 GetEventColor(EnumCityLogEvent eventType)
+        private static readonly Vector4 ColEventDefault       = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+        private static readonly Vector4 ColEventCityCreated   = new Vector4(0.4f, 0.9f, 0.4f, 1.0f);
+        private static readonly Vector4 ColEventJoined        = new Vector4(0.5f, 0.85f, 0.5f, 1.0f);
+        private static readonly Vector4 ColEventLeft          = new Vector4(0.75f, 0.75f, 0.75f, 1.0f);
+        private static readonly Vector4 ColEventKicked        = new Vector4(0.9f, 0.5f, 0.3f, 1.0f);
+        private static readonly Vector4 ColEventMayor         = new Vector4(1.0f, 0.85f, 0.3f, 1.0f);
+        private static readonly Vector4 ColEventConflict      = new Vector4(0.9f, 0.25f, 0.25f, 1.0f);
+        private static readonly Vector4 ColEventFlagCaptured  = new Vector4(0.9f, 0.4f, 0.1f, 1.0f);
+        private static readonly Vector4 ColEventAllianceJoin  = new Vector4(0.4f, 0.7f, 1.0f, 1.0f);
+        private static readonly Vector4 ColEventAllianceLeft  = new Vector4(0.6f, 0.6f, 0.85f, 1.0f);
+
+        private static Vector4 GetEventColor(EnumCityLogEvent eventType) => eventType switch
         {
-            return eventType switch
-            {
-                EnumCityLogEvent.CityCreated      => new Vector4(0.4f, 0.9f, 0.4f, 1.0f),
-                EnumCityLogEvent.CitizenJoined    => new Vector4(0.5f, 0.85f, 0.5f, 1.0f),
-                EnumCityLogEvent.CitizenLeft      => new Vector4(0.75f, 0.75f, 0.75f, 1.0f),
-                EnumCityLogEvent.CitizenKicked    => new Vector4(0.9f, 0.5f, 0.3f, 1.0f),
-                EnumCityLogEvent.MayorChanged     => new Vector4(1.0f, 0.85f, 0.3f, 1.0f),
-                EnumCityLogEvent.ConflictDeclared => new Vector4(0.9f, 0.25f, 0.25f, 1.0f),
-                EnumCityLogEvent.FlagCaptured     => new Vector4(0.9f, 0.4f, 0.1f, 1.0f),
-                EnumCityLogEvent.AllianceJoined   => new Vector4(0.4f, 0.7f, 1.0f, 1.0f),
-                EnumCityLogEvent.AllianceLeft     => new Vector4(0.6f, 0.6f, 0.85f, 1.0f),
-                _                                 => new Vector4(1.0f, 1.0f, 1.0f, 1.0f)
-            };
-        }
+            EnumCityLogEvent.CityCreated      => ColEventCityCreated,
+            EnumCityLogEvent.CitizenJoined    => ColEventJoined,
+            EnumCityLogEvent.CitizenLeft      => ColEventLeft,
+            EnumCityLogEvent.CitizenKicked    => ColEventKicked,
+            EnumCityLogEvent.MayorChanged     => ColEventMayor,
+            EnumCityLogEvent.ConflictDeclared => ColEventConflict,
+            EnumCityLogEvent.FlagCaptured     => ColEventFlagCaptured,
+            EnumCityLogEvent.AllianceJoined   => ColEventAllianceJoin,
+            EnumCityLogEvent.AllianceLeft     => ColEventAllianceLeft,
+            _                                 => ColEventDefault
+        };
     }
 }

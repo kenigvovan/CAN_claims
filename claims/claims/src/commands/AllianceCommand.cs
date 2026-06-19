@@ -13,7 +13,6 @@ using claims.src.part.structure.conflict;
 using claims.src.part.structure.union;
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Server;
@@ -24,45 +23,15 @@ namespace claims.src.commands
     {
         // ================= TEST HOOKS =================
 
-        internal static IDataStorage Storage = claims.dataStorage;
         internal static IMoneyProvider Economy => claims.economyProvider;
         internal static IConfig Config = claims.config;
 
         internal static Func<long> Now = () => TimeFunctions.getEpochSeconds();
 
-        internal static Action<Thread> RunThread = t => t.Start();
-
         internal static System.Func<string, string> Loc = k => Lang.Get(k);
-        // ================= HELPERS =================
-
-        private static bool TryGetPlayer(IServerPlayer player, out PlayerInfo info, TextCommandResult err)
-        {
-            if (!Storage.GetPlayerByUid(player.PlayerUID, out info))
-            {
-                err.StatusMessage = Loc("claims:no_such_player_info");
-                return false;
-            }
-            return true;
-        }
-
-        private static bool RequireAlliance(PlayerInfo info, TextCommandResult err)
-        {
-            if (!info.HasAlliance())
-            {
-                err.StatusMessage = Loc("claims:no_alliance");
-                return false;
-            }
-            return true;
-        }
-
         public static TextCommandResult CreateAlliance(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (playerInfo == null)
-            {
-                return TextCommandResult.Error("claims:no_such_player_info");
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
 
             if (!playerInfo.hasCity())
             {
@@ -91,7 +60,7 @@ namespace claims.src.commands
                 return TextCommandResult.Error(Lang.Get("claims:not_enough_money"));
             }
             AgreementHandler.addNewAgreementOrReplace(new Agreement(
-                new Thread(new ThreadStart(() =>
+                () =>
                 {
                 if (playerInfo.hasCity() && !playerInfo.City.HasAlliance())
                 {
@@ -109,16 +78,12 @@ namespace claims.src.commands
                         MessageHandler.sendGlobalMsg(Lang.Get("claims:alliance_wont_be_created"));
                         return;
                     }
-                })), player.PlayerUID));
+                }, player.PlayerUID));
             return TextCommandResult.Success(Lang.Get("claims:help_agreement_new_alliance", claims.config.AGREEMENT_COMMAND));
         }
         public static TextCommandResult DeleteAlliance(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Error(Lang.Get("claims:no_such_player_info"));
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.HasAlliance())
             {
                 return TextCommandResult.Error(Lang.Get("claims:no_alliance"));
@@ -143,11 +108,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult LeaveAlliance(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Error(Lang.Get("claims:no_such_player_info"));
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.HasAlliance())
             {
                 return TextCommandResult.Error(Lang.Get("claims:no_alliance"));
@@ -215,11 +176,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult KickFromAlliance(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Error(Lang.Get("claims:no_such_player_info"));
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.HasAlliance())
             {
                 return TextCommandResult.Error(Lang.Get("claims:no_alliance"));
@@ -262,9 +219,21 @@ namespace claims.src.commands
             alliance.FireCityLeft(city, EnumCityLeaveReason.Kicked);
             foreach (PlayerInfo playerInCity in city.getPlayerInfos())
             {
+                playerInCity.ClearAllAllianceTitles();
                 RightsHandler.reapplyRights(playerInCity);
             }
+            foreach (var comradeAlliance in alliance.ComradAlliancies)
+            {
+                foreach (var comCity in comradeAlliance.Cities)
+                {
+                    comCity.ComradeCities.Remove(city);
+                    comCity.saveToDatabase();
+                }
+            }
+            city.ComradeCities.Clear();
             RightsHandler.RemoveCityHostilesInAlliance(city, alliance);
+            city.HostileCities.Clear();
+            city.Alliance = null;
             alliance.saveToDatabase();
             city.saveToDatabase();
             UsefullPacketsSend.AddToQueueAllianceInfoUpdate(alliance.Guid, new Dictionary<string, object> { { "value", alliance.Guid } }, EnumPlayerRelatedInfo.NEW_ALLIANCE_ALL);
@@ -278,11 +247,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult InviteToAlliance(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Error(Lang.Get("claims:no_such_player_info"));
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.HasAlliance())
             {
                 return TextCommandResult.Error(Lang.Get("claims:no_alliance"));
@@ -312,7 +277,7 @@ namespace claims.src.commands
             }
             long timeStamp = TimeFunctions.getEpochSeconds() + claims.config.HOUR_TIMEOUT_INVITATION_TO_ALLIANCE * 60;
             if (InvitationHandler.addNewInvite(new Invitation(alliance, city, timeStamp,
-                new Thread(new ThreadStart(() =>
+                () =>
                 {
                     alliance.Cities.Add(city);
                     RightsHandler.AddCityHostilesInAlliance(city, alliance);
@@ -330,13 +295,13 @@ namespace claims.src.commands
                     UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
                         new Dictionary<string, object> { { "value", alliance.Guid } }, EnumPlayerRelatedInfo.TO_ALLIANCE_INVITE_REMOVE);
                     UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_LOG);
-                })),
-                new Thread(new ThreadStart(() =>
+                },
+                () =>
                 {
                     MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:disagrre_with_invitation_to_alliance", playerInfo.GetPartName(), city.GetPartName()));
                     UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
                         new Dictionary<string, object> { { "value", alliance.Guid } }, EnumPlayerRelatedInfo.TO_ALLIANCE_INVITE_REMOVE);
-                }))
+                }
                 )))
             {
                 UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
@@ -353,11 +318,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult SetNameAlliance(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.HasAlliance())
             {
                 return TextCommandResult.Success(Lang.Get("claims:no_alliance"));
@@ -402,11 +363,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult SetFeeAlliance(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.HasAlliance())
             {
                 return TextCommandResult.Success(Lang.Get("claims:no_alliance"));
@@ -429,11 +386,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult SetCapitalAlliance(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.HasAlliance())
             {
                 return TextCommandResult.Success(Lang.Get("claims:no_alliance"));
@@ -453,18 +406,20 @@ namespace claims.src.commands
                 return TextCommandResult.Success(Lang.Get("claims:no_such_city"));
             }
             Alliance alliance = playerInfo.Alliance;
+            if (!alliance.Cities.Contains(city))
+            {
+                return TextCommandResult.Success(Lang.Get("claims:no_such_city"));
+            }
+            if (!city.HasMayor())
+                return TextCommandResult.Success(Lang.Get("claims:city_has_no_mayor"));
             alliance.MainCity = city;
-            alliance.Leader = city.getMayor();           
+            alliance.Leader = city.getMayor();
             alliance.saveToDatabase();
             return TextCommandResult.Success(Lang.Get("claims:capital_changed_to", city.GetPartName(), alliance.GetPartName()));
         }
         public static TextCommandResult SetPrefixAlliance(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.HasAlliance())
             {
                 return TextCommandResult.Success(Lang.Get("claims:no_alliance"));
@@ -493,11 +448,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult PrintInviteList(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
 
             if (!playerInfo.HasAlliance())
             {
@@ -519,11 +470,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult DeclareConflict(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
 
             if (!playerInfo.HasAlliance())
             {
@@ -567,7 +514,7 @@ namespace claims.src.commands
                 long timestamp = TimeFunctions.getEpochSeconds() + claims.config.DELAY_FOR_CONFLICT_ACTIVATED;
                 string newConflictGuid = ConflictLetter.GetUnusedGuid().ToString();
                 if (ConflictHandler.addConflictLetter(new ConflictLetter(ourAlliance, targetParty, LetterPurpose.START_CONFLICT, timestamp,
-                        new Thread(new ThreadStart(() =>
+                        () =>
                         {
                             if (playerInfo == null || !playerInfo.HasAlliance())
                             {
@@ -588,6 +535,13 @@ namespace claims.src.commands
                             foreach (var city in targetParty.GetCities())
                                 city.AddLogEntry(EnumCityLogEvent.ConflictDeclared, ourAlliance.GetPartName());
 
+                            newConflict.First = ourAlliance;
+                            newConflict.Second = targetParty;
+                            newConflict.StartedBy = ourAlliance;
+                            newConflict.State = ConflictState.CREATED;
+                            newConflict.TimeStampStarted = TimeFunctions.getEpochSeconds();
+                            newConflict.MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES;
+
                             RightsHandler.SetPartiesHostile(ourAlliance, targetParty, newConflict);
                             if (targetParty is Alliance targetAllianceForAlly)
                             {
@@ -601,12 +555,6 @@ namespace claims.src.commands
                             UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
                                 new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
 
-                            newConflict.First = ourAlliance;
-                            newConflict.Second = targetParty;
-                            newConflict.StartedBy = ourAlliance;
-                            newConflict.State = ConflictState.CREATED;
-                            newConflict.TimeStampStarted = TimeFunctions.getEpochSeconds();
-                            newConflict.MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES;
                             ourAlliance.FireConflictDeclared(targetParty);
                             var conflictCellElement = ClientConflictCellElement.FromConflict(newConflict);
                             UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourAlliance,
@@ -617,11 +565,10 @@ namespace claims.src.commands
                             targetParty.saveToDatabase();
                             ourAlliance.saveToDatabase();
                             newConflict.saveToDatabase(false);
-                            ConflictHandler.removeConflictLetter(letter);
                             foreach (var c in targetParty.GetCities())
                                 MessageHandler.sendMsgInCity(c, Lang.Get("claims:conflict_created_with", ourAlliance.getPartNameReplaceUnder()));
-                        })),
-                        new Thread(new ThreadStart(() =>
+                        },
+                        () =>
                         {
                             if (ConflictHandler.TryGetConflictLetter(ourAlliance, targetParty, LetterPurpose.START_CONFLICT, out var denyLetter))
                             {
@@ -632,7 +579,7 @@ namespace claims.src.commands
                             }
                             MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:conflict_denied"));
                             ConflictHandler.removeConflictLetter(ourAlliance, targetParty, LetterPurpose.START_CONFLICT);
-                        }))
+                        }
                         , newConflictGuid.ToString())))
                 {
                     ConflictHandler.TryGetConflictLetter(newConflictGuid.ToString(), out ConflictLetter conflictLetter);
@@ -662,6 +609,11 @@ namespace claims.src.commands
                 }
 
                 Conflict newConflict = new Conflict("", Alliance.GetUnusedGuid());
+                newConflict.First = ourAlliance;
+                newConflict.StartedBy = ourAlliance;
+                newConflict.Second = targetParty;
+                newConflict.State = ConflictState.CREATED;
+                newConflict.MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES;
 
                 foreach (var city in ourAlliance.GetCities())
                     city.AddLogEntry(EnumCityLogEvent.ConflictDeclared, targetParty.GetPartName());
@@ -674,11 +626,6 @@ namespace claims.src.commands
                     RightsHandler.AllianceAllySetHostileOnNewConflictStarted(ourAlliance, targetAllianceForAlly2, newConflict);
                 }
                 claims.dataStorage.TryAddConflict(newConflict);
-                newConflict.First = ourAlliance;
-                newConflict.StartedBy = ourAlliance;
-                newConflict.Second = targetParty;
-                newConflict.State = ConflictState.CREATED;
-                newConflict.MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES;
                 ourAlliance.FireConflictDeclared(targetParty);
                 targetParty.saveToDatabase();
                 ourAlliance.saveToDatabase();
@@ -688,15 +635,15 @@ namespace claims.src.commands
         }
         public static TextCommandResult RevokeConflict(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
 
             if (!playerInfo.HasAlliance())
             {
                 return TextCommandResult.Success(Lang.Get("claims:no_alliance"));
+            }
+            if (!playerInfo.Alliance.IsLeader(playerInfo))
+            {
+                return TextCommandResult.Success(Lang.Get("claims:you_dont_have_right_for_that_command"));
             }
             var (parsedName, targetType) = CityCommand.ParseWarTargetInput((string)args.Parsers[0].GetValue());
             string name = Filter.filterName(parsedName);
@@ -738,11 +685,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult AcceptStartConflict(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
 
             if (!playerInfo.HasAlliance())
             {
@@ -772,16 +715,12 @@ namespace claims.src.commands
                 return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
             }
 
-            letter.OnAccept.Start();
+            letter.OnAccept?.Invoke();
             return TextCommandResult.Success();
         }
         public static TextCommandResult DenyStartConflict(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
 
             if (!playerInfo.HasAlliance())
             {
@@ -810,16 +749,12 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
             }
-            letter.OnDeny.Start();
+            letter.OnDeny?.Invoke();
             return TextCommandResult.Success();
         }
         public static TextCommandResult OfferStopConflict(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
 
             if (!playerInfo.HasAlliance())
             {
@@ -858,7 +793,7 @@ namespace claims.src.commands
             {
                 long timestamp = TimeFunctions.getEpochSeconds() + claims.config.DELAY_FOR_CONFLICT_ACTIVATED;
                 if (ConflictHandler.addConflictLetter(new ConflictLetter(ourAlliance, targetParty, LetterPurpose.END_CONFLICT, timestamp,
-                        new Thread(new ThreadStart(() =>
+                        () =>
                         {
                             if (playerInfo == null || !playerInfo.HasAlliance())
                             {
@@ -883,8 +818,8 @@ namespace claims.src.commands
                             PartDemolition.DemolishConflict(conflict);
                             foreach (var c in targetParty.GetCities())
                                 MessageHandler.sendMsgInCity(c, Lang.Get("claims:conflict_stopped_with", ourAlliance.getPartNameReplaceUnder()));
-                        })),
-                        new Thread(new ThreadStart(() =>
+                        },
+                        () =>
                         {
                             if (ConflictHandler.TryGetConflictLetter(ourAlliance, targetParty, LetterPurpose.END_CONFLICT, out var denyLetter))
                             {
@@ -895,7 +830,7 @@ namespace claims.src.commands
                             }
                             MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:conflict_stop_denied"));
                             ConflictHandler.removeConflictLetter(ourAlliance, targetParty, LetterPurpose.END_CONFLICT);
-                        })),
+                        },
                         conflict.Guid
                         )))
                 {
@@ -931,11 +866,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult AcceptStopConflict(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
 
             if (!playerInfo.HasAlliance())
             {
@@ -965,21 +896,12 @@ namespace claims.src.commands
                 return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
             }
 
-            letter.OnAccept.Start();
-            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty, new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourAlliance, new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-
-            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty, new Dictionary<string, object> { { "value", letter.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_REMOVE);
-            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourAlliance, new Dictionary<string, object> { { "value", letter.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_REMOVE);
+            letter.OnAccept?.Invoke();
             return TextCommandResult.Success();
         }
         public static TextCommandResult DenyStopConflict(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
 
             if (!playerInfo.HasAlliance())
             {
@@ -1009,18 +931,12 @@ namespace claims.src.commands
                 return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
             }
 
-            letter.OnDeny.Start();
-            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty, new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourAlliance, new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
+            letter.OnDeny?.Invoke();
             return TextCommandResult.Success();
         }
         public static TextCommandResult DeclareUnion(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
 
             if (!playerInfo.HasAlliance())
             {
@@ -1058,7 +974,7 @@ namespace claims.src.commands
             long timestamp = TimeFunctions.getEpochSeconds() + claims.config.DELAY_FOR_CONFLICT_ACTIVATED;
             string newConflictGuid = UnionLetter.GetUnusedGuid().ToString();
             if (UnionHander.addUnionLetter(new UnionLetter(ourAlliance, targetAlliance, timestamp,
-                    new Thread(new ThreadStart(() =>
+                    () =>
                     {
                         if (playerInfo == null || !playerInfo.HasAlliance())
                         {
@@ -1080,12 +996,12 @@ namespace claims.src.commands
 
                         UsefullPacketsSend.AddToQueueAllianceInfoUpdate(targetAlliance.Guid, new Dictionary<string, object> { { "value", newConflictGuid } }, EnumPlayerRelatedInfo.ALLIANCE_UNION_LETTER_REMOVE);
                         UsefullPacketsSend.AddToQueueAllianceInfoUpdate(ourAlliance.Guid, new Dictionary<string, object> { { "value", newConflictGuid } }, EnumPlayerRelatedInfo.ALLIANCE_UNION_LETTER_REMOVE);
-                    })),
-                    new Thread(new ThreadStart(() =>
+                    },
+                    () =>
                     {
                         MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:union_denied"));
                         UnionHander.removeUnionLetter(ourAlliance, targetAlliance);
-                    }))
+                    }
                     , newConflictGuid.ToString())))
             {
                 UnionHander.TryGetUnionLetter(newConflictGuid.ToString(), out UnionLetter conflictLetter);
@@ -1108,11 +1024,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult RevokeUnion(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
 
             if (!playerInfo.HasAlliance())
             {
@@ -1143,11 +1055,7 @@ namespace claims.src.commands
         }
         public static TextCommandResult UnsendInviteUnion(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
 
             if (!playerInfo.HasAlliance())
             {
@@ -1169,18 +1077,14 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Success(Lang.Get("claims:no_union_letter_found"));
             }
-            letter.OnDeny.Start();
+            letter.OnDeny?.Invoke();
             UsefullPacketsSend.AddToQueueAllianceInfoUpdate(targetAlliance.Guid, new Dictionary<string, object> { { "value", letter.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_UNION_LETTER_REMOVE);
             UsefullPacketsSend.AddToQueueAllianceInfoUpdate(ourAlliance.Guid, new Dictionary<string, object> { { "value", letter.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_UNION_LETTER_REMOVE);
             return TextCommandResult.Success(Lang.Get("claims:union_declaration_removed", targetAlliance.getPartNameReplaceUnder()));
         }
         public static TextCommandResult AcceptInviteUnion(TextCommandCallingArgs args)
         {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_such_player_info"));
-            }
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
 
             if (!playerInfo.HasAlliance())
             {
@@ -1202,7 +1106,7 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Success(Lang.Get("claims:no_union_letter_found"));
             }
-            letter.OnAccept.Start();
+            letter.OnAccept?.Invoke();
             UnionHander.removeUnionLetter(letter);
             return TextCommandResult.Success(Lang.Get("claims:union_letter_accepted", targetAlliance.getPartNameReplaceUnder()));
         }

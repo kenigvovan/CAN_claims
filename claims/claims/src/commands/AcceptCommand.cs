@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
 using claims.src.auxialiry;
+using claims.src.gui.playerGui.structures;
+using claims.src.gui.playerGui.structures.cellElements;
 using claims.src.messages;
 using claims.src.part;
 using claims.src.part.structure;
@@ -66,6 +68,28 @@ namespace claims.src.commands
                     invitation.Receiver.groupInvitations.Remove(invitation);
                     invitation.Sender.groupInvitations.Remove(invitation);
                     invitation.accept();
+                    return TextCommandResult.Success();
+                }
+            }
+            return TextCommandResult.Success();
+        }
+        public static TextCommandResult onDenyPlotGroup(TextCommandCallingArgs args)
+        {
+            claims.dataStorage.GetPlayerByUid(args.Caller.Player.PlayerUID, out PlayerInfo playerInfo);
+            if (playerInfo == null) return TextCommandResult.Error("");
+
+            string cityName = (string)args.Parsers[0].GetValue();
+            string groupName = (string)args.Parsers[1].GetValue();
+            foreach (var invitation in playerInfo.groupInvitations)
+            {
+                if (invitation.Sender.GetPartName().Equals(cityName) && invitation.GroupName.Equals(groupName))
+                {
+                    invitation.Receiver.groupInvitations.Remove(invitation);
+                    invitation.Sender.groupInvitations.Remove(invitation);
+                    invitation.reject();
+                    UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid,
+                        new Dictionary<string, object> { { "value", new ClientToPlotsGroupInvitation(cityName, groupName, 0) } },
+                        EnumPlayerRelatedInfo.TO_PLOTS_GROUP_INVITE_REMOVE);
                     return TextCommandResult.Success();
                 }
             }

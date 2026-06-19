@@ -121,21 +121,18 @@ namespace claims.src.gui.prettyGui.GuiTabs
         }
         private static void DrawDayHeader(int dayIndex)
         {
-            Vector4 dayColor = new Vector4(1.0f, 0.85f, 0.3f, 1.0f);
-            ImGui.PushStyleColor(ImGuiCol.Text, dayColor);
-            ImGui.Text(((DayOfWeek)dayIndex).ToString());
+            ImGui.PushStyleColor(ImGuiCol.Text, ColValue);
+            ImGui.Text(Lang.Get($"claims:gui_day_{((DayOfWeek)dayIndex).ToString().ToLower()}"));
             ImGui.PopStyleColor();
         }
 
         private static void DrawButtonGrid(bool[] slotArray, string idPrefix, bool interactive)
         {
-            Vector4 activeColor = new Vector4(0.2f, 0.7f, 0.3f, 1.0f);
-            Vector4 scaleColor = new Vector4(0.5f, 0.5f, 0.5f, 1.0f);
             // 3 rows: 0:00-8:00, 8:00-16:00, 16:00-24:00
             for (int j = 0; j < 3; j++)
             {
                 int startHour = j * 8;
-                ImGui.PushStyleColor(ImGuiCol.Text, scaleColor);
+                ImGui.PushStyleColor(ImGuiCol.Text, ColHint);
                 ImGui.Text($"{startHour:00}:00");
                 ImGui.PopStyleColor();
                 ImGui.SameLine(50);
@@ -146,7 +143,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     bool value = slotArray[p];
 
                     if (value)
-                        ImGui.PushStyleColor(ImGuiCol.Button, activeColor);
+                        ImGui.PushStyleColor(ImGuiCol.Button, ColGreen);
 
                     if (ImGui.Button("##" + idPrefix + p.ToString(), new Vector2(16, 16)))
                     {
@@ -180,7 +177,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             var clientInfo = claims.clientDataStorage.clientPlayerInfo;
             if (clientInfo?.CityInfo == null) return;
 
-            var cell = clientInfo.CityInfo.ClientConflictCellElements.FirstOrDefault(c => c.Guid == capi.ModLoader.GetModSystem<claimsGui>().textInput);
+            var cell = clientInfo.CityInfo.ClientConflictCellElements.FirstOrDefault(c => c.Guid == GuiSys.textInput);
             if (cell == null)
             {
                 return;
@@ -191,9 +188,6 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ? Lang.Get("claims:conflict_target_alliance") : Lang.Get("claims:conflict_target_city");
 
             // --- Title: party names with colors, centered ---
-            Vector4 partyColor = new Vector4(1.0f, 0.85f, 0.3f, 1.0f);
-            Vector4 vsColor = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
-
             string midText = $" ({firstTypeLabel})  vs   ({secondTypeLabel})";
             ImGui.SetWindowFontScale(1.3f);
             float namesWidth = ImGui.CalcTextSize(cell.FirstPartyName).X + ImGui.CalcTextSize(cell.SecondPartyName).X;
@@ -205,25 +199,25 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (availWidth - titleWidth) * 0.5f);
             }
 
-            ImGui.PushStyleColor(ImGuiCol.Text, partyColor);
+            ImGui.PushStyleColor(ImGuiCol.Text, ColValue);
             ImGui.SetWindowFontScale(1.3f);
             ImGui.Text(cell.FirstPartyName);
             ImGui.SetWindowFontScale(1.0f);
             ImGui.PopStyleColor();
             ImGui.SameLine(0, 0);
-            ImGui.PushStyleColor(ImGuiCol.Text, vsColor);
+            ImGui.PushStyleColor(ImGuiCol.Text, ColLabel);
             ImGui.Text($" ({firstTypeLabel})");
             ImGui.PopStyleColor();
             ImGui.SameLine(0, 0);
             ImGui.Text("  vs  ");
             ImGui.SameLine(0, 0);
-            ImGui.PushStyleColor(ImGuiCol.Text, partyColor);
+            ImGui.PushStyleColor(ImGuiCol.Text, ColValue);
             ImGui.SetWindowFontScale(1.3f);
             ImGui.Text(cell.SecondPartyName);
             ImGui.SetWindowFontScale(1.0f);
             ImGui.PopStyleColor();
             ImGui.SameLine(0, 0);
-            ImGui.PushStyleColor(ImGuiCol.Text, vsColor);
+            ImGui.PushStyleColor(ImGuiCol.Text, ColLabel);
             ImGui.Text($" ({secondTypeLabel})");
             ImGui.PopStyleColor();
 
@@ -241,32 +235,26 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.Spacing();
 
             // --- Info table ---
-            if (ImGui.BeginTable("ConflictInfoTable", 2, ImGuiTableFlags.None))
+            if (ImGui.BeginTable("ConflictInfoTable", 2, TableFlags))
             {
                 ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 160);
                 ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
 
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
-                ImGui.PushStyleColor(ImGuiCol.Text, vsColor);
-                ImGui.Text(Lang.Get("claims:gui_conflict_info_started_by"));
-                ImGui.PopStyleColor();
+                Label(Lang.Get("claims:gui_conflict_info_started_by"));
                 ImGui.TableNextColumn();
                 ImGui.Text(cell.StartedByPartyName);
 
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
-                ImGui.PushStyleColor(ImGuiCol.Text, vsColor);
-                ImGui.Text(Lang.Get("claims:gui_conflict_info_created"));
-                ImGui.PopStyleColor();
+                Label(Lang.Get("claims:gui_conflict_info_created"));
                 ImGui.TableNextColumn();
                 ImGui.Text(TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(cell.TimeStampCreated, true));
 
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
-                ImGui.PushStyleColor(ImGuiCol.Text, vsColor);
-                ImGui.Text(Lang.Get("claims:gui_conflict_info_last_battle"));
-                ImGui.PopStyleColor();
+                Label(Lang.Get("claims:gui_conflict_info_last_battle"));
                 ImGui.TableNextColumn();
                 ImGui.Text(string.Format("{0}  -  {1}",
                     TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.LastBattleDateStart).ToUnixTimeSeconds()),
@@ -274,9 +262,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
-                ImGui.PushStyleColor(ImGuiCol.Text, vsColor);
-                ImGui.Text(Lang.Get("claims:gui_conflict_info_next_battle"));
-                ImGui.PopStyleColor();
+                Label(Lang.Get("claims:gui_conflict_info_next_battle"));
                 ImGui.TableNextColumn();
                 ImGui.Text(string.Format("{0}  -  {1}",
                     TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.NextBattleDateStart).ToUnixTimeSeconds()),
@@ -284,9 +270,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
-                ImGui.PushStyleColor(ImGuiCol.Text, vsColor);
-                ImGui.Text(Lang.Get("claims:gui_conflict_info_pause_days"));
-                ImGui.PopStyleColor();
+                Label(Lang.Get("claims:gui_conflict_info_pause_days"));
                 ImGui.TableNextColumn();
                 ImGui.Text(cell.MinimumDaysBetweenBattles.ToString());
 
@@ -299,12 +283,12 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
             if (ImGui.BeginTabBar("MyTabs"))
             {
-                if (ImGui.BeginTabItem("Selected"))
+                if (ImGui.BeginTabItem(Lang.Get("claims:gui_conflict_warrange_tab_selected")))
                 {
-                    if (capi.ModLoader.GetModSystem<claimsGui>().selectedWarrangeTab != 0)
+                    if (GuiSys.selectedWarrangeTab != 0)
                     {
                         FillWarRangeArrays(cell.WarRanges);
-                        capi.ModLoader.GetModSystem<claimsGui>().selectedWarrangeTab = 0;
+                        GuiSys.selectedWarrangeTab = 0;
                     }
 
                     ImGui.BeginChild("InvitesScroll", new Vector2(0, 300), true);
@@ -328,9 +312,9 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     ImGui.EndTabItem();
                 }
 
-                if (ImGui.BeginTabItem("Suggested"))
+                if (ImGui.BeginTabItem(Lang.Get("claims:gui_conflict_warrange_tab_suggested")))
                 {
-                    if (capi.ModLoader.GetModSystem<claimsGui>().selectedWarrangeTab != 1)
+                    if (GuiSys.selectedWarrangeTab != 1)
                     {
                         string ourName = claims.clientDataStorage.clientPlayerInfo.AllianceInfo?.Name
                             ?? claims.clientDataStorage.clientPlayerInfo.CityInfo?.Name ?? "";
@@ -342,7 +326,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                         {
                             FillTwoWarRangesArrays(cell.SecondWarRanges, cell.FirstWarRanges);
                         }
-                        capi.ModLoader.GetModSystem<claimsGui>().selectedWarrangeTab = 1;
+                        GuiSys.selectedWarrangeTab = 1;
                     }
 
                     ImGui.BeginChild("InvitesScroll", new Vector2(0, 300), true);
@@ -383,10 +367,10 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
             ImGui.Spacing();
 
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.55f, 0.8f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.65f, 0.9f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.7f, 1.0f));
             float sendBtnWidth = ImGui.CalcTextSize(Lang.Get("claims:gui-send-new-conflict-time")).X + 40;
+            ImGui.PushStyleColor(ImGuiCol.Button, ColBlue);
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ColBlueH);
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, ColBlueA);
             if (ImGui.Button(Lang.Get("claims:gui-send-new-conflict-time"), new Vector2(sendBtnWidth, 30)))
             {
                 if (cell == null)
@@ -398,7 +382,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     ?? claims.clientDataStorage.clientPlayerInfo.CityInfo?.Name ?? "";
                 string ourPartyGuid = ourName.Equals(cell.FirstPartyName) ? cell.FirstPartyGuid : cell.SecondPartyGuid;
 
-                int activeTab = capi.ModLoader.GetModSystem<claimsGui>().selectedWarrangeTab;
+                int activeTab = GuiSys.selectedWarrangeTab;
                 bool[][] warRangesByDay = new bool[7][];
                 for (int d = 0; d < 7; d++)
                 {
@@ -527,24 +511,14 @@ namespace claims.src.gui.prettyGui.GuiTabs
             /*==============================================================================================*/
             /*=====================================UNDER 2 LINE=============================================*/
             /*==============================================================================================*/
-            float availY = ImGui.GetContentRegionAvail().Y;
-            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + availY - 80);
+            AlignBottom();
 
 
-            if (ImGui.ImageButton("allianceinfo", this.iconHandler.GetOrLoadIcon("vertical-banner"), new Vector2(60)))
-            {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = capi.ModLoader.GetModSystem<claimsGui>().conflictSourceTab;
-            }
+            if (IconButton("allianceinfo", "vertical-banner", 60, Lang.Get("claims:gui-back")))
+                GuiSys.selectedTab = GuiSys.conflictSourceTab;
             ImGui.SameLine();
-            if (ImGui.ImageButton("conflictletters", this.iconHandler.GetOrLoadIcon("envelope"), new Vector2(60)))
-            {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.ConflictLettersPage;
-            }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip(Lang.Get("claims:gui-conflict-letters"));
-            }
-
+            if (IconButton("conflictletters", "envelope", 60, Lang.Get("claims:gui-conflict-letters")))
+                GuiSys.selectedTab = EnumSelectedTab.ConflictLettersPage;
         }
     }
 }

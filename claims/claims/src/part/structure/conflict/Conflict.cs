@@ -69,6 +69,7 @@ namespace claims.src.part.structure.conflict
             else
             {
                 NextBattleDateStart = DateTime.UnixEpoch;
+                NextBattleDateEnd = DateTime.UnixEpoch;
             }
         }
         public bool GetNextDateForRange(SelectedWarRange range, out DateTime dateTime)

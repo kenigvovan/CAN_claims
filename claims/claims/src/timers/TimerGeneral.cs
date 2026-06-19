@@ -2,23 +2,21 @@
 using claims.src.delayed.cooldowns;
 using claims.src.delayed.teleportation;
 using claims.src.part.structure.conflict;
-using System.Threading;
-using System.Threading.Tasks;
+using claims.src.part.structure.union;
 using Vintagestory.API.Server;
 
 namespace claims.src.timers
 {
     public class TimerGeneral
     {
-        public static async Task StartServerTimers(ICoreServerAPI sapi)
+        public static void StartServerTimers(ICoreServerAPI sapi)
         {
-            //Start new day sequence
+            //Start new day sequence. The callback runs on the main server thread —
+            //day/hour processing touches shared game state, so it must NOT be offloaded
+            //to a background thread (that caused data races with the server tick).
             var returnId = sapi.Event.RegisterCallback((dt =>
             {
-                new Thread(new ThreadStart(() =>
-                {
-                    new DayTimer().Run(true);
-                })).Start();
+                new DayTimer().Run(true);
             }), (int)TimeFunctions.getSecondsBeforeNextDayStart() * 1000);
 
             sapi.Logger.Debug("StartTimers:newdayTimer, handlerID " + returnId);
@@ -26,10 +24,7 @@ namespace claims.src.timers
             //Start new hour sequence
             returnId = sapi.Event.RegisterCallback((dt =>
             {
-                new Thread(new ThreadStart(() =>
-                {
-                    new HourTimer().Run();
-                })).Start();
+                new HourTimer().Run();
             }), (int)TimeFunctions.getSecondsBeforeNextHourStart() * 1000);
 
             // === BACKUP SCHEDULER ===
@@ -63,6 +58,7 @@ namespace claims.src.timers
             claims.sapi.Event.Timer((() =>
             {
                 ConflictHandler.updateConflictLetters();
+                UnionHander.updateUnionLetters();
             }
             ), 300);
         }

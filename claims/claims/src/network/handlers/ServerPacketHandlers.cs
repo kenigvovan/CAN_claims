@@ -31,6 +31,10 @@ namespace claims.src.network.handlers
                         return;
                     }
                     List<Tuple<Vec2i, long>> zonesTimestamps = JsonConvert.DeserializeObject<List<Tuple<Vec2i, long>>>(packet.data);
+                    if (zonesTimestamps == null)
+                    {
+                        return;
+                    }
 
                     // Anti-spoof: only allow zones close to player's actual position
                     int zoneBlocks = claims.config.PLOT_SIZE * claims.config.ZONE_PLOTS_LENGTH;
@@ -74,28 +78,51 @@ namespace claims.src.network.handlers
                         }
                     }                                      
                 }
+                else if (packet.type == PacketsContentEnum.ADMIN_REQUEST_CITY_FLAGS)
+                {
+                    if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
+                        return;
+                    var cities = new System.Collections.Generic.List<AdminCityFlagsItem>();
+                    bool hasBalance = claims.economyProvider != null;
+                    foreach (var city in claims.dataStorage.getCitiesList())
+                    {
+                        var ph = city.getPermsHandler();
+                        cities.Add(new AdminCityFlagsItem
+                        {
+                            Guid = city.Guid,
+                            Name = city.GetPartName(),
+                            Pvp = ph.pvpFlag,
+                            Fire = ph.fireFlag,
+                            Blast = ph.blastFlag,
+                            Technical = city.isTechnicalCity(),
+                            Open = city.openCity,
+                            CitizenCount = city.getCityCitizens().Count,
+                            PlotCount = city.getCityPlots().Count,
+                            HasBalance = hasBalance,
+                            Balance = hasBalance ? (double)claims.economyProvider.GetBalance(city.MoneyAccountName) : 0
+                        });
+                    }
+                    var wi = claims.dataStorage.getWorldInfo();
+                    var worldFlags = new AdminWorldFlags
+                    {
+                        PvpEverywhere = wi.pvpEverywhere,
+                        PvpForbidden = wi.pvpForbidden,
+                        FireEverywhere = wi.fireEverywhere,
+                        FireForbidden = wi.fireForbidden,
+                        BlastEverywhere = wi.blastEverywhere,
+                        BlastForbidden = wi.blastForbidden
+                    };
+                    claims.serverChannel.SendPacket(new SavedPlotsPacket
+                    {
+                        type = PacketsContentEnum.ADMIN_CITY_FLAGS_ALL,
+                        data = JsonConvert.SerializeObject(new AdminDataPacket { Cities = cities, World = worldFlags })
+                    }, player);
+                }
                 else if (packet.type == PacketsContentEnum.CITY_CITIZENS_RANKS_REQUEST)
                 {
-
-                    //get player
-                    //city
-                    //skip if not mayor
-                    //send dict with ranks
-                    //add handler on client
-                    var currentPos = player.Entity.Pos;
-                    if (claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(currentPos), out Plot plot))
-                    {
-                        CurrentPlotInfo cpi = new CurrentPlotInfo(plot.GetPartName(), plot.getPlotOwner()?.GetPartName() ?? "",
-                            plot.Type, plot.getCustomTax(), plot.Price, plot.getPermsHandler(), plot.extraBought, plot.getPos());
-                        string serializedZones = JsonConvert.SerializeObject(cpi);
-
-                        claims.serverChannel.SendPacket(new SavedPlotsPacket()
-                        {
-                            type = PacketsContentEnum.CURRENT_PLOT_INFO,
-                            data = serializedZones
-
-                        }, player);
-                    }
+                    claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo rankRequester);
+                    if (rankRequester == null || !rankRequester.hasCity()) return;
+                    UsefullPacketsSend.AddToQueuePlayerInfoUpdate(player.PlayerUID, EnumPlayerRelatedInfo.CITY_CITIZENS_RANKS);
                 }
             });
             claims.serverChannel.SetMessageHandler<PlayerGuiRelatedInfoPacket>((player, packet) =>
@@ -138,6 +165,9 @@ namespace claims.src.network.handlers
                 {
                     return;
                 }
+
+                if (conflict.ActiveWarTime)
+                    return;
 
                 bool getFirst = true;
                 if(conflict.First.Equals(ourParty))

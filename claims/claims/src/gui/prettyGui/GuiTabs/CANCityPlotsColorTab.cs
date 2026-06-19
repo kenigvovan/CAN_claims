@@ -19,19 +19,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
         public override void DrawTab()
         {
-            Vector4 labelColor = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
-            Vector4 sectionColor = new Vector4(0.4f, 0.7f, 1.0f, 1.0f);
-
             // --- Header ---
-            ImGui.PushStyleColor(ImGuiCol.Text, sectionColor);
-            ImGui.SetWindowFontScale(1.3f);
-            string title = Lang.Get("claims:gui-city-plots-color");
-            float windowWidth = ImGui.GetWindowSize().X;
-            float textWidth = ImGui.CalcTextSize(title).X;
-            ImGui.SetCursorPosX((windowWidth - textWidth) * 0.5f);
-            ImGui.Text(title);
-            ImGui.SetWindowFontScale(1.0f);
-            ImGui.PopStyleColor();
+            CenteredTitle(Lang.Get("claims:gui-city-plots-color"), ColSection);
 
             ImGui.Separator();
             ImGui.Spacing();
@@ -39,9 +28,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             // --- Current color ---
             if (claims.clientDataStorage.clientPlayerInfo?.CityInfo != null)
             {
-                ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-                ImGui.Text(Lang.Get("claims:gui-color-current"));
-                ImGui.PopStyleColor();
+                Label(Lang.Get("claims:gui-color-current"));
                 ImGui.SameLine();
 
                 int currentColor = claims.clientDataStorage.clientPlayerInfo.CityInfo.PlotsColor;
@@ -54,9 +41,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             }
 
             // --- Color picker grid ---
-            ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-            ImGui.Text(Lang.Get("claims:gui-color-select"));
-            ImGui.PopStyleColor();
+            Label(Lang.Get("claims:gui-color-select"));
 
             ImGui.Spacing();
 
@@ -107,9 +92,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             // --- Selected preview + Apply button ---
             if (selectedColorIndex >= 0 && selectedColorIndex < colors.Length)
             {
-                ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-                ImGui.Text(Lang.Get("claims:gui-color-selected"));
-                ImGui.PopStyleColor();
+                Label(Lang.Get("claims:gui-color-selected"));
                 ImGui.SameLine();
 
                 Vector4 selColorVec = IntToColorVec4(colors[selectedColorIndex]);
@@ -117,10 +100,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
                 ImGui.SameLine();
 
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.55f, 0.3f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.65f, 0.4f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.25f, 1.0f));
-                if (ImGui.Button(Lang.Get("claims:gui-color-apply")))
+                if (GreenButton(Lang.Get("claims:gui-color-apply")))
                 {
                     ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                     clientEventManager.TriggerNewClientChatLine(
@@ -129,15 +109,13 @@ namespace claims.src.gui.prettyGui.GuiTabs
                         EnumChatType.Macro, "");
                     selectedColorIndex = -1;
                 }
-                ImGui.PopStyleColor(3);
             }
 
             // --- Back button ---
-            float availY = ImGui.GetContentRegionAvail().Y;
-            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + availY - 40);
+            AlignBottom(40f);
             if (ImGui.Button(Lang.Get("claims:gui-back-button")))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().selectedTab = EnumSelectedTab.CITY;
+                GuiSys.selectedTab = EnumSelectedTab.CITY;
             }
         }
 

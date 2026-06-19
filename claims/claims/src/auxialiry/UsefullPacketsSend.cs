@@ -162,6 +162,7 @@ namespace claims.src.auxialiry
                        NewPlotClaimCost = claims.config.PLOT_CLAIM_PRICE,
                        COINS_VALUES_TO_CODE = claims.config.COINS_VALUES_TO_CODE,
                        ID_TO_COINS_VALUES = claims.config.ID_TO_COINS_VALUES,
+                       COIN_DENOMINATIONS = claims.config.COIN_DENOMINATIONS,
                        CITY_NAME_CHANGE_COST = claims.config.CITY_NAME_CHANGE_COST,
                        CITY_BASE_CARE = claims.config.CITY_BASE_CARE,
                        PLOTS_COLORS = Settings.colors,
@@ -172,7 +173,38 @@ namespace claims.src.auxialiry
                        SELECTED_ECONOMY_HANDLER = claims.config.SELECTED_ECONOMY_HANDLER,
                        GUI_SHOW_DEBT = claims.config.GUI_SHOW_DEBT,
                        CITY_AREA_VISIBILITY_STATE = claims.config.CITY_AREA_VISIBILITY_STATE,
-                       SHOW_BALANCE_HUD_DEFAULT = claims.config.SHOW_BALANCE_HUD_DEFAULT
+                       SHOW_BALANCE_HUD_DEFAULT = claims.config.SHOW_BALANCE_HUD_DEFAULT,
+
+                       DEFAULT_PLOT_COST = claims.config.DEFAULT_PLOT_COST,
+                       TOURNAMENT_PLOT_COST = claims.config.TOURNAMENT_PLOT_COST,
+                       CAMP_PLOT_COST = claims.config.CAMP_PLOT_COST,
+                       TEMPLE_PLOT_COST = claims.config.TEMPLE_PLOT_COST,
+                       FARM_PLOT_COST = claims.config.FARM_PLOT_COST,
+                       SUMMON_PLOT_COST = claims.config.SUMMON_PLOT_COST,
+                       EMBASSY_PLOT_COST = claims.config.EMBASSY_PLOT_COST,
+                       TAVERN_PLOT_COST = claims.config.TAVERN_PLOT_COST,
+                       MAIN_CITYPLOT_COST = claims.config.MAIN_CITYPLOT_COST,
+                       PRISON_PLOT_COST = claims.config.PRISON_PLOT_COST,
+
+                       OUTPOST_PLOT_COST = claims.config.OUTPOST_PLOT_COST,
+                       EXTRA_PLOT_COST = claims.config.EXTRA_PLOT_COST,
+                       PLOT_NO_PVP_FLAG_COST = claims.config.PLOT_NO_PVP_FLAG_COST,
+
+                       RANSOM_FOR_NO_CITIZEN = claims.config.RANSOM_FOR_NO_CITIZEN,
+                       RANSOM_FOR_CITIZEN = claims.config.RANSOM_FOR_CITIZEN,
+                       RANSOM_FOR_MAYOR = claims.config.RANSOM_FOR_MAYOR,
+                       RANSOM_FOR_LEADER = claims.config.RANSOM_FOR_LEADER,
+                       RANSOM_FOR_CHIEF = claims.config.RANSOM_FOR_CHIEF,
+
+                       ALLIANCE_RENAME_COST = claims.config.ALLIANCE_RENAME_COST,
+                       ALLIANCE_BASE_CARE = claims.config.ALLIANCE_BASE_CARE,
+                       ALLIANCE_MAX_FEE = claims.config.ALLIANCE_MAX_FEE,
+                       NEUTRAL_ALLANCE_PAYMENT = claims.config.NEUTRAL_ALLANCE_PAYMENT,
+
+                       MAX_CITY_FEE = claims.config.MAX_CITY_FEE,
+                       CITY_MAX_DEBT = claims.config.CITY_MAX_DEBT,
+
+                       MIN_RANGE_CELL_DURATION_MINUTES = claims.config.MIN_RANGE_CELL_DURATION_MINUTES
                    }
                    , player);
         }
@@ -240,13 +272,6 @@ namespace claims.src.auxialiry
                 }
                 else
                 {
-                    foreach(var it in additionalInfo)
-                    {
-                        if(it.Value is System.Collections.IList list)
-                        {
-                            var k = list as IEnumerable<object>;
-                        }
-                    }
                     playerHashSet.Add(toUpdate, additionalInfo.ToDictionary(k => k.Key,
                                                                             k => k.Value is System.Collections.IList list
                                                                                     ? list.Cast<object>().ToList()
@@ -296,6 +321,14 @@ namespace claims.src.auxialiry
                 //nobody need this info since nobody from the city is online
                 if(onlinePlayersFromCity.Count == 0) continue;
 
+                // If a full "ALL" packet is present, incremental adds are redundant
+                if (listToUpdate.ContainsKey(EnumPlayerRelatedInfo.CITY_PRISON_CELL_ALL))
+                    listToUpdate.Remove(EnumPlayerRelatedInfo.CITY_ADD_PRISON_CELL);
+                if (listToUpdate.ContainsKey(EnumPlayerRelatedInfo.CITY_SUMMON_POINT_ALL))
+                    listToUpdate.Remove(EnumPlayerRelatedInfo.CITY_SUMMON_POINT_ADD);
+                if (listToUpdate.ContainsKey(EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_ALL))
+                    listToUpdate.Remove(EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_ADD);
+
                 Dictionary<EnumPlayerRelatedInfo, string> collector = CollectFullInfo(null, city, listToUpdate);
                 
                 //collector now contains only general info for all citizens
@@ -320,12 +353,9 @@ namespace claims.src.auxialiry
                         }
                     }
 
-                    if (playerCollector.Count > 0)
-                    {
-                        foreach (var kv in playerCollector)
-                            collector.TryAdd(kv.Key, kv.Value);
-                    }
-                    var mergedCollector = collector;
+                    var mergedCollector = new Dictionary<EnumPlayerRelatedInfo, string>(collector);
+                    foreach (var kv in playerCollector)
+                        mergedCollector.TryAdd(kv.Key, kv.Value);
 
                     claims.serverChannel.SendPacket(
                         new SavedPlotsPacket

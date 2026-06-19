@@ -25,28 +25,28 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
         public override void DrawTab()
         {
             ImGui.SetNextWindowPos(
-                new Vector2(capi.ModLoader.GetModSystem<claimsGui>().mainWindowPos.X + capi.ModLoader.GetModSystem<claimsGui>().mainWindowSize.X, capi.ModLoader.GetModSystem<claimsGui>().mainWindowPos.Y)
+                new Vector2(GuiSys.mainWindowPos.X + GuiSys.mainWindowSize.X, GuiSys.mainWindowPos.Y)
             );
 
             ImGuiWindowFlags flags1 =
                  ImGuiWindowFlags.NoScrollWithMouse;
-            ImGui.Begin("ClaimsDetails", p_open: ref capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowOpen, flags1);
+            ImGui.Begin("ClaimsDetails", p_open: ref GuiSys.secondaryWindowOpen, flags1);
             
-            ImGui.Text(Lang.Get(TitleString, capi.ModLoader.GetModSystem<claimsGui>().textInput));
-            ImGui.Combo("Name", ref capi.ModLoader.GetModSystem<claimsGui>().selectedComboFirst, claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Allies.ToArray(), claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Allies.Count);
+            ImGui.Text(Lang.Get(TitleString, GuiSys.textInput));
+            ImGui.Combo("Name", ref GuiSys.selectedComboFirst, claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Allies.ToArray(), claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Allies.Count);
 
             if (ImGui.Button(Lang.Get(YesButtonString)))
             {
                 ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                capi.ModLoader.GetModSystem<claimsGui>().textInput2 = claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Allies[capi.ModLoader.GetModSystem<claimsGui>().selectedComboFirst];
+                GuiSys.textInput2 = claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Allies[GuiSys.selectedComboFirst];
                 clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, this.CommandToCallOnYes + " "
-                    + capi.ModLoader.GetModSystem<claimsGui>().textInput2, EnumChatType.Macro, "");
-                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.NONE;
+                    + GuiSys.textInput2, EnumChatType.Macro, "");
+                GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.NONE;
             }
             ImGui.SameLine();
             if (ImGui.Button(Lang.Get(NoButtonString)))
             {
-                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.NONE;
+                GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.NONE;
             }
             ImGui.End();
         }

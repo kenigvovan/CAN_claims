@@ -31,6 +31,11 @@ namespace claims.src.events
                         UsefullPacketsSend.AddToQueueCityInfoUpdate(playerInfo.PrisonedIn.City.Guid, new Dictionary<string, object> { { "value", new PrisonCellElement(cell.spawnPostion, cell.playerNames) } },
                             EnumPlayerRelatedInfo.CITY_CELL_PRISON_UPDATE);
                     }
+                    else
+                    {
+                        playerInfo.PrisonedIn = null;
+                        playerInfo.PrisonHoursLeft = 0;
+                    }
                 }
             }
         }
@@ -55,9 +60,9 @@ namespace claims.src.events
             {
                 return;
             }
-            if(plotKilled.hasCity() && plotKilled.getCity().isCitizen(playerInfoAttacker))
+            if(playerInfoAttacker != null && plotKilled.hasCity() && plotKilled.getCity().isCitizen(playerInfoAttacker))
             {
-                if (playerInfoAttacker.City.hasPrison())
+                if (playerInfoAttacker.hasCity() && playerInfoAttacker.City.hasPrison())
                 {
                     if(playerInfoAttacker.City.TryGetRandomPrisonWithCell(out Prison prison))
                     {

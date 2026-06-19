@@ -1,6 +1,5 @@
-﻿using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
+using System;
+using System.Collections.Generic;
 using claims.src.auxialiry;
 using claims.src.part;
 using claims.src.part.interfaces;
@@ -13,11 +12,10 @@ namespace claims.src.delayed.invitations
         ISender sender;
         IReceiver receiver;
         long timeoutStamp;
+        Action onApproval;
+        Action onDissent;
 
-        Thread onApproval;
-        Thread onDissent;
-
-        public Invitation(ISender sender, IReceiver receiver, long timeoutStamp, Thread onApproval, Thread onDissent)
+        public Invitation(ISender sender, IReceiver receiver, long timeoutStamp, Action onApproval, Action onDissent)
         {
             this.sender = sender;
             this.receiver = receiver;
@@ -26,28 +24,22 @@ namespace claims.src.delayed.invitations
             this.onDissent = onDissent;
         }
 
-        public ISender getSender()
-        {
-            return sender;
-        }
-        public IReceiver getReceiver()
-        {
-            return receiver;
-        }
-        public long getTimeStamp()
-        {
-            return timeoutStamp;
-        }
+        public ISender getSender() => sender;
+        public IReceiver getReceiver() => receiver;
+        public long getTimeStamp() => timeoutStamp;
+
         public void accept()
         {
             InvitationHandler.removeInvitationIfExists(sender, receiver);
-            onApproval.Start();
+            onApproval?.Invoke();
         }
+
         public void deny()
         {
             InvitationHandler.removeInvitationIfExists(sender, receiver);
-            onDissent.Start();
+            onDissent?.Invoke();
         }
+
         public List<string> getStatus(PlayerInfo forPlayer = null)
         {
             List<string> outStrings = new List<string>();

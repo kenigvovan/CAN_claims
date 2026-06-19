@@ -26,24 +26,25 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
         public override void DrawTab()
         {
             ImGui.SetNextWindowPos(
-               new Vector2(capi.ModLoader.GetModSystem<claimsGui>().mainWindowPos.X + capi.ModLoader.GetModSystem<claimsGui>().mainWindowSize.X, capi.ModLoader.GetModSystem<claimsGui>().mainWindowPos.Y)
+               new Vector2(GuiSys.mainWindowPos.X + GuiSys.mainWindowSize.X, GuiSys.mainWindowPos.Y)
            );
 
             ImGuiWindowFlags flags1 =
                  ImGuiWindowFlags.NoScrollWithMouse;
-            ImGui.Begin("ClaimsDetails", p_open: ref capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowOpen, flags1);
-            PlotsGroupCellElement cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.PlotsGroupCells.FirstOrDefault(gr => gr.Guid.Equals(capi.ModLoader.GetModSystem<claimsGui>().textInput), null);
+            ImGui.Begin("ClaimsDetails", p_open: ref GuiSys.secondaryWindowOpen, flags1);
+            PlotsGroupCellElement cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.PlotsGroupCells.FirstOrDefault(gr => gr.Guid.Equals(GuiSys.textInput), null);
+            if (cell == null) { ImGui.End(); return; }
             ImGui.Text(Lang.Get(TitleString, cell.Name));
 
-            ImGui.Combo("Name", ref capi.ModLoader.GetModSystem<claimsGui>().selectedComboFirst, cell.PlayersNames.ToArray(), cell.PlayersNames.Count);
+            ImGui.Combo("Name", ref GuiSys.selectedComboFirst, cell.PlayersNames.ToArray(), cell.PlayersNames.Count);
 
             if (ImGui.Button(Lang.Get(ButtonString)))
             {
-                if (cell.PlayersNames.Count > capi.ModLoader.GetModSystem<claimsGui>().selectedComboFirst)
+                if (cell.PlayersNames.Count > GuiSys.selectedComboFirst)
                 {
-                    string playerName = cell.PlayersNames[capi.ModLoader.GetModSystem<claimsGui>().selectedComboFirst];
-                    capi.ModLoader.GetModSystem<claimsGui>().textInput2 = playerName;
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.REMOVE_PLOTSGROUP_MEMBER_CONFIRM;
+                    string playerName = cell.PlayersNames[GuiSys.selectedComboFirst];
+                    GuiSys.textInput2 = playerName;
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.REMOVE_PLOTSGROUP_MEMBER_CONFIRM;
                 }
             }
             ImGui.End();

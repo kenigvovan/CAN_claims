@@ -43,7 +43,7 @@ namespace claims.src.gui.prettyGui
             this.TabDictionary.Add(EnumSecondaryWindowTab.REMOVE_FRIEND, new CANRemoveFriendTab(capi, iconHandler, "claims:gui-enter-player-name", "/citizen friend remove ", "claims:gui-remove-button"));
             this.TabDictionary.Add(EnumSecondaryWindowTab.PLOT_SET_TYPE, new CANChangePlotTypeTab(capi, iconHandler, "claims:gui-select-plot-type", "/plot set type ", "claims:gui-set-button"));
             this.TabDictionary.Add(EnumSecondaryWindowTab.REMOVE_CRIMINAL, new CANRemoveCriminalTab(capi, iconHandler, "claims:gui-enter-player-name", "/city criminal remove ", "claims:gui-remove-button"));
-            this.TabDictionary.Add(EnumSecondaryWindowTab.CITY_RANK_REMOVE_CONFIRM, new CANYesNoTab(capi, iconHandler, "claims:gui-strip-rank-from-player", "/city rank remove ", "claims:gui-confirm-button"));
+            this.TabDictionary.Add(EnumSecondaryWindowTab.CITY_RANK_REMOVE_CONFIRM, new CANYesNoWithTwoValuesTab(capi, iconHandler, "claims:gui-strip-rank-from-player", "/city rank remove", "claims:gui-confirm-button"));
             this.TabDictionary.Add(EnumSecondaryWindowTab.CITY_RANK_ADD, new CANSelectPlayerForRankTab(capi, iconHandler, "claims:gui-select-player-to-add-rank", "/city rank add ", "claims:gui-add-button"));
             this.TabDictionary.Add(EnumSecondaryWindowTab.PLOT_PERMISSIONS, new CANPermissionsTab(capi, iconHandler, "claims:gui-plot-permissions-title", "/city rank add ", "claims:gui-add-button"));
             this.TabDictionary.Add(EnumSecondaryWindowTab.CITY_SUMMON_NEED_NAME, new CANYesNoSummonNameTab(capi, iconHandler, "claims:gui-enter-summon-point-name", "claims:gui-set-button"));

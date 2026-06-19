@@ -26,30 +26,17 @@ namespace claims.src.gui.prettyGui.GuiTabs
             this.capi = capi;
             this.iconHandler = iconHandler;
         }
+        private static readonly Vector4 OpenColor = new Vector4(0.3f, 0.8f, 0.4f, 1.0f);
+
         public override void DrawTab()
         {
-            Vector4 labelColor = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
-            Vector4 nameColor = new Vector4(1.0f, 0.85f, 0.3f, 1.0f);
-            Vector4 sectionColor = new Vector4(0.4f, 0.7f, 1.0f, 1.0f);
-            Vector4 openColor = new Vector4(0.3f, 0.8f, 0.4f, 1.0f);
-
             // --- Header ---
-            string text = Lang.Get("claims:gui_city_list_title");
-            float windowWidth = ImGui.GetWindowSize().X;
-            ImGui.PushStyleColor(ImGuiCol.Text, sectionColor);
-            ImGui.SetWindowFontScale(1.3f);
-            float textWidth = ImGui.CalcTextSize(text).X;
-            ImGui.SetCursorPosX((windowWidth - textWidth) * 0.5f);
-            ImGui.Text(text);
-            ImGui.SetWindowFontScale(1.0f);
-            ImGui.PopStyleColor();
+            CenteredTitle(Lang.Get("claims:gui_city_list_title"), ColSection);
 
             ImGui.Separator();
 
             // --- Sort mode buttons ---
-            ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-            ImGui.Text(Lang.Get("claims:gui-citylist-sort-label"));
-            ImGui.PopStyleColor();
+            Label(Lang.Get("claims:gui-citylist-sort-label"));
             ImGui.SameLine();
             DrawSortButton(SortMode.Default, "claims:gui-citylist-sort-default");
             ImGui.SameLine();
@@ -69,7 +56,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             {
                 ImGui.PushID(i);
 
-                Vector4 rowNameColor = nameColor;
+                Vector4 rowNameColor = ColValue;
                 if (sortMode != SortMode.Default)
                 {
                     if (i == 0) rowNameColor = GoldColor;
@@ -88,40 +75,22 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 if (city.InvMsg.Length > 0)
                 {
                     ImGui.SameLine();
-                    if (ImGui.ImageButton("cityinfo", this.iconHandler.GetOrLoadIcon("info"), new Vector2(14)))
-                    {
-                    }
-                    if (ImGui.IsItemHovered())
-                    {
-                        ImGui.BeginTooltip();
-                        ImGui.Text(city.InvMsg);
-                        ImGui.EndTooltip();
-                    }
+                    IconButton("cityinfo", "info", 14, city.InvMsg);
                 }
 
                 // --- Join button (same line as name, for open cities) ---
                 if (city.Open)
                 {
                     ImGui.SameLine();
-                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.55f, 0.3f, 1.0f));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.65f, 0.4f, 1.0f));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.25f, 1.0f));
-                    if (ImGui.ImageButton("joincity", this.iconHandler.GetOrLoadIcon("stairs-goal"), new Vector2(14)))
+                    if (GreenIconButton("joincity", "stairs-goal", 14, Lang.Get("claims:gui_citylist_join_city_hover")))
                     {
                         ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                         clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/c join " + city.Name, EnumChatType.Macro, "");
                     }
-                    ImGui.PopStyleColor(3);
-                    if (ImGui.IsItemHovered())
-                    {
-                        ImGui.BeginTooltip();
-                        ImGui.Text(Lang.Get("claims:gui_citylist_join_city_hover"));
-                        ImGui.EndTooltip();
-                    }
                 }
 
                 // --- Details table ---
-                if (ImGui.BeginTable("CityDetails" + i, 2, ImGuiTableFlags.None))
+                if (ImGui.BeginTable("CityDetails" + i, 2, TableFlags))
                 {
                     ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 100);
                     ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
@@ -129,9 +98,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     // Mayor
                     ImGui.TableNextRow();
                     ImGui.TableNextColumn();
-                    ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-                    ImGui.Text(Lang.Get("claims:gui-city-tab-mayor"));
-                    ImGui.PopStyleColor();
+                    Label(Lang.Get("claims:gui-city-tab-mayor"));
                     ImGui.TableNextColumn();
                     ImGui.Text(city.MayorName ?? "");
 
@@ -140,9 +107,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     {
                         ImGui.TableNextRow();
                         ImGui.TableNextColumn();
-                        ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-                        ImGui.Text(Lang.Get("claims:gui-citylist-alliance-label"));
-                        ImGui.PopStyleColor();
+                        Label(Lang.Get("claims:gui-citylist-alliance-label"));
                         ImGui.TableNextColumn();
                         ImGui.Text(city.AllianceName);
                     }
@@ -150,27 +115,21 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     // Population
                     ImGui.TableNextRow();
                     ImGui.TableNextColumn();
-                    ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-                    ImGui.Text(Lang.Get("claims:gui-citylist-population-label"));
-                    ImGui.PopStyleColor();
+                    Label(Lang.Get("claims:gui-citylist-population-label"));
                     ImGui.TableNextColumn();
                     ImGui.Text(city.CitizensAmount.ToString());
 
                     // Plots
                     ImGui.TableNextRow();
                     ImGui.TableNextColumn();
-                    ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-                    ImGui.Text(Lang.Get("claims:gui-citylist-plots-label"));
-                    ImGui.PopStyleColor();
+                    Label(Lang.Get("claims:gui-citylist-plots-label"));
                     ImGui.TableNextColumn();
                     ImGui.Text(city.ClaimedPlotsAmount.ToString());
 
                     // Created
                     ImGui.TableNextRow();
                     ImGui.TableNextColumn();
-                    ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-                    ImGui.Text(Lang.Get("claims:gui-city-tab-created"));
-                    ImGui.PopStyleColor();
+                    Label(Lang.Get("claims:gui-city-tab-created"));
                     ImGui.TableNextColumn();
                     ImGui.Text(TimeFunctions.getDateFromEpochSeconds(city.TimeStampCreated));
 
@@ -180,7 +139,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                         ImGui.TableNextRow();
                         ImGui.TableNextColumn();
                         ImGui.TableNextColumn();
-                        ImGui.PushStyleColor(ImGuiCol.Text, openColor);
+                        ImGui.PushStyleColor(ImGuiCol.Text, OpenColor);
                         ImGui.Text(Lang.Get("claims:gui-citylist-open"));
                         ImGui.PopStyleColor();
                     }

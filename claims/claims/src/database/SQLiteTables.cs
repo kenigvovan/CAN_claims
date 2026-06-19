@@ -24,7 +24,7 @@
             "istechnical INTEGER," +
             "extrachunksbought INTEGER," +
             "citycolor INTEGER," +
-            "templerespawnpoints TEXT" +
+            "templerespawnpoints TEXT," +
             "ranks TEXT," +
             "eventlog TEXT" +
              ");";

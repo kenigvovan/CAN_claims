@@ -87,7 +87,7 @@ namespace claims.src.part.structure
         }
         public bool IsLeader(PlayerInfo player)
         {
-            return MainCity?.getMayor()?.Equals(player) == true;
+            return MainCity?.getMayor()?.Equals(player) == true || Leader?.Equals(player) == true;
         }
         public void deleteSentInvitation(Invitation invitation)
         {
@@ -115,7 +115,7 @@ namespace claims.src.part.structure
             List<string> outList = new List<string>
             {
                 "[" + this.getPartNameReplaceUnder() + "]\n",
-                Lang.Get("claims:main_city") + this.MainCity.getPartNameReplaceUnder() + "\n",
+                Lang.Get("claims:main_city") + (this.MainCity?.getPartNameReplaceUnder() ?? "?") + "\n",
                 StringFunctions.makeFeasibleStringFromNames(StringFunctions.getNamesOfCities(Lang.Get("claims:cities"), Cities), ',') + "\n",
             };
             if (claims.economyProvider.SupportsPlayerWallet)

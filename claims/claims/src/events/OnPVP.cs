@@ -9,6 +9,12 @@ namespace claims.src.events
     {
         public static bool canPVPAttackHere(IServerPlayer attacker, IServerPlayer defend)
         {
+            // Урон самому себе (например, ожог при снятии горячей вещи с наковальни) — это не PVP, он всегда проходит.
+            if (attacker == null || defend == null || attacker.PlayerUID == defend.PlayerUID)
+            {
+                return true;
+            }
+
             claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(defend.Entity.Pos), out Plot defendPlot);
 
             claims.dataStorage.GetPlayerByUid(attacker.PlayerUID, out PlayerInfo attackerPlayerInfo);
@@ -24,14 +30,16 @@ namespace claims.src.events
             }
             if (/*attackerPlot != null && */defendPlot != null && defendPlot.hasCity())
             {
+                City plotCity = defendPlot.getCity();
                 if (defendPlot.Type == PlotType.TOURNAMENT || defendPlot.getPermsHandler().pvpFlag
-                    || AreEnemies(attackerPlayerInfo.City, defendPlayerInfo.City)
-                    || (defendPlot.getCity().criminals.Contains(defendPlayerInfo) && defendPlot.getCity().isCitizen(attackerPlayerInfo)
-                    || (defendPlot.getCity().criminals.Contains(attackerPlayerInfo) && defendPlot.getCity().isCitizen(defendPlayerInfo))))
+                    || AreEnemies(attackerPlayerInfo?.City, defendPlayerInfo?.City)
+                    || (attackerPlayerInfo != null && defendPlayerInfo != null
+                        && ((plotCity.criminals.Contains(defendPlayerInfo) && plotCity.isCitizen(attackerPlayerInfo))
+                         || (plotCity.criminals.Contains(attackerPlayerInfo) && plotCity.isCitizen(defendPlayerInfo)))))
                 {
                     return true;
-                }                         
-                if (defendPlot.getCity().getPermsHandler().pvpFlag)
+                }
+                if (plotCity.getPermsHandler().pvpFlag)
                 {
                     return true;
                 }

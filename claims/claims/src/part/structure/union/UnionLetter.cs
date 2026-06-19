@@ -1,17 +1,18 @@
-﻿using System;
-using System.Threading;
+﻿using claims.src.delayed;
+using System;
 
 namespace claims.src.part.structure.union
 {
-    public class UnionLetter
+    public class UnionLetter : IExpirable
     {
         public Alliance From { get; set; }
         public Alliance To { get; set; }
         public long TimeStampExpire { get; set; }
-        public Thread OnAccept { get; }
-        public Thread OnDeny { get; }
+        public Action OnAccept { get; }
+        public Action OnDeny { get; }
         public string Guid { get; }
-        public UnionLetter(Alliance from, Alliance to, long timeStampExpire, Thread onAccept, Thread OnDeny, string guid)
+        public Action OnExpire => OnDeny;
+        public UnionLetter(Alliance from, Alliance to, long timeStampExpire, Action onAccept, Action OnDeny, string guid)
         {
             From = from;
             To = to;
@@ -35,10 +36,7 @@ namespace claims.src.part.structure.union
         }
         public override int GetHashCode()
         {
-            int hash = 13;
-            hash = (hash * 7) + this.From.GetHashCode();
-            hash = (hash * 7) + this.To.GetHashCode();
-            return hash;
+            return From.GetHashCode() ^ To.GetHashCode();
         }
         public static Guid GetUnusedGuid()
         {

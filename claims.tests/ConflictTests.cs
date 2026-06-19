@@ -179,7 +179,7 @@ namespace claims.tests
         private ConflictLetter MakeLetter(IConflictParty from, IConflictParty to,
                                           LetterPurpose purpose, string guid = "test-guid")
             => new ConflictLetter(from, to, purpose, long.MaxValue,
-                                  new Thread(() => { }), new Thread(() => { }), guid);
+                                  () => { }, () => { }, guid);
 
         [Fact]
         public void AddConflictLetter_NewLetter_ReturnsTrue()

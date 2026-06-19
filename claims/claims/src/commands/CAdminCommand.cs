@@ -344,7 +344,11 @@ namespace claims.src.commands
                 }
                 else
                 {
-                    city.Alliance.Cities.Remove(city);
+                    var alliance = city.Alliance;
+                    alliance.Cities.Remove(city);
+                    city.Alliance = null;
+                    alliance.saveToDatabase();
+                    UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.OWN_ALLIANCE_REMOVE);
                 }
             }
 
@@ -811,96 +815,44 @@ namespace claims.src.commands
             TextCommandResult tcr = new TextCommandResult();
             tcr.Status = EnumCommandStatus.Success;
 
-            if (((string)args.Parsers[0].GetValue()).Equals("blastew", StringComparison.OrdinalIgnoreCase))
+            string param = ((string)args.Parsers[0].GetValue());
+            string state = ((string)args.Parsers[1].GetValue());
+            bool newVal = state.Equals("on", StringComparison.OrdinalIgnoreCase);
+            var wi = claims.dataStorage.getWorldInfo();
+
+            if (param.Equals("blastew", StringComparison.OrdinalIgnoreCase))
             {
-                if (((string)args.Parsers[1].GetValue()).Equals("on", StringComparison.OrdinalIgnoreCase))
-                {
-                    claims.dataStorage.getWorldInfo().blastEverywhere = true;
-                    claims.dataStorage.getWorldInfo().saveToDatabase();
-                    return tcr;
-                }
-                if (((string)args.Parsers[1].GetValue()).Equals("off", StringComparison.OrdinalIgnoreCase))
-                {
-                    claims.dataStorage.getWorldInfo().blastEverywhere = false;
-                    claims.dataStorage.getWorldInfo().saveToDatabase();
-                    return tcr;
-                }
+                wi.blastEverywhere = newVal;
             }
-            else if (((string)args.Parsers[0].GetValue()).Equals("pvpew", StringComparison.OrdinalIgnoreCase))
+            else if (param.Equals("pvpew", StringComparison.OrdinalIgnoreCase))
             {
-                if (((string)args.Parsers[1].GetValue()).Equals("on", StringComparison.OrdinalIgnoreCase))
-                {
-                    claims.dataStorage.getWorldInfo().pvpEverywhere = true;
-                    claims.dataStorage.getWorldInfo().saveToDatabase();
-                    return tcr;
-                }
-                if (((string)args.Parsers[1].GetValue()).Equals("off", StringComparison.OrdinalIgnoreCase))
-                {
-                    claims.dataStorage.getWorldInfo().pvpEverywhere = false;
-                    claims.dataStorage.getWorldInfo().saveToDatabase();
-                    return tcr;
-                }
+                wi.pvpEverywhere = newVal;
             }
-            else if (((string)args.Parsers[0].GetValue()).Equals("fireew", StringComparison.OrdinalIgnoreCase))
+            else if (param.Equals("fireew", StringComparison.OrdinalIgnoreCase))
             {
-                if (((string)args.Parsers[1].GetValue()).Equals("on", StringComparison.OrdinalIgnoreCase))
-                {
-                    claims.dataStorage.getWorldInfo().fireEverywhere = true;
-                    claims.dataStorage.getWorldInfo().saveToDatabase();
-                    return tcr;
-                }
-                if (((string)args.Parsers[1].GetValue()).Equals("off", StringComparison.OrdinalIgnoreCase))
-                {
-                    claims.dataStorage.getWorldInfo().fireEverywhere = false;
-                    claims.dataStorage.getWorldInfo().saveToDatabase();
-                    return tcr;
-                }
+                wi.fireEverywhere = newVal;
             }
-            else if (((string)args.Parsers[0].GetValue()).Equals("pvpfb", StringComparison.OrdinalIgnoreCase))
+            else if (param.Equals("pvpfb", StringComparison.OrdinalIgnoreCase))
             {
-                if (((string)args.Parsers[1].GetValue()).Equals("on", StringComparison.OrdinalIgnoreCase))
-                {
-                    claims.dataStorage.getWorldInfo().pvpForbidden = true;
-                    claims.dataStorage.getWorldInfo().saveToDatabase();
-                    return tcr;
-                }
-                if (((string)args.Parsers[1].GetValue()).Equals("off", StringComparison.OrdinalIgnoreCase))
-                {
-                    claims.dataStorage.getWorldInfo().pvpForbidden = false;
-                    claims.dataStorage.getWorldInfo().saveToDatabase();
-                    return tcr;
-                }
+                wi.pvpForbidden = newVal;
             }
-            else if (((string)args.Parsers[0].GetValue()).Equals("firefb", StringComparison.OrdinalIgnoreCase))
+            else if (param.Equals("firefb", StringComparison.OrdinalIgnoreCase))
             {
-                if (((string)args.Parsers[1].GetValue()).Equals("on", StringComparison.OrdinalIgnoreCase))
-                {
-                    claims.dataStorage.getWorldInfo().fireForbidden = true;
-                    claims.dataStorage.getWorldInfo().saveToDatabase();
-                    return tcr;
-                }
-                if (((string)args.Parsers[1].GetValue()).Equals("off", StringComparison.OrdinalIgnoreCase))
-                {
-                    claims.dataStorage.getWorldInfo().fireForbidden = false;
-                    claims.dataStorage.getWorldInfo().saveToDatabase();
-                    return tcr;
-                }
+                wi.fireForbidden = newVal;
             }
-            else if (((string)args.Parsers[0].GetValue()).Equals("blastfb", StringComparison.OrdinalIgnoreCase))
+            else if (param.Equals("blastfb", StringComparison.OrdinalIgnoreCase))
             {
-                if (((string)args.Parsers[1].GetValue()).Equals("on", StringComparison.OrdinalIgnoreCase))
-                {
-                    claims.dataStorage.getWorldInfo().blastForbidden = true;
-                    claims.dataStorage.getWorldInfo().saveToDatabase();
-                    return tcr;
-                }
-                if (((string)args.Parsers[1].GetValue()).Equals("off", StringComparison.OrdinalIgnoreCase))
-                {
-                    claims.dataStorage.getWorldInfo().blastForbidden = false;
-                    claims.dataStorage.getWorldInfo().saveToDatabase();
-                    return tcr;
-                }
+                wi.blastForbidden = newVal;
             }
+            else
+            {
+                tcr.Status = EnumCommandStatus.Error;
+                tcr.StatusMessage = "Unknown param: " + param;
+                return tcr;
+            }
+
+            wi.saveToDatabase();
+            tcr.StatusMessage = string.Join("", wi.getStatus());
             return tcr;
         }
         public static TextCommandResult processBackup(TextCommandCallingArgs args)
@@ -1329,6 +1281,34 @@ namespace claims.src.commands
             return TextCommandResult.Success(string.Format("Battle date set: start {0}, end {1}",
                 conflict.NextBattleDateStart.ToString("yyyy-MM-dd HH:mm:ss"),
                 conflict.NextBattleDateEnd.ToString("yyyy-MM-dd HH:mm:ss")));
+        }
+
+        public static TextCommandResult EndWar(TextCommandCallingArgs args)
+        {
+            string firstName = Filter.filterName(args.Parsers[0].GetValue().ToString());
+            string secondName = Filter.filterName(args.Parsers[1].GetValue().ToString());
+
+            IConflictParty firstParty = null;
+            if (claims.dataStorage.GetAllianceByName(firstName, out Alliance firstAlliance))
+                firstParty = firstAlliance;
+            else if (claims.dataStorage.GetCityByName(firstName, out City firstCity))
+                firstParty = firstCity;
+            else
+                return TextCommandResult.Error(Lang.Get("claims:no_such_alliance_or_city", firstName));
+
+            IConflictParty secondParty = null;
+            if (claims.dataStorage.GetAllianceByName(secondName, out Alliance secondAlliance))
+                secondParty = secondAlliance;
+            else if (claims.dataStorage.GetCityByName(secondName, out City secondCity))
+                secondParty = secondCity;
+            else
+                return TextCommandResult.Error(Lang.Get("claims:no_such_alliance_or_city", secondName));
+
+            if (!ConflictHandler.TryGetConflictWithSides(firstParty, secondParty, out var conflict))
+                return TextCommandResult.Error(Lang.Get("claims:no_conflict_found"));
+
+            PartDemolition.DemolishConflict(conflict, EnumConflictEndReason.Peace);
+            return TextCommandResult.Success("Conflict between " + firstName + " and " + secondName + " has been force-ended.");
         }
 
     }
