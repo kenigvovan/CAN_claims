@@ -375,5 +375,39 @@ namespace claims.src.commands
             errorMsg = Lang.Get("claims:no_such_city_or_alliance");
             return false;
         }
+
+        // Resolves the caller's OWN conflict party (alliance if they're in one, else their city).
+        // requireAuthority=true additionally requires alliance leadership / city mayorship.
+        internal static bool TryResolveMyParty(TextCommandCallingArgs args, bool requireAuthority,
+            out IServerPlayer player, out PlayerInfo playerInfo, out IConflictParty ourParty, out TextCommandResult err)
+        {
+            ourParty = null;
+            if (!TryResolveCaller(args, out player, out playerInfo, out err)) return false;
+            if (!playerInfo.hasCity())
+            {
+                err = TextCommandResult.Success(Lang.Get("claims:no_city"));
+                return false;
+            }
+            if (playerInfo.HasAlliance())
+            {
+                if (requireAuthority && !playerInfo.Alliance.IsLeader(playerInfo))
+                {
+                    err = TextCommandResult.Success(Lang.Get("claims:you_dont_have_right_for_that_command"));
+                    return false;
+                }
+                ourParty = playerInfo.Alliance;
+            }
+            else
+            {
+                if (requireAuthority && !playerInfo.City.isMayor(playerInfo))
+                {
+                    err = TextCommandResult.Success(Lang.Get("claims:you_are_not_mayor"));
+                    return false;
+                }
+                ourParty = playerInfo.City;
+            }
+            err = null;
+            return true;
+        }
     }
 }

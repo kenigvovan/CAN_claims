@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using claims.src.gui.prettyGui;
 using claims.src.network.packets;
@@ -21,6 +22,9 @@ namespace claims.src
         public static int active_button = 0;
         public static int svgid = 0;
         public static bool showBalanceHud = false;
+        public static bool showBountyBoard = false;
+        public static List<BountyBoardEntry> BountyBoard = new List<BountyBoardEntry>();
+        public static bool showWarHud = true;
         private ImGuiModSystem imguiSys;
         private IconHandler iconHandler;
         private TabDrawHandler tabDrawHandler;
@@ -86,12 +90,79 @@ namespace claims.src
                     api.StoreModConfig(savedCfg, "claims.json");
                     return TextCommandResult.Success("Balance HUD: " + (showBalanceHud ? "on" : "off"));
                 });
+            api.ChatCommands.Create("bounties")
+                .WithDescription("Toggle the bounty board")
+                .HandleWith(args =>
+                {
+                    showBountyBoard = !showBountyBoard;
+                    return TextCommandResult.Success("Bounty board: " + (showBountyBoard ? "on" : "off"));
+                });
+            api.ChatCommands.Create("warhud")
+                .WithDescription("Toggle the war HUD")
+                .HandleWith(args =>
+                {
+                    showWarHud = !showWarHud;
+                    return TextCommandResult.Success("War HUD: " + (showWarHud ? "on" : "off"));
+                });
             api.Event.LevelFinalize += () =>
             {
                 tabDrawHandler = new TabDrawHandler(api, iconHandler);
                 api.ModLoader.GetModSystem<ImGuiModSystem>().Draw += Draw;
                 api.ModLoader.GetModSystem<ImGuiModSystem>().Draw += DrawBalanceHUD;
+                api.ModLoader.GetModSystem<ImGuiModSystem>().Draw += DrawBountyBoard;
+                api.ModLoader.GetModSystem<ImGuiModSystem>().Draw += DrawWarHUD;
             };
+        }
+
+        private CallbackGUIStatus DrawWarHUD(float deltaSeconds)
+        {
+            if (!showWarHud || claims.config?.WAR_HUD_ENABLED != true)
+                return CallbackGUIStatus.DontGrabMouse;
+            var conflicts = claims.clientDataStorage?.clientPlayerInfo?.CityInfo?.ClientConflictCellElements;
+            if (conflicts == null)
+                return CallbackGUIStatus.DontGrabMouse;
+            var active = conflicts.Where(c => c.ActiveWarTime).ToList();
+            if (active.Count == 0)
+                return CallbackGUIStatus.DontGrabMouse;
+
+            var io = ImGui.GetIO();
+            ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, 40), ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowBgAlpha(0.8f);
+            ImGui.Begin("##warhud",
+                ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.AlwaysAutoResize |
+                ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoNav);
+
+            ImGui.Text(Lang.Get("claims:gui-war-hud-title", claims.config.WAR_SCORE_TO_WIN));
+            foreach (var c in active)
+                ImGui.Text(c.FirstPartyName + "   " + c.FirstScore + " : " + c.SecondScore + "   " + c.SecondPartyName);
+
+            ImGui.End();
+            return CallbackGUIStatus.DontGrabMouse;
+        }
+
+        private CallbackGUIStatus DrawBountyBoard(float deltaSeconds)
+        {
+            if (!showBountyBoard)
+                return CallbackGUIStatus.DontGrabMouse;
+
+            var io = ImGui.GetIO();
+            ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.2f), ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowBgAlpha(0.85f);
+            ImGui.Begin(Lang.Get("claims:gui-bounty-board-title"),
+                ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoNav);
+
+            if (BountyBoard == null || BountyBoard.Count == 0)
+            {
+                ImGui.TextDisabled(Lang.Get("claims:gui-bounty-board-empty"));
+            }
+            else
+            {
+                foreach (var e in BountyBoard)
+                    ImGui.Text(e.Name + "  —  " + e.Amount);
+            }
+
+            ImGui.End();
+            return CallbackGUIStatus.DontGrabMouse;
         }
         private CallbackGUIStatus DrawBalanceHUD(float deltaSeconds)
         {

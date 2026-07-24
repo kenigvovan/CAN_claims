@@ -8,6 +8,6 @@ namespace claims.src.part.structure.conflict
 {
     public enum LetterPurpose
     {
-        START_CONFLICT, END_CONFLICT
+        START_CONFLICT, END_CONFLICT, NON_AGGRESSION, ULTIMATUM, CESSION_CONFIRM
     }
 }

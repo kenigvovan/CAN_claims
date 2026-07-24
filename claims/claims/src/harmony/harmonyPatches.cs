@@ -4,6 +4,8 @@ using claims.src.claimsext.map;
 using claims.src.events;
 using claims.src.part;
 using claims.src.part.structure;
+using claims.src.part.structure.conflict;
+using claims.src.part.structure.plots;
 using HarmonyLib;
 using System;
 using System.Collections.Generic;
@@ -468,21 +470,30 @@ namespace claims.src.harmony
                 {
                     City city = playerInfo.City;
                     Vec3i ePos = plr.Entity.Pos.XYZ.AsVec3i;
-                    if (city.HasTempleRespawnPoints())
                     {
-                        var nearestP = int.MaxValue;
-                        var firstEntry = city.TempleRespawnPoints.FirstOrDefault();
-                        if (firstEntry.Value == null) return false;
-                        Vec3i bestP = firstEntry.Value;
-                        foreach (var rPoint in city.TempleRespawnPoints)
+                        List<Vec3i> candidates = new List<Vec3i>();
+                        foreach (var rp in city.TempleRespawnPoints.Values)
+                            if (rp != null) candidates.Add(rp);
+                        // During an active war, this city's camps are also valid respawn points.
+                        foreach (var camp in city.campPlots)
                         {
-                            var tmp = rPoint.Value.DistanceTo(ePos);
-                            if(tmp <= nearestP)
-                            {
-                                bestP = rPoint.Value;
-                                nearestP = (int)tmp;
-                            }
+                            if (camp.PlotDesc is PlotDescCamp pd
+                                && pd.AnchorPos != null
+                                && ConflictHandler.TryGetConflictByGuid(pd.ConflictGuid, out var campConflict)
+                                && campConflict.ActiveWarTime)
+                                candidates.Add(pd.AnchorPos);
                         }
+                        if (candidates.Count == 0) return false;
+
+                        Vec3i bestP = candidates[0];
+                        double nearestP = double.MaxValue;
+                        foreach (var rp in candidates)
+                        {
+                            double tmp = rp.DistanceTo(ePos);
+                            if (tmp <= nearestP) { bestP = rp; nearestP = tmp; }
+                        }
+
+                        playerInfo.LastRespawnTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                         var cpos = plr.Entity.Pos.Copy();
                         cpos.X = bestP.X + 0.5;
                         cpos.Y = bestP.Y + 2.5;

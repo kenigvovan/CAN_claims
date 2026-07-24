@@ -20,6 +20,8 @@ namespace claims.src.events
     public class ModConfigReady
     {
         public static Dictionary<string, long> startWarCallbacks = new Dictionary<string, long>();
+        // conflict guid -> NextBattleDateStart we already fired the pre-battle warning for (once per window)
+        public static Dictionary<string, DateTime> battleWarned = new Dictionary<string, DateTime>();
         public static void onModsAndConfigReady()
         {
             claims.loadDatabase();
@@ -205,6 +207,26 @@ namespace claims.src.events
                                 }
                             }, (int)(secondsToStart.TotalSeconds < 0 ? 2 : secondsToStart.TotalSeconds) * 1000);
                             startWarCallbacks[conflict.Guid] = savedLong;
+                        }
+
+                        // Pre-battle warning: alert both sides WAR_BATTLE_WARN_MINUTES before the window opens,
+                        // once per window (keyed on NextBattleDateStart so a recalculated window warns again).
+                        int warnMinutes = claims.config.WAR_BATTLE_WARN_MINUTES;
+                        if (warnMinutes > 0 && conflict.NextBattleDateStart > DateTime.Now
+                            && (!battleWarned.TryGetValue(conflict.Guid, out var warnedFor) || warnedFor != conflict.NextBattleDateStart))
+                        {
+                            battleWarned[conflict.Guid] = conflict.NextBattleDateStart;
+                            Conflict warnConflict = conflict;
+                            DateTime warnStart = conflict.NextBattleDateStart;
+                            double secondsToWarn = secondsToStart.TotalSeconds - warnMinutes * 60;
+                            claims.sapi.Event.RegisterCallback((float dt) =>
+                            {
+                                // Skip if the window was recalculated or the battle already started.
+                                if (warnConflict.NextBattleDateStart != warnStart || warnConflict.ActiveWarTime) return;
+                                int minsLeft = Math.Max(1, (int)Math.Round((warnStart - DateTime.Now).TotalMinutes));
+                                MessageHandler.SendMsgInAlliance(warnConflict.First, Lang.Get("claims:battle_incoming", warnConflict.Second.GetPartName(), minsLeft));
+                                MessageHandler.SendMsgInAlliance(warnConflict.Second, Lang.Get("claims:battle_incoming", warnConflict.First.GetPartName(), minsLeft));
+                            }, (int)(secondsToWarn < 0 ? 2 : secondsToWarn) * 1000);
                         }
                     }
                 }

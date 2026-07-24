@@ -44,12 +44,28 @@ namespace claims.src.part
         bool isTechnical { get; set; } = false;
         int bonusPlots { get; set; } = 0;
         public HashSet<Plot> summonPlots = new HashSet<Plot>();
+        // War camps (PlotType.CAMP) this city owns; forward respawn points during active wars.
+        public HashSet<Plot> campPlots = new HashSet<Plot>();
         public int Extrachunksbought { get; set; } = 0;
         public int cityColor { get; set; } = -992222222;
         public string MoneyAccountName => claims.config.CITY_ACCOUNT_STRING_PREFIX + Guid;
         public Dictionary<Vec2i, Vec3i> TempleRespawnPoints { get; } = new Dictionary<Vec2i, Vec3i>();
         public List<City> HostileCities { get; set; } = new List<City>();
         public List<City> ComradeCities { get; set; } = new List<City>();
+        // War re-declare cooldowns: opponent party guid -> unix seconds when the war with them ended.
+        public Dictionary<string, long> WarCooldowns { get; set; } = new();
+        // Casus belli grievances: offender party guid -> unix seconds of the latest grievance.
+        public Dictionary<string, long> Grievances { get; set; } = new();
+        // Non-aggression pacts: partner party guid -> unix seconds when the pact expires.
+        public Dictionary<string, long> NonAggressionPacts { get; set; } = new();
+        // Free-war justifications from refused/expired ultimatums: target party guid -> unix seconds when it lapses.
+        public Dictionary<string, long> WarJustifications { get; set; } = new();
+        // Vassalage: this city's overlord (empty = independent) and its vassals.
+        public string OverlordGuid { get; set; } = "";
+        public List<City> VassalCities { get; set; } = new List<City>();
+        public long VassalSince { get; set; } = 0;
+        public bool IsVassal() => !string.IsNullOrEmpty(OverlordGuid);
+        public City GetOverlord() => claims.dataStorage.getCityByGUID(OverlordGuid, out City o) ? o : null;
         public bool Dirty { get; set; } = false;
         public bool Neutral { get; set; } = false;
         public HashSet<Conflict> RunningConflicts { get; } = new HashSet<Conflict>();

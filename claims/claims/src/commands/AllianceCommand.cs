@@ -11,6 +11,7 @@ using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
 using claims.src.part.structure.union;
+using claims.src.part.structure.war;
 using System;
 using System.Collections.Generic;
 using Vintagestory.API.Common;
@@ -508,6 +509,17 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Success(Lang.Get("claims:target_alliance_is_neutral"));
             }
+            // Check for a duplicate declaration letter BEFORE the gates: the gates withdraw the
+            // declaration cost, and a late "duplicate" rejection would eat the money.
+            if (claims.config.NEED_AGREE_FOR_CONFLICT
+                && ConflictHandler.TryGetConflictLetter(ourAlliance, targetParty, LetterPurpose.START_CONFLICT, out _))
+            {
+                return TextCommandResult.Success(Lang.Get("claims:conflict_letter_is_duplicate"));
+            }
+            if (!WarDeclarationHelper.TryPassDeclarationGates(ourAlliance, targetParty, ourAlliance.MoneyAccountName, out string declErr))
+            {
+                return TextCommandResult.Success(Lang.Get(declErr));
+            }
             //BOTH SIDES HAVE TO AGREE ON CONFLICT START
             if (claims.config.NEED_AGREE_FOR_CONFLICT)
             {
@@ -788,6 +800,24 @@ namespace claims.src.commands
                 return TextCommandResult.Success(Lang.Get("claims:end_conflict_letter_exist"));
             }
 
+            // Optional peace terms (offerstop [term] [amount]): none / reparations / vassalage.
+            PeaceTerms terms = PeaceTerms.Parse(
+                args.Parsers.Count > 1 ? (string)args.Parsers[1].GetValue() : null,
+                args.Parsers.Count > 2 && args.Parsers[2].GetValue() != null ? System.Convert.ToInt64(args.Parsers[2].GetValue()) : 0);
+            if (terms.Type != PeaceTermType.None && !claims.config.WAR_PEACE_TERMS_ENABLED)
+            {
+                return TextCommandResult.Success(Lang.Get("claims:peace_terms_disabled"));
+            }
+            if (terms.Type == PeaceTermType.Cession)
+            {
+                PlotPosition cpos = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
+                if (!claims.dataStorage.GetPlot(cpos, out Plot cplot) || !cplot.hasCity() || !targetParty.GetCities().Contains(cplot.getCity()))
+                {
+                    return TextCommandResult.Success(Lang.Get("claims:cession_stand_on_enemy_plot"));
+                }
+                terms.CededPlot = cpos;
+            }
+
             //BOTH SIDES HAVE TO AGREE ON CONFLICT START
             if (claims.config.NEED_AGREE_FOR_CONFLICT)
             {
@@ -815,9 +845,19 @@ namespace claims.src.commands
                                     new Dictionary<string, object> { { "value", (acceptLetter.Guid, acceptLetter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
                                 ConflictHandler.removeConflictLetter(acceptLetter);
                             }
-                            PartDemolition.DemolishConflict(conflict);
-                            foreach (var c in targetParty.GetCities())
-                                MessageHandler.sendMsgInCity(c, Lang.Get("claims:conflict_stopped_with", ourAlliance.getPartNameReplaceUnder()));
+                            PeaceTermsHelper.ApplyWithConfirm(ourAlliance, targetParty, terms,
+                                () =>
+                                {
+                                    PartDemolition.DemolishConflict(conflict);
+                                    foreach (var c in targetParty.GetCities())
+                                        MessageHandler.sendMsgInCity(c, Lang.Get("claims:conflict_stopped_with", ourAlliance.getPartNameReplaceUnder()));
+                                },
+                                () =>
+                                {
+                                    // The owning member refused the plot cession — peace is not concluded, the war continues.
+                                    MessageHandler.SendMsgInAlliance(ourAlliance, Lang.Get("claims:peace_cession_refused", targetParty.GetPartName()));
+                                    MessageHandler.SendMsgInAlliance(targetParty, Lang.Get("claims:peace_cession_refused_them", ourAlliance.getPartNameReplaceUnder()));
+                                });
                         },
                         () =>
                         {
@@ -860,6 +900,12 @@ namespace claims.src.commands
                     return TextCommandResult.Success(Lang.Get("claims:sanity_test_for_new_alliance"));
                 }
 
+                // Imposing reparations/vassalage always requires the other side's consent —
+                // in unilateral mode only a plain (no-terms) peace is allowed.
+                if (terms.Type != PeaceTermType.None)
+                {
+                    return TextCommandResult.Success(Lang.Get("claims:peace_terms_require_agreement"));
+                }
                 PartDemolition.DemolishConflict(conflict);
                 return TextCommandResult.Success(Lang.Get("claims:conflict_stopped_with", targetParty.GetPartName()));
             }

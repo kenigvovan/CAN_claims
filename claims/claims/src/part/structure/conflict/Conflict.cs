@@ -22,6 +22,17 @@ namespace claims.src.part.structure.conflict
         public DateTime LastBattleDateEnd { get; set; } = DateTime.UnixEpoch;
         public long TimeStampStarted { get; set; }
         public bool ActiveWarTime { get; set; } = false;
+        // War score accumulated across all battle windows of this conflict.
+        // When either side reaches config.WAR_SCORE_TO_WIN the conflict ends with that side winning.
+        public int FirstScore { get; set; } = 0;
+        public int SecondScore { get; set; } = 0;
+        // After-action statistics (for the war report on conflict end).
+        public int FirstPlotsCaptured { get; set; } = 0;
+        public int SecondPlotsCaptured { get; set; } = 0;
+        public int FirstKills { get; set; } = 0;
+        public int SecondKills { get; set; } = 0;
+        public long FirstPillaged { get; set; } = 0;
+        public long SecondPillaged { get; set; } = 0;
         public override bool saveToDatabase(bool update = true)
         {
             claims.getModInstance().getDatabaseHandler().saveConflict(this, update);

@@ -4,6 +4,7 @@ namespace claims.src.part.structure
     {
         Peace,
         CityDestroyed,
-        AllianceDestroyed
+        AllianceDestroyed,
+        ScoreVictory
     }
 }

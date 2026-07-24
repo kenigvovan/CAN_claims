@@ -7,6 +7,7 @@ using claims.src.messages;
 using claims.src.part;
 using claims.src.part.structure.conflict;
 using claims.src.part.structure.union;
+using claims.src.part.structure.war;
 using Vintagestory.API.Common;
 using Vintagestory.API.Server;
 using Vintagestory.API.Util;
@@ -56,6 +57,7 @@ namespace claims.src.events
             UsefullPacketsSend.sendAllCitiesColorsToPlayer(player);
             UsefullPacketsSend.SendPlayerCityRelatedInfo(player);
             UsefullPacketsSend.SendUpdatedConfigValues(player);
+            BountyHelper.BroadcastBoard();
             if(playerInfo.HasAlliance())
             {
                 UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, new Dictionary<string, object> { { "value", playerInfo.Alliance.Guid } }, EnumPlayerRelatedInfo.NEW_ALLIANCE_ALL);

@@ -3,6 +3,7 @@ using claims.src.economy;
 using claims.src.messages;
 using claims.src.part;
 using claims.src.part.structure;
+using claims.src.part.structure.war;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -46,6 +47,7 @@ namespace claims.src.timers
             //All players processed
             processCitiesFee();
             ProcessAlliancesFee();
+            ProcessVassalTribute();
 
             //All cities
             processCitiesCare();
@@ -310,6 +312,36 @@ namespace claims.src.timers
                                 claims.sapi.Logger.Warning("[claims] Alliance fee transfer failed: {0} -> {1}, amount {2}", city.MoneyAccountName, alliance.MoneyAccountName, alliance.AllianceFee);
                         }
                     }
+                }
+            }
+        }
+        public static void ProcessVassalTribute()
+        {
+            double tribute = claims.config.WAR_VASSAL_TRIBUTE;
+            long durationSec = (long)claims.config.WAR_VASSAL_DURATION_DAYS * 86400;
+            long now = TimeFunctions.getEpochSeconds();
+            foreach (City vassal in claims.dataStorage.getCitiesList().ToArray())
+            {
+                if (!vassal.IsVassal()) continue;
+                City overlord = vassal.GetOverlord();
+                if (overlord == null)
+                {
+                    PeaceTermsHelper.ReleaseVassal(vassal);
+                    continue;
+                }
+                // Auto-release after the configured duration.
+                if (durationSec > 0 && now - vassal.VassalSince > durationSec)
+                {
+                    PeaceTermsHelper.ReleaseVassal(vassal);
+                    MessageHandler.sendMsgInCity(vassal, Lang.Get("claims:vassalage_ended"));
+                    MessageHandler.sendMsgInCity(overlord, Lang.Get("claims:vassal_freed", vassal.getPartNameReplaceUnder()));
+                    continue;
+                }
+                // Daily tribute vassal -> overlord.
+                if (tribute > 0)
+                {
+                    if (claims.economyProvider.Transfer(vassal.MoneyAccountName, overlord.MoneyAccountName, (decimal)tribute) != MoneyOperationResult.Success)
+                        claims.sapi.Logger.Warning("[claims] Vassal tribute transfer failed: {0} -> {1}", vassal.MoneyAccountName, overlord.MoneyAccountName);
                 }
             }
         }

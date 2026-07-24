@@ -208,7 +208,63 @@ namespace claims.src.auxialiry
                        MIN_RANGE_CELL_DURATION_MINUTES = claims.config.MIN_RANGE_CELL_DURATION_MINUTES,
 
                        PLOT_SIZE = claims.config.PLOT_SIZE,
-                       ZONE_PLOTS_LENGTH = claims.config.ZONE_PLOTS_LENGTH
+                       ZONE_PLOTS_LENGTH = claims.config.ZONE_PLOTS_LENGTH,
+
+                       WAR_FLAG_DEFENDER_INTERRUPT_ENABLED = claims.config.WAR_FLAG_DEFENDER_INTERRUPT_ENABLED,
+                       WAR_FLAG_DEFENDER_RADIUS = claims.config.WAR_FLAG_DEFENDER_RADIUS,
+                       WAR_FLAG_REGRESS_MULTIPLIER = claims.config.WAR_FLAG_REGRESS_MULTIPLIER,
+
+                       WAR_SCORE_ENABLED = claims.config.WAR_SCORE_ENABLED,
+                       WAR_SCORE_TO_WIN = claims.config.WAR_SCORE_TO_WIN,
+                       WAR_SCORE_PER_PLOT_CAPTURE = claims.config.WAR_SCORE_PER_PLOT_CAPTURE,
+                       WAR_SCORE_PER_KILL = claims.config.WAR_SCORE_PER_KILL,
+                       WAR_SCORE_PER_HOLD_TICK = claims.config.WAR_SCORE_PER_HOLD_TICK,
+                       WAR_SCORE_HOLD_TICK_SECONDS = claims.config.WAR_SCORE_HOLD_TICK_SECONDS,
+
+                       WAR_PILLAGE_ENABLED = claims.config.WAR_PILLAGE_ENABLED,
+                       WAR_PILLAGE_PERCENT = claims.config.WAR_PILLAGE_PERCENT,
+
+                       WAR_CAMP_ENABLED = claims.config.WAR_CAMP_ENABLED,
+                       WAR_MAX_CAMPS_PER_CONFLICT = claims.config.WAR_MAX_CAMPS_PER_CONFLICT,
+                       WAR_CAMP_MIN_DISTANCE_FROM_OTHER_CITY = claims.config.WAR_CAMP_MIN_DISTANCE_FROM_OTHER_CITY,
+                       WAR_CAMP_ANCHOR_BREAKS = claims.config.WAR_CAMP_ANCHOR_BREAKS,
+                       WAR_NAP_ENABLED = claims.config.WAR_NAP_ENABLED,
+                       WAR_NAP_DEFAULT_DAYS = claims.config.WAR_NAP_DEFAULT_DAYS,
+                       WAR_NAP_MAX_DAYS = claims.config.WAR_NAP_MAX_DAYS,
+                       WAR_NAP_BREAK_PENALTY = claims.config.WAR_NAP_BREAK_PENALTY,
+                       WAR_BATTLE_WARN_MINUTES = claims.config.WAR_BATTLE_WARN_MINUTES,
+                       WAR_ULTIMATUM_ENABLED = claims.config.WAR_ULTIMATUM_ENABLED,
+
+                       WAR_RESPAWN_SAFEZONE_ENABLED = claims.config.WAR_RESPAWN_SAFEZONE_ENABLED,
+                       WAR_RESPAWN_SAFEZONE_RADIUS = claims.config.WAR_RESPAWN_SAFEZONE_RADIUS,
+                       WAR_RESPAWN_SAFEZONE_SECONDS = claims.config.WAR_RESPAWN_SAFEZONE_SECONDS,
+
+                       WAR_SIEGE_ENABLED = claims.config.WAR_SIEGE_ENABLED,
+                       WAR_SIEGE_RAM_TICK_SECONDS = claims.config.WAR_SIEGE_RAM_TICK_SECONDS,
+                       WAR_SIEGE_RAM_RANGE = claims.config.WAR_SIEGE_RAM_RANGE,
+                       WAR_SIEGE_RAM_COST = claims.config.WAR_SIEGE_RAM_COST,
+
+                       FLAG_CAPTURE_DURATION_SECONDS = claims.config.FLAG_CAPTURE_DURATION_SECONDS,
+                       MAX_AMOUNT_OF_CAPTURE_FLAGS_ACTIVE = claims.config.MAX_AMOUNT_OF_CAPTURE_FLAGS_ACTIVE,
+                       FLAG_REINFORCEMENT_AMOUNT = claims.config.FLAG_REINFORCEMENT_AMOUNT,
+                       MINIMUM_DAYS_BETWEEN_BATTLES = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES,
+
+                       WAR_DECLARATION_COST = claims.config.WAR_DECLARATION_COST,
+                       WAR_REDECLARE_COOLDOWN_DAYS = claims.config.WAR_REDECLARE_COOLDOWN_DAYS,
+                       WAR_REQUIRE_CASUS_BELLI = claims.config.WAR_REQUIRE_CASUS_BELLI,
+                       WAR_CASUS_BELLI_GRACE_DAYS = claims.config.WAR_CASUS_BELLI_GRACE_DAYS,
+
+                       WAR_PEACE_TERMS_ENABLED = claims.config.WAR_PEACE_TERMS_ENABLED,
+                       WAR_VASSAL_TRIBUTE = claims.config.WAR_VASSAL_TRIBUTE,
+                       WAR_VASSAL_DURATION_DAYS = claims.config.WAR_VASSAL_DURATION_DAYS,
+
+                       WAR_BOUNTY_ENABLED = claims.config.WAR_BOUNTY_ENABLED,
+                       WAR_BOUNTY_MIN = claims.config.WAR_BOUNTY_MIN,
+                       WAR_PLUNDER_ON_KILL_ENABLED = claims.config.WAR_PLUNDER_ON_KILL_ENABLED,
+                       WAR_PLUNDER_ON_KILL_PERCENT = claims.config.WAR_PLUNDER_ON_KILL_PERCENT,
+
+                       WAR_REPORT_ENABLED = claims.config.WAR_REPORT_ENABLED,
+                       WAR_HUD_ENABLED = claims.config.WAR_HUD_ENABLED
                    }
                    , player);
         }

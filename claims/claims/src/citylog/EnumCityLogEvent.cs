@@ -11,5 +11,7 @@ namespace claims.src.citylog
         FlagCaptured,
         AllianceJoined,
         AllianceLeft,
+        TreasuryPillaged,
+        WarEnded,
     }
 }

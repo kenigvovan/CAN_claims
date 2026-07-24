@@ -62,43 +62,77 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.Spacing();
 
                 bool isAttacker = IsMyPartyGuid(letter.FromGuid);
-                string cancelTooltip = letter.Purpose == LetterPurpose.START_CONFLICT
-                    ? Lang.Get(isAttacker ? "claims:gui-conflict-cancel-button" : "claims:gui-conflict-deny-button")
-                    : Lang.Get("claims:gui-conflict-denystop-button");
+                bool isRecipient = IsMyPartyGuid(letter.ToGuid);
 
-                if (IconButton("cancel", "peace-dove", 32, cancelTooltip))
+                // NAP offers, ultimatums and cession-confirms are answered only by the recipient — no revoke.
+                bool recipientOnlyPurpose = letter.Purpose == LetterPurpose.NON_AGGRESSION || letter.Purpose == LetterPurpose.ULTIMATUM || letter.Purpose == LetterPurpose.CESSION_CONFIRM;
+                bool showCancel = !recipientOnlyPurpose || isRecipient;
+                if (showCancel)
                 {
-                    ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                    string cmd = CmdPrefix;
+                    string cancelTooltip;
                     if (letter.Purpose == LetterPurpose.START_CONFLICT)
-                    {
-                        if (isAttacker)
-                            clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, cmd + "revoke " + letter.To, EnumChatType.Macro, "");
-                        else
-                            clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, cmd + "deny " + letter.From, EnumChatType.Macro, "");
-                    }
+                        cancelTooltip = Lang.Get(isAttacker ? "claims:gui-conflict-cancel-button" : "claims:gui-conflict-deny-button");
+                    else if (letter.Purpose == LetterPurpose.NON_AGGRESSION)
+                        cancelTooltip = Lang.Get("claims:gui-conflict-nap-deny-button");
+                    else if (letter.Purpose == LetterPurpose.ULTIMATUM)
+                        cancelTooltip = Lang.Get("claims:gui-conflict-ultimatum-deny-button");
+                    else if (letter.Purpose == LetterPurpose.CESSION_CONFIRM)
+                        cancelTooltip = Lang.Get("claims:gui-conflict-cession-deny-button");
                     else
-                    {
-                        clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, cmd + "denystop " + (isAttacker ? letter.To : letter.From), EnumChatType.Macro, "");
-                    }
-                    var cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientConflictLetterCellElements.FirstOrDefault(c => c.Guid == letter.Guid);
-                    if (cell != null) toRemove.Add(cell);
-                }
+                        cancelTooltip = Lang.Get("claims:gui-conflict-denystop-button");
 
-                if (IsMyPartyGuid(letter.ToGuid))
-                {
-                    ImGui.SameLine();
-                    string acceptTooltip = Lang.Get(letter.Purpose == LetterPurpose.START_CONFLICT
-                        ? "claims:gui-conflict-accept-button"
-                        : "claims:gui-conflict-stop-button");
-                    if (IconButton("acceptconflict", "sword-brandish", 32, acceptTooltip))
+                    if (IconButton("cancel", "peace-dove", 32, cancelTooltip))
                     {
                         ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                         string cmd = CmdPrefix;
+                        string macro;
                         if (letter.Purpose == LetterPurpose.START_CONFLICT)
-                            clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, cmd + "accept " + letter.From, EnumChatType.Macro, "");
+                            macro = cmd + (isAttacker ? "revoke " + letter.To : "deny " + letter.From);
+                        else if (letter.Purpose == LetterPurpose.NON_AGGRESSION)
+                            macro = cmd + "nap deny " + letter.From;
+                        else if (letter.Purpose == LetterPurpose.ULTIMATUM)
+                            macro = cmd + "ultimatum deny " + letter.From;
+                        else if (letter.Purpose == LetterPurpose.CESSION_CONFIRM)
+                            macro = "/city war cession deny " + letter.From; // city-mayor action even for an allianced member
                         else
-                            clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, cmd + "acceptstop " + letter.From, EnumChatType.Macro, "");
+                            macro = cmd + "denystop " + (isAttacker ? letter.To : letter.From);
+                        clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, macro, EnumChatType.Macro, "");
+                        var cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientConflictLetterCellElements.FirstOrDefault(c => c.Guid == letter.Guid);
+                        if (cell != null) toRemove.Add(cell);
+                    }
+                }
+
+                if (isRecipient)
+                {
+                    if (showCancel) ImGui.SameLine();
+                    string acceptTooltip;
+                    if (letter.Purpose == LetterPurpose.START_CONFLICT)
+                        acceptTooltip = Lang.Get("claims:gui-conflict-accept-button");
+                    else if (letter.Purpose == LetterPurpose.NON_AGGRESSION)
+                        acceptTooltip = Lang.Get("claims:gui-conflict-nap-accept-button");
+                    else if (letter.Purpose == LetterPurpose.ULTIMATUM)
+                        acceptTooltip = Lang.Get("claims:gui-conflict-ultimatum-accept-button");
+                    else if (letter.Purpose == LetterPurpose.CESSION_CONFIRM)
+                        acceptTooltip = Lang.Get("claims:gui-conflict-cession-accept-button");
+                    else
+                        acceptTooltip = Lang.Get("claims:gui-conflict-stop-button");
+                    string acceptIcon = (letter.Purpose == LetterPurpose.NON_AGGRESSION || letter.Purpose == LetterPurpose.ULTIMATUM || letter.Purpose == LetterPurpose.CESSION_CONFIRM) ? "peace-dove" : "sword-brandish";
+                    if (IconButton("acceptconflict", acceptIcon, 32, acceptTooltip))
+                    {
+                        ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
+                        string cmd = CmdPrefix;
+                        string macro;
+                        if (letter.Purpose == LetterPurpose.START_CONFLICT)
+                            macro = cmd + "accept " + letter.From;
+                        else if (letter.Purpose == LetterPurpose.NON_AGGRESSION)
+                            macro = cmd + "nap accept " + letter.From;
+                        else if (letter.Purpose == LetterPurpose.ULTIMATUM)
+                            macro = cmd + "ultimatum accept " + letter.From;
+                        else if (letter.Purpose == LetterPurpose.CESSION_CONFIRM)
+                            macro = "/city war cession accept " + letter.From; // city-mayor action even for an allianced member
+                        else
+                            macro = cmd + "acceptstop " + letter.From;
+                        clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, macro, EnumChatType.Macro, "");
                         var cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientConflictLetterCellElements.FirstOrDefault(c => c.Guid == letter.Guid);
                         if (cell != null) toRemove.Add(cell);
                     }
@@ -127,6 +161,15 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 {
                     GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.CITY_SEND_NEW_CONFLICT_LETTER_NEED_NAME;
                 }
+            }
+            // Non-aggression pacts are a peacetime tool for any party (alliance leader or independent city mayor).
+            if (claims.config.WAR_NAP_ENABLED)
+            {
+                ImGui.SameLine();
+                if (IconButton("newnap", "peace-dove", 32, Lang.Get("claims:gui-send-new-nap-letter")))
+                    GuiSys.secondaryWindowTab = claims.clientDataStorage.clientPlayerInfo.AllianceInfo != null
+                        ? EnumSecondaryWindowTab.ALLIANCE_SEND_NAP_OFFER_NEED_NAME
+                        : EnumSecondaryWindowTab.CITY_SEND_NAP_OFFER_NEED_NAME;
             }
             /*==============================================================================================*/
             /*=====================================UNDER 2 LINE=============================================*/

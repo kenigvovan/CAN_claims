@@ -863,6 +863,36 @@ namespace claims.src.commands
             tcr.StatusMessage = string.Join("", wi.getStatus());
             return tcr;
         }
+        public static TextCommandResult setCfg(TextCommandCallingArgs args)
+        {
+            TextCommandResult tcr = new TextCommandResult();
+            tcr.Status = EnumCommandStatus.Success;
+
+            string key = ((string)args.Parsers[0].GetValue());
+            string value = ((string)args.Parsers[1].GetValue());
+
+            if (!config.WarConfigEditor.TrySet(key, value, out string error))
+            {
+                tcr.Status = EnumCommandStatus.Error;
+                tcr.StatusMessage = "setcfg failed: " + error;
+                return tcr;
+            }
+
+            // Persist so the edit survives a restart (StoreModConfig is otherwise only
+            // called on load), then push the new values to every online client so the
+            // change applies without a reconnect.
+            claims.sapi.StoreModConfig<Config>(claims.config, "claims.json");
+            foreach (var p in claims.sapi.World.AllOnlinePlayers)
+            {
+                if (p is IServerPlayer sp)
+                {
+                    UsefullPacketsSend.SendUpdatedConfigValues(sp);
+                }
+            }
+
+            tcr.StatusMessage = "set " + key + " = " + value;
+            return tcr;
+        }
         public static TextCommandResult processBackup(TextCommandCallingArgs args)
         {
             IServerPlayer player = args.Caller.Player as IServerPlayer;

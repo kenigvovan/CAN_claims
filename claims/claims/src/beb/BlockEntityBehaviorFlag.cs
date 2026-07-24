@@ -35,6 +35,8 @@ namespace claims.src.beb
         public string ConflictGuid { get; set; }
         public string PlayerGuid { get; set; }
         public int TimesToBreak { get; set; } = 0;
+        // Last CapturedPercent value pushed to clients — used to throttle MarkDirty network syncs.
+        private float lastSyncedPercent = -1f;
         public BlockEntityBehaviorFlag(BlockEntity blockEntity) : base(blockEntity) { }
 
         public override void Initialize(ICoreAPI api, JsonObject properties)
@@ -89,13 +91,51 @@ namespace claims.src.beb
             {
                 return;
             }
-            if (this.Api.Side == EnumAppSide.Server && IsCaptureNoLongerValid())
+            // Read the capture duration live so /cadmin setcfg edits apply to in-progress captures.
+            float dur = claims.config.FLAG_CAPTURE_DURATION_SECONDS;
+            if (dur <= 0) dur = 1;
+
+            if (this.Api.Side != EnumAppSide.Server)
+            {
+                // Progress is server-authoritative (it can now regress when defenders contest the
+                // flag), so the client just renders the last CapturedPercent the server synced.
+                return;
+            }
+
+            if (IsCaptureNoLongerValid())
             {
                 CancelCapture();
                 return;
             }
-            this.CapturedPercent += GameMath.Clamp(1.0f - this.CapturedPercent, -deltaTime / this.captureDuration, deltaTime / this.captureDuration);
-            if (this.Api.Side == EnumAppSide.Server)
+
+            float progressBefore = this.CapturedPercent;
+            int defenders = 0, attackers = 0;
+            if (claims.config.WAR_FLAG_DEFENDER_INTERRUPT_ENABLED) CountContestants(out attackers, out defenders);
+            // Defenders contest the flag, but the attackers push through if they outnumber them.
+            bool contested = defenders > 0 && attackers <= defenders;
+            if (contested)
+            {
+                this.CapturedPercent -= (float)claims.config.WAR_FLAG_REGRESS_MULTIPLIER * deltaTime / dur;
+                if (this.CapturedPercent < 0f) this.CapturedPercent = 0f;
+            }
+            else
+            {
+                this.CapturedPercent += GameMath.Clamp(1.0f - this.CapturedPercent, -deltaTime / dur, deltaTime / dur);
+            }
+
+            // Push the authoritative progress to clients so the capture bar reflects regress too,
+            // but throttle: only sync when the bar moved a visible amount or hit zero.
+            if (this.CapturedPercent != progressBefore
+                && (System.Math.Abs(this.CapturedPercent - this.lastSyncedPercent) >= 0.02f
+                    || (this.CapturedPercent <= 0f && this.lastSyncedPercent > 0f)))
+            {
+                this.lastSyncedPercent = this.CapturedPercent;
+                this.Blockentity.MarkDirty();
+            }
+
+            // War score for uncontested holding of an in-progress capture.
+            GrantHoldScoreIfDue(defenders);
+
             {
                 if (this.CapturedPercent >= 1f)
                 {
@@ -201,6 +241,8 @@ namespace claims.src.beb
                             PartDemolition.DemolishConflict(runningConflict, EnumConflictEndReason.CityDestroyed);
                         }
 
+                        // Pillage the whole eligible share before the city (and its account) is gone.
+                        WarPillageHelper.Pillage(attackerCity, defenderCity);
                         PartDemolition.demolishCity(defenderCity, string.Format("Last plot captured by {0}", attackerCity.GetPartName()));
 
                         this.Api.Event.RegisterCallback((float ft) =>
@@ -234,6 +276,15 @@ namespace claims.src.beb
                         defenderCity.FirePlotsMapChanged(EnumPlotsMapChangeReason.PlotCapturedByUs);
                         defenderCity.FirePlotsMapChanged(EnumPlotsMapChangeReason.PlotLostToEnemy);
                         UsefullPacketsSend.AddToQueueAllPlayersInfoUpdate(new Dictionary<string, object> { { "value", defenderPlot.getPos() } }, EnumPlayerRelatedInfo.CITY_PLOT_RECOLOR);
+                        // Treasury pillage + war score/stats for the successful plot capture.
+                        long pillaged = WarPillageHelper.Pillage(attackerCity, defenderCity);
+                        {
+                            IConflictParty attackerPartyScore = attackerCity.HasAlliance() ? (IConflictParty)attackerCity.Alliance : (IConflictParty)attackerCity;
+                            // Record stats BEFORE AddScore, since AddScore may end the war (and build the report).
+                            WarScoreHelper.RecordPlotCapture(conflict, attackerPartyScore);
+                            WarScoreHelper.RecordPillaged(conflict, attackerPartyScore, pillaged);
+                            WarScoreHelper.AddScore(conflict, attackerPartyScore, claims.config.WAR_SCORE_PER_PLOT_CAPTURE, "plot_capture");
+                        }
                         warTime.PlotAttacks.Remove(PlotPosition.fromBlockPos(this.Pos));
                         TimesToBreak = 0;
                         this.Api.Event.RegisterCallback((float ft) =>
@@ -270,6 +321,66 @@ namespace claims.src.beb
                 }
             }
         }
+        // Counts online players within FLAG_DEFENDER_RADIUS of the flag, split into defenders
+        // (the plot's owning party or its comrades) and attackers (the flag owner's party or its
+        // comrades). Neutral players are ignored.
+        private void CountContestants(out int attackers, out int defenders)
+        {
+            attackers = 0;
+            defenders = 0;
+            if (!claims.dataStorage.GetPlot(PlotPosition.fromBlockPos(this.Pos), out var plot)) return;
+            City defenderCity = plot.getCity();
+            if (defenderCity == null) return;
+            if (!claims.dataStorage.getCityByGUID(this.CityGuid, out City attackerCity)) return;
+
+            IConflictParty defenderParty = defenderCity.HasAlliance() ? (IConflictParty)defenderCity.Alliance : defenderCity;
+            IConflictParty attackerParty = attackerCity.HasAlliance() ? (IConflictParty)attackerCity.Alliance : attackerCity;
+
+            double radius = claims.config.WAR_FLAG_DEFENDER_RADIUS;
+            double radiusSq = radius * radius;
+            double fx = this.Pos.X + 0.5, fy = this.Pos.Y + 0.5, fz = this.Pos.Z + 0.5;
+
+            foreach (var p in this.Api.World.AllOnlinePlayers)
+            {
+                if (p?.Entity == null) continue;
+                double dx = p.Entity.ServerPos.X - fx, dy = p.Entity.ServerPos.Y - fy, dz = p.Entity.ServerPos.Z - fz;
+                if (dx * dx + dy * dy + dz * dz > radiusSq) continue;
+                if (!claims.dataStorage.GetPlayerByUid(p.PlayerUID, out var pInfo) || !pInfo.hasCity()) continue;
+
+                IConflictParty pParty = pInfo.HasAlliance() ? (IConflictParty)pInfo.Alliance : pInfo.City;
+                if (BelongsToSide(pParty, pInfo, defenderParty, defenderCity)) defenders++;
+                else if (BelongsToSide(pParty, pInfo, attackerParty, attackerCity)) attackers++;
+            }
+        }
+
+        private static bool BelongsToSide(IConflictParty pParty, PlayerInfo pInfo, IConflictParty sideParty, City sideCity)
+        {
+            if (pParty.Equals(sideParty)) return true;
+            // Comrade alliances fight alongside the side.
+            return sideCity.HasAlliance() && pInfo.HasAlliance()
+                && sideCity.Alliance.ComradAlliancies.Contains(pInfo.Alliance);
+        }
+
+        // Grants a "holding" war-score tick to the attacking side while the capture is uncontested.
+        private void GrantHoldScoreIfDue(int defenders)
+        {
+            if (!claims.config.WAR_SCORE_ENABLED || claims.config.WAR_SCORE_PER_HOLD_TICK <= 0) return;
+            if (defenders > 0) return; // only reward uncontested holding
+            if (!ConflictHandler.TryGetConflictByGuid(this.ConflictGuid, out var conflict)) return;
+            if (!claims.dataStorage.WarsTimes.TryGetValue(conflict.Guid, out var warTime)) return;
+            if (!warTime.PlotAttacks.TryGetValue(PlotPosition.fromBlockPos(this.Pos), out var plotAttack)) return;
+
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            int interval = claims.config.WAR_SCORE_HOLD_TICK_SECONDS;
+            if (interval <= 0) interval = 1;
+            if (now - plotAttack.LastHoldScoreTimestamp < interval) return;
+            plotAttack.LastHoldScoreTimestamp = now;
+
+            if (!claims.dataStorage.getCityByGUID(this.CityGuid, out City attackerCity)) return;
+            IConflictParty attackerParty = attackerCity.HasAlliance() ? (IConflictParty)attackerCity.Alliance : attackerCity;
+            WarScoreHelper.AddScore(conflict, attackerParty, claims.config.WAR_SCORE_PER_HOLD_TICK, "hold", announce: false);
+        }
+
         private bool IsCaptureNoLongerValid()
         {
             if (!claims.dataStorage.GetPlot(PlotPosition.fromBlockPos(this.Pos), out var plot))
@@ -282,6 +393,11 @@ namespace claims.src.beb
                 return true;
             }
             if (!claims.dataStorage.getCityByGUID(this.CityGuid, out City attackerCity))
+            {
+                return true;
+            }
+            // Capture is only valid while the war battle window is open.
+            if (!ConflictHandler.TryGetConflictByGuid(this.ConflictGuid, out var conflict) || !conflict.ActiveWarTime)
             {
                 return true;
             }
@@ -428,17 +544,8 @@ namespace claims.src.beb
                         client.Tesselator.TesselateShape(this.Banner.Item, Shape.TryGet(client, "claims:shapes/flag/banner.json"), out MeshData meshData);
                         this.renderer = new FlagRenderer(client, meshData, this.Pos, this, this.BlockBehavior.PoleTop, this.BlockBehavior.PoleBottom);
                         client.Event.RegisterRenderer(this.renderer, EnumRenderStage.Opaque, "flag");
-                        if (this.updateRef == null)
-                        {
-                            this.updateRef = this.Api.Event.RegisterGameTickListener(this.Update, 1000);
-                        }
-                    }
-                    else
-                    {
-                        if (this.updateRef != null)
-                        {
-                            this.Api.Event.UnregisterGameTickListener(this.updateRef.Value);
-                        }
+                        // No client-side tick: capture progress is server-authoritative and arrives
+                        // via MarkDirty sync; the renderer reads CapturedPercent directly each frame.
                     }
                 }
             }

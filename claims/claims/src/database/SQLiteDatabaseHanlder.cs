@@ -170,7 +170,49 @@ namespace claims.src.database
 
                     new SqliteCommand("PRAGMA user_version = 1", SqliteConnection).ExecuteNonQuery();
                 }
-                // Future: if (dbVersion < 2) { ... new SqliteCommand("PRAGMA user_version = 2", SqliteConnection).ExecuteNonQuery(); }
+                if (dbVersion < 2)
+                {
+                    TryAlterTable("SELECT firstscore FROM CONFLICTS LIMIT 1",
+                        "ALTER TABLE CONFLICTS ADD COLUMN firstscore INTEGER DEFAULT 0");
+                    TryAlterTable("SELECT secondscore FROM CONFLICTS LIMIT 1",
+                        "ALTER TABLE CONFLICTS ADD COLUMN secondscore INTEGER DEFAULT 0");
+                    new SqliteCommand("PRAGMA user_version = 2", SqliteConnection).ExecuteNonQuery();
+                }
+                if (dbVersion < 3)
+                {
+                    // War diplomacy: cooldowns, grievances, vassalage (CITIES)
+                    TryAlterTable("SELECT warcooldowns FROM CITIES LIMIT 1",
+                        "ALTER TABLE CITIES ADD COLUMN warcooldowns TEXT DEFAULT \"\"");
+                    TryAlterTable("SELECT grievances FROM CITIES LIMIT 1",
+                        "ALTER TABLE CITIES ADD COLUMN grievances TEXT DEFAULT \"\"");
+                    TryAlterTable("SELECT overlord FROM CITIES LIMIT 1",
+                        "ALTER TABLE CITIES ADD COLUMN overlord TEXT DEFAULT \"\"");
+                    TryAlterTable("SELECT vassals FROM CITIES LIMIT 1",
+                        "ALTER TABLE CITIES ADD COLUMN vassals TEXT DEFAULT \"\"");
+                    TryAlterTable("SELECT vassalsince FROM CITIES LIMIT 1",
+                        "ALTER TABLE CITIES ADD COLUMN vassalsince INTEGER DEFAULT 0");
+                    TryAlterTable("SELECT naps FROM CITIES LIMIT 1",
+                        "ALTER TABLE CITIES ADD COLUMN naps TEXT DEFAULT \"\"");
+                    TryAlterTable("SELECT warjustifications FROM CITIES LIMIT 1",
+                        "ALTER TABLE CITIES ADD COLUMN warjustifications TEXT DEFAULT \"\"");
+                    // Bounties on players (PLAYERS)
+                    TryAlterTable("SELECT bounties FROM PLAYERS LIMIT 1",
+                        "ALTER TABLE PLAYERS ADD COLUMN bounties TEXT DEFAULT \"\"");
+                    // After-action stats (CONFLICTS)
+                    TryAlterTable("SELECT firstplotscaptured FROM CONFLICTS LIMIT 1",
+                        "ALTER TABLE CONFLICTS ADD COLUMN firstplotscaptured INTEGER DEFAULT 0");
+                    TryAlterTable("SELECT secondplotscaptured FROM CONFLICTS LIMIT 1",
+                        "ALTER TABLE CONFLICTS ADD COLUMN secondplotscaptured INTEGER DEFAULT 0");
+                    TryAlterTable("SELECT firstkills FROM CONFLICTS LIMIT 1",
+                        "ALTER TABLE CONFLICTS ADD COLUMN firstkills INTEGER DEFAULT 0");
+                    TryAlterTable("SELECT secondkills FROM CONFLICTS LIMIT 1",
+                        "ALTER TABLE CONFLICTS ADD COLUMN secondkills INTEGER DEFAULT 0");
+                    TryAlterTable("SELECT firstpillaged FROM CONFLICTS LIMIT 1",
+                        "ALTER TABLE CONFLICTS ADD COLUMN firstpillaged INTEGER DEFAULT 0");
+                    TryAlterTable("SELECT secondpillaged FROM CONFLICTS LIMIT 1",
+                        "ALTER TABLE CONFLICTS ADD COLUMN secondpillaged INTEGER DEFAULT 0");
+                    new SqliteCommand("PRAGMA user_version = 3", SqliteConnection).ExecuteNonQuery();
+                }
 
             }
             catch (Exception ex)
@@ -387,7 +429,8 @@ namespace claims.src.database
                 { "@aftername", player.AfterName },
                 { "@perms", player.PermsHandler.ToString() },
                 { "@prisonguid", player.isPrisoned() ? player.PrisonedIn.Guid : "" },
-                { "@prisonhoursleft", player.PrisonHoursLeft }
+                { "@prisonhoursleft", player.PrisonHoursLeft },
+                { "@bounties", JsonConvert.SerializeObject(player.BountyPosters) }
 
             };
 
@@ -447,6 +490,12 @@ namespace claims.src.database
             {
                 tmp.PrisonedIn = prison;
                 tmp.PrisonHoursLeft = int.Parse(it["prisonhoursleft"].ToString());
+            }
+            if (it.Table.Columns.Contains("bounties"))
+            {
+                string b = it["bounties"].ToString();
+                if (b.Length != 0)
+                    tmp.BountyPosters = JsonConvert.DeserializeObject<Dictionary<string, long>>(b) ?? new();
             }
             return true;
         }
@@ -524,7 +573,14 @@ namespace claims.src.database
                 { "@citycolor", city.cityColor },
                 { "@templerespawnpoints", JsonConvert.SerializeObject(city.TempleRespawnPoints) },
                 { "@ranks", JsonConvert.SerializeObject(city.CustomCityRanks) },
-                { "@eventlog", JsonConvert.SerializeObject(city.EventLog) }
+                { "@eventlog", JsonConvert.SerializeObject(city.EventLog) },
+                { "@warcooldowns", JsonConvert.SerializeObject(city.WarCooldowns) },
+                { "@grievances", JsonConvert.SerializeObject(city.Grievances) },
+                { "@overlord", city.OverlordGuid ?? "" },
+                { "@vassals", StringFunctions.concatStringsWithDelim(city.VassalCities, ';') },
+                { "@vassalsince", city.VassalSince },
+                { "@naps", JsonConvert.SerializeObject(city.NonAggressionPacts) },
+                { "@warjustifications", JsonConvert.SerializeObject(city.WarJustifications) }
             };
 
             queryQueue.Enqueue(new QuerryInfo("CITIES", update ? QuerryType.UPDATE : QuerryType.INSERT, tmpDict));
@@ -694,6 +750,44 @@ namespace claims.src.database
                 }
             }
             catch (Exception ex) { claims.sapi.Logger.Warning("[claims] Failed to load city data for '{0}': {1}", city.GetPartName(), ex.Message); }
+
+            try
+            {
+                if (it.Table.Columns.Contains("warcooldowns"))
+                {
+                    string s = it["warcooldowns"].ToString();
+                    if (s.Length != 0) city.WarCooldowns = JsonConvert.DeserializeObject<Dictionary<string, long>>(s) ?? new();
+                }
+                if (it.Table.Columns.Contains("grievances"))
+                {
+                    string s = it["grievances"].ToString();
+                    if (s.Length != 0) city.Grievances = JsonConvert.DeserializeObject<Dictionary<string, long>>(s) ?? new();
+                }
+                if (it.Table.Columns.Contains("overlord"))
+                    city.OverlordGuid = it["overlord"].ToString();
+                if (it.Table.Columns.Contains("naps"))
+                {
+                    string s = it["naps"].ToString();
+                    if (s.Length != 0) city.NonAggressionPacts = JsonConvert.DeserializeObject<Dictionary<string, long>>(s) ?? new();
+                }
+                if (it.Table.Columns.Contains("warjustifications"))
+                {
+                    string s = it["warjustifications"].ToString();
+                    if (s.Length != 0) city.WarJustifications = JsonConvert.DeserializeObject<Dictionary<string, long>>(s) ?? new();
+                }
+                if (it.Table.Columns.Contains("vassalsince") && long.TryParse(it["vassalsince"].ToString(), out long vs))
+                    city.VassalSince = vs;
+                if (it.Table.Columns.Contains("vassals"))
+                {
+                    foreach (string str in it["vassals"].ToString().Split(';'))
+                    {
+                        if (str.Length == 0) continue;
+                        claims.dataStorage.getCityByGUID(str, out City vcity);
+                        if (vcity != null) city.VassalCities.Add(vcity);
+                    }
+                }
+            }
+            catch (Exception ex) { claims.sapi.Logger.Warning("[claims] Failed to load war/vassal data for '{0}': {1}", city.GetPartName(), ex.Message); }
 
             foreach(var citizen in city.getCityCitizens())
             {
@@ -1301,6 +1395,14 @@ namespace claims.src.database
                 { "@firstside_type", GetPartyType(conflict.First) },
                 { "@secondside_type", GetPartyType(conflict.Second) },
                 { "@startedby_type", GetPartyType(conflict.StartedBy) },
+                { "@firstscore", conflict.FirstScore },
+                { "@secondscore", conflict.SecondScore },
+                { "@firstplotscaptured", conflict.FirstPlotsCaptured },
+                { "@secondplotscaptured", conflict.SecondPlotsCaptured },
+                { "@firstkills", conflict.FirstKills },
+                { "@secondkills", conflict.SecondKills },
+                { "@firstpillaged", conflict.FirstPillaged },
+                { "@secondpillaged", conflict.SecondPillaged },
             };
 
             queryQueue.Enqueue(new QuerryInfo("CONFLICTS", update ? QuerryType.UPDATE : QuerryType.INSERT, tmpDict));
@@ -1336,6 +1438,23 @@ namespace claims.src.database
             tmpConflict.NextBattleDateEnd = JsonConvert.DeserializeObject<DateTime>(it["nextbattledateend"].ToString());
 
             tmpConflict.TimeStampStarted = long.Parse(it["timestampstarted"].ToString());
+
+            if (it.Table.Columns.Contains("firstscore") && int.TryParse(it["firstscore"].ToString(), out int fScore))
+                tmpConflict.FirstScore = fScore;
+            if (it.Table.Columns.Contains("secondscore") && int.TryParse(it["secondscore"].ToString(), out int sScore))
+                tmpConflict.SecondScore = sScore;
+            if (it.Table.Columns.Contains("firstplotscaptured") && int.TryParse(it["firstplotscaptured"].ToString(), out int fPlots))
+                tmpConflict.FirstPlotsCaptured = fPlots;
+            if (it.Table.Columns.Contains("secondplotscaptured") && int.TryParse(it["secondplotscaptured"].ToString(), out int sPlots))
+                tmpConflict.SecondPlotsCaptured = sPlots;
+            if (it.Table.Columns.Contains("firstkills") && int.TryParse(it["firstkills"].ToString(), out int fKills))
+                tmpConflict.FirstKills = fKills;
+            if (it.Table.Columns.Contains("secondkills") && int.TryParse(it["secondkills"].ToString(), out int sKills))
+                tmpConflict.SecondKills = sKills;
+            if (it.Table.Columns.Contains("firstpillaged") && long.TryParse(it["firstpillaged"].ToString(), out long fPill))
+                tmpConflict.FirstPillaged = fPill;
+            if (it.Table.Columns.Contains("secondpillaged") && long.TryParse(it["secondpillaged"].ToString(), out long sPill))
+                tmpConflict.SecondPillaged = sPill;
 
             tmpConflict.First.RunningConflicts.Add(tmpConflict);
             tmpConflict.Second.RunningConflicts.Add(tmpConflict);

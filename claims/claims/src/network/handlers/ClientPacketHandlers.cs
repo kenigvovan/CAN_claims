@@ -247,6 +247,62 @@ namespace claims.src.network.handlers
 
                 claims.config.MIN_RANGE_CELL_DURATION_MINUTES = packet.MIN_RANGE_CELL_DURATION_MINUTES;
 
+                claims.config.WAR_FLAG_DEFENDER_INTERRUPT_ENABLED = packet.WAR_FLAG_DEFENDER_INTERRUPT_ENABLED;
+                claims.config.WAR_FLAG_DEFENDER_RADIUS = packet.WAR_FLAG_DEFENDER_RADIUS;
+                claims.config.WAR_FLAG_REGRESS_MULTIPLIER = packet.WAR_FLAG_REGRESS_MULTIPLIER;
+
+                claims.config.WAR_SCORE_ENABLED = packet.WAR_SCORE_ENABLED;
+                claims.config.WAR_SCORE_TO_WIN = packet.WAR_SCORE_TO_WIN;
+                claims.config.WAR_SCORE_PER_PLOT_CAPTURE = packet.WAR_SCORE_PER_PLOT_CAPTURE;
+                claims.config.WAR_SCORE_PER_KILL = packet.WAR_SCORE_PER_KILL;
+                claims.config.WAR_SCORE_PER_HOLD_TICK = packet.WAR_SCORE_PER_HOLD_TICK;
+                claims.config.WAR_SCORE_HOLD_TICK_SECONDS = packet.WAR_SCORE_HOLD_TICK_SECONDS;
+
+                claims.config.WAR_PILLAGE_ENABLED = packet.WAR_PILLAGE_ENABLED;
+                claims.config.WAR_PILLAGE_PERCENT = packet.WAR_PILLAGE_PERCENT;
+
+                claims.config.WAR_CAMP_ENABLED = packet.WAR_CAMP_ENABLED;
+                claims.config.WAR_MAX_CAMPS_PER_CONFLICT = packet.WAR_MAX_CAMPS_PER_CONFLICT;
+                claims.config.WAR_CAMP_MIN_DISTANCE_FROM_OTHER_CITY = packet.WAR_CAMP_MIN_DISTANCE_FROM_OTHER_CITY;
+                claims.config.WAR_CAMP_ANCHOR_BREAKS = packet.WAR_CAMP_ANCHOR_BREAKS;
+                claims.config.WAR_NAP_ENABLED = packet.WAR_NAP_ENABLED;
+                claims.config.WAR_NAP_DEFAULT_DAYS = packet.WAR_NAP_DEFAULT_DAYS;
+                claims.config.WAR_NAP_MAX_DAYS = packet.WAR_NAP_MAX_DAYS;
+                claims.config.WAR_NAP_BREAK_PENALTY = packet.WAR_NAP_BREAK_PENALTY;
+                claims.config.WAR_BATTLE_WARN_MINUTES = packet.WAR_BATTLE_WARN_MINUTES;
+                claims.config.WAR_ULTIMATUM_ENABLED = packet.WAR_ULTIMATUM_ENABLED;
+
+                claims.config.WAR_RESPAWN_SAFEZONE_ENABLED = packet.WAR_RESPAWN_SAFEZONE_ENABLED;
+                claims.config.WAR_RESPAWN_SAFEZONE_RADIUS = packet.WAR_RESPAWN_SAFEZONE_RADIUS;
+                claims.config.WAR_RESPAWN_SAFEZONE_SECONDS = packet.WAR_RESPAWN_SAFEZONE_SECONDS;
+
+                claims.config.WAR_SIEGE_ENABLED = packet.WAR_SIEGE_ENABLED;
+                claims.config.WAR_SIEGE_RAM_TICK_SECONDS = packet.WAR_SIEGE_RAM_TICK_SECONDS;
+                claims.config.WAR_SIEGE_RAM_RANGE = packet.WAR_SIEGE_RAM_RANGE;
+                claims.config.WAR_SIEGE_RAM_COST = packet.WAR_SIEGE_RAM_COST;
+
+                claims.config.FLAG_CAPTURE_DURATION_SECONDS = packet.FLAG_CAPTURE_DURATION_SECONDS;
+                claims.config.MAX_AMOUNT_OF_CAPTURE_FLAGS_ACTIVE = packet.MAX_AMOUNT_OF_CAPTURE_FLAGS_ACTIVE;
+                claims.config.FLAG_REINFORCEMENT_AMOUNT = packet.FLAG_REINFORCEMENT_AMOUNT;
+                claims.config.MINIMUM_DAYS_BETWEEN_BATTLES = packet.MINIMUM_DAYS_BETWEEN_BATTLES;
+
+                claims.config.WAR_DECLARATION_COST = packet.WAR_DECLARATION_COST;
+                claims.config.WAR_REDECLARE_COOLDOWN_DAYS = packet.WAR_REDECLARE_COOLDOWN_DAYS;
+                claims.config.WAR_REQUIRE_CASUS_BELLI = packet.WAR_REQUIRE_CASUS_BELLI;
+                claims.config.WAR_CASUS_BELLI_GRACE_DAYS = packet.WAR_CASUS_BELLI_GRACE_DAYS;
+
+                claims.config.WAR_PEACE_TERMS_ENABLED = packet.WAR_PEACE_TERMS_ENABLED;
+                claims.config.WAR_VASSAL_TRIBUTE = packet.WAR_VASSAL_TRIBUTE;
+                claims.config.WAR_VASSAL_DURATION_DAYS = packet.WAR_VASSAL_DURATION_DAYS;
+
+                claims.config.WAR_BOUNTY_ENABLED = packet.WAR_BOUNTY_ENABLED;
+                claims.config.WAR_BOUNTY_MIN = packet.WAR_BOUNTY_MIN;
+                claims.config.WAR_PLUNDER_ON_KILL_ENABLED = packet.WAR_PLUNDER_ON_KILL_ENABLED;
+                claims.config.WAR_PLUNDER_ON_KILL_PERCENT = packet.WAR_PLUNDER_ON_KILL_PERCENT;
+
+                claims.config.WAR_REPORT_ENABLED = packet.WAR_REPORT_ENABLED;
+                claims.config.WAR_HUD_ENABLED = packet.WAR_HUD_ENABLED;
+
                 // World grid geometry must follow the server; 0 = packet from an older
                 // server that doesn't send it, keep the local config value then.
                 bool gridChanged = false;
@@ -280,6 +336,10 @@ namespace claims.src.network.handlers
                 {
                     claims.FindAlwaysUseBlocks(claims.capi);
                 }
+            });
+            claims.clientChannel.SetMessageHandler<BountyBoardPacket>((packet) =>
+            {
+                claimsGui.BountyBoard = packet.Entries ?? new System.Collections.Generic.List<BountyBoardEntry>();
             });
         }
 

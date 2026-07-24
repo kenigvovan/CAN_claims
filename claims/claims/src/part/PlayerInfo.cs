@@ -20,6 +20,12 @@ namespace claims.src.part
         public int PrisonHoursLeft { get; set; }
         public Prison PrisonedIn { get; set; }
         public bool AwaitForTeleporation { get; set; }
+        // Unix seconds of the last city/camp respawn; drives the post-respawn PvP safe zone.
+        // Transient (not persisted) — no active immunity after a restart is acceptable.
+        public long LastRespawnTimestamp { get; set; } = 0;
+        // Bounties placed on this player's head: poster uid -> escrowed amount. Persisted.
+        public Dictionary<string, long> BountyPosters { get; set; } = new();
+        public long GetBountyTotal() { long s = 0; foreach (var v in BountyPosters.Values) s += v; return s; }
         public City City { get; private set; }     
         public Alliance Alliance { get { return City?.Alliance; } }
         public HashSet<PlayerInfo> Friends { get; set; }

@@ -11,11 +11,13 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
     {
         private int selectedTargetType = 0; // 0 = city, 1 = alliance
         private string baseCommand;
-        public CANDeclareConflictTab(ICoreClientAPI capi, IconHandler iconHandler, string baseCommand)
+        private string titleKey;
+        public CANDeclareConflictTab(ICoreClientAPI capi, IconHandler iconHandler, string baseCommand, string titleKey = "claims:name_of_target_to_send_conflict_letter")
         {
             this.capi = capi;
             this.iconHandler = iconHandler;
             this.baseCommand = baseCommand;
+            this.titleKey = titleKey;
         }
         public override void DrawTab()
         {
@@ -26,7 +28,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             ImGuiWindowFlags flags1 =
                  ImGuiWindowFlags.NoScrollWithMouse;
             ImGui.Begin("ClaimsDetails", p_open: ref GuiSys.secondaryWindowOpen, flags1);
-            ImGui.Text(Lang.Get("claims:name_of_target_to_send_conflict_letter"));
+            ImGui.Text(Lang.Get(titleKey));
 
             ImGui.RadioButton(Lang.Get("claims:conflict_target_city"), ref selectedTargetType, 0);
             ImGui.SameLine();

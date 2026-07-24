@@ -87,6 +87,9 @@ namespace claims.src.gui.playerGui.GuiElements
             string expDate = Lang.Get("claims:gui_conflict_cell_started_line", TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(cell.TimeStampCreated, true));
             textExtents = Font.GetTextExtents(expDate);
             textUtil.AutobreakAndDrawMultilineTextAt(context, CairoFont.WhiteDetailText(), expDate, Bounds.absPaddingX, Bounds.absPaddingY + GuiElement.scaled(36), textExtents.Width + 1.0, EnumTextOrientation.Left);
+            string scoreLine = Lang.Get("claims:gui_conflict_cell_score_line", cell.FirstScore, cell.SecondScore);
+            textExtents = Font.GetTextExtents(scoreLine);
+            textUtil.AutobreakAndDrawMultilineTextAt(context, CairoFont.WhiteDetailText(), scoreLine, Bounds.absPaddingX, Bounds.absPaddingY + GuiElement.scaled(54), textExtents.Width + 1.0, EnumTextOrientation.Left);
 
             //make border as button
             EmbossRoundRectangleElement(context, 0.0, 0.0, Bounds.OuterWidth, Bounds.OuterHeight, inverse: false, (int)GuiElement.scaled(4.0), 0);
@@ -180,9 +183,9 @@ namespace claims.src.gui.playerGui.GuiElements
         public void UpdateCellHeight()
         {
             Bounds.CalcWorldBounds();
-            if (showModifyIcons && Bounds.fixedHeight < 73.0)
+            if (showModifyIcons && Bounds.fixedHeight < 90.0)
             {
-                Bounds.fixedHeight = 73.0;
+                Bounds.fixedHeight = 90.0;
             }
         }
 

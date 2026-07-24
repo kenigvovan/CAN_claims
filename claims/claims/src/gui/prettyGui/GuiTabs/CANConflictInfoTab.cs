@@ -242,6 +242,15 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
+                Label(Lang.Get("claims:gui_conflict_info_war_score"));
+                ImGui.TableNextColumn();
+                ImGui.PushStyleColor(ImGuiCol.Text, ColValue);
+                ImGui.Text(cell.FirstPartyName + "  " + cell.FirstScore + "  :  " + cell.SecondScore + "  " + cell.SecondPartyName
+                    + "   (" + Lang.Get("claims:gui_conflict_info_to_win", claims.config.WAR_SCORE_TO_WIN) + ")");
+                ImGui.PopStyleColor();
+
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
                 Label(Lang.Get("claims:gui_conflict_info_started_by"));
                 ImGui.TableNextColumn();
                 ImGui.Text(cell.StartedByPartyName);

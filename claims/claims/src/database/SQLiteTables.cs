@@ -26,7 +26,14 @@
             "citycolor INTEGER," +
             "templerespawnpoints TEXT," +
             "ranks TEXT," +
-            "eventlog TEXT" +
+            "eventlog TEXT," +
+            "warcooldowns TEXT DEFAULT \"\"," +
+            "grievances TEXT DEFAULT \"\"," +
+            "overlord TEXT DEFAULT \"\"," +
+            "vassals TEXT DEFAULT \"\"," +
+            "vassalsince INTEGER DEFAULT 0," +
+            "naps TEXT DEFAULT \"\"," +
+            "warjustifications TEXT DEFAULT \"\"" +
              ");";
 
         public static string playerTable =
@@ -43,7 +50,8 @@
             "aftername TEXT," +
             "perms TEXT," +
             "prisonguid TEXT," +
-            "prisonhoursleft INTEGER" +
+            "prisonhoursleft INTEGER," +
+            "bounties TEXT DEFAULT \"\"" +
             ");";
         public static string plotTable =
             "CREATE TABLE IF NOT EXISTS PLOTS(" +
@@ -129,7 +137,15 @@
              "timestampstarted INTEGER DEFAULT 0," +
              "firstside_type TEXT DEFAULT 'alliance'," +
              "secondside_type TEXT DEFAULT 'alliance'," +
-             "startedby_type TEXT DEFAULT 'alliance'" +
+             "startedby_type TEXT DEFAULT 'alliance'," +
+             "firstscore INTEGER DEFAULT 0," +
+             "secondscore INTEGER DEFAULT 0," +
+             "firstplotscaptured INTEGER DEFAULT 0," +
+             "secondplotscaptured INTEGER DEFAULT 0," +
+             "firstkills INTEGER DEFAULT 0," +
+             "secondkills INTEGER DEFAULT 0," +
+             "firstpillaged INTEGER DEFAULT 0," +
+             "secondpillaged INTEGER DEFAULT 0" +
              ");";
     }
 }

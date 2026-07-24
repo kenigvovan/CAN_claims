@@ -9,8 +9,12 @@ using claims.src.network.packets;
 using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
+using claims.src.part.structure.plots;
+using claims.src.part.structure.war;
 using Vintagestory.API.Common;
+using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
+using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.API.Util;
 
@@ -65,6 +69,18 @@ namespace claims.src.part
                 comrade.ComradeCities.Remove(city);
                 comrade.saveToDatabase();
             }
+            // Break vassal/overlord links so no dangling guid survives.
+            if (city.IsVassal())
+            {
+                City overlord = city.GetOverlord();
+                if (overlord != null) { overlord.VassalCities.Remove(city); overlord.saveToDatabase(); }
+            }
+            foreach (City vassal in city.VassalCities.ToArray())
+            {
+                vassal.OverlordGuid = "";
+                vassal.VassalSince = 0;
+                vassal.saveToDatabase();
+            }
             Dictionary<string, ClientCityInfoCellElement> CityStatsCashe =
                 ObjectCacheUtil.GetOrCreate<Dictionary<string, ClientCityInfoCellElement>>(claims.sapi,
                 "claims:cityinfocache", () => new Dictionary<string, ClientCityInfoCellElement>());
@@ -107,6 +123,41 @@ namespace claims.src.part
                 tree.SetString("name", city.GetPartName());
             claims.sapi.World.Api.Event.PushEvent("plotunclaimed", tree);
         }
+        // Tears down a single war camp: unclaims the plot (which removes it from campPlots via
+        // PlotDescCamp.OnDeactivated) and notifies the owning city.
+        public static void DemolishCamp(Plot camp)
+        {
+            if (camp == null) return;
+            City city = camp.hasCity() ? camp.getCity() : null;
+            // Remove the physical anchor block if it's still ours and loaded (GetBlock returns
+            // null/air for an unloaded chunk, so an orphan block in that rare case is harmless).
+            if (camp.PlotDesc is PlotDescCamp campDesc && campDesc.AnchorPos != null)
+            {
+                var ap = new BlockPos(campDesc.AnchorPos.X, campDesc.AnchorPos.Y, campDesc.AnchorPos.Z);
+                var b = claims.sapi.World.BlockAccessor.GetBlock(ap);
+                if (b?.Code != null && b.Code.Path == "campanchor")
+                    claims.sapi.World.BlockAccessor.SetBlock(0, ap);
+            }
+            claims.serverPlayerMovementListener.markPlotToWasRemoved(camp.getPos());
+            demolishCityPlot(camp);
+            if (city != null)
+            {
+                city.saveToDatabase();
+                UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CLAIMED_PLOTS);
+                city.FirePlotsMapChanged(EnumPlotsMapChangeReason.Unclaimed);
+                MessageHandler.sendMsgInCity(city, Lang.Get("claims:camp_destroyed"));
+            }
+        }
+
+        public static void DemolishCampsForConflict(City city, string conflictGuid)
+        {
+            if (city == null) return;
+            foreach (Plot camp in city.campPlots
+                                      .Where(p => p.PlotDesc is PlotDescCamp pd && pd.ConflictGuid == conflictGuid)
+                                      .ToArray())
+                DemolishCamp(camp);
+        }
+
         public static void DemolishAlliance(Alliance alliance)
         {
             InvitationHandler.deleteAllInvitationsForSender(alliance);
@@ -171,9 +222,19 @@ namespace claims.src.part
                 conflict.ActiveWarTime = false;
                 RightsHandler.ClearPlayerCachesAndUpdatePlotSavedRightsForClients(conflict);
             }
+            // Remove all war camps that belonged to this conflict.
+            foreach (City campCity in conflict.First.GetCities())
+                DemolishCampsForConflict(campCity, conflict.Guid);
+            foreach (City campCity in conflict.Second.GetCities())
+                DemolishCampsForConflict(campCity, conflict.Guid);
+            // Record the war-end timestamp for the re-declare cooldown (before sides are cleared).
+            WarDeclarationHelper.RecordWarEnd(conflict);
+            // After-action report to both sides (while the stat counters and sides are still valid).
+            WarReportHelper.Generate(conflict);
             // Cancel pending start/end battle callbacks
             events.ModConfigReady.startWarCallbacks.Remove(conflict.Guid);
             events.ModConfigReady.endWarCallbacks.Remove(conflict.Guid);
+            events.ModConfigReady.battleWarned.Remove(conflict.Guid);
             claims.dataStorage.TryRemoveConflict(conflict);
             foreach (City ourCity in conflict.First.GetCities())
             {

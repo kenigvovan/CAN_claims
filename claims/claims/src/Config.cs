@@ -97,6 +97,75 @@ namespace claims.src
         public int MAX_AMOUNT_OF_CAPTURE_FLAGS_ACTIVE = 2;
         public int FLAG_REINFORCEMENT_AMOUNT = 10;
         public int MINIMUM_DAYS_BETWEEN_BATTLES { get; set; } = 3;
+
+        //WAR - flag capture defender interruption
+        public bool WAR_FLAG_DEFENDER_INTERRUPT_ENABLED = true;
+        public int WAR_FLAG_DEFENDER_RADIUS = 12;
+        public double WAR_FLAG_REGRESS_MULTIPLIER = 1.0;
+
+        //WAR - war score (threshold = victory)
+        public bool WAR_SCORE_ENABLED = true;
+        public int WAR_SCORE_TO_WIN = 100;
+        public int WAR_SCORE_PER_PLOT_CAPTURE = 25;
+        public int WAR_SCORE_PER_KILL = 5;
+        public int WAR_SCORE_PER_HOLD_TICK = 1;
+        public int WAR_SCORE_HOLD_TICK_SECONDS = 60;
+
+        //WAR - treasury pillage on plot capture
+        public bool WAR_PILLAGE_ENABLED = true;
+        public double WAR_PILLAGE_PERCENT = 20;
+
+        //WAR - military camp
+        public bool WAR_CAMP_ENABLED = true;
+        public int WAR_MAX_CAMPS_PER_CONFLICT = 2;
+        // Min distance (in plots) from other cities' plots for placing a war camp. 0 = no limit.
+        public int WAR_CAMP_MIN_DISTANCE_FROM_OTHER_CITY = 2;
+        // How many times the anchor block must be broken before the camp is destroyed.
+        public int WAR_CAMP_ANCHOR_BREAKS = 5;
+
+        //WAR - respawn safe zone (radius + timer after death)
+        public bool WAR_RESPAWN_SAFEZONE_ENABLED = true;
+        public int WAR_RESPAWN_SAFEZONE_RADIUS = 20;
+        public int WAR_RESPAWN_SAFEZONE_SECONDS = 15;
+
+        //WAR - siege ram
+        public bool WAR_SIEGE_ENABLED = true;
+        public int WAR_SIEGE_RAM_TICK_SECONDS = 20;
+        public int WAR_SIEGE_RAM_RANGE = 6;
+        public double WAR_SIEGE_RAM_COST = 50;
+
+        //WAR - declaration cost / cooldown / casus belli
+        public double WAR_DECLARATION_COST = 100;
+        public int WAR_REDECLARE_COOLDOWN_DAYS = 3;
+        public bool WAR_REQUIRE_CASUS_BELLI = false;
+        public int WAR_CASUS_BELLI_GRACE_DAYS = 7;
+
+        //WAR - peace terms / vassalage
+        public bool WAR_PEACE_TERMS_ENABLED = true;
+        public double WAR_VASSAL_TRIBUTE = 20;
+        public int WAR_VASSAL_DURATION_DAYS = 14;
+
+        //WAR - non-aggression pacts
+        public bool WAR_NAP_ENABLED = true;
+        public int WAR_NAP_DEFAULT_DAYS = 14;
+        public int WAR_NAP_MAX_DAYS = 90;
+        public double WAR_NAP_BREAK_PENALTY = 200;
+
+        //WAR - battle window pre-notification
+        public int WAR_BATTLE_WARN_MINUTES = 10;
+
+        //WAR - ultimatums (a peacetime demand; refusal/expiry grants a free, justified war)
+        public bool WAR_ULTIMATUM_ENABLED = true;
+
+        //WAR - bounties / plunder on kill
+        public bool WAR_BOUNTY_ENABLED = true;
+        public double WAR_BOUNTY_MIN = 10;
+        public bool WAR_PLUNDER_ON_KILL_ENABLED = true;
+        public double WAR_PLUNDER_ON_KILL_PERCENT = 5;
+
+        //WAR - after-action report / HUD
+        public bool WAR_REPORT_ENABLED = true;
+        public bool WAR_HUD_ENABLED = true;
         //PATCHES
         public bool FALLING_BLOCKS_TO_CITY_PLOTS_PATCH = true;
         public bool WATER_FLOW_CITY_PLOTS_PATCH = true;

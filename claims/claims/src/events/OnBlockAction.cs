@@ -1,6 +1,8 @@
 ﻿using System;
 using claims.src.auxialiry;
 using claims.src.bb;
+using claims.src.beb;
+using claims.src.messages;
 using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
@@ -8,6 +10,7 @@ using claims.src.part.structure.plots;
 using claims.src.perms;
 using claims.src.perms.type;
 using Vintagestory.API.Common;
+using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 
@@ -119,6 +122,27 @@ namespace claims.src.events
             }
             return false;
         }
+        // True when the broken block is a war camp's anchor. `allowed` says whether this player may
+        // break it (destroying the whole camp): only the owning city (dismantling) and enemies at
+        // war with it (the objective). Allies/comrades and neutrals may not — no camp griefing.
+        public static bool IsBreakingCampAnchor(PlayerInfo playerInfo, Plot plot, BlockPos pos, out bool allowed)
+        {
+            allowed = false;
+            if (plot == null || plot.Type != PlotType.CAMP || !plot.hasCity() || playerInfo == null)
+                return false;
+            if (plot.PlotDesc is not PlotDescCamp campDesc || campDesc.AnchorPos == null)
+                return false;
+            if (pos.X != campDesc.AnchorPos.X || pos.Y != campDesc.AnchorPos.Y || pos.Z != campDesc.AnchorPos.Z)
+                return false;
+
+            City owner = plot.getCity();
+            if (playerInfo.hasCity())
+            {
+                if (owner.Equals(playerInfo.City)) allowed = true;                       // owner dismantling
+                else if (owner.HostileCities.Contains(playerInfo.City)) allowed = true;  // enemy war objective
+            }
+            return true;
+        }
         public static bool canBlockDestroy(IServerPlayer byPlayer, BlockSelection blockSel, out string claimant)
         {
             claims.dataStorage.GetPlayerByUid(byPlayer.PlayerUID, out PlayerInfo playerInfo);
@@ -135,6 +159,29 @@ namespace claims.src.events
             claimant = "claims";
             if (IsDefenderBreakingEnemyFlag(byPlayer, playerInfo, plot, blockSel.Position))
             {
+                return true;
+            }
+            if (IsBreakingCampAnchor(playerInfo, plot, blockSel.Position, out bool campBreakAllowed))
+            {
+                if (!campBreakAllowed) return false;
+                // The anchor is "reinforced": each break attempt is absorbed until the counter
+                // runs out; only the last break destroys the camp (mirrors the capture flag).
+                if (plot.PlotDesc is PlotDescCamp campDesc && campDesc.BreaksLeft > 1)
+                {
+                    // Notify the owner side on the first hit.
+                    if (campDesc.BreaksLeft == claims.config.WAR_CAMP_ANCHOR_BREAKS && plot.hasCity())
+                        MessageHandler.sendMsgInCity(plot.getCity(), Lang.Get("claims:camp_under_attack"));
+                    campDesc.BreaksLeft--;
+                    plot.saveToDatabase();
+                    if (claims.sapi.World.BlockAccessor.GetBlockEntity(blockSel.Position) is BlockEntityCampAnchor anchorBe)
+                    {
+                        anchorBe.BreaksLeft = campDesc.BreaksLeft;
+                        anchorBe.MarkDirty(true);
+                    }
+                    MessageHandler.sendMsgToPlayer(byPlayer, Lang.Get("claims:camp_anchor_reinforced", campDesc.BreaksLeft));
+                    return false;
+                }
+                PartDemolition.DemolishCamp(plot);
                 return true;
             }
             PlotPosition currentPosPlayer = PlotPosition.fromBlockPos(blockSel.Position);
@@ -313,7 +360,9 @@ namespace claims.src.events
                     if (updateCache) playerInfo.PlayerCache.getCache()[(int)permType] = true;
                     return true;
                 case PlotRelation.CITIZEN:
-                    b = plot.getPermsHandler().getPerm(PermGroup.CITIZEN, permType);
+                    // Every fighter of the owning side may build/dig freely on their war camp.
+                    b = (plot.Type == PlotType.CAMP && permType == PermType.BUILD_AND_DESTROY_PERM)
+                        || plot.getPermsHandler().getPerm(PermGroup.CITIZEN, permType);
                     break;
                 case PlotRelation.STRANGER:
                     b = plot.getPermsHandler().getPerm(PermGroup.STRANGER, permType);
@@ -325,11 +374,14 @@ namespace claims.src.events
                     b = plot.getPermsHandler().getPerm(PermGroup.COMRADE, permType);
                     break;
                 case PlotRelation.FOE:
-                    b = plot.BorderPlot && IsActiveWarOnPlot(playerInfo, plot);
+                    // Enemies may build/destroy on border plots and on enemy war camps during an active war.
+                    b = (plot.BorderPlot || plot.Type == PlotType.CAMP) && IsActiveWarOnPlot(playerInfo, plot);
                     if (updateCache) playerInfo.PlayerCache.getCache()[(int)permType] = b;
                     return b;
                 case PlotRelation.ALLY:
-                    b = plot.getPermsHandler().getPerm(PermGroup.ALLY, permType);
+                    // Allied fighters may also build/dig on the war camp.
+                    b = (plot.Type == PlotType.CAMP && permType == PermType.BUILD_AND_DESTROY_PERM)
+                        || plot.getPermsHandler().getPerm(PermGroup.ALLY, permType);
                     break;
                 default:
                     return false;

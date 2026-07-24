@@ -707,6 +707,14 @@ namespace claims.src
         }
         public bool plotHasDistantEnoughFromOtherCities(Plot plot)
         {
+            return plotHasDistantEnoughFromOtherCities(plot, claims.config.MIN_DISTANCE_FROM_OTHER_CITY_NEW_CITY);
+        }
+        public bool plotHasDistantEnoughFromOtherCities(Plot plot, int minDistance)
+        {
+            if (minDistance <= 0)
+            {
+                return true;
+            }
             foreach (City city in getCitiesList())
             {
                 if (plot.hasCity() && city.Equals(plot.getCity()))
@@ -720,7 +728,7 @@ namespace claims.src
                     {
                         continue;
                     }
-                    if (MathClaims.distanceBetween(plotInner.getPos(), plot.getPos()) < claims.config.MIN_DISTANCE_FROM_OTHER_CITY_NEW_CITY)
+                    if (MathClaims.distanceBetween(plotInner.getPos(), plot.getPos()) < minDistance)
                     {
                         return false;
                     }
