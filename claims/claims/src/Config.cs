@@ -41,6 +41,11 @@ namespace claims.src
         public string BACKUP_FOLDER_NAME_IN_DATA_FOLDER = "claims_backups";
         public string FULL_BACKUP_FOLDER = "";
         //CHAT
+        // When true: players are auto-added to the mod chat group on join and mod
+        // notifications go to that group's dedicated chat tab.
+        // When false: players are NOT added to the group (so they won't leak their
+        // presence through group-based features of other mods, e.g. Canhideplayerpins
+        // "ShowGroupPlayers") and notifications fall back to the general chat.
         public bool USE_MOD_CHAT_WINDOW = true;
         public string CHAT_WINDOW_NAME = "claims";
         public string PREFIX_COLOR_PLAYER = "#00FFFF";
@@ -120,6 +125,11 @@ namespace claims.src
 
         //DEFENCE
         public HashSet<string> PROTECTED_MOB_TYPES = new HashSet<string>();
+
+        // Plot types players are not allowed to set (codes match PlotInfo.nameToPlotType,
+        // e.g. "temple", "summon", "tavern", "farm"). Empty = everything allowed.
+        // Admins bypass this via /cadmin. Synced to clients to hide disabled types in the GUI.
+        public HashSet<string> DISABLED_PLOT_TYPES = new HashSet<string>();
 
         //PLOTS COST
         public double DEFAULT_PLOT_COST = 1;

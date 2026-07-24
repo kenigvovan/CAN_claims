@@ -170,6 +170,7 @@ namespace claims.src.auxialiry
                        SummonPayment = claims.config.SUMMON_PAYMENT,
                        ALWAYS_ACCESS_BLOCKS = claims.config.ALWAYS_ACCESS_BLOCKS,
                        AVAILABLE_CITY_PERMISSIONS = claims.config.AVAILABLE_CITY_PERMISSIONS,
+                       DISABLED_PLOT_TYPES = claims.config.DISABLED_PLOT_TYPES,
                        SELECTED_ECONOMY_HANDLER = claims.config.SELECTED_ECONOMY_HANDLER,
                        GUI_SHOW_DEBT = claims.config.GUI_SHOW_DEBT,
                        CITY_AREA_VISIBILITY_STATE = claims.config.CITY_AREA_VISIBILITY_STATE,
@@ -204,7 +205,10 @@ namespace claims.src.auxialiry
                        MAX_CITY_FEE = claims.config.MAX_CITY_FEE,
                        CITY_MAX_DEBT = claims.config.CITY_MAX_DEBT,
 
-                       MIN_RANGE_CELL_DURATION_MINUTES = claims.config.MIN_RANGE_CELL_DURATION_MINUTES
+                       MIN_RANGE_CELL_DURATION_MINUTES = claims.config.MIN_RANGE_CELL_DURATION_MINUTES,
+
+                       PLOT_SIZE = claims.config.PLOT_SIZE,
+                       ZONE_PLOTS_LENGTH = claims.config.ZONE_PLOTS_LENGTH
                    }
                    , player);
         }

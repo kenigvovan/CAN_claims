@@ -117,12 +117,15 @@ namespace claims.src.auxialiry
             List<BlockPos> bList = new List<BlockPos>();
 
             int ps = plotSize;
+            // Span the full world height instead of a hardcoded 256, so borders are
+            // visible for sky/high-altitude builds on worlds taller than 256.
+            int worldHeight = world.BlockAccessor.MapSizeY;
             int x = (int)(player.Entity.Pos.X - (player.Entity.Pos.X % ps));
             int z = (int)(player.Entity.Pos.Z - player.Entity.Pos.Z % ps);
             bList.Add(new BlockPos(x, 0, z));
             x = (int)(player.Entity.Pos.X + ps - (player.Entity.Pos.X % ps));
             z = (int)(player.Entity.Pos.Z + ps - (player.Entity.Pos.Z % ps));
-            bList.Add(new BlockPos(x, 256, z));
+            bList.Add(new BlockPos(x, worldHeight, z));
             List<int> colors = new List<int>();
 
             if(!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
@@ -140,7 +143,7 @@ namespace claims.src.auxialiry
                                             claims.config.PLOT_BORDERS_COLOR_WILD_PLOT[1],
                                             claims.config.PLOT_BORDERS_COLOR_WILD_PLOT[2],
                                             claims.config.PLOT_BORDERS_COLOR_WILD_PLOT[3]));
-                claims.sapi.World.HighlightBlocks(player, 59, bList, colors, shape: EnumHighlightShape.Cubes);
+                claims.sapi.World.HighlightBlocks(player, 59, bList, colors, shape: EnumHighlightShape.Cube);
                 return;
             }
             City city = playerInfo.City;
@@ -151,7 +154,7 @@ namespace claims.src.auxialiry
                                             claims.config.PLOT_BORDERS_COLOR_OUR_CITY_PLOT[1],
                                             claims.config.PLOT_BORDERS_COLOR_OUR_CITY_PLOT[2],
                                             claims.config.PLOT_BORDERS_COLOR_OUR_CITY_PLOT[3]));
-                claims.sapi.World.HighlightBlocks(player, 59, bList, colors, shape: EnumHighlightShape.Cubes);
+                claims.sapi.World.HighlightBlocks(player, 59, bList, colors, shape: EnumHighlightShape.Cube);
                 return;
             }
 
@@ -160,7 +163,7 @@ namespace claims.src.auxialiry
                                         claims.config.PLOT_BORDERS_COLOR_OTHER_PLOT[1],
                                         claims.config.PLOT_BORDERS_COLOR_OTHER_PLOT[2],
                                         claims.config.PLOT_BORDERS_COLOR_OTHER_PLOT[3]));
-            claims.sapi.World.HighlightBlocks(player, 59, bList, colors, shape: EnumHighlightShape.Cubes);
+            claims.sapi.World.HighlightBlocks(player, 59, bList, colors, shape: EnumHighlightShape.Cube);
             return;          
         }
         public static void clearChunkHighlight(IWorldAccessor world, IPlayer player)

@@ -57,9 +57,9 @@ namespace claims.src.auxialiry
                 {
                     json = r.ReadToEnd();
                 }
-                Dictionary<int, Dictionary<String, Object>> levelsDict = JsonConvert.DeserializeObject<Dictionary<int, Dictionary<String, Object>>>(json);
                 try
                 {
+                    Dictionary<int, Dictionary<String, Object>> levelsDict = JsonConvert.DeserializeObject<Dictionary<int, Dictionary<String, Object>>>(json);
                     foreach (var it in levelsDict)
                     {
                         cityLevelsDict.Add(it.Key, new CityLevelInfo(int.Parse(it.Value["AmountOfPlots"].ToString()),
@@ -74,14 +74,12 @@ namespace claims.src.auxialiry
                     createDefaultCityLevels(filePath);
                 }
             }
-            if (json == "")
+            // Dict is still empty if the file was missing, empty or corrupted
+            // (the catch above may have already filled it with defaults)
+            if (cityLevelsDict.Count == 0)
             {
                 createDefaultCityLevels(filePath);
-                using (StreamReader r = new(filePath))
-                {
-                    json = r.ReadToEnd();
-                }
-            }       
+            }
             return true;
         }
         public static bool LoadAllianceLevelsInfo()
@@ -99,9 +97,9 @@ namespace claims.src.auxialiry
                 {
                     json = r.ReadToEnd();
                 }
-                Dictionary<int, Dictionary<String, Object>> levelsDict = JsonConvert.DeserializeObject<Dictionary<int, Dictionary<String, Object>>>(json);
                 try
                 {
+                    Dictionary<int, Dictionary<String, Object>> levelsDict = JsonConvert.DeserializeObject<Dictionary<int, Dictionary<String, Object>>>(json);
                     foreach (var it in levelsDict)
                     {
                         AllianceLevelsDict.Add(it.Key, new AllianceLevelInfo(int.Parse(it.Value["AdditionalAmountOfPlots"].ToString()),
@@ -116,13 +114,11 @@ namespace claims.src.auxialiry
                     CreateDefaultAllianceLevels(filePath);
                 }
             }
-            if (json == "")
+            // Dict is still empty if the file was missing, empty or corrupted
+            // (the catch above may have already filled it with defaults)
+            if (AllianceLevelsDict.Count == 0)
             {
                 CreateDefaultAllianceLevels(filePath);
-                using (StreamReader r = new(filePath))
-                {
-                    json = r.ReadToEnd();
-                }
             }
             return true;
         }
@@ -135,7 +131,8 @@ namespace claims.src.auxialiry
                     return cityLevelsDict[level];
                 }
             }
-            return cityLevelsDict[1];
+            // Custom configs may not define level 1 — fall back to the lowest defined level
+            return cityLevelsDict.Values.First();
         }
         public static AllianceLevelInfo GetAllianceLevelInfo(int count)
         {
@@ -146,7 +143,8 @@ namespace claims.src.auxialiry
                     return AllianceLevelsDict[level];
                 }
             }
-            return AllianceLevelsDict[1];
+            // Custom configs may not define level 1 — fall back to the lowest defined level
+            return AllianceLevelsDict.Values.First();
         }
         public static void createDefaultCityLevels(string path)
         {

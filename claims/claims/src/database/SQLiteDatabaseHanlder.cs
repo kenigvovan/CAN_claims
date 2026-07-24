@@ -547,8 +547,36 @@ namespace claims.src.database
             city.setIsTechnicalCity(it["istechnical"].ToString().Equals("0") ? false : true);
             if (!city.isTechnicalCity())
             {
-                claims.dataStorage.GetPlayerByUid(it["mayor"].ToString(), out PlayerInfo playerInfo);
+                if (!claims.dataStorage.GetPlayerByUid(it["mayor"].ToString(), out PlayerInfo playerInfo) || playerInfo == null)
+                {
+                    // Non-technical city with an unresolvable mayor UID would silently
+                    // lose its mayor here. Surface it instead of dropping the mayor.
+                    MessageHandler.sendErrorMsg("loadCity: mayor '" + it["mayor"] + "' of city '" + city.GetPartName() + "' (" + city.Guid + ") not found, mayor kept null");
+                }
                 city.setMayor(playerInfo);
+                // Self-heal a desynced save. loadAllPlayersInfo (PLAYERS.city) ran before this,
+                // so playerInfo.City is already resolved. The mayor must point back to this city
+                // and be in its citizen set; if a historical bug cleared PLAYERS.city while
+                // CITIES.mayor still referenced this player, reapplyRights() would see City==null
+                // on login and silently downgrade the mayor to citizen permissions even though
+                // MAYOR_NAME keeps showing them as mayor.
+                if (playerInfo != null)
+                {
+                    if (playerInfo.City == null)
+                    {
+                        MessageHandler.sendErrorMsg("loadCity: mayor '" + playerInfo.GetPartName() + "' of city '" + city.GetPartName() + "' (" + city.Guid + ") had no city set, reattaching and re-saving");
+                        playerInfo.setCity(city);
+                        playerInfo.saveToDatabase();
+                    }
+                    if (city.Equals(playerInfo.City))
+                    {
+                        city.getCityCitizens().Add(playerInfo);
+                    }
+                    else
+                    {
+                        MessageHandler.sendErrorMsg("loadCity: mayor '" + playerInfo.GetPartName() + "' of city '" + city.GetPartName() + "' (" + city.Guid + ") is attached to a different city '" + (playerInfo.City?.GetPartName() ?? "null") + "', not reconciling");
+                    }
+                }
             }
             else
             {

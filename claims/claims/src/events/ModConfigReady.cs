@@ -34,7 +34,8 @@ namespace claims.src.events
             if (world == null)
             {
                 world = new WorldInfo(claims.sapi.World.Seed.ToString(), Guid.NewGuid().ToString());
-                world.saveToDatabase();
+                claims.dataStorage.setWorldInfo(world);
+                world.saveToDatabase(update: false);
             }
             {
                 var parsers = claims.sapi.ChatCommands.Parsers;

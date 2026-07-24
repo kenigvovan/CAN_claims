@@ -207,7 +207,7 @@ namespace claims.src.commands
             }
             if (PlotInfo.nameToPlotType.ContainsKey((string)args.LastArg))
             {
-                plotHere.setNewType(tcr, (string)args.LastArg, player);
+                plotHere.setNewType(tcr, (string)args.LastArg, player, true);
                 return tcr;
             }
             else
@@ -520,6 +520,14 @@ namespace claims.src.commands
             if (targetPlayer == null)
             {
                 tcr.StatusMessage = "claims:invalid_player_name";
+                return tcr;
+            }
+            // Adding a player who already has a city would overwrite their City via setCity and,
+            // if they are a mayor, leave their old city's mayor pointer dangling (same as
+            // cadmin setmayor / CityJoin, both of which guard this).
+            if (targetPlayer.hasCity())
+            {
+                tcr.StatusMessage = "claims:player_has_city";
                 return tcr;
             }
             city.getCityCitizens().Add(targetPlayer);
@@ -1068,7 +1076,7 @@ namespace claims.src.commands
             }
             if (PlotInfo.nameToPlotType.ContainsKey((string)args.LastArg))
             {
-                plotHere.setNewType(tcr, (string)args.LastArg, player);
+                plotHere.setNewType(tcr, (string)args.LastArg, player, true);
                 return tcr;
             }
             else

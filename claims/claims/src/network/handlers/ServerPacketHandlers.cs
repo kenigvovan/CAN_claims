@@ -169,6 +169,10 @@ namespace claims.src.network.handlers
                 if (conflict.ActiveWarTime)
                     return;
 
+                // Only a side of the conflict may edit its war ranges
+                if (!conflict.First.Equals(ourParty) && !conflict.Second.Equals(ourParty))
+                    return;
+
                 bool getFirst = true;
                 if(conflict.First.Equals(ourParty))
                 {

@@ -61,6 +61,16 @@ namespace claims.src.commands
             if (InvitationHandler.addNewInvite(new Invitation(city, targetPlayer, TimeFunctions.getEpochSeconds() + claims.config.HOUR_TIMEOUT_INVITATION_CITY * 60 * 60,
                 () =>
                 {
+                    // The has-city check at invite time is not enough: the target can found
+                    // their own city (becoming its mayor) between invite and accept. Joining
+                    // here would overwrite their City via setCity and leave their old city's
+                    // mayor pointer dangling, desyncing MAYOR_NAME from their permissions.
+                    if (targetPlayer.hasCity())
+                    {
+                        MessageHandler.sendMsgToPlayerInfo(targetPlayer, Lang.Get("claims:you_already_have_city"));
+                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:player_has_city_already"));
+                        return;
+                    }
                     city.AddLogEntry(EnumCityLogEvent.CitizenJoined, targetPlayer.GetPartName());
                     city.FireCitizenJoined(targetPlayer);
                     city.getCityCitizens().Add(targetPlayer);

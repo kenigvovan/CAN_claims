@@ -34,13 +34,18 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             
             ImGui.Text(Lang.Get(TitleString));
 
-            ImGui.Combo("Name", ref GuiSys.selectedComboFirst, PlotInfo.plotAccessableForPlayersWithCode.Keys.ToList().ToArray(), PlotInfo.plotAccessableForPlayersWithCode.Keys.ToList().Count);
+            // Hide host-disabled plot types (server still enforces in Plot.setNewType).
+            var availableTypes = PlotInfo.plotAccessableForPlayersWithCode.Keys
+                .Where(k => !claims.config.DISABLED_PLOT_TYPES.Contains(k))
+                .ToList();
+
+            ImGui.Combo("Name", ref GuiSys.selectedComboFirst, availableTypes.ToArray(), availableTypes.Count);
 
             if (ImGui.Button(Lang.Get(ButtonString)))
             {
-                if (PlotInfo.plotAccessableForPlayersWithCode.Values.Count > GuiSys.selectedComboFirst)
+                if (availableTypes.Count > GuiSys.selectedComboFirst)
                 {
-                    string playerName = PlotInfo.plotAccessableForPlayersWithCode.Keys.ToList()[GuiSys.selectedComboFirst];
+                    string playerName = availableTypes[GuiSys.selectedComboFirst];
                     ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                     clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, this.CommandCallOnClick + playerName, EnumChatType.Macro, "");
                     // Optimistic local update

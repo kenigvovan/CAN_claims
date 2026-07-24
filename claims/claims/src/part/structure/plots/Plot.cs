@@ -112,7 +112,7 @@ namespace claims.src.part.structure
         /// <param name="newPlotType"></param>
         /// <param name="player"></param>
         /// <returns>If type was changed successfully.</returns>
-        public bool setNewType(TextCommandResult tcr, string newPlotType, IServerPlayer player)
+        public bool setNewType(TextCommandResult tcr, string newPlotType, IServerPlayer player, bool bypassDisabled = false)
         {
             if (!PlotInfo.nameToPlotType.TryGetValue(newPlotType, out PlotType plotType))
             {
@@ -123,6 +123,14 @@ namespace claims.src.part.structure
             if(plotType == this.Type)
             {
                 tcr.StatusMessage = "claims:plot_the_same_type_set";
+                return false;
+            }
+
+            // Host can forbid plot types via config; admins (bypassDisabled) and system
+            // calls are exempt. Authoritative gate for both the command and the GUI.
+            if (!bypassDisabled && claims.config.DISABLED_PLOT_TYPES.Contains(newPlotType))
+            {
+                tcr.StatusMessage = "claims:plot_type_disabled";
                 return false;
             }
 

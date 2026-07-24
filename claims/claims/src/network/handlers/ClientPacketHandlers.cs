@@ -10,6 +10,8 @@ using Newtonsoft.Json;
 using Vintagestory.API.MathTools;
 using claims.src;
 using claims.src.part.structure.plots;
+using claims.src.claimsext.map;
+using Vintagestory.GameContent;
 
 namespace claims.src.network.handlers
 {
@@ -23,14 +25,17 @@ namespace claims.src.network.handlers
                 {
                     case PacketsContentEnum.ADD_SINGLE_PLOT:
                         Tuple<Vec2i, SavedPlotInfo> savedPlotTuple = JsonConvert.DeserializeObject<Tuple<Vec2i, SavedPlotInfo>>(packet.data);
+                        // Guard against a malformed payload or a packet arriving before the client is ready.
+                        if (savedPlotTuple?.Item1 == null || claims.clientDataStorage == null) break;
                         claims.clientDataStorage.addClientSavedPlots(savedPlotTuple.Item1, savedPlotTuple.Item2);
-                        claims.clientModInstance.plotsMapLayer.OnResChunkPixels(savedPlotTuple.Item1, savedPlotTuple.Item2.cityName);
+                        ResolvePlotsMapLayer()?.OnResChunkPixels(savedPlotTuple.Item1, savedPlotTuple.Item2?.cityName);
                         break;
                     case PacketsContentEnum.REMOVE_SINGLE_PLOT:
                         //try to send saved plot as null without creating object
                         Tuple<Vec2i, SavedPlotInfo> savedPlotTupleRemove = JsonConvert.DeserializeObject<Tuple<Vec2i, SavedPlotInfo>>(packet.data);
+                        if (savedPlotTupleRemove?.Item1 == null || claims.clientDataStorage == null) break;
                         claims.clientDataStorage.removeClientSavedPlots(savedPlotTupleRemove.Item1);
-                        claims.clientModInstance.plotsMapLayer.OnResChunkPixels(savedPlotTupleRemove.Item1, "");
+                        ResolvePlotsMapLayer()?.OnResChunkPixels(savedPlotTupleRemove.Item1, "");
                         break;
                     case PacketsContentEnum.ALL_CITY_COLORS:
                         Dictionary<string, int> colors = JsonConvert.DeserializeObject<Dictionary<string, int>>(packet.data);
@@ -40,38 +45,52 @@ namespace claims.src.network.handlers
                     case PacketsContentEnum.SERVER_UPDATED_ZONES_ANSWER:
                         HashSet<Tuple<Vec2i, long, List<KeyValuePair<Vec2i, SavedPlotInfo>>>> updatedZones = JsonConvert.DeserializeObject<HashSet<Tuple<Vec2i, long, List<KeyValuePair<Vec2i, SavedPlotInfo>>>>>(packet.data);
                         //we got new zones info from server
+                        // Bail out if the payload or the client storage isn't ready yet; this packet can arrive
+                        // before the client is fully initialized.
+                        if (updatedZones == null || claims.clientDataStorage == null) break;
+                        // The map layer may not be resolved yet if this answer arrives before onPlayerJoin;
+                        // resolve it lazily and guard the draw calls so zone data still updates without it.
+                        PlotsMapLayer zonesMapLayer = ResolvePlotsMapLayer();
                         foreach (var tup in updatedZones)
                         {
+                            if (tup?.Item1 == null) continue;
+                            Dictionary<Vec2i, SavedPlotInfo> zonePlots = (tup.Item3 ?? new List<KeyValuePair<Vec2i, SavedPlotInfo>>())
+                                .GroupBy(x => x.Key).ToDictionary(x => x.Key, x => x.Last().Value);
                             //if zone was already known, but updated info from server arrived
-                            if (claims.clientDataStorage.getClientSavedZone(tup.Item1, out var savedZone))
+                            if (claims.clientDataStorage.getClientSavedZone(tup.Item1, out var savedZone) && savedZone != null)
                             {
-                                claims.clientModInstance.plotsMapLayer.clearZoneSavedPlotsFromMap(tup.Item1);
-                                savedZone.savedPlots = tup.Item3.GroupBy(x => x.Key).ToDictionary(keySelector: x => x.Key, x => x.Last().Value);
+                                zonesMapLayer?.clearZoneSavedPlotsFromMap(tup.Item1);
+                                savedZone.savedPlots = zonePlots;
                                 savedZone.timestamp = tup.Item2;
-                                claims.clientModInstance.plotsMapLayer.generateFromZoneSavedPlotsOnMap(tup.Item1);
+                                zonesMapLayer?.generateFromZoneSavedPlotsOnMap(tup.Item1);
                             }
                             //no such zone, reset it
                             else
                             {
-                                ClientSavedZone newZone = new ClientSavedZone(tup.Item3.GroupBy(x => x.Key).ToDictionary(x => x.Key, x => x.Last().Value));
+                                ClientSavedZone newZone = new ClientSavedZone(zonePlots);
                                 newZone.timestamp = tup.Item2;
                                 claims.clientDataStorage.addClientSavedZone(tup.Item1, newZone);
-                                claims.clientModInstance.plotsMapLayer.generateFromZoneSavedPlotsOnMap(tup.Item1);
+                                zonesMapLayer?.generateFromZoneSavedPlotsOnMap(tup.Item1);
                             }
                         }
                         break;
                     case PacketsContentEnum.SERVER_REMOVE_COLLECTED_PLOTS:
                         HashSet<Vec2i> plotsToRemove = JsonConvert.DeserializeObject<HashSet<Vec2i>>(packet.data);
+                        if (plotsToRemove == null || claims.clientDataStorage == null) break;
+                        PlotsMapLayer removeMapLayer = ResolvePlotsMapLayer();
                         foreach (var savedPlot in plotsToRemove)
                         {
+                            if (savedPlot == null) continue;
                             claims.clientDataStorage.removeClientSavedPlots(savedPlot);
-                            claims.clientModInstance.plotsMapLayer.OnResChunkPixels(savedPlot, "");
+                            removeMapLayer?.OnResChunkPixels(savedPlot, "");
                         }
                         break;
                     case PacketsContentEnum.SERVER_UPDATE_COLLECTED_PLOTS:
                         List<Tuple<Vec2i, SavedPlotInfo>> plotsToUpdate = JsonConvert.DeserializeObject<List<Tuple<Vec2i, SavedPlotInfo>>>(packet.data);
+                        if (plotsToUpdate == null || claims.clientDataStorage == null) break;
                         foreach (var savedPlot in plotsToUpdate)
                         {
+                            if (savedPlot?.Item1 == null) continue;
                             claims.clientDataStorage.addClientSavedPlots(savedPlot.Item1, savedPlot.Item2);
                         }
                         break;
@@ -206,6 +225,8 @@ namespace claims.src.network.handlers
                 claims.config.MAIN_CITYPLOT_COST = packet.MAIN_CITYPLOT_COST;
                 claims.config.PRISON_PLOT_COST = packet.PRISON_PLOT_COST;
 
+                claims.config.DISABLED_PLOT_TYPES = packet.DISABLED_PLOT_TYPES ?? new HashSet<string>();
+
                 claims.config.OUTPOST_PLOT_COST = packet.OUTPOST_PLOT_COST;
                 claims.config.EXTRA_PLOT_COST = packet.EXTRA_PLOT_COST;
                 claims.config.PLOT_NO_PVP_FLAG_COST = packet.PLOT_NO_PVP_FLAG_COST;
@@ -226,6 +247,25 @@ namespace claims.src.network.handlers
 
                 claims.config.MIN_RANGE_CELL_DURATION_MINUTES = packet.MIN_RANGE_CELL_DURATION_MINUTES;
 
+                // World grid geometry must follow the server; 0 = packet from an older
+                // server that doesn't send it, keep the local config value then.
+                bool gridChanged = false;
+                if (packet.PLOT_SIZE > 0 && packet.PLOT_SIZE != claims.config.PLOT_SIZE)
+                {
+                    claims.config.PLOT_SIZE = packet.PLOT_SIZE;
+                    gridChanged = true;
+                }
+                if (packet.ZONE_PLOTS_LENGTH > 0 && packet.ZONE_PLOTS_LENGTH != claims.config.ZONE_PLOTS_LENGTH)
+                {
+                    claims.config.ZONE_PLOTS_LENGTH = packet.ZONE_PLOTS_LENGTH;
+                    gridChanged = true;
+                }
+                if (gridChanged)
+                {
+                    // Anything already drawn used the old grid — rebuild map textures.
+                    ResolvePlotsMapLayer()?.RedrawPlots();
+                }
+
                 // Plot type costs are captured into dictPlotTypes at client startup
                 // (before this packet arrives), so rebuild it with the synced values.
                 PlotInfo.initDicts();
@@ -240,7 +280,22 @@ namespace claims.src.network.handlers
                 {
                     claims.FindAlwaysUseBlocks(claims.capi);
                 }
-            });          
+            });
+        }
+
+        // Resolves the client plots map layer, lazily fetching it from the WorldMapManager when the
+        // mod instance hasn't cached it yet (e.g. a plots packet arrives before onPlayerJoin). Returns
+        // null when the map system isn't available yet; callers must null-guard the result.
+        private static PlotsMapLayer ResolvePlotsMapLayer()
+        {
+            PlotsMapLayer layer = claims.clientModInstance?.plotsMapLayer;
+            if (layer == null)
+            {
+                layer = claims.capi?.ModLoader?.GetModSystem<WorldMapManager>()?.MapLayers?.OfType<PlotsMapLayer>().FirstOrDefault();
+                if (layer != null && claims.clientModInstance != null)
+                    claims.clientModInstance.plotsMapLayer = layer;
+            }
+            return layer;
         }
     }
 }

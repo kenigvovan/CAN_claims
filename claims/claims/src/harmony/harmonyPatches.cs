@@ -90,42 +90,45 @@ namespace claims.src.harmony
         public static bool Prefix_On_ReceiveDamage(Vintagestory.API.Common.Entities.Entity __instance, DamageSource damageSource, float damage
             , ref bool __result)
         {
-            if(__instance.Api.Side == EnumAppSide.Client)
+            if(__instance?.Api == null || __instance.Api.Side == EnumAppSide.Client)
             {
                 return true;
             }
-            //No source entity, TODO - probably need to add check on fire damage or smth.           
-            if (damageSource.SourceEntity == null)
+            //No source entity, TODO - probably need to add check on fire damage or smth.
+            if (damageSource?.SourceEntity == null)
             {
                 return true;
             }
 
-            if (__instance is EntityPlayer) { 
-                
-                if(damageSource.SourceEntity is EntityPlayer)
-                {                
+            if (__instance is EntityPlayer victim) {
+
+                // Player-owned attacker, either melee or via a projectile they fired.
+                EntityPlayer attacker = damageSource.SourceEntity as EntityPlayer
+                    ?? (damageSource.SourceEntity as EntityProjectile)?.FiredBy as EntityPlayer;
+
+                if (attacker != null)
+                {
                     if(claims.config.PVP_DURING_PART_OF_THE_DAY && Settings.isPvpTime())
                     {
                         __result = true;
                         return false;
                     }
-                    __result = OnPVP.canPVPAttackHere((damageSource.SourceEntity as EntityPlayer).Player as IServerPlayer, (__instance as EntityPlayer).Player as IServerPlayer);
+                    // Either side may lack a connected player (NPC-like entity) - leave it to vanilla.
+                    if (attacker.Player is not IServerPlayer attackerPlr || victim.Player is not IServerPlayer victimPlr)
+                    {
+                        return true;
+                    }
+                    __result = OnPVP.canPVPAttackHere(attackerPlr, victimPlr);
                     return false;
                 }
-                else if((damageSource.SourceEntity is EntityProjectile) && (damageSource.SourceEntity as EntityProjectile).FiredBy is EntityPlayer)
-                {
-                    if (claims.config.PVP_DURING_PART_OF_THE_DAY && Settings.isPvpTime())
-                    {
-                        __result = true;
-                        return false;
-                    }
-                    __result = OnPVP.canPVPAttackHere(((damageSource.SourceEntity as EntityProjectile).FiredBy as EntityPlayer).Player as IServerPlayer, (__instance as EntityPlayer).Player as IServerPlayer);
-                    return false;
-                }                              
             }
-            if(damageSource.SourceEntity is EntityPlayer)
+            if(damageSource.SourceEntity is EntityPlayer mobAttacker)
             {
-                __result = EntityDamageHandler.canAttackEntity((damageSource.SourceEntity as EntityPlayer).Player as IServerPlayer, __instance) ||
+                if (mobAttacker.Player is not IServerPlayer mobAttackerPlr)
+                {
+                    return true;
+                }
+                __result = EntityDamageHandler.canAttackEntity(mobAttackerPlr, __instance) ||
                    !Settings.IsProtectedMob(__instance.Code);
                 return false;
             }
@@ -203,23 +206,40 @@ namespace claims.src.harmony
             __result = false;
             return false;
         }
-        public static bool Prefix_HandleCommand(Vintagestory.Server.ServerMain __instance, string commandName, IServerPlayer player, string args, Action<TextCommandResult> onCommandComplete)
+        public static bool Prefix_HandleCommand(string commandName, IServerPlayer player, string args, Action<TextCommandResult> onCommandComplete)
         {
+            // This hook sits on the single dispatcher every command goes through:
+            // on anything unexpected fall through to vanilla handling instead of eating the command.
+            // dataStorage is only created on ModConfigReady, which happens after this patch is applied.
+            if (player == null || claims.dataStorage == null)
+            {
+                return true;
+            }
             claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
             if (playerInfo == null)
             {
-                return false;
+                return true;
             }
-            claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(player.Entity.ServerPos), out Plot tmpPlot);
-            if (playerInfo.isPrisoned() && tmpPlot != null && playerInfo.PrisonedIn.Plot.Equals(tmpPlot))
+            Plot tmpPlot = null;
+            if (player.Entity != null)
             {
-                if (Settings.blockedCommandsForPrison.Contains(commandName) || (args.Length > 0 && Settings.blockedCommandsForPrison.Contains(args.Split(' ')[0])))
+                claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(player.Entity.ServerPos), out tmpPlot);
+            }
+            if (playerInfo.isPrisoned() && tmpPlot != null && playerInfo.PrisonedIn?.Plot != null && playerInfo.PrisonedIn.Plot.Equals(tmpPlot))
+            {
+                // Settings are loaded on ModConfigReady, i.e. later than the patch is applied.
+                var blocked = Settings.blockedCommandsForPrison;
+                if (blocked != null && (blocked.Contains(commandName) || (!string.IsNullOrEmpty(args) && blocked.Contains(args.Split(' ')[0]))))
                 {
                     return false;
                 }
             }
             if (commandName == "land")
             {
+                if (player.Role == null || claims.config?.ROLE_CODES_WITH_ADMIN_RIGHTS == null)
+                {
+                    return true;
+                }
                 if (!claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS.Contains(player.Role.Code))
                 {
                     player.SendMessage(0, "This command is blocked by a mod.", EnumChatType.Notification);
@@ -252,6 +272,10 @@ namespace claims.src.harmony
         public static void Postfix_FindDownwardPaths(Vintagestory.GameContent.BlockBehaviorFiniteSpreadingLiquid __instance, IWorldAccessor world, BlockPos pos, Block ourBlock,
             List<PosAndDist> __result)
         {
+            if (__result == null || claims.dataStorage == null)
+            {
+                return;
+            }
             claims.dataStorage.GetPlot(PlotPosition.fromBlockPos(pos), out Plot source);
             foreach (var it in new List<PosAndDist>(__result))
             {
@@ -408,26 +432,32 @@ namespace claims.src.harmony
             if (blockSel == null)
             {
                 return false;
-            }            
-            return OnBlockAction.canBlockDestroy((byEntity as EntityPlayer).Player as IServerPlayer, blockSel, out string claimant);
+            }
+            // Not a player holding the item (NPC, mechanical user) - let vanilla decide.
+            if (byEntity is not EntityPlayer entityPlayer || entityPlayer.Player is not IServerPlayer serverPlayer)
+            {
+                return true;
+            }
+            return OnBlockAction.canBlockDestroy(serverPlayer, blockSel, out string claimant);
         }
 
         public static bool Prefix_BlockEntityBarrel_OnReceivedClientPacket(Vintagestory.GameContent.BlockEntityBarrel __instance,
             IPlayer player, int packetid, byte[] data)
         {
 
-            Block b1 = player.Entity.World.BlockAccessor.GetBlock(__instance.Pos);
-            if (OnBlockAction.canBlockUse(player as IServerPlayer, __instance.Pos.ToVec3d()))
+            if (player is not IServerPlayer serverPlayer)
             {
                 return true;
             }
-            else
-            {
-                return false;
-            }
+            return OnBlockAction.canBlockUse(serverPlayer, __instance.Pos.ToVec3d());
         }
         public static bool ReviveReplace(ServerSystemEntitySimulation __instance, IServerPlayer plr)
         {
+            // Injected into vanilla respawn: on anything unexpected return false so vanilla respawn runs.
+            if (plr?.Entity == null)
+            {
+                return false;
+            }
             if(claims.dataStorage.GetPlayerByUid(plr.PlayerUID, out PlayerInfo playerInfo))
             {
                 if(playerInfo.isPrisoned())
@@ -462,13 +492,13 @@ namespace claims.src.harmony
                         plr.Entity.TeleportTo(cpos, (Action)(() =>
                         {
                             plr.Entity.Revive();
-                            var f = inst;
-                            var serv = typeof(ServerSystem).GetField("server", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(inst) as ServerMain;
-                            ConnectedClient client = serv.Clients[plr.ClientId];
-                            serv.ServerUdpNetwork.physicsManager.UpdateTrackedEntitiesStates(
-                                    client
-                              );
-                            
+                            var serv = typeof(ServerSystem).GetField("server", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(inst) as ServerMain;
+                            // The callback is deferred: the player may already be gone by the time it runs.
+                            if (serv != null && serv.Clients.TryGetValue(plr.ClientId, out ConnectedClient client))
+                            {
+                                serv.ServerUdpNetwork.physicsManager.UpdateTrackedEntitiesStates(client);
+                            }
+
                             claims.sapi.World.RegisterCallback((dt) => { Particles.PlayerRespawnParticles(plr.Entity.Pos.XYZ); }, 1000);
                         }));
                         return true;
@@ -486,28 +516,39 @@ namespace claims.src.harmony
             for (int i = 0; i < codes.Count; i++)
             {
 
-                if (!found &&
+                // i - 1 / i + 2 are dereferenced below, so keep the window inside the list.
+                if (!found && i > 0 && i + 2 < codes.Count &&
                         codes[i].opcode == OpCodes.Ldloc_0 && codes[i + 1].opcode == OpCodes.Ldfld && codes[i + 2].opcode == OpCodes.Ldfld && codes[i - 1].opcode == OpCodes.Stfld)
                 {
+                    // The Ldfld right after Ldloc_0 reads a field of the closure stored in local 0,
+                    // so its DeclaringType IS the closure type we need - no fragile nested-type index.
+                    Type closureType = (codes[i + 1].operand as FieldInfo)?.DeclaringType;
+                    FieldInfo playerField = closureType == null ? null : AccessTools.Field(closureType, "player");
 
-                    //push this on stack
-                    yield return new CodeInstruction(OpCodes.Ldarg_0);
-                    //push this on stack again to get plr
-                    yield return new CodeInstruction(OpCodes.Ldloc_0);
-
-                    Type[] nestedTypes = typeof(ServerSystemEntitySimulation).GetNestedTypes(BindingFlags.Static |
-                                      BindingFlags.Instance |
-                                      BindingFlags.Public |
-                                      BindingFlags.NonPublic);
-                    var c2 = AccessTools.Field(nestedTypes[4], "player");
-                    yield return new CodeInstruction(OpCodes.Ldfld, c2);
-                    yield return new CodeInstruction(OpCodes.Call, proxyMethod);                   
-                    yield return new CodeInstruction(OpCodes.Brfalse_S, returnLabelNotResurectedByCity);
-                    yield return new CodeInstruction(OpCodes.Ret);
-                    codes[i].labels.Add(returnLabelNotResurectedByCity);
-                    found = true;
+                    if (playerField == null)
+                    {
+                        claims.sapi?.Logger.Warning("[claims] OnPlayerRespawn transpiler skipped: closure field 'player' not found (VS update?)");
+                        found = true; // stop probing, emit the original body unchanged
+                    }
+                    else
+                    {
+                        //push this on stack
+                        yield return new CodeInstruction(OpCodes.Ldarg_0);
+                        //push this on stack again to get plr
+                        yield return new CodeInstruction(OpCodes.Ldloc_0);
+                        yield return new CodeInstruction(OpCodes.Ldfld, playerField);
+                        yield return new CodeInstruction(OpCodes.Call, proxyMethod);
+                        yield return new CodeInstruction(OpCodes.Brfalse_S, returnLabelNotResurectedByCity);
+                        yield return new CodeInstruction(OpCodes.Ret);
+                        codes[i].labels.Add(returnLabelNotResurectedByCity);
+                        found = true;
+                    }
                 }
                 yield return codes[i];
+            }
+            if (!found)
+            {
+                claims.sapi?.Logger.Warning("[claims] OnPlayerRespawn transpiler found no injection point, city temple respawn is disabled (VS update?)");
             }
         }
         private static EnumWorldAccessResponse testBlockAccess(IPlayer player, EnumCANBlockAccessFlags accessType, out string claimant)

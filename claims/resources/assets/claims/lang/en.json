@@ -71,6 +71,7 @@
   "limit_summon_plots": "Max summon plots.",
   "plot_the_same_type_set": "Plot already has such type.",
   "unknown_plot_type": "Unknown plot type.",
+  "plot_type_disabled": "This plot type is disabled on this server.",
   "gui-plot-borders": "Borders",
   "criminals": "City criminals: {0}.",
   "player_escaped_prison": "{0} escaped prison.",

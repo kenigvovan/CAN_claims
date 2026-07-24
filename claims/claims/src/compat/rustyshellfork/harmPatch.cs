@@ -18,16 +18,25 @@ namespace claims.src.rustyshellfork
         int injureRadius,
         int strength)
         {
-            int usedRadius = Math.Max(blastRadius, injureRadius);
-            int tmpX = (int)pos.X;
-            int tmpZ = (int)pos.Z;
-            
-            bool blastEV = claims.dataStorage.getWorldInfo().blastEverywhere;
-            if (blastEV)
+            // Prefix on a foreign mod's method: on anything unexpected let the original blast run.
+            if (pos == null || claims.dataStorage == null)
             {
                 return true;
             }
-            if (claims.dataStorage.getWorldInfo().blastForbidden)
+            WorldInfo worldInfo = claims.dataStorage.getWorldInfo();
+            if (worldInfo == null)
+            {
+                return true;
+            }
+            int usedRadius = Math.Max(blastRadius, injureRadius);
+            int tmpX = (int)pos.X;
+            int tmpZ = (int)pos.Z;
+
+            if (worldInfo.blastEverywhere)
+            {
+                return true;
+            }
+            if (worldInfo.blastForbidden)
             {
                 return false;
             }
@@ -43,7 +52,10 @@ namespace claims.src.rustyshellfork
                         continue;
                     }
 
-                    if ((!tb.getPermsHandler().blastFlag || !tb.getCity().getPermsHandler().blastFlag))
+                    // getCity() is null for a plot outside any city - the city flag simply does not apply then.
+                    bool plotAllows = tb.getPermsHandler()?.blastFlag == true;
+                    bool cityAllows = !tb.hasCity() || tb.getCity()?.getPermsHandler()?.blastFlag == true;
+                    if (!plotAllows || !cityAllows)
                     {
                         return false;
                     }

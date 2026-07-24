@@ -140,9 +140,13 @@ namespace claims.src
         }
         public bool addPlayer(PlayerInfo player)
         {
+            // uid is the dedupe guard (one instance per player); name is just an
+            // index. Use indexer assignment so the name index always reflects the
+            // current player instead of silently dropping it on a name collision.
             if (uidToPlayerDict.TryAdd(player.Guid, player))
             {
-                return nameToPlayerDict.TryAdd(player.GetPartName(), player);
+                nameToPlayerDict[player.GetPartName()] = player;
+                return true;
             }
             return false;
         }
@@ -152,12 +156,27 @@ namespace claims.src
             {
                 return true;
             }
+            // Fallback: name index may be stale/out of sync with the uid index.
+            // Scan by uid so an existing player is never invisible by name (this
+            // is what otherwise lets mayor-by-name resolution return the wrong
+            // player or null). Self-heal the name index when found.
+            foreach (var kv in uidToPlayerDict)
+            {
+                if (kv.Value.GetPartName() == name)
+                {
+                    playerInfo = kv.Value;
+                    nameToPlayerDict[name] = kv.Value;
+                    return true;
+                }
+            }
+            playerInfo = null;
             return false;
         }
         public bool changePlayerName(PlayerInfo player, string newName)
         {
             nameToPlayerDict.TryRemove(player.GetPartName(), out _);
-            return nameToPlayerDict.TryAdd(newName, player);
+            nameToPlayerDict[newName] = player;
+            return true;
         }
         public ConcurrentDictionary<string, PlayerInfo> getPlayersDict()
         {

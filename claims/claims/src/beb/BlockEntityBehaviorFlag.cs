@@ -221,7 +221,7 @@ namespace claims.src.beb
                         defenderPlot.UpdateBorderPlotValue();
                         defenderPlot.setCustomTax(0);
                         //shouldn't crash with default but better to remake it somehow with init functions
-                        defenderPlot.setNewType(new TextCommandResult(), "default", null);
+                        defenderPlot.setNewType(new TextCommandResult(), "default", null, true);
                         defenderPlot.setPlotGroup(null);
                         defenderPlot.extraBought = false;
                         defenderCity.saveToDatabase();

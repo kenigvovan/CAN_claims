@@ -114,5 +114,16 @@ namespace claims.src.network.packets
         // share a value but differ by attributes.
         [ProtoMember(44)]
         public List<CoinDenominationData> COIN_DENOMINATIONS;
+
+        // Plot types the host disabled; client hides them from the change-type GUI.
+        [ProtoMember(45)]
+        public HashSet<string> DISABLED_PLOT_TYPES = new HashSet<string>();
+
+        // World grid geometry — the client must use the server's values, its local
+        // config may disagree. 0 means "sent by an older server": keep local value.
+        [ProtoMember(46)]
+        public int PLOT_SIZE;
+        [ProtoMember(47)]
+        public int ZONE_PLOTS_LENGTH;
     }
 }
