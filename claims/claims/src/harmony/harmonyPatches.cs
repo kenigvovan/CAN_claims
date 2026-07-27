@@ -1,7 +1,9 @@
 ﻿using Cairo;
 using claims.src.auxialiry;
 using claims.src.claimsext.map;
+using claims.src.cropbehaviors;
 using claims.src.events;
+using claims.src.messages;
 using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
@@ -612,6 +614,33 @@ namespace claims.src.harmony
                 return false; // skip original method
             }
             return true;
+        }
+
+        /// <summary>
+        /// Strips the fruit off fruit trees that do not stand on an ORCHARD plot, right after the
+        /// vanilla root tick advanced their state. See OrchardRules for the reasoning.
+        /// </summary>
+        public static void Postfix_FruitTreeRootTick(FruitTreeRootBH __instance)
+        {
+            OrchardRules.StripFruitOutsideOrchard(__instance);
+        }
+
+        /// <summary>
+        /// Warns a player who plants a fruit tree cutting outside of an ORCHARD plot, so nobody has
+        /// to wait a whole in-game year to find out the tree will never bear fruit.
+        /// </summary>
+        public static void Postfix_FruitTreeTryPlaceBlock(bool __result, IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel)
+        {
+            if (!__result) return;
+            if (!claims.config.FRUIT_ONLY_ON_ORCHARD_PLOTS) return;
+            if (world == null || world.Side != EnumAppSide.Server) return;
+            if (blockSel?.Position == null) return;
+            if (!OrchardRules.ShouldWarnOnPlanting(blockSel.Position.X, blockSel.Position.Z)) return;
+
+            if (byPlayer is IServerPlayer sp)
+            {
+                MessageHandler.sendMsgToPlayer(sp, Lang.Get("claims:fruit_wont_grow_outside_orchard"));
+            }
         }
     }
 }

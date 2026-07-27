@@ -125,10 +125,32 @@ namespace claims.src.database
                 command = new SqliteCommand(SQLiteTables.conflictsTable, SqliteConnection);
                 command.ExecuteNonQuery();
 
-                int dbVersion = Convert.ToInt32(new SqliteCommand("PRAGMA user_version", SqliteConnection).ExecuteScalar());
+                // Column migrations run unconditionally, not gated by user_version. TryAlterTable is
+                // idempotent (it probes the column first), so re-running costs one cheap SELECT per
+                // column at startup, and it removes a whole class of bugs: a column appended to an
+                // already-released migration block would otherwise never be created on databases
+                // that already carry that version number (this is how 'no such column: naps' happened).
+                applyColumnMigrations();
 
-                if (dbVersion < 1)
-                {
+                new SqliteCommand("PRAGMA user_version = 3", SqliteConnection).ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                claims.sapi.Logger.Error("initializeTables error." + ex.Message);
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Adds every column the current code expects but older databases may lack.
+        /// Safe to call on every startup and in any order - each entry is a no-op when the column
+        /// already exists. When adding a new column to the code, add it here as well; there is no
+        /// version gate to remember to bump.
+        /// </summary>
+        private void applyColumnMigrations()
+        {
                     TryAlterTable("SELECT templerespawnpoints FROM CITIES LIMIT 1",
                         "ALTER TABLE CITIES ADD COLUMN templerespawnpoints TEXT DEFAULT \"\"");
                     TryAlterTable("SELECT alliance FROM CITIES LIMIT 1",
@@ -168,18 +190,12 @@ namespace claims.src.database
                     TryAlterTable("SELECT eventlog FROM CITIES LIMIT 1",
                         "ALTER TABLE CITIES ADD COLUMN eventlog TEXT DEFAULT \"\"");
 
-                    new SqliteCommand("PRAGMA user_version = 1", SqliteConnection).ExecuteNonQuery();
-                }
-                if (dbVersion < 2)
-                {
+                    // War score (CONFLICTS)
                     TryAlterTable("SELECT firstscore FROM CONFLICTS LIMIT 1",
                         "ALTER TABLE CONFLICTS ADD COLUMN firstscore INTEGER DEFAULT 0");
                     TryAlterTable("SELECT secondscore FROM CONFLICTS LIMIT 1",
                         "ALTER TABLE CONFLICTS ADD COLUMN secondscore INTEGER DEFAULT 0");
-                    new SqliteCommand("PRAGMA user_version = 2", SqliteConnection).ExecuteNonQuery();
-                }
-                if (dbVersion < 3)
-                {
+
                     // War diplomacy: cooldowns, grievances, vassalage (CITIES)
                     TryAlterTable("SELECT warcooldowns FROM CITIES LIMIT 1",
                         "ALTER TABLE CITIES ADD COLUMN warcooldowns TEXT DEFAULT \"\"");
@@ -211,17 +227,6 @@ namespace claims.src.database
                         "ALTER TABLE CONFLICTS ADD COLUMN firstpillaged INTEGER DEFAULT 0");
                     TryAlterTable("SELECT secondpillaged FROM CONFLICTS LIMIT 1",
                         "ALTER TABLE CONFLICTS ADD COLUMN secondpillaged INTEGER DEFAULT 0");
-                    new SqliteCommand("PRAGMA user_version = 3", SqliteConnection).ExecuteNonQuery();
-                }
-
-            }
-            catch (Exception ex)
-            {
-                claims.sapi.Logger.Error("initializeTables error." + ex.Message);
-                return false;
-            }
-
-            return true;
         }
 
         public bool updateDatabase(QuerryInfo querry)

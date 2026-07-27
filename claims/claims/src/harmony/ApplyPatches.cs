@@ -96,6 +96,17 @@ namespace claims.src.harmony
             TryPatch(harmonyInstance, typeof(Vintagestory.GameContent.BlockEntityBarrel).GetMethod("OnReceivedClientPacket"),
                 "BlockEntityBarrel.OnReceivedClientPacket", prefix: "Prefix_BlockEntityBarrel_OnReceivedClientPacket");
 
+            if (claims.config.FRUIT_ONLY_ON_ORCHARD_PLOTS)
+            {
+                TryPatch(harmonyInstance, typeof(Vintagestory.GameContent.FruitTreeRootBH).GetMethod("onRootTick",
+                    BindingFlags.NonPublic | BindingFlags.Instance), "FruitTreeRootBH.onRootTick",
+                    postfix: "Postfix_FruitTreeRootTick");
+
+                TryPatch(harmonyInstance, typeof(Vintagestory.GameContent.BlockFruitTreeBranch).GetMethod("TryPlaceBlock",
+                    new[] { typeof(IWorldAccessor), typeof(IPlayer), typeof(ItemStack), typeof(BlockSelection), typeof(string).MakeByRefType() }),
+                    "BlockFruitTreeBranch.TryPlaceBlock", postfix: "Postfix_FruitTreeTryPlaceBlock");
+            }
+
             TryPatch(harmonyInstance, typeof(ServerSystemEntitySimulation).GetMethod("OnPlayerRespawn", BindingFlags.NonPublic | BindingFlags.Instance),
                 "ServerSystemEntitySimulation.OnPlayerRespawn", transpiler: "Transpiler_ComposeSlotOverlays_Add_Socket_Overlays_Not_Draw_ItemDamage");
 

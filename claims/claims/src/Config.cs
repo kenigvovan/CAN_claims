@@ -207,6 +207,7 @@ namespace claims.src
         public double CAMP_PLOT_COST = 4;
         public double TEMPLE_PLOT_COST = 5;
         public double FARM_PLOT_COST = 6;
+        public double ORCHARD_PLOT_COST = 6;
         public double SUMMON_PLOT_COST = 7;
         public double EMBASSY_PLOT_COST = 8;
         public double TAVERN_PLOT_COST = 9;
@@ -221,6 +222,13 @@ namespace claims.src
 
         //FARM PLOTS ONLY CROP GROWTH
         public bool CROPS_ONLY_ON_FARM_PLOTS = false;
+
+        //ORCHARD PLOTS ONLY FRUIT TREE FRUITING
+        //Fruit trees outside of ORCHARD plots still flower, but never carry fruit.
+        public bool FRUIT_ONLY_ON_ORCHARD_PLOTS = false;
+        //Whether the "this tree will only blossom" warning is also sent when planting on unclaimed
+        //land. Set to false to only warn inside cities, where an orchard plot is actually an option.
+        public bool ORCHARD_WARN_OUTSIDE_CITY = true;
 
 
         //STRINGS
