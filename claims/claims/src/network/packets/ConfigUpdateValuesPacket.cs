@@ -231,5 +231,7 @@ namespace claims.src.network.packets
         public int WAR_BATTLE_WARN_MINUTES;
         [ProtoMember(92)]
         public bool WAR_ULTIMATUM_ENABLED;
+        [ProtoMember(93)]
+        public int WAR_ULTIMATUM_EXPIRE_HOURS;
     }
 }

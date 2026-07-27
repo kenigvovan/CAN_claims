@@ -270,21 +270,23 @@ namespace claims.src.part
         }
         public static void DemolishUnion(Alliance first, Alliance second)
         {
+            // Save once per city, not once per removed link - this used to write each city as many
+            // times as the other side had cities.
             foreach (var city in first.Cities)
             {
                 foreach (var sCity in second.Cities)
                 {
                     city.ComradeCities.Remove(sCity);
-                    city.saveToDatabase();
                 }
+                city.saveToDatabase();
             }
             foreach (var city in second.Cities)
             {
                 foreach (var sCity in first.Cities)
                 {
                     city.ComradeCities.Remove(sCity);
-                    city.saveToDatabase();
                 }
+                city.saveToDatabase();
             }
             first.ComradAlliancies.Remove(second);
             second.ComradAlliancies.Remove(first);

@@ -11,6 +11,7 @@ using claims.src.messages;
 using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
+using claims.src.part.structure.plots;
 using claims.src.part.structure.war;
 using claims.src.playerMovements;
 using Vintagestory.API.Common;
@@ -690,12 +691,28 @@ namespace claims.src
             }
             return true;
         }       
+        /// <summary>
+        /// Plots that must not push other claims away. War camps are placed anywhere on free land
+        /// and disappear with the war, so treating them as regular city territory would let a city
+        /// block off normal claims (and even new cities) just by camping there.
+        /// </summary>
+        private static bool IgnoredForClaimDistance(Plot plot)
+        {
+            if (plot == null) return true;
+            if (!claims.config.WAR_CAMP_PLOTS_BLOCK_CLAIMS && plot.Type == PlotType.CAMP) return true;
+            if (claims.config.CAPTURED_PLOTS_DO_NOT_BLOCK_CLAIMS && plot.WasCaptured) return true;
+            return false;
+        }
         public bool plotHasDistantEnoughFromOtherForNewCity(Vec2i pos)
         {
             foreach (City city in getCitiesList())
             {
                 foreach (Plot plot in city.getCityPlots())
                 {
+                    if (IgnoredForClaimDistance(plot))
+                    {
+                        continue;
+                    }
                     //var o = MathClaims.distanceBetween(plot.getPos(), pos);
                     if (MathClaims.distanceBetween(plot.getPos(), pos) < claims.config.MIN_DISTANCE_FROM_OTHER_CITY_NEW_CITY)
                     {
@@ -724,7 +741,7 @@ namespace claims.src
 
                 foreach (Plot plotInner in city.getCityPlots())
                 {
-                    if (claims.config.CAPTURED_PLOTS_DO_NOT_BLOCK_CLAIMS && plotInner.WasCaptured)
+                    if (IgnoredForClaimDistance(plotInner))
                     {
                         continue;
                     }
@@ -740,7 +757,7 @@ namespace claims.src
         {
             foreach (Plot plotInner in plot.getCity().getCityPlots())
             {
-                if (claims.config.CAPTURED_PLOTS_DO_NOT_BLOCK_CLAIMS && plotInner.WasCaptured)
+                if (IgnoredForClaimDistance(plotInner))
                 {
                     continue;
                 }

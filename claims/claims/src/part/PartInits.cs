@@ -178,21 +178,22 @@ namespace claims.src.part
         {
             first.ComradAlliancies.Add(second);
             second.ComradAlliancies.Add(first);
+            // Save once per city, not once per added link (mirrors PartDemolition.DemolishUnion).
             foreach (var city in first.Cities)
             {
                 foreach(var sCity in second.Cities)
                 {
                     city.ComradeCities.Add(sCity);
-                    city.saveToDatabase();
                 }
+                city.saveToDatabase();
             }
             foreach (var city in second.Cities)
             {
                 foreach(var sCity in first.Cities)
                 {
                     city.ComradeCities.Add(sCity);
-                    city.saveToDatabase();
                 }
+                city.saveToDatabase();
             }
             first.saveToDatabase();
             second.saveToDatabase();

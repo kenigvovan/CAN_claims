@@ -349,7 +349,7 @@ namespace claims.src.commands
                 long stamp = CooldownHandler.hasCooldown(alliance, CooldownType.RENAMING);
                 if (stamp != 0)
                 {
-                    return TextCommandResult.Success(Lang.Get("claims:wait_before") + TimeFunctions.getDateFromEpochSeconds(stamp));
+                    return TextCommandResult.Success(Lang.Get("claims:wait_before", TimeFunctions.getDateFromEpochSeconds(stamp)));
                 }
                 else
                 {
@@ -509,6 +509,12 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Success(Lang.Get("claims:target_alliance_is_neutral"));
             }
+            // Warring an ally would put both sides in HostileCities AND ComradeCities at once.
+            // Breaking the union stays an explicit act, so refuse instead of dissolving it silently.
+            if (UnionHander.PartiesAreAllied(ourAlliance, targetParty))
+            {
+                return TextCommandResult.Success(Lang.Get("claims:war_blocked_by_union"));
+            }
             // Check for a duplicate declaration letter BEFORE the gates: the gates withdraw the
             // declaration cost, and a late "duplicate" rejection would eat the money.
             if (claims.config.NEED_AGREE_FOR_CONFLICT
@@ -525,83 +531,10 @@ namespace claims.src.commands
             {
                 long timestamp = TimeFunctions.getEpochSeconds() + claims.config.DELAY_FOR_CONFLICT_ACTIVATED;
                 string newConflictGuid = ConflictLetter.GetUnusedGuid().ToString();
-                if (ConflictHandler.addConflictLetter(new ConflictLetter(ourAlliance, targetParty, LetterPurpose.START_CONFLICT, timestamp,
-                        () =>
-                        {
-                            if (playerInfo == null || !playerInfo.HasAlliance())
-                            {
-                                MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:sanity_test_for_new_alliance"));
-                                return;
-                            }
-
-                            if(!ConflictHandler.TryGetConflictLetter(ourAlliance, targetParty, LetterPurpose.START_CONFLICT, out var letter))
-                            {
-                                MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:no_letter_found"));
-                                return;
-                            }
-
-                            Conflict newConflict = new Conflict("", newConflictGuid);
-
-                            foreach (var city in ourAlliance.GetCities())
-                                city.AddLogEntry(EnumCityLogEvent.ConflictDeclared, targetParty.GetPartName());
-                            foreach (var city in targetParty.GetCities())
-                                city.AddLogEntry(EnumCityLogEvent.ConflictDeclared, ourAlliance.GetPartName());
-
-                            newConflict.First = ourAlliance;
-                            newConflict.Second = targetParty;
-                            newConflict.StartedBy = ourAlliance;
-                            newConflict.State = ConflictState.CREATED;
-                            newConflict.TimeStampStarted = TimeFunctions.getEpochSeconds();
-                            newConflict.MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES;
-
-                            RightsHandler.SetPartiesHostile(ourAlliance, targetParty, newConflict);
-                            if (targetParty is Alliance targetAllianceForAlly)
-                            {
-                                RightsHandler.AllianceAllySetHostileOnNewConflictStarted(ourAlliance, targetAllianceForAlly, newConflict);
-                            }
-                            claims.dataStorage.TryAddConflict(newConflict);
-                            ConflictHandler.removeConflictLetter(letter);
-
-                            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourAlliance,
-                                new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-                            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
-                                new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-
-                            ourAlliance.FireConflictDeclared(targetParty);
-                            var conflictCellElement = ClientConflictCellElement.FromConflict(newConflict);
-                            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourAlliance,
-                                new Dictionary<string, object> { { "value", conflictCellElement } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
-                            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
-                                new Dictionary<string, object> { { "value", conflictCellElement } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
-
-                            targetParty.saveToDatabase();
-                            ourAlliance.saveToDatabase();
-                            newConflict.saveToDatabase(false);
-                            foreach (var c in targetParty.GetCities())
-                                MessageHandler.sendMsgInCity(c, Lang.Get("claims:conflict_created_with", ourAlliance.getPartNameReplaceUnder()));
-                        },
-                        () =>
-                        {
-                            if (ConflictHandler.TryGetConflictLetter(ourAlliance, targetParty, LetterPurpose.START_CONFLICT, out var denyLetter))
-                            {
-                                UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourAlliance,
-                                    new Dictionary<string, object> { { "value", (denyLetter.Guid, denyLetter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-                                UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
-                                    new Dictionary<string, object> { { "value", (denyLetter.Guid, denyLetter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-                            }
-                            MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:conflict_denied"));
-                            ConflictHandler.removeConflictLetter(ourAlliance, targetParty, LetterPurpose.START_CONFLICT);
-                        }
-                        , newConflictGuid.ToString())))
+                if (ConflictHandler.addConflictLetter(ConflictLetterFactory.Build(
+                        ourAlliance, targetParty, LetterPurpose.START_CONFLICT, timestamp, newConflictGuid.ToString())))
                 {
-                    ConflictHandler.TryGetConflictLetter(newConflictGuid.ToString(), out ConflictLetter conflictLetter);
-                    var letterCellElement = new ClientConflictLetterCellElement(conflictLetter.From.GetPartName(), conflictLetter.From.Guid.ToString(),
-                            WarTargetTypeHelper.FromConflictParty(conflictLetter.From),
-                            conflictLetter.To.GetPartName(), conflictLetter.To.Guid.ToString(),
-                            WarTargetTypeHelper.FromConflictParty(conflictLetter.To),
-                            conflictLetter.Purpose, conflictLetter.TimeStampExpire, conflictLetter.Guid);
-                    UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty, new Dictionary<string, object> { { "value", letterCellElement } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_ADD);
-                    UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourAlliance, new Dictionary<string, object> { { "value", letterCellElement } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_ADD);
+                    // The letter itself is mirrored to both sides by ConflictHandler.addConflictLetter
                     foreach (var c in targetParty.GetCities())
                         MessageHandler.sendMsgInCity(c, Lang.Get("claims:alliance_has_sent_conflict_letter", ourAlliance.getPartNameReplaceUnder()));
                     return TextCommandResult.Success(Lang.Get("claims:conflict_letter_sent"));
@@ -695,75 +628,40 @@ namespace claims.src.commands
             ConflictHandler.removeConflictLetter(foundLetter);
             return TextCommandResult.Success(Lang.Get("claims:conflict_declaration_removed", targetParty.GetPartName()));
         }
+        /// <summary>
+        /// Shared preamble of the alliance-side "answer a conflict letter" commands: the caller must
+        /// be in an alliance and the argument must name a resolvable war target. The tail (war-state
+        /// check, letter lookup, handler) is shared with the city-side commands.
+        /// </summary>
+        private static TextCommandResult RespondAsAlliance(TextCommandCallingArgs args, LetterPurpose purpose,
+            bool accept, CityCommand.EnumWarStateRequirement requirement)
+        {
+            if (!TryResolveCaller(args, out _, out var playerInfo, out var callerErr)) return callerErr;
+
+            if (!playerInfo.HasAlliance())
+            {
+                return TextCommandResult.Success(Lang.Get("claims:no_alliance"));
+            }
+
+            var (parsedName, targetType) = CityCommand.ParseWarTargetInput((string)args.Parsers[0].GetValue());
+            string name = Filter.filterName(parsedName);
+            if (name.Length == 0 || !Filter.checkForBlockedNames(name))
+            {
+                return TextCommandResult.Error(Lang.Get("claims:invalid_alliance_name"));
+            }
+            if (!CityCommand.TryResolveWarTarget(name, targetType, out IConflictParty targetParty, out string resolveError))
+            {
+                return TextCommandResult.Error(resolveError);
+            }
+
+            return CityCommand.RespondToConflictLetter(playerInfo.Alliance, targetParty, purpose, accept, requirement);
+        }
+
         public static TextCommandResult AcceptStartConflict(TextCommandCallingArgs args)
-        {
-            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
+            => RespondAsAlliance(args, LetterPurpose.START_CONFLICT, accept: true, CityCommand.EnumWarStateRequirement.NotAtWar);
 
-            if (!playerInfo.HasAlliance())
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_alliance"));
-            }
-
-            var (parsedName, targetType) = CityCommand.ParseWarTargetInput((string)args.Parsers[0].GetValue());
-            string name = Filter.filterName(parsedName);
-            if (name.Length == 0 || !Filter.checkForBlockedNames(name))
-            {
-                return TextCommandResult.Error(Lang.Get("claims:invalid_alliance_name"));
-            }
-            if (!CityCommand.TryResolveWarTarget(name, targetType, out IConflictParty targetParty, out string resolveError))
-            {
-                return TextCommandResult.Error(resolveError);
-            }
-
-            Alliance ourAlliance = playerInfo.Alliance;
-
-            if (ConflictHandler.conflictAlreadyExist(ourAlliance, targetParty))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:conflict_already_exists"));
-            }
-
-            if(!ConflictHandler.TryGetConflictLetter(ourAlliance, targetParty, LetterPurpose.START_CONFLICT, out var letter))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
-            }
-
-            letter.OnAccept?.Invoke();
-            return TextCommandResult.Success();
-        }
         public static TextCommandResult DenyStartConflict(TextCommandCallingArgs args)
-        {
-            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
-
-            if (!playerInfo.HasAlliance())
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_alliance"));
-            }
-
-            var (parsedName, targetType) = CityCommand.ParseWarTargetInput((string)args.Parsers[0].GetValue());
-            string name = Filter.filterName(parsedName);
-            if (name.Length == 0 || !Filter.checkForBlockedNames(name))
-            {
-                return TextCommandResult.Error(Lang.Get("claims:invalid_alliance_name"));
-            }
-            if (!CityCommand.TryResolveWarTarget(name, targetType, out IConflictParty targetParty, out string resolveError))
-            {
-                return TextCommandResult.Error(resolveError);
-            }
-
-            Alliance ourAlliance = playerInfo.Alliance;
-
-            if (ConflictHandler.conflictAlreadyExist(ourAlliance, targetParty))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:conflict_already_exists"));
-            }
-
-            if (!ConflictHandler.TryGetConflictLetter(ourAlliance, targetParty, LetterPurpose.START_CONFLICT, out var letter))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
-            }
-            letter.OnDeny?.Invoke();
-            return TextCommandResult.Success();
-        }
+            => RespondAsAlliance(args, LetterPurpose.START_CONFLICT, accept: false, CityCommand.EnumWarStateRequirement.NotAtWar);
         public static TextCommandResult OfferStopConflict(TextCommandCallingArgs args)
         {
             if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
@@ -822,66 +720,10 @@ namespace claims.src.commands
             if (claims.config.NEED_AGREE_FOR_CONFLICT)
             {
                 long timestamp = TimeFunctions.getEpochSeconds() + claims.config.DELAY_FOR_CONFLICT_ACTIVATED;
-                if (ConflictHandler.addConflictLetter(new ConflictLetter(ourAlliance, targetParty, LetterPurpose.END_CONFLICT, timestamp,
-                        () =>
-                        {
-                            if (playerInfo == null || !playerInfo.HasAlliance())
-                            {
-                                MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:sanity_test_for_new_alliance"));
-                                return;
-                            }
-
-                            if(!ConflictHandler.TryGetConflictWithSides(ourAlliance, targetParty, out Conflict conflict))
-                            {
-                                foreach (var c in targetParty.GetCities())
-                                    MessageHandler.sendMsgInCity(c, Lang.Get("claims:conflict_not_found"));
-                                return;
-                            }
-                            if (ConflictHandler.TryGetConflictLetter(ourAlliance, targetParty, LetterPurpose.END_CONFLICT, out var acceptLetter))
-                            {
-                                UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourAlliance,
-                                    new Dictionary<string, object> { { "value", (acceptLetter.Guid, acceptLetter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-                                UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
-                                    new Dictionary<string, object> { { "value", (acceptLetter.Guid, acceptLetter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-                                ConflictHandler.removeConflictLetter(acceptLetter);
-                            }
-                            PeaceTermsHelper.ApplyWithConfirm(ourAlliance, targetParty, terms,
-                                () =>
-                                {
-                                    PartDemolition.DemolishConflict(conflict);
-                                    foreach (var c in targetParty.GetCities())
-                                        MessageHandler.sendMsgInCity(c, Lang.Get("claims:conflict_stopped_with", ourAlliance.getPartNameReplaceUnder()));
-                                },
-                                () =>
-                                {
-                                    // The owning member refused the plot cession — peace is not concluded, the war continues.
-                                    MessageHandler.SendMsgInAlliance(ourAlliance, Lang.Get("claims:peace_cession_refused", targetParty.GetPartName()));
-                                    MessageHandler.SendMsgInAlliance(targetParty, Lang.Get("claims:peace_cession_refused_them", ourAlliance.getPartNameReplaceUnder()));
-                                });
-                        },
-                        () =>
-                        {
-                            if (ConflictHandler.TryGetConflictLetter(ourAlliance, targetParty, LetterPurpose.END_CONFLICT, out var denyLetter))
-                            {
-                                UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourAlliance,
-                                    new Dictionary<string, object> { { "value", (denyLetter.Guid, denyLetter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-                                UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
-                                    new Dictionary<string, object> { { "value", (denyLetter.Guid, denyLetter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-                            }
-                            MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:conflict_stop_denied"));
-                            ConflictHandler.removeConflictLetter(ourAlliance, targetParty, LetterPurpose.END_CONFLICT);
-                        },
-                        conflict.Guid
-                        )))
+                if (ConflictHandler.addConflictLetter(ConflictLetterFactory.Build(
+                        ourAlliance, targetParty, LetterPurpose.END_CONFLICT, timestamp, conflict.Guid, terms)))
                 {
-                    ConflictHandler.TryGetConflictLetter(conflict.Guid, out ConflictLetter conflictLetter);
-                    var letterCellElement = new ClientConflictLetterCellElement(conflictLetter.From.GetPartName(), conflictLetter.From.Guid.ToString(),
-                            WarTargetTypeHelper.FromConflictParty(conflictLetter.From),
-                            conflictLetter.To.GetPartName(), conflictLetter.To.Guid.ToString(),
-                            WarTargetTypeHelper.FromConflictParty(conflictLetter.To),
-                            conflictLetter.Purpose, conflictLetter.TimeStampExpire, conflictLetter.Guid);
-                    UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty, new Dictionary<string, object> { { "value", letterCellElement } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_ADD);
-                    UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourAlliance, new Dictionary<string, object> { { "value", letterCellElement } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_ADD);
+                    // The letter itself is mirrored to both sides by ConflictHandler.addConflictLetter
                     foreach (var c in targetParty.GetCities())
                         MessageHandler.sendMsgInCity(c, Lang.Get("claims:alliance_has_sent_conflict_letter", ourAlliance.getPartNameReplaceUnder()));
                     return TextCommandResult.Success(Lang.Get("claims:conflict_letter_sent"));
@@ -911,94 +753,48 @@ namespace claims.src.commands
             }
         }
         public static TextCommandResult AcceptStopConflict(TextCommandCallingArgs args)
-        {
-            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
+            => RespondAsAlliance(args, LetterPurpose.END_CONFLICT, accept: true, CityCommand.EnumWarStateRequirement.AtWar);
 
-            if (!playerInfo.HasAlliance())
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_alliance"));
-            }
-
-            var (parsedName, targetType) = CityCommand.ParseWarTargetInput((string)args.Parsers[0].GetValue());
-            string name = Filter.filterName(parsedName);
-            if (name.Length == 0 || !Filter.checkForBlockedNames(name))
-            {
-                return TextCommandResult.Error(Lang.Get("claims:invalid_alliance_name"));
-            }
-            if (!CityCommand.TryResolveWarTarget(name, targetType, out IConflictParty targetParty, out string resolveError))
-            {
-                return TextCommandResult.Error(resolveError);
-            }
-
-            Alliance ourAlliance = playerInfo.Alliance;
-
-            if (!ConflictHandler.conflictAlreadyExist(ourAlliance, targetParty))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_conflict_found"));
-            }
-
-            if (!ConflictHandler.TryGetConflictLetter(ourAlliance, targetParty, LetterPurpose.END_CONFLICT, out var letter))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
-            }
-
-            letter.OnAccept?.Invoke();
-            return TextCommandResult.Success();
-        }
         public static TextCommandResult DenyStopConflict(TextCommandCallingArgs args)
+            => RespondAsAlliance(args, LetterPurpose.END_CONFLICT, accept: false, CityCommand.EnumWarStateRequirement.AtWar);
+        /// <summary>
+        /// Shared preamble of the union commands: the caller must be in an alliance and the first
+        /// argument must name an existing one. Keeps the /alliance union subcommands from each
+        /// carrying their own copy of the same four checks.
+        /// </summary>
+        private static bool TryResolveUnionSides(TextCommandCallingArgs args, out PlayerInfo playerInfo,
+            out Alliance ourAlliance, out Alliance targetAlliance, out TextCommandResult err)
         {
-            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
+            ourAlliance = null;
+            targetAlliance = null;
+            if (!TryResolveCaller(args, out _, out playerInfo, out err)) return false;
 
             if (!playerInfo.HasAlliance())
             {
-                return TextCommandResult.Success(Lang.Get("claims:no_alliance"));
-            }
-
-            var (parsedName, targetType) = CityCommand.ParseWarTargetInput((string)args.Parsers[0].GetValue());
-            string name = Filter.filterName(parsedName);
-            if (name.Length == 0 || !Filter.checkForBlockedNames(name))
-            {
-                return TextCommandResult.Error(Lang.Get("claims:invalid_alliance_name"));
-            }
-            if (!CityCommand.TryResolveWarTarget(name, targetType, out IConflictParty targetParty, out string resolveError))
-            {
-                return TextCommandResult.Error(resolveError);
-            }
-
-            Alliance ourAlliance = playerInfo.Alliance;
-
-            if (!ConflictHandler.conflictAlreadyExist(ourAlliance, targetParty))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_conflict_found"));
-            }
-
-            if (!ConflictHandler.TryGetConflictLetter(ourAlliance, targetParty, LetterPurpose.END_CONFLICT, out var letter))
-            {
-                return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
-            }
-
-            letter.OnDeny?.Invoke();
-            return TextCommandResult.Success();
-        }
-        public static TextCommandResult DeclareUnion(TextCommandCallingArgs args)
-        {
-            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
-
-            if (!playerInfo.HasAlliance())
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_alliance"));
+                err = TextCommandResult.Success(Lang.Get("claims:no_alliance"));
+                return false;
             }
             string name = Filter.filterName((string)args.Parsers[0].GetValue());
             if (name.Length == 0 || !Filter.checkForBlockedNames(name))
             {
-                return TextCommandResult.Error(Lang.Get("claims:invalid_alliance_name"));
+                err = TextCommandResult.Error(Lang.Get("claims:invalid_alliance_name"));
+                return false;
             }
-            if (!claims.dataStorage.GetAllianceByName(name, out Alliance targetAlliance))
+            if (!claims.dataStorage.GetAllianceByName(name, out targetAlliance))
             {
-                return TextCommandResult.Error(Lang.Get("claims:no_such_alliance"));
+                err = TextCommandResult.Error(Lang.Get("claims:no_such_alliance"));
+                return false;
             }
 
-            Alliance ourAlliance = playerInfo.Alliance;
+            ourAlliance = playerInfo.Alliance;
+            err = null;
+            return true;
+        }
+
+        public static TextCommandResult DeclareUnion(TextCommandCallingArgs args)
+        {
+            if (!TryResolveUnionSides(args, out _, out Alliance ourAlliance, out Alliance targetAlliance, out var err))
+                return err;
 
             if(ourAlliance.Equals(targetAlliance))
             {
@@ -1016,144 +812,112 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Success(Lang.Get("claims:target_alliance_is_neutral"));
             }
+            // Allying the party you are at war with would leave both sides in HostileCities AND
+            // ComradeCities at once - PvP would stay open while ally rights are granted. Make peace first.
+            if (ConflictHandler.conflictAlreadyExist(ourAlliance, targetAlliance))
+            {
+                return TextCommandResult.Success(Lang.Get("claims:union_blocked_by_war"));
+            }
+            long reformLeft = UnionBreakHelper.ReformCooldownLeft(ourAlliance, targetAlliance);
+            if (reformLeft > 0)
+            {
+                return TextCommandResult.Success(Lang.Get("claims:union_reform_on_cooldown", StringFunctions.FormatDuration(reformLeft)));
+            }
 
             long timestamp = TimeFunctions.getEpochSeconds() + claims.config.DELAY_FOR_CONFLICT_ACTIVATED;
-            string newConflictGuid = UnionLetter.GetUnusedGuid().ToString();
-            if (UnionHander.addUnionLetter(new UnionLetter(ourAlliance, targetAlliance, timestamp,
-                    () =>
-                    {
-                        if (playerInfo == null || !playerInfo.HasAlliance())
-                        {
-                            MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:sanity_test_for_new_alliance"));
-                            return;
-                        }
-
-                        if (!UnionHander.TryGetUnionLetter(ourAlliance, targetAlliance, out var letter))
-                        {
-                            MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:no_letter_found"));
-                            return;
-                        }
-                        PartInits.InitNewUnion(ourAlliance, targetAlliance);
-
-                        UsefullPacketsSend.AddToQueueAllianceInfoUpdate(ourAlliance.Guid,
-                            new Dictionary<string, object> { { "value", targetAlliance.GetPartName()  } }, EnumPlayerRelatedInfo.ALLIANCE_ALLY_ADDED);
-                        UsefullPacketsSend.AddToQueueAllianceInfoUpdate(targetAlliance.Guid,
-                            new Dictionary<string, object> { { "value", ourAlliance.GetPartName()  } }, EnumPlayerRelatedInfo.ALLIANCE_ALLY_ADDED);
-
-                        UsefullPacketsSend.AddToQueueAllianceInfoUpdate(targetAlliance.Guid, new Dictionary<string, object> { { "value", newConflictGuid } }, EnumPlayerRelatedInfo.ALLIANCE_UNION_LETTER_REMOVE);
-                        UsefullPacketsSend.AddToQueueAllianceInfoUpdate(ourAlliance.Guid, new Dictionary<string, object> { { "value", newConflictGuid } }, EnumPlayerRelatedInfo.ALLIANCE_UNION_LETTER_REMOVE);
-                    },
-                    () =>
-                    {
-                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:union_denied"));
-                        UnionHander.removeUnionLetter(ourAlliance, targetAlliance);
-                    }
-                    , newConflictGuid.ToString())))
-            {
-                UnionHander.TryGetUnionLetter(newConflictGuid.ToString(), out UnionLetter conflictLetter);
-                UsefullPacketsSend.AddToQueueAllianceInfoUpdate(targetAlliance.Guid, new Dictionary<string, object> { { "value",
-                            new ClientUnionLetterCellElement(conflictLetter.From.GetPartName(), conflictLetter.From.Guid.ToString(),
-                            conflictLetter.To.GetPartName(), conflictLetter.To.Guid.ToString(),
-                            conflictLetter.TimeStampExpire, conflictLetter.Guid) } }, EnumPlayerRelatedInfo.ALLIANCE_UNION_LETTER_ADD);
-                UsefullPacketsSend.AddToQueueAllianceInfoUpdate(ourAlliance.Guid, new Dictionary<string, object> { { "value", new ClientUnionLetterCellElement(
-                            conflictLetter.From.GetPartName(), conflictLetter.From.Guid.ToString(),
-                            conflictLetter.To.GetPartName(), conflictLetter.To.Guid.ToString(),
-                            conflictLetter.TimeStampExpire, conflictLetter.Guid) } }, EnumPlayerRelatedInfo.ALLIANCE_UNION_LETTER_ADD);
-
-                MessageHandler.SendMsgInAlliance(targetAlliance, Lang.Get("claims:alliance_has_sent_union_letter", ourAlliance.getPartNameReplaceUnder()));
-                return TextCommandResult.Success(Lang.Get("claims:union_letter_sent"));
-            }
-            else
+            string letterGuid = UnionLetter.GetUnusedGuid().ToString();
+            // The letter's behaviour lives in the factory so it can be rebuilt after a restart;
+            // addUnionLetter persists it and mirrors it to both sides' GUI.
+            if (!UnionHander.addUnionLetter(UnionLetterFactory.Build(ourAlliance, targetAlliance,
+                    UnionLetterPurpose.Form, timestamp, letterGuid)))
             {
                 return TextCommandResult.Success(Lang.Get("claims:union_letter_is_duplicate"));
             }
+
+            MessageHandler.SendMsgInAlliance(targetAlliance, Lang.Get("claims:alliance_has_sent_union_letter", ourAlliance.getPartNameReplaceUnder()));
+            return TextCommandResult.Success(Lang.Get("claims:union_letter_sent"));
         }
         public static TextCommandResult RevokeUnion(TextCommandCallingArgs args)
         {
-            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
-
-            if (!playerInfo.HasAlliance())
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_alliance"));
-            }
-            string name = Filter.filterName((string)args.Parsers[0].GetValue());
-            if (name.Length == 0 || !Filter.checkForBlockedNames(name))
-            {
-                return TextCommandResult.Error(Lang.Get("claims:invalid_alliance_name"));
-            }
-            if (!claims.dataStorage.GetAllianceByName(name, out Alliance targetAlliance))
-            {
-                return TextCommandResult.Error(Lang.Get("claims:no_such_alliance"));
-            }
-
-            Alliance ourAlliance = playerInfo.Alliance;
+            if (!TryResolveUnionSides(args, out _, out Alliance ourAlliance, out Alliance targetAlliance, out var err))
+                return err;
 
             if(ourAlliance.ComradAlliancies == null || !ourAlliance.ComradAlliancies.Contains(targetAlliance))
             {
                 return TextCommandResult.Success(Lang.Get("claims:no_union_found"));
             }
 
-            PartDemolition.DemolishUnion(ourAlliance, targetAlliance);
+            // One-sided exit = denunciation: announced now, effective after a delay. The messages,
+            // the log entries and the actual break all happen inside the helper.
+            string errKey = UnionBreakHelper.TryAnnounceBreak(ourAlliance, targetAlliance);
+            if (errKey != null) return TextCommandResult.Success(Lang.Get(errKey));
 
-            UsefullPacketsSend.AddToQueueAllianceInfoUpdate(targetAlliance.Guid, new Dictionary<string, object> { { "value", ourAlliance.GetPartName()} }, EnumPlayerRelatedInfo.ALLIANCE_ALLY_REMOVED);
-            UsefullPacketsSend.AddToQueueAllianceInfoUpdate(ourAlliance.Guid, new Dictionary<string, object> { { "value", targetAlliance.GetPartName() } }, EnumPlayerRelatedInfo.ALLIANCE_ALLY_REMOVED);
-            return TextCommandResult.Success(Lang.Get("claims:union_declaration_removed", targetAlliance.getPartNameReplaceUnder()));
+            long left = UnionBreakHelper.PendingBreakLeft(ourAlliance, targetAlliance);
+            return TextCommandResult.Success(left > 0
+                ? Lang.Get("claims:union_break_announced_by_us", targetAlliance.getPartNameReplaceUnder(), StringFunctions.FormatDuration(left))
+                : Lang.Get("claims:union_broken", targetAlliance.getPartNameReplaceUnder()));
+        }
+
+        /// <summary>Calls off a denunciation before it takes effect (either side may do it).</summary>
+        public static TextCommandResult CancelUnionBreak(TextCommandCallingArgs args)
+        {
+            if (!TryResolveUnionSides(args, out _, out Alliance ourAlliance, out Alliance targetAlliance, out var err))
+                return err;
+
+            string errKey = UnionBreakHelper.TryCancelBreak(ourAlliance, targetAlliance);
+            if (errKey != null) return TextCommandResult.Success(Lang.Get(errKey));
+            return TextCommandResult.Success(Lang.Get("claims:union_break_cancelled", targetAlliance.getPartNameReplaceUnder()));
+        }
+
+        /// <summary>Offers to dissolve the union by mutual consent: no delay and no cooldowns for either side.</summary>
+        public static TextCommandResult DissolveUnion(TextCommandCallingArgs args)
+        {
+            if (!TryResolveUnionSides(args, out _, out Alliance ourAlliance, out Alliance targetAlliance, out var err))
+                return err;
+
+            if (!UnionHander.unionAlreadyExist(ourAlliance, targetAlliance))
+                return TextCommandResult.Success(Lang.Get("claims:no_union_found"));
+            if (claims.config.UNION_BREAK_BLOCKED_IN_SHARED_WAR && UnionBreakHelper.SharesRunningWar(ourAlliance, targetAlliance))
+                return TextCommandResult.Success(Lang.Get("claims:union_break_blocked_shared_war"));
+            if (UnionHander.TryGetUnionLetter(ourAlliance, targetAlliance, out _))
+                return TextCommandResult.Success(Lang.Get("claims:union_letter_is_duplicate"));
+
+            long timestamp = TimeFunctions.getEpochSeconds() + claims.config.DELAY_FOR_CONFLICT_ACTIVATED;
+            string letterGuid = UnionLetter.GetUnusedGuid().ToString();
+            if (!UnionHander.addUnionLetter(UnionLetterFactory.Build(ourAlliance, targetAlliance,
+                    UnionLetterPurpose.Dissolve, timestamp, letterGuid)))
+            {
+                return TextCommandResult.Success(Lang.Get("claims:union_letter_is_duplicate"));
+            }
+
+            MessageHandler.SendMsgInAlliance(targetAlliance, Lang.Get("claims:union_dissolve_offered", ourAlliance.getPartNameReplaceUnder()));
+            return TextCommandResult.Success(Lang.Get("claims:union_dissolve_sent", targetAlliance.getPartNameReplaceUnder()));
         }
         public static TextCommandResult UnsendInviteUnion(TextCommandCallingArgs args)
         {
-            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
-
-            if (!playerInfo.HasAlliance())
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_alliance"));
-            }
-            string name = Filter.filterName((string)args.Parsers[0].GetValue());
-            if (name.Length == 0 || !Filter.checkForBlockedNames(name))
-            {
-                return TextCommandResult.Error(Lang.Get("claims:invalid_alliance_name"));
-            }
-            if (!claims.dataStorage.GetAllianceByName(name, out Alliance targetAlliance))
-            {
-                return TextCommandResult.Error(Lang.Get("claims:no_such_alliance"));
-            }
-
-            Alliance ourAlliance = playerInfo.Alliance;
+            if (!TryResolveUnionSides(args, out _, out Alliance ourAlliance, out Alliance targetAlliance, out var err))
+                return err;
 
             if(!UnionHander.TryGetUnionLetter(ourAlliance, targetAlliance, out var letter))
             {
                 return TextCommandResult.Success(Lang.Get("claims:no_union_letter_found"));
             }
+            // The handler drops the letter and syncs both GUIs itself (UnionLetterFactory.RemoveAndSync).
             letter.OnDeny?.Invoke();
-            UsefullPacketsSend.AddToQueueAllianceInfoUpdate(targetAlliance.Guid, new Dictionary<string, object> { { "value", letter.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_UNION_LETTER_REMOVE);
-            UsefullPacketsSend.AddToQueueAllianceInfoUpdate(ourAlliance.Guid, new Dictionary<string, object> { { "value", letter.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_UNION_LETTER_REMOVE);
             return TextCommandResult.Success(Lang.Get("claims:union_declaration_removed", targetAlliance.getPartNameReplaceUnder()));
         }
         public static TextCommandResult AcceptInviteUnion(TextCommandCallingArgs args)
         {
-            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
-
-            if (!playerInfo.HasAlliance())
-            {
-                return TextCommandResult.Success(Lang.Get("claims:no_alliance"));
-            }
-            string name = Filter.filterName((string)args.Parsers[0].GetValue());
-            if (name.Length == 0 || !Filter.checkForBlockedNames(name))
-            {
-                return TextCommandResult.Error(Lang.Get("claims:invalid_alliance_name"));
-            }
-            if (!claims.dataStorage.GetAllianceByName(name, out Alliance targetAlliance))
-            {
-                return TextCommandResult.Error(Lang.Get("claims:no_such_alliance"));
-            }
-
-            Alliance ourAlliance = playerInfo.Alliance;
+            if (!TryResolveUnionSides(args, out _, out Alliance ourAlliance, out Alliance targetAlliance, out var err))
+                return err;
 
             if (!UnionHander.TryGetUnionLetter(ourAlliance, targetAlliance, out var letter))
             {
                 return TextCommandResult.Success(Lang.Get("claims:no_union_letter_found"));
             }
+            // The letter's own handler removes it (and its stored row); dropping it again here would
+            // be a no-op at best and, for a Dissolve letter, would hide the message it just sent.
             letter.OnAccept?.Invoke();
-            UnionHander.removeUnionLetter(letter);
             return TextCommandResult.Success(Lang.Get("claims:union_letter_accepted", targetAlliance.getPartNameReplaceUnder()));
         }
     }

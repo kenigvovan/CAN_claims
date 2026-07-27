@@ -182,10 +182,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
             {
                 return;
             }
-            string firstTypeLabel = cell.FirstPartyType == WarTargetType.Alliance
-                ? Lang.Get("claims:conflict_target_alliance") : Lang.Get("claims:conflict_target_city");
-            string secondTypeLabel = cell.SecondPartyType == WarTargetType.Alliance
-                ? Lang.Get("claims:conflict_target_alliance") : Lang.Get("claims:conflict_target_city");
+            string firstTypeLabel = WarTargetTypeHelper.LangLabel(cell.FirstPartyType);
+            string secondTypeLabel = WarTargetTypeHelper.LangLabel(cell.SecondPartyType);
 
             // --- Title: party names with colors, centered ---
             string midText = $" ({firstTypeLabel})  vs   ({secondTypeLabel})";

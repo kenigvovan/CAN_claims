@@ -13,5 +13,8 @@ namespace claims.src.citylog
         AllianceLeft,
         TreasuryPillaged,
         WarEnded,
+        UnionFormed,
+        UnionBreakAnnounced,
+        UnionBroken,
     }
 }

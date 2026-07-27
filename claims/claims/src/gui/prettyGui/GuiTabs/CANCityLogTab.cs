@@ -84,6 +84,9 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 EnumCityLogEvent.AllianceLeft     => Lang.Get("claims:log-alliance-left", args0),
                 EnumCityLogEvent.TreasuryPillaged => Lang.Get("claims:log-treasury-pillaged", args0, args1),
                 EnumCityLogEvent.WarEnded         => Lang.Get("claims:log-war-ended", args0, args1, args2, args3),
+                EnumCityLogEvent.UnionFormed      => Lang.Get("claims:log-union-formed", args0),
+                EnumCityLogEvent.UnionBreakAnnounced => Lang.Get("claims:log-union-break-announced", args0, args1),
+                EnumCityLogEvent.UnionBroken      => Lang.Get("claims:log-union-broken", args0),
                 _                                 => entry.EventType.ToString()
             };
         }
@@ -112,6 +115,9 @@ namespace claims.src.gui.prettyGui.GuiTabs
             EnumCityLogEvent.AllianceLeft     => ColEventAllianceLeft,
             EnumCityLogEvent.TreasuryPillaged => ColEventConflict,
             EnumCityLogEvent.WarEnded         => ColEventConflict,
+            EnumCityLogEvent.UnionFormed      => ColEventAllianceJoin,
+            EnumCityLogEvent.UnionBreakAnnounced => ColEventKicked,
+            EnumCityLogEvent.UnionBroken      => ColEventAllianceLeft,
             _                                 => ColEventDefault
         };
     }

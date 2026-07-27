@@ -88,10 +88,15 @@ namespace claims.src.network.handlers
                     case PacketsContentEnum.SERVER_UPDATE_COLLECTED_PLOTS:
                         List<Tuple<Vec2i, SavedPlotInfo>> plotsToUpdate = JsonConvert.DeserializeObject<List<Tuple<Vec2i, SavedPlotInfo>>>(packet.data);
                         if (plotsToUpdate == null || claims.clientDataStorage == null) break;
+                        PlotsMapLayer updateMapLayer = ResolvePlotsMapLayer();
                         foreach (var savedPlot in plotsToUpdate)
                         {
                             if (savedPlot?.Item1 == null) continue;
                             claims.clientDataStorage.addClientSavedPlots(savedPlot.Item1, savedPlot.Item2);
+                            // Redraw here as well: CITY_PLOT_RECOLOR travels on a separate queue and may arrive
+                            // BEFORE this packet, in which case it would repaint the plot (and its borders) from
+                            // the stale city name and nothing would ever refresh it again.
+                            updateMapLayer?.OnResChunkPixels(savedPlot.Item1, savedPlot.Item2?.cityName);
                         }
                         break;
                     case PacketsContentEnum.OWN_CITY_DELETED:
@@ -271,6 +276,8 @@ namespace claims.src.network.handlers
                 claims.config.WAR_NAP_BREAK_PENALTY = packet.WAR_NAP_BREAK_PENALTY;
                 claims.config.WAR_BATTLE_WARN_MINUTES = packet.WAR_BATTLE_WARN_MINUTES;
                 claims.config.WAR_ULTIMATUM_ENABLED = packet.WAR_ULTIMATUM_ENABLED;
+                if (packet.WAR_ULTIMATUM_EXPIRE_HOURS > 0)
+                    claims.config.WAR_ULTIMATUM_EXPIRE_HOURS = packet.WAR_ULTIMATUM_EXPIRE_HOURS;
 
                 claims.config.WAR_RESPAWN_SAFEZONE_ENABLED = packet.WAR_RESPAWN_SAFEZONE_ENABLED;
                 claims.config.WAR_RESPAWN_SAFEZONE_RADIUS = packet.WAR_RESPAWN_SAFEZONE_RADIUS;

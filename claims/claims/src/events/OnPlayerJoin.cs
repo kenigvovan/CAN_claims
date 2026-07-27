@@ -69,7 +69,7 @@ namespace claims.src.events
                         WarTargetTypeHelper.FromConflictParty(it.From),
                         it.To.GetPartName(), it.To.Guid,
                         WarTargetTypeHelper.FromConflictParty(it.To),
-                        it.Purpose, it.TimeStampExpire, it.Guid));
+                        it.Purpose, it.TimeStampExpire, it.Guid).WithTerms(it.Terms).WithNapDays(it.NapDays));
                 }
                 if (li.Count > 0)
                 {
@@ -90,7 +90,7 @@ namespace claims.src.events
                 foreach (var it in UnionHander.GetAllLettersForAlliance(playerInfo.Alliance))
                 {
                     unionList.Add(new ClientUnionLetterCellElement(it.From.GetPartName(), it.From.Guid, it.To.GetPartName(), it.To.Guid,
-                        it.TimeStampExpire, it.Guid));
+                        it.TimeStampExpire, it.Guid, it.Purpose));
                 }
                 if (unionList.Count > 0)
                 {
@@ -106,7 +106,7 @@ namespace claims.src.events
                         WarTargetTypeHelper.FromConflictParty(it.From),
                         it.To.GetPartName(), it.To.Guid,
                         WarTargetTypeHelper.FromConflictParty(it.To),
-                        it.Purpose, it.TimeStampExpire, it.Guid));
+                        it.Purpose, it.TimeStampExpire, it.Guid).WithTerms(it.Terms).WithNapDays(it.NapDays));
                 }
                 if (li.Count > 0)
                 {
@@ -122,6 +122,15 @@ namespace claims.src.events
                 {
                     UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, new Dictionary<string, object> { { "value", lic } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ALL);
                 }
+            }
+
+            if (playerInfo.hasCity())
+            {
+                UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, EnumPlayerRelatedInfo.CITY_CASUS_BELLI_ALL);
+            }
+            if (playerInfo.HasAlliance())
+            {
+                UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, EnumPlayerRelatedInfo.ALLIANCE_UNION_BREAKS_ALL);
             }
 
             Dictionary<string, ClientCityInfoCellElement> CityStatsCashe =

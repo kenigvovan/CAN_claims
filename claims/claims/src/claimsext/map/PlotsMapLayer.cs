@@ -310,31 +310,37 @@ namespace claims.src.claimsext.map
                 Vec2f viewPos = new Vec2f();
                 mapElem.TranslateWorldPosToViewPos(new Vec3d(val.Value.chunkCoord.X * PlotPosition.plotSize + PlotPosition.plotSize / 2, 0, val.Value.chunkCoord.Y * PlotPosition.plotSize + PlotPosition.plotSize / 2), ref viewPos);
             }
+            double mouseX = args.X - mapElem.Bounds.renderX;
+            double mouseY = args.Y - mapElem.Bounds.renderY;
+            float halfPlot = PlotPosition.plotSize / 2f * mapElem.ZoomLevel;
+
+            // Only ever describe ONE plot: the one closest to the cursor. Appending for every plot whose
+            // hit box contains the cursor printed the city line two (or more) times on plot boundaries.
+            SavedPlotInfo hovered = null;
+            double bestDist = double.MaxValue;
+            Vec2f plotViewPos = new Vec2f();
             foreach (var zone in claims.clientDataStorage.getClientSavedPlots())
             {
                 foreach (var savedPlot in zone.Value.savedPlots)
                 {
-                    int ap = 0;
-                    Vec2f viewPos = new Vec2f();
-                    mapElem.TranslateWorldPosToViewPos(new Vec3d(savedPlot.Key.X * PlotPosition.plotSize + PlotPosition.plotSize / 2, 0, savedPlot.Key.Y * PlotPosition.plotSize + PlotPosition.plotSize / 2), ref viewPos);
+                    mapElem.TranslateWorldPosToViewPos(new Vec3d(savedPlot.Key.X * PlotPosition.plotSize + PlotPosition.plotSize / 2, 0, savedPlot.Key.Y * PlotPosition.plotSize + PlotPosition.plotSize / 2), ref plotViewPos);
 
-                    double mouseX = args.X - mapElem.Bounds.renderX;
-                    double mouseY = args.Y - mapElem.Bounds.renderY;
+                    double dx = plotViewPos.X - mouseX;
+                    double dy = plotViewPos.Y - mouseY;
+                    if (Math.Abs(dx) >= halfPlot || Math.Abs(dy) >= halfPlot) continue;
 
-                    float halfPlot = PlotPosition.plotSize / 2f * mapElem.ZoomLevel;
-                    if (Math.Abs(viewPos.X - mouseX) < halfPlot && Math.Abs(viewPos.Y - mouseY) < halfPlot)
-                    {
-                        if (savedPlot.Value.cityName.Length > 0)
-                        {
-                            hoverText.AppendLine(Lang.Get("claims:map_plot_city_name", savedPlot.Value.cityName));
-                            if (savedPlot.Value.price > 0)
-                            {
-                                hoverText.AppendLine(Lang.Get("claims:map_plot_price", savedPlot.Value.price));
-                            }
-                            //hoverText.Append("Mayor: " + cityPlotInfo.mayorName + "\n");
-                        }
-                    }
-                    ap++;
+                    double dist = dx * dx + dy * dy;
+                    if (dist >= bestDist) continue;
+                    bestDist = dist;
+                    hovered = savedPlot.Value;
+                }
+            }
+            if (hovered != null && hovered.cityName.Length > 0)
+            {
+                hoverText.AppendLine(Lang.Get("claims:map_plot_city_name", hovered.cityName));
+                if (hovered.price > 0)
+                {
+                    hoverText.AppendLine(Lang.Get("claims:map_plot_price", hovered.price));
                 }
             }
         }

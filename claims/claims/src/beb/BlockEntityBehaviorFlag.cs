@@ -35,8 +35,14 @@ namespace claims.src.beb
         public string ConflictGuid { get; set; }
         public string PlayerGuid { get; set; }
         public int TimesToBreak { get; set; } = 0;
+        // Purely informational, synced to clients so the block tooltip can explain what is going on
+        // (clients know neither the cities behind the guids nor whether defenders are contesting).
+        public string AttackerName { get; set; } = "";
+        public string DefenderName { get; set; } = "";
+        public bool Contested { get; set; }
         // Last CapturedPercent value pushed to clients — used to throttle MarkDirty network syncs.
         private float lastSyncedPercent = -1f;
+        private bool lastSyncedContested;
         public BlockEntityBehaviorFlag(BlockEntity blockEntity) : base(blockEntity) { }
 
         public override void Initialize(ICoreAPI api, JsonObject properties)
@@ -84,6 +90,39 @@ namespace claims.src.beb
         public override void GetBlockInfo(IPlayer forPlayer, StringBuilder dsc)
         {
             base.GetBlockInfo(forPlayer, dsc);
+
+            bool captureRunning = !string.IsNullOrEmpty(this.AttackerName) || this.TimesToBreak > 0;
+            if (!captureRunning)
+            {
+                // Placed but never activated (no war, wrong plot, ...) - explain what it is for.
+                dsc.AppendLine(Lang.Get("claims:flag-info-idle"));
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(this.AttackerName) && !string.IsNullOrEmpty(this.DefenderName))
+            {
+                dsc.AppendLine(Lang.Get("claims:flag-info-parties", this.AttackerName, this.DefenderName));
+            }
+
+            int percent = (int)(GameMath.Clamp(this.CapturedPercent, 0f, 1f) * 100);
+            float duration = claims.config.FLAG_CAPTURE_DURATION_SECONDS;
+            if (duration <= 0) duration = 1;
+            int secondsLeft = (int)System.Math.Ceiling((1f - GameMath.Clamp(this.CapturedPercent, 0f, 1f)) * duration);
+
+            dsc.AppendLine(this.Contested
+                ? Lang.Get("claims:flag-info-progress-contested", percent)
+                : Lang.Get("claims:flag-info-progress", percent, secondsLeft));
+
+            if (this.TimesToBreak > 0)
+            {
+                dsc.AppendLine(Lang.Get("claims:flag-info-breaks-left", this.TimesToBreak));
+            }
+
+            if (claims.config.WAR_FLAG_DEFENDER_INTERRUPT_ENABLED)
+            {
+                dsc.AppendLine(Lang.Get("claims:flag-info-defender-hint", claims.config.WAR_FLAG_DEFENDER_RADIUS));
+            }
+            dsc.AppendLine(Lang.Get("claims:flag-info-capture-hint"));
         }
         private void Update(float deltaTime)
         {
@@ -113,6 +152,7 @@ namespace claims.src.beb
             if (claims.config.WAR_FLAG_DEFENDER_INTERRUPT_ENABLED) CountContestants(out attackers, out defenders);
             // Defenders contest the flag, but the attackers push through if they outnumber them.
             bool contested = defenders > 0 && attackers <= defenders;
+            this.Contested = contested;
             if (contested)
             {
                 this.CapturedPercent -= (float)claims.config.WAR_FLAG_REGRESS_MULTIPLIER * deltaTime / dur;
@@ -125,11 +165,13 @@ namespace claims.src.beb
 
             // Push the authoritative progress to clients so the capture bar reflects regress too,
             // but throttle: only sync when the bar moved a visible amount or hit zero.
-            if (this.CapturedPercent != progressBefore
+            if ((this.CapturedPercent != progressBefore
                 && (System.Math.Abs(this.CapturedPercent - this.lastSyncedPercent) >= 0.02f
                     || (this.CapturedPercent <= 0f && this.lastSyncedPercent > 0f)))
+                || contested != this.lastSyncedContested)
             {
                 this.lastSyncedPercent = this.CapturedPercent;
+                this.lastSyncedContested = contested;
                 this.Blockentity.MarkDirty();
             }
 
@@ -481,6 +523,8 @@ namespace claims.src.beb
 
                     this.AllianceGuid = playerInfo.HasAlliance() ? playerInfo.Alliance.Guid : null;
                     this.CityGuid = playerInfo.City.Guid;
+                    this.AttackerName = attackerParty.GetPartName();
+                    this.DefenderName = defenderParty.GetPartName();
                     this.ConflictGuid = conflict.Guid;
                     this.PlayerGuid = playerInfo.Guid;
                     this.TimesToBreak = claims.config.FLAG_REINFORCEMENT_AMOUNT;
@@ -551,6 +595,9 @@ namespace claims.src.beb
             }
             this.Banner = tree.GetItemstack("banner");
             this.TimesToBreak = tree.GetInt("TimesToBreak");
+            this.AttackerName = tree.GetString("attackerName", "");
+            this.DefenderName = tree.GetString("defenderName", "");
+            this.Contested = tree.GetBool("contested");
             base.FromTreeAttributes(tree, worldForResolving);
 
         }
@@ -564,6 +611,10 @@ namespace claims.src.beb
             tree.SetFloat("capturedPercent", this.CapturedPercent);
 
             tree.SetInt("TimesToBreak", this.TimesToBreak);
+
+            tree.SetString("attackerName", this.AttackerName ?? "");
+            tree.SetString("defenderName", this.DefenderName ?? "");
+            tree.SetBool("contested", this.Contested);
 
             base.ToTreeAttributes(tree);
 

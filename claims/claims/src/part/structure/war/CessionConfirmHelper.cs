@@ -53,11 +53,7 @@ namespace claims.src.part.structure.war
                 return;
             }
 
-            var cell = new ClientConflictLetterCellElement(winner.GetPartName(), winner.Guid.ToString(),
-                    WarTargetTypeHelper.FromConflictParty(winner),
-                    ownerCity.GetPartName(), ownerCity.Guid.ToString(), WarTargetType.City,
-                    LetterPurpose.CESSION_CONFIRM, expire, guid);
-            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ownerCity, new Dictionary<string, object> { { "value", cell } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_ADD);
+            // The letter itself is mirrored to both sides by ConflictHandler.addConflictLetter
             MessageHandler.sendMsgInCity(ownerCity, Lang.Get("claims:cession_confirm_requested", winner.GetPartName()));
             MessageHandler.SendMsgInAlliance(winner, Lang.Get("claims:cession_confirm_pending", ownerCity.GetPartName()));
         }

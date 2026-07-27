@@ -1,18 +1,13 @@
-﻿using claims.src.beb;
 using Vintagestory.API.Common;
-using Vintagestory.API.MathTools;
 
 namespace claims.src.blocks
 {
-    public class CaptureFlagBlock: Block
+    /// <summary>
+    /// Capture flag. The tooltip text is built by BlockEntityBehaviorFlag.GetBlockInfo, which the
+    /// vanilla Block.GetPlacedBlockInfo already collects from the block entity - this class used to
+    /// override that and return a bare, unlabelled number instead.
+    /// </summary>
+    public class CaptureFlagBlock : Block
     {
-        public override string GetPlacedBlockInfo(IWorldAccessor world, BlockPos pos, IPlayer forPlayer)
-        {
-            if(world.BlockAccessor.GetBlockEntity(pos)?.GetBehavior<BlockEntityBehaviorFlag>() is BlockEntityBehaviorFlag beh)
-            {
-                return beh.TimesToBreak.ToString();
-            }
-            return "";
-        }
     }
 }

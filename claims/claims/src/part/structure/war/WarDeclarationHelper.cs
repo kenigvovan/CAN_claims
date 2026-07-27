@@ -17,7 +17,16 @@ namespace claims.src.part.structure.war
             errorKey = null;
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-            // A refused/expired ultimatum grants a free, justified war against that target — bypass every gate.
+            // Cooling-off period after betraying a union. Checked BEFORE the free-war justification:
+            // otherwise an ultimatum to the ex-ally (refusing it grants a free war) would launder the
+            // betrayal straight past this gate.
+            if (union.UnionBreakHelper.WarCooldownLeft(ourParty, target) > 0)
+            {
+                errorKey = "claims:war_blocked_after_union_break";
+                return false;
+            }
+
+            // A refused/expired ultimatum grants a free, justified war against that target — bypass every other gate.
             if (HasWarJustification(ourParty, target))
             {
                 ConsumeWarJustification(ourParty, target);
@@ -100,6 +109,9 @@ namespace claims.src.part.structure.war
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             foreach (City city in conflict.First.GetCities()) { city.WarCooldowns[conflict.Second.Guid] = now; city.saveToDatabase(); }
             foreach (City city in conflict.Second.GetCities()) { city.WarCooldowns[conflict.First.Guid] = now; city.saveToDatabase(); }
+            // The war ending removes the "our ally is at war with them" reason from everyone's list.
+            CasusBelliHelper.Broadcast(conflict.First);
+            CasusBelliHelper.Broadcast(conflict.Second);
         }
 
         /// <summary>Records a casus-belli grievance (offender killed a citizen of victimCity).</summary>
@@ -108,6 +120,7 @@ namespace claims.src.part.structure.war
             if (victimCity == null || string.IsNullOrEmpty(offenderPartyGuid)) return;
             victimCity.Grievances[offenderPartyGuid] = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             victimCity.saveToDatabase();
+            CasusBelliHelper.BroadcastForCity(victimCity);
         }
 
         /// <summary>True if any of ourParty's cities holds an unexpired free-war justification against target.</summary>
@@ -132,6 +145,7 @@ namespace claims.src.part.structure.war
                 city.WarJustifications[target.Guid] = exp;
                 RecordGrievance(city, target.Guid); // also persists the city (both dicts saved together)
             }
+            CasusBelliHelper.Broadcast(ourParty);
         }
 
         /// <summary>Consumes a free-war justification against target (called once the war is actually declared).</summary>
@@ -139,6 +153,7 @@ namespace claims.src.part.structure.war
         {
             foreach (City city in ourParty.GetCities())
                 if (city.WarJustifications.Remove(target.Guid)) city.saveToDatabase();
+            CasusBelliHelper.Broadcast(ourParty);
         }
     }
 }

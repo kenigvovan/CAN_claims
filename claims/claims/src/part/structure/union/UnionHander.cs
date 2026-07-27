@@ -11,9 +11,38 @@ namespace claims.src.part.structure.union
         static LetterRegistry<UnionLetter> registry = new();
 
         public static void clearAll() => registry.Clear();
-        public static bool addUnionLetter(UnionLetter letter) => registry.Add(letter);
-        public static bool removeUnionLetter(UnionLetter letter) => registry.Remove(letter);
-        public static void updateUnionLetters() => registry.ExpireOverdue();
+        /// <summary>
+        /// Adds a letter. Persisted ones survive a server restart; pass persist:false when the letter
+        /// is being restored from the database (it is already stored there).
+        /// </summary>
+        public static bool addUnionLetter(UnionLetter letter, bool persist = true)
+        {
+            if (letter == null || !registry.Add(letter)) return false;
+            if (persist)
+            {
+                claims.getModInstance()?.getDatabaseHandler()?.saveUnionLetter(letter, update: false);
+                UnionLetterFactory.MirrorToClients(letter);
+            }
+            return true;
+        }
+        public static bool removeUnionLetter(UnionLetter letter)
+        {
+            if (!registry.Remove(letter)) return false;
+            claims.getModInstance()?.getDatabaseHandler()?.deleteUnionLetterByGuid(letter.Guid);
+            return true;
+        }
+        public static void updateUnionLetters()
+        {
+            // ExpireOverdue drops the letter from the registry itself, so the row has to be deleted
+            // here - the OnExpire handler would no longer find it to clean up.
+            long now = auxialiry.TimeFunctions.getEpochSeconds();
+            foreach (var it in registry.Snapshot())
+            {
+                if (it.TimeStampExpire < now)
+                    claims.getModInstance()?.getDatabaseHandler()?.deleteUnionLetterByGuid(it.Guid);
+            }
+            registry.ExpireOverdue();
+        }
         public static bool GuidIsFree(Guid guid) => registry.GuidIsFree(guid.ToString());
 
         public static bool removeUnionLetter(Alliance from, Alliance to)
@@ -23,8 +52,8 @@ namespace claims.src.part.structure.union
                 if ((it.From.Equals(from) && it.To.Equals(to)) ||
                     (it.From.Equals(to) && it.To.Equals(from)))
                 {
-                    registry.Remove(it);
-                    return true;
+                    // Goes through the overload that also drops the stored row.
+                    return removeUnionLetter(it);
                 }
             }
             return false;
@@ -32,6 +61,14 @@ namespace claims.src.part.structure.union
 
         public static bool unionAlreadyExist(Alliance firstSide, Alliance secondSide) =>
             firstSide.ComradAlliancies.Contains(secondSide);
+
+        /// <summary>
+        /// Party-aware union check for the war gates. Unions only exist between alliances, so a party
+        /// that fights as a lone city can never be allied with anyone.
+        /// </summary>
+        public static bool PartiesAreAllied(conflict.IConflictParty first, conflict.IConflictParty second) =>
+            first is Alliance firstAlliance && second is Alliance secondAlliance
+            && unionAlreadyExist(firstAlliance, secondAlliance);
 
         public static List<UnionLetter> GetAllLettersForAlliance(Alliance alliance)
         {

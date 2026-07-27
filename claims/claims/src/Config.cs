@@ -98,6 +98,10 @@ namespace claims.src
         public int FLAG_REINFORCEMENT_AMOUNT = 10;
         public int MINIMUM_DAYS_BETWEEN_BATTLES { get; set; } = 3;
 
+        //WAR - where enemies may build/destroy during an active battle.
+        //Enemy war camps are always breakable regardless of this setting.
+        public WAR_DESTRUCTION WAR_DESTRUCTION_SCOPE = WAR_DESTRUCTION.BORDER_PLOTS;
+
         //WAR - flag capture defender interruption
         public bool WAR_FLAG_DEFENDER_INTERRUPT_ENABLED = true;
         public int WAR_FLAG_DEFENDER_RADIUS = 12;
@@ -122,6 +126,18 @@ namespace claims.src
         public int WAR_CAMP_MIN_DISTANCE_FROM_OTHER_CITY = 2;
         // How many times the anchor block must be broken before the camp is destroyed.
         public int WAR_CAMP_ANCHOR_BREAKS = 5;
+        // Whether camp plots count as city territory for claim distance checks. Camps can be placed
+        // anywhere and vanish with the war, so by default they neither block other players' claims
+        // nor new cities - otherwise camping next to someone would freeze their expansion.
+        public bool WAR_CAMP_PLOTS_BLOCK_CLAIMS = false;
+        // Whether camps are torn down when the battle window closes. False keeps them until the
+        // whole war ends, which leaves an enemy owned plot standing during peacetime.
+        public bool WAR_CAMP_REMOVE_AFTER_BATTLE = true;
+        // Teleport to your city's war camp (/city war camptp). Channelled like a summon: moving
+        // cancels it, and it puts the player on a cooldown afterwards.
+        public bool WAR_CAMP_TP_ENABLED = true;
+        public int WAR_CAMP_TP_CAST_SECONDS = 10;
+        public int WAR_CAMP_TP_COOLDOWN_SECONDS = 300;
 
         //WAR - respawn safe zone (radius + timer after death)
         public bool WAR_RESPAWN_SAFEZONE_ENABLED = true;
@@ -142,8 +158,22 @@ namespace claims.src
 
         //WAR - peace terms / vassalage
         public bool WAR_PEACE_TERMS_ENABLED = true;
+        //Daily tribute owed by a subdued side. By default it is the total for the whole side and
+        //gets split between its cities; set WAR_VASSAL_TRIBUTE_PER_CITY to charge every city in full.
         public double WAR_VASSAL_TRIBUTE = 20;
+        public bool WAR_VASSAL_TRIBUTE_PER_CITY = false;
         public int WAR_VASSAL_DURATION_DAYS = 14;
+
+        //UNION - leaving an alliance union. A one-sided exit is a denunciation: it is announced now
+        //and only takes effect after UNION_BREAK_DELAY_DAYS, during which war on the soon-to-be ex-ally
+        //stays blocked. Both sides can instead agree to dissolve it at once (no delay, no cooldowns).
+        public int UNION_BREAK_DELAY_DAYS = 3;
+        //After a one-sided break took effect: days before war may be declared on the former ally.
+        public int UNION_BREAK_WAR_COOLDOWN_DAYS = 3;
+        //After a one-sided break took effect: days before a union with them may be signed again.
+        public int UNION_REFORM_COOLDOWN_DAYS = 3;
+        //Block leaving a union while both sides share a running conflict (no abandoning an ally mid-war).
+        public bool UNION_BREAK_BLOCKED_IN_SHARED_WAR = true;
 
         //WAR - non-aggression pacts
         public bool WAR_NAP_ENABLED = true;
@@ -156,6 +186,10 @@ namespace claims.src
 
         //WAR - ultimatums (a peacetime demand; refusal/expiry grants a free, justified war)
         public bool WAR_ULTIMATUM_ENABLED = true;
+        //How long the target has to comply, in real hours. Ignoring it counts as a refusal, so this
+        //must be long enough for an offline mayor to log in - the shared letter delay (5 minutes)
+        //would hand out free wars to anyone who happened to be away.
+        public int WAR_ULTIMATUM_EXPIRE_HOURS = 48;
 
         //WAR - bounties / plunder on kill
         public bool WAR_BOUNTY_ENABLED = true;
@@ -454,6 +488,21 @@ namespace claims.src
         public enum CITY_AREA_VISIBILITY
         {
             ALL, WITHOUT_BORDER, WITHOUT_INNER
+        }
+        /// <summary>Which enemy plots a fighter may build on / dig up during an active battle.</summary>
+        public enum WAR_DESTRUCTION
+        {
+            /// <summary>Every plot of the enemy city.</summary>
+            ALL_PLOTS,
+            /// <summary>Plots with a neighbour that is not the same city - unclaimed land counts.
+            /// Note that this is nearly every plot of a normally shaped city.</summary>
+            BORDER_PLOTS,
+            /// <summary>Only plots that actually touch a plot of ANOTHER city.</summary>
+            BORDER_WITH_OTHER_CITY,
+            /// <summary>Only plots that currently have a capture flag planted on them.</summary>
+            FLAG_PLOTS,
+            /// <summary>Flagged plots plus the four plots around them - room to storm in.</summary>
+            FLAG_PLOTS_AND_NEIGHBOURS
         }
     }
 

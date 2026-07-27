@@ -4,10 +4,12 @@ using System.Numerics;
 using claims.src.auxialiry;
 using claims.src.gui.playerGui.structures.cellElements;
 using claims.src.part.structure.conflict;
+using claims.src.part.structure.war;
 using ImGuiNET;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
+using Vintagestory.API.MathTools;
 using Vintagestory.Client.NoObf;
 
 namespace claims.src.gui.prettyGui.GuiTabs
@@ -31,6 +33,64 @@ namespace claims.src.gui.prettyGui.GuiTabs
             return false;
         }
 
+        private string TermText(ClientConflictLetterCellElement letter)
+        {
+            switch (letter.TermType)
+            {
+                case PeaceTermType.Reparations:
+                    return Lang.Get("claims:gui_peace_term_reparations_value", letter.TermAmount);
+                case PeaceTermType.Vassalage:
+                    return Lang.Get("claims:gui_peace_term_vassalage");
+                case PeaceTermType.Cession:
+                    if (!letter.HasCededPlot) return Lang.Get("claims:gui_peace_term_cession");
+                    // Show the map coordinates the player actually sees, not the raw world ones
+                    var local = PosFunctions.TranslateCoordsToLocalVec3d(capi,
+                        new BlockPos(letter.CededPlotBlockX, 0, letter.CededPlotBlockZ));
+                    return Lang.Get("claims:gui_peace_term_cession_at", (int)local.X, (int)local.Z);
+                default:
+                    return Lang.Get("claims:gui_peace_term_none");
+            }
+        }
+
+        /// <summary>Headline of a letter: what accepting it would actually mean.</summary>
+        private static string PurposeText(ClientConflictLetterCellElement letter)
+        {
+            switch (letter.Purpose)
+            {
+                case LetterPurpose.NON_AGGRESSION:
+                    return letter.NapDays > 0
+                        ? Lang.Get("claims:gui_letter_purpose_nap_days", letter.NapDays)
+                        : Lang.Get("claims:gui_letter_purpose_nap");
+                case LetterPurpose.ULTIMATUM:
+                    return Lang.Get("claims:gui_letter_purpose_ultimatum");
+                case LetterPurpose.CESSION_CONFIRM:
+                    return Lang.Get("claims:gui_letter_purpose_cession_confirm");
+                case LetterPurpose.END_CONFLICT:
+                    return Lang.Get("claims:gui_letter_purpose_peace");
+                default:
+                    return Lang.Get("claims:gui_letter_purpose_war");
+            }
+        }
+
+        // Button green is too dark to read as text.
+        private static readonly Vector4 ColPeaceful = new Vector4(0.45f, 0.85f, 0.50f, 1f);
+
+        /// <summary>Red for what starts or threatens a war, calm for what ends or prevents one.</summary>
+        private static Vector4 PurposeColor(LetterPurpose purpose)
+        {
+            switch (purpose)
+            {
+                case LetterPurpose.NON_AGGRESSION:
+                case LetterPurpose.END_CONFLICT:
+                    return ColPeaceful;
+                case LetterPurpose.ULTIMATUM:
+                case LetterPurpose.CESSION_CONFIRM:
+                    return ColWarning;
+                default:
+                    return ColDanger;
+            }
+        }
+
         private bool HasAlliance => claims.clientDataStorage.clientPlayerInfo.AllianceInfo != null;
         private string CmdPrefix => HasAlliance ? "/a conflict " : "/city war ";
         public override void DrawTab()
@@ -48,16 +108,37 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.PushID(i++);
                 ImGui.BeginGroup();
 
-                string fromTypeLabel = letter.FromType == WarTargetType.Alliance
-                    ? Lang.Get("claims:conflict_target_alliance") : Lang.Get("claims:conflict_target_city");
-                string toTypeLabel = letter.ToType == WarTargetType.Alliance
-                    ? Lang.Get("claims:conflict_target_alliance") : Lang.Get("claims:conflict_target_city");
+                // What the letter actually is. Without this line a non-aggression offer, an ultimatum
+                // and a war declaration look identical - the purpose only showed up in button tooltips.
+                ImGui.PushStyleColor(ImGuiCol.Text, PurposeColor(letter.Purpose));
+                ImGui.TextWrapped(PurposeText(letter));
+                ImGui.PopStyleColor();
+
+                string fromTypeLabel = WarTargetTypeHelper.LangLabel(letter.FromType);
+                string toTypeLabel = WarTargetTypeHelper.LangLabel(letter.ToType);
                 ImGui.Text(Lang.Get("claims:gui-conflict-letter-from", letter.From, fromTypeLabel));
                 ImGui.Text(Lang.Get("claims:gui-conflict-letter-to", letter.To, toTypeLabel));
 
                 
                 string expDate = TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(letter.TimeStampExpire, true);
                 ImGui.Text(Lang.Get("claims:gui-conflict-exp-date", expDate));
+
+                // Time left matters most on an ultimatum, where silence counts as a refusal.
+                long secondsLeft = letter.TimeStampExpire - TimeFunctions.getEpochSeconds();
+                if (secondsLeft > 0)
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Text, ColLabel);
+                    ImGui.Text(Lang.Get("claims:gui-conflict-time-left", StringFunctions.FormatDuration(secondsLeft)));
+                    ImGui.PopStyleColor();
+                }
+
+                // Demands of a peace offer / ultimatum - accepting blindly used to be the only option
+                if (letter.TermType != PeaceTermType.None)
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Text, ColWarning);
+                    ImGui.TextWrapped(Lang.Get("claims:gui-conflict-letter-terms", TermText(letter)));
+                    ImGui.PopStyleColor();
+                }
 
                 ImGui.Spacing();
 
@@ -170,6 +251,13 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     GuiSys.secondaryWindowTab = claims.clientDataStorage.clientPlayerInfo.AllianceInfo != null
                         ? EnumSecondaryWindowTab.ALLIANCE_SEND_NAP_OFFER_NEED_NAME
                         : EnumSecondaryWindowTab.CITY_SEND_NAP_OFFER_NEED_NAME;
+            }
+            // An ultimatum is also a peacetime move: comply, or hand the sender a free war.
+            if (claims.config.WAR_ULTIMATUM_ENABLED)
+            {
+                ImGui.SameLine();
+                if (IconButton("newultimatum", "price-tag", 32, Lang.Get("claims:gui-send-new-ultimatum")))
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.SEND_ULTIMATUM;
             }
             /*==============================================================================================*/
             /*=====================================UNDER 2 LINE=============================================*/

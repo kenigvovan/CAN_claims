@@ -23,6 +23,12 @@ namespace claims.src.part.structure
         public City MainCity { get; set; }
         public List<IConflictParty> HostileParties { get; set; } = new List<IConflictParty>();
         public List<Alliance> ComradAlliancies { get; set; } = new List<Alliance>();
+        // Announced one-sided union breaks: ally alliance guid -> unix seconds when the break takes effect.
+        // While the entry is pending the union still holds, so war on that ally stays blocked.
+        public Dictionary<string, long> PendingUnionBreaks { get; set; } = new();
+        // Broken unions: former ally alliance guid -> unix seconds when the break took effect.
+        // Feeds the "no war yet" / "no new union yet" cooldowns.
+        public Dictionary<string, long> UnionBreakCooldowns { get; set; } = new();
         public int AllianceFee { get; set; } = 0;
         public long TimeStampCreated { get; set; }
         public bool Neutral { get; set; } = false;
@@ -119,7 +125,7 @@ namespace claims.src.part.structure
                 StringFunctions.makeFeasibleStringFromNames(StringFunctions.getNamesOfCities(Lang.Get("claims:cities"), Cities), ',') + "\n",
             };
             if (claims.economyProvider.SupportsPlayerWallet)
-                outList.Add(Lang.Get("claims:bank_status") + claims.economyProvider.GetBalance(this.MoneyAccountName) + "\n");
+                outList.Add(Lang.Get("claims:bank_status", claims.economyProvider.GetBalance(this.MoneyAccountName)) + "\n");
             if (this.Neutral)
             {
                 outList.Add(Lang.Get("claims:neutral") + "\n");

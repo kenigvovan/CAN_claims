@@ -350,7 +350,8 @@ namespace claims.src.events
             
             return PlotRelation.STRANGER;
         }
-        private static bool EvalPermission(PlayerInfo playerInfo, Plot plot, PermType permType, bool updateCache, Func<bool> tavernFallback = null)
+        private static bool EvalPermission(PlayerInfo playerInfo, Plot plot, PermType permType, bool updateCache,
+            Func<bool> tavernFallback = null)
         {
             bool b;
             switch (getPlotRelationForPlayerInfo(playerInfo, plot.plotPosition, plot))
@@ -374,8 +375,10 @@ namespace claims.src.events
                     b = plot.getPermsHandler().getPerm(PermGroup.COMRADE, permType);
                     break;
                 case PlotRelation.FOE:
-                    // Enemies may build/destroy on border plots and on enemy war camps during an active war.
-                    b = (plot.BorderPlot || plot.Type == PlotType.CAMP) && IsActiveWarOnPlot(playerInfo, plot);
+                    // Enemy war camps are always attackable; everything else follows WAR_DESTRUCTION_SCOPE.
+                    b = plot.Type == PlotType.CAMP
+                        ? IsActiveWarOnPlot(playerInfo, plot)
+                        : IsPlotInWarDestructionScope(playerInfo, plot);
                     if (updateCache) playerInfo.PlayerCache.getCache()[(int)permType] = b;
                     return b;
                 case PlotRelation.ALLY:
@@ -416,11 +419,89 @@ namespace claims.src.events
         // Handles all combinations: alliance vs alliance, city vs city, city vs alliance.
         private static bool IsActiveWarOnPlot(PlayerInfo playerInfo, Plot plot)
         {
+            return TryGetActiveWarOnPlot(playerInfo, plot, out _);
+        }
+        private static bool TryGetActiveWarOnPlot(PlayerInfo playerInfo, Plot plot, out Conflict conflict)
+        {
+            conflict = null;
             if (!playerInfo.hasCity() || !plot.hasCity()) return false;
             IConflictParty playerParty = playerInfo.HasAlliance() ? (IConflictParty)playerInfo.Alliance : playerInfo.City;
             IConflictParty plotParty   = plot.getCity().HasAlliance() ? (IConflictParty)plot.getCity().Alliance : plot.getCity();
-            return ConflictHandler.TryGetConflictWithSides(playerParty, plotParty, out Conflict conflict) && conflict.ActiveWarTime;
+            return ConflictHandler.TryGetConflictWithSides(playerParty, plotParty, out conflict) && conflict.ActiveWarTime;
         }
+
+        /// <summary>
+        /// Whether an enemy fighter may build/destroy on this plot, according to
+        /// WAR_DESTRUCTION_SCOPE. Enemy war camps are always fair game (handled by the caller).
+        /// </summary>
+        private static bool IsPlotInWarDestructionScope(PlayerInfo playerInfo, Plot plot)
+        {
+            if (!TryGetActiveWarOnPlot(playerInfo, plot, out Conflict conflict)) return false;
+
+            switch (claims.config.WAR_DESTRUCTION_SCOPE)
+            {
+                case Config.WAR_DESTRUCTION.ALL_PLOTS:
+                    return true;
+
+                case Config.WAR_DESTRUCTION.BORDER_PLOTS:
+                    return plot.BorderPlot;
+
+                case Config.WAR_DESTRUCTION.BORDER_WITH_OTHER_CITY:
+                    return TouchesOtherCity(plot);
+
+                case Config.WAR_DESTRUCTION.FLAG_PLOTS:
+                    return HasCaptureFlag(conflict, plot.plotPosition, includeNeighbours: false);
+
+                case Config.WAR_DESTRUCTION.FLAG_PLOTS_AND_NEIGHBOURS:
+                    return HasCaptureFlag(conflict, plot.plotPosition, includeNeighbours: true);
+
+                default:
+                    return plot.BorderPlot;
+            }
+        }
+
+        private static bool TouchesOtherCity(Plot plot)
+        {
+            City ownCity = plot.getCity();
+            if (ownCity == null) return false;
+
+            PlotPosition posTmp = new PlotPosition(0, 0);
+            for (int i = -1; i <= 1; i++)
+            {
+                for (int j = -1; j <= 1; j++)
+                {
+                    if (Math.Abs(i) + Math.Abs(j) != 1) continue;
+                    posTmp.X = plot.plotPosition.X + i;
+                    posTmp.Z = plot.plotPosition.Z + j;
+                    if (!claims.dataStorage.GetPlot(posTmp, out var nearPlot)) continue;
+
+                    City nearCity = nearPlot.getCity();
+                    if (nearCity != null && !nearCity.Equals(ownCity)) return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool HasCaptureFlag(Conflict conflict, PlotPosition plotPos, bool includeNeighbours)
+        {
+            if (!claims.dataStorage.WarsTimes.TryGetValue(conflict.Guid, out var warTime)) return false;
+            if (warTime.PlotAttacks.ContainsKey(plotPos)) return true;
+            if (!includeNeighbours) return false;
+
+            PlotPosition posTmp = new PlotPosition(0, 0);
+            for (int i = -1; i <= 1; i++)
+            {
+                for (int j = -1; j <= 1; j++)
+                {
+                    if (Math.Abs(i) + Math.Abs(j) != 1) continue;
+                    posTmp.X = plotPos.X + i;
+                    posTmp.Z = plotPos.Z + j;
+                    if (warTime.PlotAttacks.ContainsKey(posTmp)) return true;
+                }
+            }
+            return false;
+        }
+
         public static void InitPlayerCache(IServerPlayer byPlayer)
         {
             if (byPlayer.Entity == null) return;

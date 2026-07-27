@@ -1,4 +1,5 @@
 ﻿using claims.src.auxialiry;
+using claims.src.citylog;
 using claims.src.events;
 using claims.src.gui.playerGui.structures;
 using claims.src.messages;
@@ -744,28 +745,69 @@ namespace claims.src.commands
 
             if (playerInfo == null)
             {
+                tcr.Status = EnumCommandStatus.Error;
                 tcr.StatusMessage = "claims:no_such_player";
                 return tcr;
             }
-            if (playerInfo.hasCity())
+
+            // Promoting a citizen of this very city is the common case - only a member of a
+            // DIFFERENT city has to leave that one first.
+            bool alreadyCitizen = playerInfo.hasCity() && playerInfo.City.Equals(city);
+            if (playerInfo.hasCity() && !alreadyCitizen)
             {
+                tcr.Status = EnumCommandStatus.Error;
                 tcr.StatusMessage = "claims:player_has_city";
                 return tcr;
             }
-            city.getPlayerInfos().Add(playerInfo);
-            playerInfo.setCity(city);
-            if (city.HasMayor())
+
+            if (city.isMayor(playerInfo))
             {
-                PlayerInfo tmpPlayer = city.getMayor();
-                city.getMayor().clearCity();
-                city.getPlayerInfos().Remove(tmpPlayer);
-                RightsHandler.reapplyRights(tmpPlayer);
+                tcr.StatusMessage = "claims:player_is_mayor_already";
+                return tcr;
             }
+
+            city.AddLogEntry(EnumCityLogEvent.MayorChanged, playerInfo.GetPartName());
+            city.FireMayorChanged(playerInfo);
+
+            PlayerInfo oldMayor = city.HasMayor() ? city.getMayor() : null;
+            if (oldMayor != null)
+            {
+                // Stepping down from mayor does not kick the player out of the city
+                city.setMayor(null);
+                RightsHandler.reapplyRights(oldMayor);
+            }
+
+            if (!alreadyCitizen)
+            {
+                city.getPlayerInfos().Add(playerInfo);
+                playerInfo.setCity(city);
+            }
+
             city.setMayor(playerInfo);
             RightsHandler.reapplyRights(playerInfo);
+
+            playerInfo.saveToDatabase();
+            oldMayor?.saveToDatabase();
             city.saveToDatabase();
-            UsefullPacketsSend.SendPlayerRelatedInfoOnCityJoined(playerInfo);
-            return tcr;
+
+            if (alreadyCitizen)
+            {
+                UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, EnumPlayerRelatedInfo.PLAYER_PERMISSIONS);
+            }
+            else
+            {
+                UsefullPacketsSend.SendPlayerRelatedInfoOnCityJoined(playerInfo);
+            }
+            if (oldMayor != null)
+            {
+                UsefullPacketsSend.AddToQueuePlayerInfoUpdate(oldMayor.Guid, EnumPlayerRelatedInfo.PLAYER_PERMISSIONS);
+            }
+            // Every citizen has to see the new mayor name, not just the two players involved
+            UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.MAYOR_NAME,
+                EnumPlayerRelatedInfo.CITY_MEMBERS, EnumPlayerRelatedInfo.CITY_LOG);
+
+            MessageHandler.sendMsgInCity(city, Lang.Get("claims:player_now_is_a_mayor", playerInfo.GetPartName()));
+            return SuccessWithParams("claims:player_now_is_a_mayor", new object[] { playerInfo.GetPartName() });
         }
         public static TextCommandResult citySetBonusPlots(TextCommandCallingArgs args)
         {

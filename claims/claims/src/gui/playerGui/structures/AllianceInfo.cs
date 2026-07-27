@@ -13,6 +13,8 @@ namespace claims.src.gui.playerGui.structures
         public string Guid { get; set; }
         public List<string> Hostiles { get; set; } = new();
         public List<string> Allies { get; set; } = new();
+        /// <summary>Announced union breaks: ally name -> unix seconds when the union actually ends.</summary>
+        public Dictionary<string, long> PendingUnionBreaks { get; set; } = new();
         public AllianceInfo(string name, string leaderName, long timeStampCreated, string prefix, List<string> cities, double balance, string guid, List<string> allies)
         {
             Name = name;

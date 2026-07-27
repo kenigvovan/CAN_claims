@@ -6,12 +6,14 @@ using claims.src.clientMapHandling;
 using claims.src.events;
 using claims.src.gui.playerGui.structures;
 using claims.src.gui.playerGui.structures.cellElements;
+using claims.src.messages;
 using claims.src.network.packets;
 using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
 using Newtonsoft.Json;
 using Vintagestory.API.Common;
+using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 using Vintagestory.Server;
 
@@ -123,6 +125,32 @@ namespace claims.src.network.handlers
                     claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo rankRequester);
                     if (rankRequester == null || !rankRequester.hasCity()) return;
                     UsefullPacketsSend.AddToQueuePlayerInfoUpdate(player.PlayerUID, EnumPlayerRelatedInfo.CITY_CITIZENS_RANKS);
+                }
+                else if (packet.type == PacketsContentEnum.CLIENT_SET_RESPAWN_PREFERENCE)
+                {
+                    if (!int.TryParse(packet.data, out int prefValue)) return;
+                    if (!System.Enum.IsDefined(typeof(EnumRespawnPreference), prefValue)) return;
+
+                    EnumRespawnPreference preference = (EnumRespawnPreference)prefValue;
+                    RespawnPreference.Write(player, preference);
+                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:respawn_pref_set",
+                        Lang.Get(RespawnPreference.LangKeyOf(preference))));
+                }
+                else if (packet.type == PacketsContentEnum.CLIENT_CAMP_TELEPORT)
+                {
+                    claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo tpRequester);
+                    if (tpRequester == null) return;
+
+                    string langKey = commands.CityCommand.TryStartCampTeleport(player, tpRequester, out object[] msgParams);
+                    MessageHandler.sendMsgToPlayer(player, msgParams == null
+                        ? Lang.Get(langKey)
+                        : Lang.Get(langKey, msgParams));
+                }
+                else if (packet.type == PacketsContentEnum.CLIENT_REQUEST_CASUS_BELLI)
+                {
+                    claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo cbRequester);
+                    if (cbRequester == null || !cbRequester.hasCity()) return;
+                    UsefullPacketsSend.AddToQueuePlayerInfoUpdate(cbRequester.Guid, EnumPlayerRelatedInfo.CITY_CASUS_BELLI_ALL);
                 }
             });
             claims.serverChannel.SetMessageHandler<PlayerGuiRelatedInfoPacket>((player, packet) =>

@@ -25,12 +25,16 @@ namespace claims.src.part.structure.war
         {
             foreach (City c in a.GetCities()) { c.NonAggressionPacts[b.Guid] = expiry; c.saveToDatabase(); }
             foreach (City c in b.GetCities()) { c.NonAggressionPacts[a.Guid] = expiry; c.saveToDatabase(); }
+            CasusBelliHelper.Broadcast(a);
+            CasusBelliHelper.Broadcast(b);
         }
 
         public static void RemovePact(IConflictParty a, IConflictParty b)
         {
             foreach (City c in a.GetCities()) { if (c.NonAggressionPacts.Remove(b.Guid)) c.saveToDatabase(); }
             foreach (City c in b.GetCities()) { if (c.NonAggressionPacts.Remove(a.Guid)) c.saveToDatabase(); }
+            CasusBelliHelper.Broadcast(a);
+            CasusBelliHelper.Broadcast(b);
         }
     }
 }

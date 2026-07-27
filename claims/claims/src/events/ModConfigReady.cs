@@ -5,6 +5,7 @@ using claims.src.commands;
 using claims.src.gui.playerGui.structures;
 using claims.src.gui.playerGui.structures.cellElements;
 using claims.src.messages;
+using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
 using claims.src.part.structure.war;
@@ -265,6 +266,16 @@ namespace claims.src.events
                             MessageHandler.SendMsgInAlliance(conflict.Second, Lang.Get("claims:battle_ended_with", conflict.First.GetPartName()));
                             MessageHandler.SendDiscoveryToAlliance(conflict.First, "ingamediscovery-battle-end", Lang.Get("claims:ingamediscovery-battle-end", conflict.Second.GetPartName()), new object[] { });
                             MessageHandler.SendDiscoveryToAlliance(conflict.Second, "ingamediscovery-battle-end", Lang.Get("claims:ingamediscovery-battle-end", conflict.First.GetPartName()), new object[] { });
+
+                            // A camp is a battle-time forward base: without this it would survive
+                            // until the whole war ends, leaving an enemy plot sitting in peacetime.
+                            if (claims.config.WAR_CAMP_REMOVE_AFTER_BATTLE)
+                            {
+                                foreach (City campCity in conflict.First.GetCities())
+                                    PartDemolition.DemolishCampsForConflict(campCity, conflict.Guid);
+                                foreach (City campCity in conflict.Second.GetCities())
+                                    PartDemolition.DemolishCampsForConflict(campCity, conflict.Guid);
+                            }
                         }
                         else
                         {

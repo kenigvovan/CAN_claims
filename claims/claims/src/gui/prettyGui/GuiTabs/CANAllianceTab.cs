@@ -104,6 +104,18 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.Spacing();
                 ImGui.Text(Lang.Get("claims:gui-allies-list", string.Join(", ", clientInfo.AllianceInfo.Allies)));
 
+                // Announced union breaks: the union still holds until the timer runs out.
+                long nowSeconds = TimeFunctions.getEpochSeconds();
+                foreach (var pending in clientInfo.AllianceInfo.PendingUnionBreaks)
+                {
+                    if (pending.Value <= nowSeconds) continue;
+                    ImGui.PushStyleColor(ImGuiCol.Text, ColWarning);
+                    ImGui.TextWrapped(Lang.Get("claims:gui-union-break-pending",
+                        StringFunctions.replaceUnderscore(pending.Key),
+                        StringFunctions.FormatDuration(pending.Value - nowSeconds)));
+                    ImGui.PopStyleColor();
+                }
+
                 // --- Bottom navigation ---
                 AlignBottom();
 

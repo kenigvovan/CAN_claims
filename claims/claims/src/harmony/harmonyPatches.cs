@@ -473,17 +473,36 @@ namespace claims.src.harmony
                     City city = playerInfo.City;
                     Vec3i ePos = plr.Entity.Pos.XYZ.AsVec3i;
                     {
-                        List<Vec3i> candidates = new List<Vec3i>();
+                        List<Vec3i> homePoints = new List<Vec3i>();
                         foreach (var rp in city.TempleRespawnPoints.Values)
-                            if (rp != null) candidates.Add(rp);
+                            if (rp != null) homePoints.Add(rp);
                         // During an active war, this city's camps are also valid respawn points.
+                        List<Vec3i> campPoints = new List<Vec3i>();
                         foreach (var camp in city.campPlots)
                         {
                             if (camp.PlotDesc is PlotDescCamp pd
                                 && pd.AnchorPos != null
                                 && ConflictHandler.TryGetConflictByGuid(pd.ConflictGuid, out var campConflict)
                                 && campConflict.ActiveWarTime)
-                                candidates.Add(pd.AnchorPos);
+                                campPoints.Add(pd.AnchorPos);
+                        }
+
+                        // The player's preference only picks WHICH set is searched; if that set is
+                        // empty we still fall back to the other one instead of dropping them at the
+                        // vanilla world spawn.
+                        List<Vec3i> candidates;
+                        switch (RespawnPreference.Read(plr))
+                        {
+                            case EnumRespawnPreference.HOME:
+                                candidates = homePoints.Count > 0 ? homePoints : campPoints;
+                                break;
+                            case EnumRespawnPreference.CAMP:
+                                candidates = campPoints.Count > 0 ? campPoints : homePoints;
+                                break;
+                            default:
+                                candidates = new List<Vec3i>(homePoints);
+                                candidates.AddRange(campPoints);
+                                break;
                         }
                         if (candidates.Count == 0) return false;
 

@@ -12,6 +12,7 @@ using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
 using claims.src.part.structure.plots;
+using claims.src.part.structure.war;
 using Newtonsoft.Json;
 using Vintagestory.API.Server;
 using Vintagestory.API.Util;
@@ -234,6 +235,7 @@ namespace claims.src.auxialiry
                        WAR_NAP_BREAK_PENALTY = claims.config.WAR_NAP_BREAK_PENALTY,
                        WAR_BATTLE_WARN_MINUTES = claims.config.WAR_BATTLE_WARN_MINUTES,
                        WAR_ULTIMATUM_ENABLED = claims.config.WAR_ULTIMATUM_ENABLED,
+                       WAR_ULTIMATUM_EXPIRE_HOURS = claims.config.WAR_ULTIMATUM_EXPIRE_HOURS,
 
                        WAR_RESPAWN_SAFEZONE_ENABLED = claims.config.WAR_RESPAWN_SAFEZONE_ENABLED,
                        WAR_RESPAWN_SAFEZONE_RADIUS = claims.config.WAR_RESPAWN_SAFEZONE_RADIUS,
@@ -587,6 +589,19 @@ namespace claims.src.auxialiry
                 UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, new Dictionary<string, object> { { "value", elToSend } }, EnumPlayerRelatedInfo.CITY_LIST_UPDATE);
             }
         }     
+        /// <summary>Announced union breaks of the city's alliance, keyed by the ally's display name.</summary>
+        private static Dictionary<string, long> BuildPendingUnionBreaks(City city)
+        {
+            var result = new Dictionary<string, long>();
+            if (city == null || !city.HasAlliance()) return result;
+            foreach (var pair in city.Alliance.PendingUnionBreaks)
+            {
+                if (!claims.dataStorage.GetAllianceByGUID(pair.Key, out Alliance other)) continue;
+                result[other.GetPartName()] = pair.Value;
+            }
+            return result;
+        }
+
         private static string SerializeAllianceInfo(string guid)
         {
             if (claims.dataStorage.GetAllianceByGUID(guid, out var alliance))
@@ -650,6 +665,14 @@ namespace claims.src.auxialiry
                             break;
                         case EnumPlayerRelatedInfo.CITY_CRIMINALS_LIST:
                             result[pair.Key] = JsonConvert.SerializeObject(StringFunctions.getNamesOfCriminals(city));
+                            break;
+                        // Built here rather than passed in: it's a full snapshot of the party's state,
+                        // so it must be current at send time, not at queue time.
+                        case EnumPlayerRelatedInfo.CITY_CASUS_BELLI_ALL:
+                            result[pair.Key] = JsonConvert.SerializeObject(CasusBelliHelper.BuildForCity(city));
+                            break;
+                        case EnumPlayerRelatedInfo.ALLIANCE_UNION_BREAKS_ALL:
+                            result[pair.Key] = JsonConvert.SerializeObject(BuildPendingUnionBreaks(city));
                             break;
                         case EnumPlayerRelatedInfo.OWN_ALLIANCE_REMOVE:
                             result[pair.Key] = null;
@@ -761,6 +784,15 @@ namespace claims.src.auxialiry
                             break;
                         case EnumPlayerRelatedInfo.PLAYER_CITY_TITLES:
                             result[pair.Key] = JsonConvert.SerializeObject(playerInfo.getCityTitles());
+                            break;
+                        // Same snapshot as the city queue builds, for pushes addressed to a single player.
+                        case EnumPlayerRelatedInfo.CITY_CASUS_BELLI_ALL:
+                            if (playerInfo.hasCity())
+                                result[pair.Key] = JsonConvert.SerializeObject(CasusBelliHelper.BuildForCity(playerInfo.City));
+                            break;
+                        case EnumPlayerRelatedInfo.ALLIANCE_UNION_BREAKS_ALL:
+                            if (playerInfo.hasCity())
+                                result[pair.Key] = JsonConvert.SerializeObject(BuildPendingUnionBreaks(playerInfo.City));
                             break;
                         case EnumPlayerRelatedInfo.FRIENDS:
                             result[pair.Key] = JsonConvert.SerializeObject(StringFunctions.getNamesOfFriends(playerInfo));

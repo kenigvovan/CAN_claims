@@ -2,6 +2,7 @@
 using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
+using claims.src.part.structure.union;
 
 namespace claims.src.database
 {
@@ -67,6 +68,17 @@ namespace claims.src.database
         abstract public bool deleteFromDatabaseConflict(Conflict conflict);
         abstract public bool saveConflict(Conflict conflict, bool update = true);
 
+        //PENDING CONFLICT LETTERS
+        abstract public bool loadConflictLetters();
+        abstract public bool saveConflictLetter(ConflictLetter letter, bool update = true);
+        abstract public bool deleteFromDatabaseConflictLetter(ConflictLetter letter);
+        abstract public bool deleteConflictLetterByGuid(string guid);
+
+        //PENDING UNION LETTERS
+        abstract public bool loadUnionLetters();
+        abstract public bool saveUnionLetter(UnionLetter letter, bool update = true);
+        abstract public bool deleteUnionLetterByGuid(string guid);
+
         //General
         public bool loadEveryThing()
         {
@@ -83,7 +95,10 @@ namespace claims.src.database
                && loadAllCitis()        
                && loadAllPrisons()
                && loadAllAlliancies()
-               && loadConflicts();              
+               && loadConflicts()
+               // after conflicts: a letter references parties that must already exist
+               && loadConflictLetters()
+               && loadUnionLetters();
         }
         abstract public bool saveEveryThing();
 

@@ -11,6 +11,14 @@
 
         CURRENT_PLOT_INFO, CURRENT_PLOT_CLIENT_REQUEST,
 
-        ADMIN_REQUEST_CITY_FLAGS, ADMIN_CITY_FLAGS_ALL
+        ADMIN_REQUEST_CITY_FLAGS, ADMIN_CITY_FLAGS_ALL,
+
+        // data = (int)EnumRespawnPreference
+        CLIENT_SET_RESPAWN_PREFERENCE,
+        // no data - same effect as /city war camptp
+        CLIENT_CAMP_TELEPORT,
+
+        // no data - asks the server to resend CITY_CASUS_BELLI_ALL for the caller's party
+        CLIENT_REQUEST_CASUS_BELLI
     }
 }

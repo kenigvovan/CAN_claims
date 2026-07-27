@@ -77,6 +77,12 @@
 
         CITY_PLOTS_MAP,
 
+        // Full snapshot of the casus belli our party holds; the server builds it, the client replaces its list.
+        CITY_CASUS_BELLI_ALL,
+
+        // Full snapshot of the announced (not yet effective) union breaks of our alliance.
+        ALLIANCE_UNION_BREAKS_ALL,
+
         PLAYER_BALANCE
     }
 }

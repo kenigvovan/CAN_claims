@@ -91,6 +91,8 @@ namespace claims.src.gui.playerGui.structures
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_REMOVE, OnAllianceConflictRemove);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ALL, OnAllianceConflictAll);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_PLOT_RECOLOR, OnCityPlotRecolor);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_CASUS_BELLI_ALL, OnCityCasusBelliAll);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_UNION_BREAKS_ALL, OnAllianceUnionBreaksAll);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_WARRANGES_UPDATED, OnAllianceConflictWarrangesUpdated);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_SCORE_UPDATED, OnAllianceConflictScoreUpdated);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_WAR_TIME_MARK_START, OnAllianceConflictWarTimeMarkStart);
@@ -678,6 +680,20 @@ namespace claims.src.gui.playerGui.structures
             {
                 this.CityInfo.ClientConflictCellElements.Add(it);
             }
+        }
+        private void OnCityCasusBelliAll(string val)
+        {
+            if (this.CityInfo == null) return;
+            // Full snapshot - replace, never append, or expired reasons would linger.
+            this.CityInfo.ClientCasusBelliCellElements =
+                JsonConvert.DeserializeObject<List<ClientCasusBelliCellElement>>(val) ?? new List<ClientCasusBelliCellElement>();
+        }
+        private void OnAllianceUnionBreaksAll(string val)
+        {
+            if (this.AllianceInfo == null) return;
+            // Full snapshot - replace, so a cancelled break disappears.
+            this.AllianceInfo.PendingUnionBreaks =
+                JsonConvert.DeserializeObject<Dictionary<string, long>>(val) ?? new Dictionary<string, long>();
         }
         private void OnCityPlotRecolor(string val)
         {

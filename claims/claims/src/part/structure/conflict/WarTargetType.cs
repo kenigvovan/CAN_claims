@@ -14,5 +14,12 @@ namespace claims.src.part.structure.conflict
         {
             return party is Alliance ? WarTargetType.Alliance : WarTargetType.City;
         }
+
+        /// <summary>Localized "City" / "Alliance" label used wherever a war target is listed.</summary>
+        public static string LangLabel(WarTargetType type)
+        {
+            return Vintagestory.API.Config.Lang.Get(type == WarTargetType.Alliance
+                ? "claims:conflict_target_alliance" : "claims:conflict_target_city");
+        }
     }
 }

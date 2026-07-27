@@ -2,6 +2,6 @@
 {
     public enum CooldownType
     {
-        SUMMON, PVP_FLAG_UPDATE, RENAMING
+        SUMMON, PVP_FLAG_UPDATE, RENAMING, CAMP_TELEPORT
     }
 }

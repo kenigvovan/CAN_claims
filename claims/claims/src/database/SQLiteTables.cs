@@ -115,7 +115,9 @@
            "hostiles TEXT," +
            "comrades TEXT," +
            "alliancefee INTEGER," +
-           "neutral INTEGER" +
+           "neutral INTEGER," +
+           "pendingunionbreaks TEXT," +
+           "unionbreakcooldowns TEXT" +
            ");";
 
         public static string conflictsTable =
@@ -146,6 +148,36 @@
              "secondkills INTEGER DEFAULT 0," +
              "firstpillaged INTEGER DEFAULT 0," +
              "secondpillaged INTEGER DEFAULT 0" +
+             ");";
+
+        // Pending war/peace/NAP/ultimatum offers. Their accept/deny behaviour is rebuilt from
+        // purpose + terms by ConflictLetterFactory, so only the plain data is stored here.
+        public static string conflictLettersTable =
+             "CREATE TABLE IF NOT EXISTS CONFLICTLETTERS(" +
+             "guid TEXT PRIMARY KEY NOT NULL," +
+             "fromside TEXT," +
+             "fromside_type TEXT DEFAULT 'alliance'," +
+             "toside TEXT," +
+             "toside_type TEXT DEFAULT 'alliance'," +
+             "purpose INTEGER," +
+             "timestampexpire INTEGER DEFAULT 0," +
+             "termtype INTEGER DEFAULT 0," +
+             "termamount INTEGER DEFAULT 0," +
+             "termplotx INTEGER DEFAULT 0," +
+             "termplotz INTEGER DEFAULT 0," +
+             "termhasplot INTEGER DEFAULT 0," +
+             "napdays INTEGER DEFAULT 0" +
+             ");";
+
+        // Pending union offers / mutual-dissolution offers between alliances. Their accept/deny
+        // behaviour is rebuilt from the purpose by UnionLetterFactory.
+        public static string unionLettersTable =
+             "CREATE TABLE IF NOT EXISTS UNIONLETTERS(" +
+             "guid TEXT PRIMARY KEY NOT NULL," +
+             "fromside TEXT," +
+             "toside TEXT," +
+             "purpose INTEGER DEFAULT 0," +
+             "timestampexpire INTEGER DEFAULT 0" +
              ");";
     }
 }

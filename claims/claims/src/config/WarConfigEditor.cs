@@ -146,6 +146,7 @@ namespace claims.src.config
 
             // ultimatums
             { "war_ultimatum_enabled", new BoolSpec(v => C.WAR_ULTIMATUM_ENABLED = v) },
+            { "war_ultimatum_expire_hours", new IntSpec(1, 8760, v => C.WAR_ULTIMATUM_EXPIRE_HOURS = v) },
 
             // bounties / plunder on kill
             { "war_bounty_enabled", new BoolSpec(v => C.WAR_BOUNTY_ENABLED = v) },

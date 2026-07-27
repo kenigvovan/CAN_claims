@@ -259,6 +259,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.Spacing();
             CfgGroup(Lang.Get("claims:gui-admin-warcfg-ultimatum"));
             BoolCfg(Lang.Get("claims:gui-admin-warcfg-ultimatum-enabled"), "war_ultimatum_enabled", claims.config.WAR_ULTIMATUM_ENABLED);
+            IntCfg(Lang.Get("claims:gui-admin-warcfg-ultimatum-hours"), "war_ultimatum_expire_hours");
 
             ImGui.Spacing();
             CfgGroup(Lang.Get("claims:gui-admin-warcfg-bounty"));
@@ -306,6 +307,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             _cfgInts["war_nap_default_days"]        = claims.config.WAR_NAP_DEFAULT_DAYS;
             _cfgInts["war_nap_max_days"]            = claims.config.WAR_NAP_MAX_DAYS;
             _cfgInts["war_battle_warn_minutes"]     = claims.config.WAR_BATTLE_WARN_MINUTES;
+            _cfgInts["war_ultimatum_expire_hours"]  = claims.config.WAR_ULTIMATUM_EXPIRE_HOURS;
 
             _cfgDoubles["flag_regress_mult"] = claims.config.WAR_FLAG_REGRESS_MULTIPLIER;
             _cfgDoubles["pillage_percent"]   = claims.config.WAR_PILLAGE_PERCENT;

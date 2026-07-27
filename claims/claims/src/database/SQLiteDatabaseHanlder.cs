@@ -12,6 +12,8 @@ using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
 using claims.src.part.structure.plots;
+using claims.src.part.structure.union;
+using claims.src.part.structure.war;
 using Microsoft.Data.Sqlite;
 using Newtonsoft.Json;
 using Vintagestory.API.Config;
@@ -125,6 +127,14 @@ namespace claims.src.database
                 command = new SqliteCommand(SQLiteTables.conflictsTable, SqliteConnection);
                 command.ExecuteNonQuery();
 
+                //PENDING CONFLICT LETTERS
+                command = new SqliteCommand(SQLiteTables.conflictLettersTable, SqliteConnection);
+                command.ExecuteNonQuery();
+
+                //PENDING UNION LETTERS
+                command = new SqliteCommand(SQLiteTables.unionLettersTable, SqliteConnection);
+                command.ExecuteNonQuery();
+
                 // Column migrations run unconditionally, not gated by user_version. TryAlterTable is
                 // idempotent (it probes the column first), so re-running costs one cheap SELECT per
                 // column at startup, and it removes a whole class of bugs: a column appended to an
@@ -211,6 +221,11 @@ namespace claims.src.database
                         "ALTER TABLE CITIES ADD COLUMN naps TEXT DEFAULT \"\"");
                     TryAlterTable("SELECT warjustifications FROM CITIES LIMIT 1",
                         "ALTER TABLE CITIES ADD COLUMN warjustifications TEXT DEFAULT \"\"");
+                    // Union denunciations and post-break cooldowns (ALLIANCIES)
+                    TryAlterTable("SELECT pendingunionbreaks FROM ALLIANCIES LIMIT 1",
+                        "ALTER TABLE ALLIANCIES ADD COLUMN pendingunionbreaks TEXT DEFAULT \"\"");
+                    TryAlterTable("SELECT unionbreakcooldowns FROM ALLIANCIES LIMIT 1",
+                        "ALTER TABLE ALLIANCIES ADD COLUMN unionbreakcooldowns TEXT DEFAULT \"\"");
                     // Bounties on players (PLAYERS)
                     TryAlterTable("SELECT bounties FROM PLAYERS LIMIT 1",
                         "ALTER TABLE PLAYERS ADD COLUMN bounties TEXT DEFAULT \"\"");
@@ -229,40 +244,26 @@ namespace claims.src.database
                         "ALTER TABLE CONFLICTS ADD COLUMN secondpillaged INTEGER DEFAULT 0");
         }
 
+        /// <summary>
+        /// Reads a "guid -> unix seconds" column added by a migration. Missing column or empty cell
+        /// means "keep what the object already has", which is what every diplomacy dictionary wants.
+        /// </summary>
+        private static Dictionary<string, long> ReadTimestampDict(DataRow row, string column, Dictionary<string, long> current)
+        {
+            if (!row.Table.Columns.Contains(column)) return current;
+            string raw = row[column].ToString();
+            if (raw.Length == 0) return current;
+            return JsonConvert.DeserializeObject<Dictionary<string, long>>(raw) ?? current;
+        }
+
         public bool updateDatabase(QuerryInfo querry)
         {
             if (this.SqliteConnection.State != System.Data.ConnectionState.Open)
             {
                 SqliteConnection.Open();
             }
-            string querryString = "";
-            switch (querry.targetTable)
-            {
-                case "CITIES":
-                    querryString = QuerryTemplates.UPDATE_CITY;
-                    break;
-                case "PLAYERS":
-                    querryString = QuerryTemplates.UPDATE_PLAYER;
-                    break;
-                case "CITYPLOTSGROUP":
-                    querryString = QuerryTemplates.UPDATE_CITYPLOTGROUP;
-                    break;
-                case "PRISONS":
-                    querryString = QuerryTemplates.UPDATE_PRISON;
-                    break;
-                case "WORLDS":
-                    querryString = QuerryTemplates.UPDATE_WORLD;
-                    break;
-                case "PLOTS":
-                    querryString = QuerryTemplates.UPDATE_PLOT;
-                    break;
-                case "ALLIANCIES":
-                    querryString = QuerryTemplates.UPDATE_ALLIANCE;
-                    break;
-                case "CONFLICTS":
-                    querryString = QuerryTemplates.UPDATE_CONFLICT;
-                    break;
-            }
+            string querryString = QuerryTemplates.ByTable.TryGetValue(querry.targetTable, out var updateStatements)
+                ? updateStatements.Update : "";
 
 
             int rowsChanged;
@@ -288,34 +289,8 @@ namespace claims.src.database
             {
                 SqliteConnection.Open();
             }
-            string querryString = "";
-            switch (querry.targetTable)
-            {
-                case "CITIES":
-                    querryString = QuerryTemplates.DELETE_CITY;
-                    break;
-                case "PLAYERS":
-                    querryString = QuerryTemplates.DELETE_PLAYER;
-                    break;
-                case "CITYPLOTSGROUP":
-                    querryString = QuerryTemplates.DELETE_CITYPLOTGROUP;
-                    break;
-                case "PRISONS":
-                    querryString = QuerryTemplates.DELETE_PRISON;
-                    break;
-                case "WORLDS":
-                    querryString = QuerryTemplates.DELETE_WORLD;
-                    break;
-                case "PLOTS":
-                    querryString = QuerryTemplates.DELETE_PLOT;
-                    break;
-                case "ALLIANCIES":
-                    querryString = QuerryTemplates.DELETE_ALLIANCE;
-                    break;
-                case "CONFLICTS":
-                    querryString = QuerryTemplates.DELETE_CONFLICT;
-                    break;
-            }
+            string querryString = QuerryTemplates.ByTable.TryGetValue(querry.targetTable, out var deleteStatements)
+                ? deleteStatements.Delete : "";
 
 
             int rowsChanged;
@@ -338,34 +313,8 @@ namespace claims.src.database
             {
                 SqliteConnection.Open();
             }
-            string querryString = "";
-            switch (querry.targetTable)
-            {
-                case "CITIES":
-                    querryString = QuerryTemplates.INSERT_CITY;
-                    break;
-                case "PLAYERS":
-                    querryString = QuerryTemplates.INSERT_PLAYER;
-                    break;
-                case "CITYPLOTSGROUP":
-                    querryString = QuerryTemplates.INSERT_CITYPLOTGROUP;
-                    break;
-                case "PRISONS":
-                    querryString = QuerryTemplates.INSERT_PRISON;
-                    break;
-                case "WORLDS":
-                    querryString = QuerryTemplates.INSERT_WORLD;
-                    break;
-                case "PLOTS":
-                    querryString = QuerryTemplates.INSERT_PLOT;
-                    break;
-                case "ALLIANCIES":
-                    querryString = QuerryTemplates.INSERT_ALLIANCE;
-                    break;
-                case "CONFLICTS":
-                    querryString = QuerryTemplates.INSERT_CONFLICT;
-                    break;
-            }
+            string querryString = QuerryTemplates.ByTable.TryGetValue(querry.targetTable, out var insertStatements)
+                ? insertStatements.Insert : "";
 
 
             int rowsChanged;
@@ -758,28 +707,12 @@ namespace claims.src.database
 
             try
             {
-                if (it.Table.Columns.Contains("warcooldowns"))
-                {
-                    string s = it["warcooldowns"].ToString();
-                    if (s.Length != 0) city.WarCooldowns = JsonConvert.DeserializeObject<Dictionary<string, long>>(s) ?? new();
-                }
-                if (it.Table.Columns.Contains("grievances"))
-                {
-                    string s = it["grievances"].ToString();
-                    if (s.Length != 0) city.Grievances = JsonConvert.DeserializeObject<Dictionary<string, long>>(s) ?? new();
-                }
+                city.WarCooldowns = ReadTimestampDict(it, "warcooldowns", city.WarCooldowns);
+                city.Grievances = ReadTimestampDict(it, "grievances", city.Grievances);
                 if (it.Table.Columns.Contains("overlord"))
                     city.OverlordGuid = it["overlord"].ToString();
-                if (it.Table.Columns.Contains("naps"))
-                {
-                    string s = it["naps"].ToString();
-                    if (s.Length != 0) city.NonAggressionPacts = JsonConvert.DeserializeObject<Dictionary<string, long>>(s) ?? new();
-                }
-                if (it.Table.Columns.Contains("warjustifications"))
-                {
-                    string s = it["warjustifications"].ToString();
-                    if (s.Length != 0) city.WarJustifications = JsonConvert.DeserializeObject<Dictionary<string, long>>(s) ?? new();
-                }
+                city.NonAggressionPacts = ReadTimestampDict(it, "naps", city.NonAggressionPacts);
+                city.WarJustifications = ReadTimestampDict(it, "warjustifications", city.WarJustifications);
                 if (it.Table.Columns.Contains("vassalsince") && long.TryParse(it["vassalsince"].ToString(), out long vs))
                     city.VassalSince = vs;
                 if (it.Table.Columns.Contains("vassals"))
@@ -1268,7 +1201,9 @@ namespace claims.src.database
                 { "@alliancefee", alliance.AllianceFee },
                 { "@neutral", alliance.Neutral },
                 { "@prefix", alliance.Prefix },
-                { "@timestampcreated", alliance.TimeStampCreated }
+                { "@timestampcreated", alliance.TimeStampCreated },
+                { "@pendingunionbreaks", JsonConvert.SerializeObject(alliance.PendingUnionBreaks) },
+                { "@unionbreakcooldowns", JsonConvert.SerializeObject(alliance.UnionBreakCooldowns) }
             };
 
             queryQueue.Enqueue(new QuerryInfo("ALLIANCIES", update ? QuerryType.UPDATE : QuerryType.INSERT, tmpDict));
@@ -1338,6 +1273,13 @@ namespace claims.src.database
             alliance.Prefix = it["prefix"].ToString();
             alliance.Leader = alliance.MainCity?.getMayor();
             alliance.TimeStampCreated = long.Parse(it["timestampcreated"].ToString());
+
+            try
+            {
+                alliance.PendingUnionBreaks = ReadTimestampDict(it, "pendingunionbreaks", alliance.PendingUnionBreaks);
+                alliance.UnionBreakCooldowns = ReadTimestampDict(it, "unionbreakcooldowns", alliance.UnionBreakCooldowns);
+            }
+            catch (Exception ex) { claims.sapi.Logger.Warning("[claims] Failed to load union data for '{0}': {1}", alliance.GetPartName(), ex.Message); }
             return true;
         }
 
@@ -1497,6 +1439,189 @@ namespace claims.src.database
             };
 
             queryQueue.Enqueue(new QuerryInfo("CONFLICTS", QuerryType.DELETE, tmpDict));
+            return true;
+        }
+
+        //PENDING CONFLICT LETTERS
+        public override bool saveConflictLetter(ConflictLetter letter, bool update = true)
+        {
+            if (letter == null || !ConflictLetterFactory.IsPersistable(letter.Purpose)) return false;
+
+            PeaceTerms terms = letter.Terms ?? new PeaceTerms();
+            Dictionary<string, object> tmpDict = new Dictionary<string, object> {
+                { "@guid", letter.Guid },
+                { "@fromside", letter.From.Guid },
+                { "@fromside_type", GetPartyType(letter.From) },
+                { "@toside", letter.To.Guid },
+                { "@toside_type", GetPartyType(letter.To) },
+                { "@purpose", (int)letter.Purpose },
+                { "@timestampexpire", letter.TimeStampExpire },
+                { "@termtype", (int)terms.Type },
+                { "@termamount", terms.Amount },
+                { "@termplotx", terms.CededPlot?.X ?? 0 },
+                { "@termplotz", terms.CededPlot?.Z ?? 0 },
+                { "@termhasplot", terms.CededPlot != null ? 1 : 0 },
+                { "@napdays", letter.NapDays }
+            };
+
+            queryQueue.Enqueue(new QuerryInfo("CONFLICTLETTERS", update ? QuerryType.UPDATE : QuerryType.INSERT, tmpDict));
+            return true;
+        }
+        public override bool deleteFromDatabaseConflictLetter(ConflictLetter letter)
+        {
+            return letter != null && deleteConflictLetterByGuid(letter.Guid);
+        }
+        public override bool saveUnionLetter(UnionLetter letter, bool update = true)
+        {
+            if (letter?.From == null || letter.To == null) return false;
+
+            Dictionary<string, object> tmpDict = new Dictionary<string, object> {
+                { "@guid", letter.Guid },
+                { "@fromside", letter.From.Guid },
+                { "@toside", letter.To.Guid },
+                { "@purpose", (int)letter.Purpose },
+                { "@timestampexpire", letter.TimeStampExpire }
+            };
+
+            queryQueue.Enqueue(new QuerryInfo("UNIONLETTERS", update ? QuerryType.UPDATE : QuerryType.INSERT, tmpDict));
+            return true;
+        }
+        public override bool deleteUnionLetterByGuid(string guid)
+        {
+            if (string.IsNullOrEmpty(guid)) return false;
+            queryQueue.Enqueue(new QuerryInfo("UNIONLETTERS", QuerryType.DELETE,
+                new Dictionary<string, object> { { "@guid", guid } }));
+            return true;
+        }
+        public override bool loadUnionLetters()
+        {
+            MessageHandler.sendDebugMsg("Load all UNIONLETTERS.");
+            if (this.SqliteConnection.State != System.Data.ConnectionState.Open)
+            {
+                SqliteConnection.Open();
+            }
+            List<string> staleGuids = new List<string>();
+            try
+            {
+                DataTable dt = readFromDatabase("SELECT * FROM UNIONLETTERS", new Dictionary<string, object> { });
+                foreach (DataRow it in dt.Rows)
+                {
+                    string guid = it["guid"].ToString();
+                    long expire = long.Parse(it["timestampexpire"].ToString());
+                    UnionLetterPurpose purpose = (UnionLetterPurpose)int.Parse(it["purpose"].ToString());
+
+                    if (!claims.dataStorage.GetAllianceByGUID(it["fromside"].ToString(), out Alliance from)
+                        || !claims.dataStorage.GetAllianceByGUID(it["toside"].ToString(), out Alliance to))
+                    {
+                        staleGuids.Add(guid);
+                        continue;
+                    }
+
+                    // A letter whose premise is gone (offering a union that already exists, offering to
+                    // dissolve one that does not) would sit in the GUI doing nothing when answered.
+                    bool allied = UnionHander.unionAlreadyExist(from, to);
+                    if ((purpose == UnionLetterPurpose.Form && allied) ||
+                        (purpose == UnionLetterPurpose.Dissolve && !allied))
+                    {
+                        staleGuids.Add(guid);
+                        continue;
+                    }
+
+                    UnionLetter letter = UnionLetterFactory.Build(from, to, purpose, expire, guid);
+                    if (letter == null || !UnionHander.addUnionLetter(letter, persist: false))
+                    {
+                        staleGuids.Add(guid);
+                    }
+                }
+            }
+            catch (SqliteException e)
+            {
+                MessageHandler.sendErrorMsg("loadUnionLetters::error" + e.Message);
+                return false;
+            }
+
+            foreach (string guid in staleGuids)
+            {
+                queryQueue.Enqueue(new QuerryInfo("UNIONLETTERS", QuerryType.DELETE,
+                    new Dictionary<string, object> { { "@guid", guid } }));
+            }
+            return true;
+        }
+        public override bool deleteConflictLetterByGuid(string guid)
+        {
+            if (string.IsNullOrEmpty(guid)) return false;
+            Dictionary<string, object> tmpDict = new Dictionary<string, object> {
+                { "@guid", guid }
+            };
+
+            queryQueue.Enqueue(new QuerryInfo("CONFLICTLETTERS", QuerryType.DELETE, tmpDict));
+            return true;
+        }
+        public override bool loadConflictLetters()
+        {
+            MessageHandler.sendDebugMsg("Load all CONFLICTLETTERS.");
+            if (this.SqliteConnection.State != System.Data.ConnectionState.Open)
+            {
+                SqliteConnection.Open();
+            }
+            long now = TimeFunctions.getEpochSeconds();
+            List<string> staleGuids = new List<string>();
+            try
+            {
+                DataTable dt = readFromDatabase("SELECT * FROM CONFLICTLETTERS", new Dictionary<string, object> { });
+                foreach (DataRow it in dt.Rows)
+                {
+                    string guid = it["guid"].ToString();
+                    long expire = long.Parse(it["timestampexpire"].ToString());
+                    // Anything that ran out while the server was down is handled by the normal
+                    // expiry path (which fires OnDeny) instead of silently vanishing.
+                    LetterPurpose purpose = (LetterPurpose)int.Parse(it["purpose"].ToString());
+
+                    claims.dataStorage.GetConflictPartyByGuid(it["fromside"].ToString(), it["fromside_type"].ToString(), out IConflictParty from);
+                    claims.dataStorage.GetConflictPartyByGuid(it["toside"].ToString(), it["toside_type"].ToString(), out IConflictParty to);
+                    if (from == null || to == null)
+                    {
+                        staleGuids.Add(guid);
+                        continue;
+                    }
+
+                    // A letter whose premise is gone (peace offer for a finished war, declaration for
+                    // a war that already runs) would sit in the GUI doing nothing when answered.
+                    bool warRuns = ConflictHandler.conflictAlreadyExist(from, to);
+                    if ((purpose == LetterPurpose.END_CONFLICT && !warRuns) ||
+                        (purpose == LetterPurpose.START_CONFLICT && warRuns))
+                    {
+                        staleGuids.Add(guid);
+                        continue;
+                    }
+
+                    PeaceTerms terms = new PeaceTerms((PeaceTermType)int.Parse(it["termtype"].ToString()),
+                                                      long.Parse(it["termamount"].ToString()));
+                    if (int.Parse(it["termhasplot"].ToString()) == 1)
+                    {
+                        terms.CededPlot = new PlotPosition(int.Parse(it["termplotx"].ToString()),
+                                                           int.Parse(it["termplotz"].ToString()));
+                    }
+
+                    ConflictLetter letter = ConflictLetterFactory.Build(from, to, purpose, expire, guid,
+                        terms, int.Parse(it["napdays"].ToString()));
+                    if (letter == null || !ConflictHandler.addConflictLetter(letter, persist: false))
+                    {
+                        staleGuids.Add(guid);
+                    }
+                }
+            }
+            catch (SqliteException e)
+            {
+                MessageHandler.sendErrorMsg("loadConflictLetters::error" + e.Message);
+                return false;
+            }
+
+            foreach (string guid in staleGuids)
+            {
+                queryQueue.Enqueue(new QuerryInfo("CONFLICTLETTERS", QuerryType.DELETE,
+                    new Dictionary<string, object> { { "@guid", guid } }));
+            }
             return true;
         }
     }

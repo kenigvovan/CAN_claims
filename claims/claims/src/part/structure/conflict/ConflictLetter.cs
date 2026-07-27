@@ -10,6 +10,14 @@ namespace claims.src.part.structure.conflict
         public IConflictParty To { get; set; }
         public LetterPurpose Purpose { get; set; }
         public long TimeStampExpire { get; set; }
+        /// <summary>
+        /// Demands attached to the letter (peace offer / ultimatum). Kept here so the recipient can
+        /// see what they are agreeing to - previously the terms only lived inside the OnAccept
+        /// closure and never reached the GUI.
+        /// </summary>
+        public war.PeaceTerms Terms { get; set; }
+        /// <summary>NON_AGGRESSION only: length of the offered pact in days.</summary>
+        public int NapDays { get; set; }
         public Action OnAccept { get; }
         public Action OnDeny { get; }
         public string Guid { get; }

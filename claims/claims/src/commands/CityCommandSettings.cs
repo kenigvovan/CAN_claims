@@ -367,5 +367,21 @@ namespace claims.src.commands
                 return TextCommandResult.Success("claims:only_for_mayor");
             }
         }
+
+        // Chooses where the player wants to reappear after death: nearest point of any kind,
+        // the city's temples, or a war camp of an ongoing battle.
+        public static TextCommandResult SetRespawnPreference(TextCommandCallingArgs args)
+        {
+            if (!TryResolveCaller(args, out var player, out _, out var callerErr)) return callerErr;
+
+            if (!RespawnPreference.TryParse((string)args.LastArg, out EnumRespawnPreference preference))
+            {
+                return TextCommandResult.Success(Lang.Get("claims:wrong_value"));
+            }
+
+            RespawnPreference.Write(player, preference);
+            return SuccessWithParams("claims:respawn_pref_set",
+                new object[] { Lang.Get(RespawnPreference.LangKeyOf(preference)) });
+        }
     }
 }

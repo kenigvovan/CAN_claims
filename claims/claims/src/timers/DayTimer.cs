@@ -320,6 +320,11 @@ namespace claims.src.timers
             double tribute = claims.config.WAR_VASSAL_TRIBUTE;
             long durationSec = (long)claims.config.WAR_VASSAL_DURATION_DAYS * 86400;
             long now = TimeFunctions.getEpochSeconds();
+
+            // Vassalage is imposed on a whole losing side, so a subdued alliance would otherwise pay
+            // the full tribute once per member city. Collect the still-valid vassals first, then
+            // split the tribute per side (overlord + the vassal's alliance).
+            List<City> payingVassals = new List<City>();
             foreach (City vassal in claims.dataStorage.getCitiesList().ToArray())
             {
                 if (!vassal.IsVassal()) continue;
@@ -337,13 +342,36 @@ namespace claims.src.timers
                     MessageHandler.sendMsgInCity(overlord, Lang.Get("claims:vassal_freed", vassal.getPartNameReplaceUnder()));
                     continue;
                 }
-                // Daily tribute vassal -> overlord.
-                if (tribute > 0)
-                {
-                    if (claims.economyProvider.Transfer(vassal.MoneyAccountName, overlord.MoneyAccountName, (decimal)tribute) != MoneyOperationResult.Success)
-                        claims.sapi.Logger.Warning("[claims] Vassal tribute transfer failed: {0} -> {1}", vassal.MoneyAccountName, overlord.MoneyAccountName);
-                }
+                payingVassals.Add(vassal);
             }
+
+            if (tribute <= 0) return;
+
+            // Cities of one alliance under the same overlord form a single paying side; a vassal
+            // without an alliance is a side of its own.
+            Dictionary<string, int> sideSizes = new Dictionary<string, int>();
+            foreach (City vassal in payingVassals)
+            {
+                string sideKey = TributeSideKey(vassal);
+                sideSizes[sideKey] = sideSizes.TryGetValue(sideKey, out int count) ? count + 1 : 1;
+            }
+
+            foreach (City vassal in payingVassals)
+            {
+                City overlord = vassal.GetOverlord();
+                if (overlord == null) continue;
+
+                int sideSize = sideSizes[TributeSideKey(vassal)];
+                decimal share = (decimal)tribute / (claims.config.WAR_VASSAL_TRIBUTE_PER_CITY ? 1 : sideSize);
+                if (share <= 0) continue;
+
+                if (claims.economyProvider.Transfer(vassal.MoneyAccountName, overlord.MoneyAccountName, share) != MoneyOperationResult.Success)
+                    claims.sapi.Logger.Warning("[claims] Vassal tribute transfer failed: {0} -> {1}", vassal.MoneyAccountName, overlord.MoneyAccountName);
+            }
+        }
+        private static string TributeSideKey(City vassal)
+        {
+            return vassal.OverlordGuid + "|" + (vassal.HasAlliance() ? vassal.Alliance.Guid : vassal.Guid);
         }
         public static void ProcessAlliancesCare()
         {

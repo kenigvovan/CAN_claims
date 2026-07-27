@@ -261,7 +261,7 @@ namespace claims.src.commands
             long stamp = CooldownHandler.hasCooldown(playerInfo, CooldownType.SUMMON);
             if (stamp != 0)
             {
-                MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:wait_before") + TimeFunctions.getHourFromEpochSeconds(stamp));
+                MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:wait_before", TimeFunctions.getHourFromEpochSeconds(stamp)));
                 return tcr;
             }
             Plot chosenPlot = null;

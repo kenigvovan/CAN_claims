@@ -1,4 +1,6 @@
-﻿namespace claims.src.database
+﻿using System.Collections.Generic;
+
+namespace claims.src.database
 {
     public static class QuerryTemplates
     {
@@ -10,8 +12,8 @@
 
         //ALLIANCE
         public static readonly string DELETE_ALLIANCE = "DELETE FROM ALLIANCIES WHERE guid=@guid";
-        public static readonly string INSERT_ALLIANCE = "INSERT INTO ALLIANCIES (name, guid,maincity,cities,hostiles,comrades,alliancefee,neutral, prefix, timestampcreated) VALUES (@name, @guid, @maincity, @cities, @hostiles ,@comrades, @alliancefee ,@neutral, @prefix, @timestampcreated)";
-        public static readonly string UPDATE_ALLIANCE = "UPDATE ALLIANCIES SET name=@name, guid=@guid, maincity=@maincity, cities=@cities, hostiles=@hostiles, comrades=@comrades ,alliancefee=@alliancefee ,neutral=@neutral, prefix=@prefix , timestampcreated=@timestampcreated where guid=@guid";
+        public static readonly string INSERT_ALLIANCE = "INSERT INTO ALLIANCIES (name, guid,maincity,cities,hostiles,comrades,alliancefee,neutral, prefix, timestampcreated, pendingunionbreaks, unionbreakcooldowns) VALUES (@name, @guid, @maincity, @cities, @hostiles ,@comrades, @alliancefee ,@neutral, @prefix, @timestampcreated, @pendingunionbreaks, @unionbreakcooldowns)";
+        public static readonly string UPDATE_ALLIANCE = "UPDATE ALLIANCIES SET name=@name, guid=@guid, maincity=@maincity, cities=@cities, hostiles=@hostiles, comrades=@comrades ,alliancefee=@alliancefee ,neutral=@neutral, prefix=@prefix , timestampcreated=@timestampcreated, pendingunionbreaks=@pendingunionbreaks, unionbreakcooldowns=@unionbreakcooldowns where guid=@guid";
 
         //PLAYER
         public static readonly string DELETE_PLAYER = "DELETE FROM PLAYERS WHERE UID=@uid";
@@ -41,8 +43,38 @@
                                                     " where x=@x and z=@z";
 
         //CONFLICT
+        public static readonly string DELETE_UNIONLETTER = "DELETE FROM UNIONLETTERS WHERE guid=@guid";
+        public static readonly string INSERT_UNIONLETTER = "INSERT INTO UNIONLETTERS (guid, fromside, toside, purpose, timestampexpire) VALUES (@guid, @fromside, @toside, @purpose, @timestampexpire)";
+        public static readonly string UPDATE_UNIONLETTER = "UPDATE UNIONLETTERS SET fromside=@fromside, toside=@toside, purpose=@purpose, timestampexpire=@timestampexpire where guid=@guid";
+
+        public static readonly string DELETE_CONFLICTLETTER = "DELETE FROM CONFLICTLETTERS WHERE guid=@guid";
+        public static readonly string INSERT_CONFLICTLETTER = "INSERT INTO CONFLICTLETTERS (guid, fromside, fromside_type, toside, toside_type, purpose, timestampexpire, termtype, termamount, termplotx, termplotz, termhasplot, napdays) VALUES (@guid, @fromside, @fromside_type, @toside, @toside_type, @purpose, @timestampexpire, @termtype, @termamount, @termplotx, @termplotz, @termhasplot, @napdays)";
+        public static readonly string UPDATE_CONFLICTLETTER = "UPDATE CONFLICTLETTERS SET fromside=@fromside, fromside_type=@fromside_type, toside=@toside, toside_type=@toside_type, purpose=@purpose, timestampexpire=@timestampexpire, termtype=@termtype, termamount=@termamount, termplotx=@termplotx, termplotz=@termplotz, termhasplot=@termhasplot, napdays=@napdays where guid=@guid";
+
         public static readonly string DELETE_CONFLICT = "DELETE FROM CONFLICTS WHERE guid=@guid";
         public static readonly string INSERT_CONFLICT = "INSERT INTO CONFLICTS (name, guid, firstside, secondside, conflictstate, startedby, warranges, minimumdaysbetweenbattles, lastbattledatestart, lastbattledateend, timestampstarted, firstwarranges, secondwarranges, nextbattledatestart, nextbattledateend, firstside_type, secondside_type, startedby_type, firstscore, secondscore, firstplotscaptured, secondplotscaptured, firstkills, secondkills, firstpillaged, secondpillaged) VALUES (@name,@guid,@firstside,@secondside,@conflictstate, @startedby, @warranges, @minimumdaysbetweenbattles, @lastbattledatestart, @lastbattledateend, @timestampstarted, @firstwarranges, @secondwarranges, @nextbattledatestart, @nextbattledateend, @firstside_type, @secondside_type, @startedby_type, @firstscore, @secondscore, @firstplotscaptured, @secondplotscaptured, @firstkills, @secondkills, @firstpillaged, @secondpillaged)";
         public static readonly string UPDATE_CONFLICT = "UPDATE CONFLICTS  SET name=@name, guid=@guid, firstside=@firstside, secondside=@secondside, conflictstate=@conflictstate, startedby=@startedby, warranges=@warranges, minimumdaysbetweenbattles=@minimumdaysbetweenbattles, lastbattledatestart=@lastbattledatestart, lastbattledateend=@lastbattledateend, timestampstarted=@timestampstarted, firstwarranges=@firstwarranges, secondwarranges=@secondwarranges, nextbattledatestart=@nextbattledatestart, nextbattledateend=@nextbattledateend, firstside_type=@firstside_type, secondside_type=@secondside_type, startedby_type=@startedby_type, firstscore=@firstscore, secondscore=@secondscore, firstplotscaptured=@firstplotscaptured, secondplotscaptured=@secondplotscaptured, firstkills=@firstkills, secondkills=@secondkills, firstpillaged=@firstpillaged, secondpillaged=@secondpillaged where guid=@guid";
+
+        /// <summary>
+        /// Table name -> its three statements. The insert/update/delete paths all look the row up
+        /// here, so a newly added table cannot be wired into one operation and silently forgotten in
+        /// another (which used to mean a row that saves but never deletes).
+        /// Declared last on purpose: static fields initialise in declaration order, so the statements
+        /// it references must already be assigned.
+        /// </summary>
+        public static readonly IReadOnlyDictionary<string, (string Insert, string Update, string Delete)> ByTable =
+            new Dictionary<string, (string Insert, string Update, string Delete)>
+            {
+                { "CITIES",          (INSERT_CITY,           UPDATE_CITY,           DELETE_CITY) },
+                { "PLAYERS",         (INSERT_PLAYER,         UPDATE_PLAYER,         DELETE_PLAYER) },
+                { "CITYPLOTSGROUP",  (INSERT_CITYPLOTGROUP,  UPDATE_CITYPLOTGROUP,  DELETE_CITYPLOTGROUP) },
+                { "PRISONS",         (INSERT_PRISON,         UPDATE_PRISON,         DELETE_PRISON) },
+                { "WORLDS",          (INSERT_WORLD,          UPDATE_WORLD,          DELETE_WORLD) },
+                { "PLOTS",           (INSERT_PLOT,           UPDATE_PLOT,           DELETE_PLOT) },
+                { "ALLIANCIES",      (INSERT_ALLIANCE,       UPDATE_ALLIANCE,       DELETE_ALLIANCE) },
+                { "CONFLICTS",       (INSERT_CONFLICT,       UPDATE_CONFLICT,       DELETE_CONFLICT) },
+                { "CONFLICTLETTERS", (INSERT_CONFLICTLETTER, UPDATE_CONFLICTLETTER, DELETE_CONFLICTLETTER) },
+                { "UNIONLETTERS",    (INSERT_UNIONLETTER,    UPDATE_UNIONLETTER,    DELETE_UNIONLETTER) },
+            };
     }
 }

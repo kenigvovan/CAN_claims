@@ -38,6 +38,8 @@ namespace claims.src.gui.playerGui.structures
         public List<ClientWarRangeCellElement> ClientWarRangeCellElements { get; set; } = new();
         public List<ClientTwoWarRangesCellElement> ClientTwoWarRangesCellElement { get; set; } = new();
         public List<ClientUnionLetterCellElement> ClientUnionLetterCellElements { get; set; } = new();
+        /// <summary>Casus belli our party holds; a full snapshot pushed by the server.</summary>
+        public List<ClientCasusBelliCellElement> ClientCasusBelliCellElements { get; set; } = new();
         public List<CityLogEntry> EventLog { get; set; } = new List<CityLogEntry>();
         public List<CityPlotMiniInfo> PlotsMap { get; set; } = new List<CityPlotMiniInfo>();
         public CityInfo()

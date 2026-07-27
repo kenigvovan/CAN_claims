@@ -19,6 +19,7 @@ using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
 using claims.src.part.structure.plots;
+using claims.src.part.structure.union;
 using claims.src.part.structure.war;
 using claims.src.perms;
 using claims.src.rights;
@@ -49,24 +50,27 @@ namespace claims.src.commands
 
             City ourCity = playerInfo.City;
             if (ourCity.Neutral)
-                return TextCommandResult.Success(Lang.Get("claims:our_alliance_is_neutral"));
+                return TextCommandResult.Success(Lang.Get("claims:our_city_is_neutral"));
 
             var (parsedName, targetType) = ParseWarTargetInput((string)args.Parsers[0].GetValue());
             string name = Filter.filterName(parsedName);
             if (name.Length == 0 || !Filter.checkForBlockedNames(name))
-                return TextCommandResult.Error(Lang.Get("claims:invalid_alliance_name"));
+                return TextCommandResult.Error(Lang.Get("claims:invalid_war_target_name"));
 
             if (!TryResolveWarTarget(name, targetType, out IConflictParty targetParty, out string errorMsg))
                 return TextCommandResult.Success(errorMsg);
             if (targetParty.Equals(ourCity))
-                return TextCommandResult.Success(Lang.Get("claims:same_alliance"));
+                return TextCommandResult.Success(Lang.Get("claims:same_war_target"));
             if (targetParty.Neutral)
-                return TextCommandResult.Success(Lang.Get("claims:target_alliance_is_neutral"));
+                return TextCommandResult.Success(Lang.Get("claims:target_party_is_neutral"));
             if (ConflictHandler.conflictAlreadyExist(ourCity, targetParty))
                 return TextCommandResult.Success(Lang.Get("claims:conflict_already_exists"));
 
             if (ourCity.IsVassal() && ourCity.OverlordGuid == targetParty.Guid)
                 return TextCommandResult.Success(Lang.Get("claims:cannot_war_overlord"));
+            // Warring an ally would put both sides in HostileCities AND ComradeCities at once.
+            if (UnionHander.PartiesAreAllied(ourCity, targetParty))
+                return TextCommandResult.Success(Lang.Get("claims:war_blocked_by_union"));
             // Check for a duplicate declaration letter BEFORE the gates: the gates withdraw the
             // declaration cost, and a late "duplicate" rejection would eat the money.
             if (claims.config.NEED_AGREE_FOR_CONFLICT
@@ -79,62 +83,12 @@ namespace claims.src.commands
             {
                 long timestamp = TimeFunctions.getEpochSeconds() + claims.config.DELAY_FOR_CONFLICT_ACTIVATED;
                 string newConflictGuid = ConflictLetter.GetUnusedGuid().ToString();
-                if (ConflictHandler.addConflictLetter(new ConflictLetter(ourCity, targetParty, LetterPurpose.START_CONFLICT, timestamp,
-                    () =>
-                    {
-                        if (!ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.START_CONFLICT, out var letter)) return;
-                        Conflict newConflict = new Conflict("", newConflictGuid);
-                        newConflict.First = ourCity;
-                        newConflict.Second = targetParty;
-                        newConflict.StartedBy = ourCity;
-                        newConflict.State = ConflictState.CREATED;
-                        newConflict.TimeStampStarted = TimeFunctions.getEpochSeconds();
-                        newConflict.MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES;
-                        RightsHandler.SetPartiesHostile(ourCity, targetParty, newConflict);
-                        if (targetParty is Alliance targetAllianceForAlly)
-                            RightsHandler.AllianceAllySetHostileOnNewConflictStarted(targetAllianceForAlly, ourCity, newConflict);
-                        claims.dataStorage.TryAddConflict(newConflict);
-                        UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourCity,
-                            new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-                        UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
-                            new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-                        ConflictHandler.removeConflictLetter(letter);
-                        var conflictCellElement = ClientConflictCellElement.FromConflict(newConflict);
-                        UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourCity,
-                            new Dictionary<string, object> { { "value", conflictCellElement } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
-                        UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
-                            new Dictionary<string, object> { { "value", conflictCellElement } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
-                        ourCity.saveToDatabase();
-                        targetParty.saveToDatabase();
-                        newConflict.saveToDatabase(false);
-                        MessageHandler.sendMsgInCity(ourCity, Lang.Get("claims:conflict_created_with", targetParty.GetPartName()));
-                        foreach (var c in targetParty.GetCities())
-                            MessageHandler.sendMsgInCity(c, Lang.Get("claims:conflict_created_with", ourCity.getPartNameReplaceUnder()));
-                    },
-                    () =>
-                    {
-                        if (ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.START_CONFLICT, out var denyLetter))
-                        {
-                            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourCity,
-                                new Dictionary<string, object> { { "value", (denyLetter.Guid, denyLetter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-                            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
-                                new Dictionary<string, object> { { "value", (denyLetter.Guid, denyLetter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-                        }
-                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:conflict_denied"));
-                        ConflictHandler.removeConflictLetter(ourCity, targetParty, LetterPurpose.START_CONFLICT);
-                    },
-                    newConflictGuid)))
+                if (ConflictHandler.addConflictLetter(ConflictLetterFactory.Build(
+                        ourCity, targetParty, LetterPurpose.START_CONFLICT, timestamp, newConflictGuid)))
                 {
-                    ConflictHandler.TryGetConflictLetter(newConflictGuid, out ConflictLetter conflictLetter);
-                    var letterCellElement = new ClientConflictLetterCellElement(conflictLetter.From.GetPartName(), conflictLetter.From.Guid.ToString(),
-                            WarTargetTypeHelper.FromConflictParty(conflictLetter.From),
-                            conflictLetter.To.GetPartName(), conflictLetter.To.Guid.ToString(),
-                            WarTargetTypeHelper.FromConflictParty(conflictLetter.To),
-                            conflictLetter.Purpose, conflictLetter.TimeStampExpire, conflictLetter.Guid);
-                    UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourCity, new Dictionary<string, object> { { "value", letterCellElement } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_ADD);
-                    UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty, new Dictionary<string, object> { { "value", letterCellElement } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_ADD);
+                    // The letter itself is mirrored to both sides by ConflictHandler.addConflictLetter
                     foreach (var c in targetParty.GetCities())
-                        MessageHandler.sendMsgInCity(c, Lang.Get("claims:alliance_has_sent_conflict_letter", ourCity.getPartNameReplaceUnder()));
+                        MessageHandler.sendMsgInCity(c, Lang.Get("claims:city_has_sent_conflict_letter", ourCity.getPartNameReplaceUnder()));
                     return TextCommandResult.Success(Lang.Get("claims:conflict_letter_sent"));
                 }
                 return TextCommandResult.Success(Lang.Get("claims:conflict_letter_is_duplicate"));
@@ -187,41 +141,71 @@ namespace claims.src.commands
             return TextCommandResult.Success(Lang.Get("claims:conflict_declaration_removed", targetParty.GetPartName()));
         }
 
-        public static TextCommandResult AcceptStartCityConflict(TextCommandCallingArgs args)
+        /// <summary>Which war state a letter of this kind may be answered in.</summary>
+        internal enum EnumWarStateRequirement
         {
-            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
+            /// <summary>No check (denying a declaration works whether or not the war already started).</summary>
+            Any,
+            /// <summary>Answering a war declaration: the war must not already be running.</summary>
+            NotAtWar,
+            /// <summary>Answering a peace offer: there has to be a war to end.</summary>
+            AtWar
+        }
+
+        /// <summary>
+        /// Shared tail of every "answer a conflict letter" command: check the war state, find the
+        /// letter, run its handler. The dozen accept/deny commands differ only in purpose, in which
+        /// handler they fire and in this precondition - everything else was copy-pasted.
+        /// </summary>
+        internal static TextCommandResult RespondToConflictLetter(IConflictParty ourParty, IConflictParty targetParty,
+            LetterPurpose purpose, bool accept, EnumWarStateRequirement requirement)
+        {
+            bool atWar = ConflictHandler.conflictAlreadyExist(ourParty, targetParty);
+            if (requirement == EnumWarStateRequirement.NotAtWar && atWar)
+                return TextCommandResult.Success(Lang.Get("claims:conflict_already_exists"));
+            if (requirement == EnumWarStateRequirement.AtWar && !atWar)
+                return TextCommandResult.Success(Lang.Get("claims:no_conflict_found"));
+
+            if (!ConflictHandler.TryGetConflictLetter(ourParty, targetParty, purpose, out var letter))
+                return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
+
+            if (accept) letter.OnAccept?.Invoke();
+            else letter.OnDeny?.Invoke();
+            return TextCommandResult.Success();
+        }
+
+        /// <summary>Answering as a lone city (these subcommands are refused to alliance members).</summary>
+        private static TextCommandResult RespondAsCity(TextCommandCallingArgs args, LetterPurpose purpose,
+            bool accept, EnumWarStateRequirement requirement)
+        {
+            if (!TryResolveCaller(args, out _, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.hasCity() || playerInfo.HasAlliance() || !playerInfo.City.isMayor(playerInfo))
                 return TextCommandResult.Success(Lang.Get("claims:no_city"));
 
-            City ourCity = playerInfo.City;
             var (parsedName, targetType) = ParseWarTargetInput((string)args.Parsers[0].GetValue());
-            string name = Filter.filterName(parsedName);
-            if (!TryResolveWarTarget(name, targetType, out IConflictParty targetParty, out string errorMsg))
+            if (!TryResolveWarTarget(Filter.filterName(parsedName), targetType, out IConflictParty targetParty, out string errorMsg))
                 return TextCommandResult.Success(errorMsg);
-            if (ConflictHandler.conflictAlreadyExist(ourCity, targetParty))
-                return TextCommandResult.Success(Lang.Get("claims:conflict_already_exists"));
-            if (!ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.START_CONFLICT, out var letter))
-                return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
-            letter.OnAccept?.Invoke();
-            return TextCommandResult.Success();
+
+            return RespondToConflictLetter(playerInfo.City, targetParty, purpose, accept, requirement);
         }
+
+        /// <summary>Answering as whichever party the caller fights as (alliance if any, else city).</summary>
+        private static TextCommandResult RespondAsParty(TextCommandCallingArgs args, LetterPurpose purpose, bool accept)
+        {
+            if (!TryResolveMyParty(args, true, out _, out _, out var ourParty, out var err)) return err;
+
+            var (parsedName, targetType) = ParseWarTargetInput((string)args.Parsers[0].GetValue());
+            if (!TryResolveWarTarget(Filter.filterName(parsedName), targetType, out IConflictParty targetParty, out string errorMsg))
+                return TextCommandResult.Success(errorMsg);
+
+            return RespondToConflictLetter(ourParty, targetParty, purpose, accept, EnumWarStateRequirement.Any);
+        }
+
+        public static TextCommandResult AcceptStartCityConflict(TextCommandCallingArgs args)
+            => RespondAsCity(args, LetterPurpose.START_CONFLICT, accept: true, EnumWarStateRequirement.NotAtWar);
 
         public static TextCommandResult DenyStartCityConflict(TextCommandCallingArgs args)
-        {
-            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
-            if (!playerInfo.hasCity() || playerInfo.HasAlliance() || !playerInfo.City.isMayor(playerInfo))
-                return TextCommandResult.Success(Lang.Get("claims:no_city"));
-
-            City ourCity = playerInfo.City;
-            var (parsedName, targetType) = ParseWarTargetInput((string)args.Parsers[0].GetValue());
-            string name = Filter.filterName(parsedName);
-            if (!TryResolveWarTarget(name, targetType, out IConflictParty targetParty, out string errorMsg))
-                return TextCommandResult.Success(errorMsg);
-            if (!ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.START_CONFLICT, out var letter))
-                return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
-            letter.OnDeny?.Invoke();
-            return TextCommandResult.Success();
-        }
+            => RespondAsCity(args, LetterPurpose.START_CONFLICT, accept: false, EnumWarStateRequirement.Any);
 
         public static TextCommandResult OfferStopCityConflict(TextCommandCallingArgs args)
         {
@@ -244,36 +228,12 @@ namespace claims.src.commands
             if (claims.config.NEED_AGREE_FOR_CONFLICT)
             {
                 long timestamp = TimeFunctions.getEpochSeconds() + claims.config.DELAY_FOR_CONFLICT_ACTIVATED;
-                if (ConflictHandler.addConflictLetter(new ConflictLetter(ourCity, targetParty, LetterPurpose.END_CONFLICT, timestamp,
-                    () =>
-                    {
-                        if (!ConflictHandler.TryGetConflictWithSides(ourCity, targetParty, out Conflict c)) return;
-                        if (ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.END_CONFLICT, out var acceptLetter))
-                        {
-                            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourCity,
-                                new Dictionary<string, object> { { "value", (acceptLetter.Guid, acceptLetter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-                            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
-                                new Dictionary<string, object> { { "value", (acceptLetter.Guid, acceptLetter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-                            ConflictHandler.removeConflictLetter(acceptLetter);
-                        }
-                        PartDemolition.DemolishConflict(c);
-                        foreach (var city in targetParty.GetCities())
-                            MessageHandler.sendMsgInCity(city, Lang.Get("claims:conflict_stopped_with", ourCity.getPartNameReplaceUnder()));
-                    },
-                    () =>
-                    {
-                        if (ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.END_CONFLICT, out var denyLetter))
-                        {
-                            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourCity,
-                                new Dictionary<string, object> { { "value", (denyLetter.Guid, denyLetter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-                            UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
-                                new Dictionary<string, object> { { "value", (denyLetter.Guid, denyLetter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-                        }
-                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:conflict_stop_denied"));
-                        ConflictHandler.removeConflictLetter(ourCity, targetParty, LetterPurpose.END_CONFLICT);
-                    },
-                    conflict.Guid)))
+                // Plain "stop the war" offer = peace offer without terms
+                if (ConflictHandler.addConflictLetter(ConflictLetterFactory.Build(
+                        ourCity, targetParty, LetterPurpose.END_CONFLICT, timestamp, conflict.Guid, new PeaceTerms())))
                 {
+                    foreach (var c in targetParty.GetCities())
+                        MessageHandler.sendMsgInCity(c, Lang.Get("claims:city_has_sent_conflict_letter", ourCity.getPartNameReplaceUnder()));
                     return TextCommandResult.Success(Lang.Get("claims:conflict_letter_sent"));
                 }
                 return TextCommandResult.Success(Lang.Get("claims:conflict_letter_is_duplicate"));
@@ -286,42 +246,10 @@ namespace claims.src.commands
         }
 
         public static TextCommandResult AcceptStopCityConflict(TextCommandCallingArgs args)
-        {
-            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
-            if (!playerInfo.hasCity() || playerInfo.HasAlliance() || !playerInfo.City.isMayor(playerInfo))
-                return TextCommandResult.Success(Lang.Get("claims:no_city"));
-
-            City ourCity = playerInfo.City;
-            var (parsedName, targetType) = ParseWarTargetInput((string)args.Parsers[0].GetValue());
-            string name = Filter.filterName(parsedName);
-            if (!TryResolveWarTarget(name, targetType, out IConflictParty targetParty, out string errorMsg))
-                return TextCommandResult.Success(errorMsg);
-            if (!ConflictHandler.conflictAlreadyExist(ourCity, targetParty))
-                return TextCommandResult.Success(Lang.Get("claims:no_conflict_found"));
-            if (!ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.END_CONFLICT, out var letter))
-                return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
-            letter.OnAccept?.Invoke();
-            return TextCommandResult.Success();
-        }
+            => RespondAsCity(args, LetterPurpose.END_CONFLICT, accept: true, EnumWarStateRequirement.AtWar);
 
         public static TextCommandResult DenyStopCityConflict(TextCommandCallingArgs args)
-        {
-            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
-            if (!playerInfo.hasCity() || playerInfo.HasAlliance() || !playerInfo.City.isMayor(playerInfo))
-                return TextCommandResult.Success(Lang.Get("claims:no_city"));
-
-            City ourCity = playerInfo.City;
-            var (parsedName, targetType) = ParseWarTargetInput((string)args.Parsers[0].GetValue());
-            string name = Filter.filterName(parsedName);
-            if (!TryResolveWarTarget(name, targetType, out IConflictParty targetParty, out string errorMsg))
-                return TextCommandResult.Success(errorMsg);
-            if (!ConflictHandler.conflictAlreadyExist(ourCity, targetParty))
-                return TextCommandResult.Success(Lang.Get("claims:no_conflict_found"));
-            if (!ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.END_CONFLICT, out var letter))
-                return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
-            letter.OnDeny?.Invoke();
-            return TextCommandResult.Success();
-        }
+            => RespondAsCity(args, LetterPurpose.END_CONFLICT, accept: false, EnumWarStateRequirement.AtWar);
 
         // Offers peace with terms (white / reparations <amount> / vassalage). Proposer = winner.
         public static TextCommandResult OfferPeaceCityConflict(TextCommandCallingArgs args)
@@ -356,46 +284,11 @@ namespace claims.src.commands
             }
 
             long timestamp = TimeFunctions.getEpochSeconds() + claims.config.DELAY_FOR_CONFLICT_ACTIVATED;
-            if (ConflictHandler.addConflictLetter(new ConflictLetter(ourCity, targetParty, LetterPurpose.END_CONFLICT, timestamp,
-                () =>
-                {
-                    if (!ConflictHandler.TryGetConflictWithSides(ourCity, targetParty, out Conflict c)) return;
-                    if (ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.END_CONFLICT, out var acceptLetter))
-                    {
-                        UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourCity,
-                            new Dictionary<string, object> { { "value", (acceptLetter.Guid, acceptLetter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-                        UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
-                            new Dictionary<string, object> { { "value", (acceptLetter.Guid, acceptLetter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-                        ConflictHandler.removeConflictLetter(acceptLetter);
-                    }
-                    PeaceTermsHelper.ApplyWithConfirm(ourCity, targetParty, terms,
-                        () =>
-                        {
-                            PartDemolition.DemolishConflict(c);
-                            foreach (var city in targetParty.GetCities())
-                                MessageHandler.sendMsgInCity(city, Lang.Get("claims:conflict_stopped_with", ourCity.getPartNameReplaceUnder()));
-                        },
-                        () =>
-                        {
-                            // The owning member refused the plot cession — peace is not concluded, the war continues.
-                            MessageHandler.sendMsgInCity(ourCity, Lang.Get("claims:peace_cession_refused", targetParty.GetPartName()));
-                            MessageHandler.SendMsgInAlliance(targetParty, Lang.Get("claims:peace_cession_refused_them", ourCity.getPartNameReplaceUnder()));
-                        });
-                },
-                () =>
-                {
-                    if (ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.END_CONFLICT, out var denyLetter))
-                    {
-                        UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourCity,
-                            new Dictionary<string, object> { { "value", (denyLetter.Guid, denyLetter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-                        UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
-                            new Dictionary<string, object> { { "value", (denyLetter.Guid, denyLetter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
-                    }
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:conflict_stop_denied"));
-                    ConflictHandler.removeConflictLetter(ourCity, targetParty, LetterPurpose.END_CONFLICT);
-                },
-                conflict.Guid)))
+            if (ConflictHandler.addConflictLetter(ConflictLetterFactory.Build(
+                    ourCity, targetParty, LetterPurpose.END_CONFLICT, timestamp, conflict.Guid, terms)))
             {
+                foreach (var c in targetParty.GetCities())
+                    MessageHandler.sendMsgInCity(c, Lang.Get("claims:city_has_sent_conflict_letter", ourCity.getPartNameReplaceUnder()));
                 return TextCommandResult.Success(Lang.Get("claims:conflict_letter_sent"));
             }
             return TextCommandResult.Success(Lang.Get("claims:conflict_letter_is_duplicate"));
@@ -472,21 +365,34 @@ namespace claims.src.commands
             return TextCommandResult.Success(Lang.Get("claims:you_rebelled"));
         }
 
-        // Lists the parties this city currently has a casus belli against (recent grievances).
+        // Lists the parties our party currently has a casus belli against. Party-aware, so the same
+        // handler serves /city war cb and /alliance conflict cb.
         public static TextCommandResult CasusBelliInfo(TextCommandCallingArgs args)
         {
-            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
-            if (!playerInfo.hasCity()) return TextCommandResult.Success(Lang.Get("claims:no_city"));
-            City city = playerInfo.City;
+            if (!TryResolveMyParty(args, false, out _, out _, out var ourParty, out var err)) return err;
+
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            long grace = (long)claims.config.WAR_CASUS_BELLI_GRACE_DAYS * 86400;
             StringBuilder sb = new StringBuilder();
-            foreach (var kv in city.Grievances)
+            foreach (var cb in CasusBelliHelper.BuildForParty(ourParty))
             {
-                if (now - kv.Value > grace) continue;
-                string name = claims.dataStorage.getCityByGUID(kv.Key, out City c) ? c.GetPartName()
-                    : (claims.dataStorage.GetAllianceByGUID(kv.Key, out Alliance a) ? a.GetPartName() : kv.Key);
-                sb.AppendLine(Lang.Get("claims:cb_against", name));
+                // Entries with no reason exist only to report a cooldown / pact; those belong to
+                // /nap list and the GUI, not to a "who can we justify a war against" listing.
+                if (cb.Kind == CasusBelliKind.None) continue;
+
+                string typeLabel = WarTargetTypeHelper.LangLabel(cb.TargetType);
+                string reason = Lang.Get(cb.Kind switch
+                {
+                    CasusBelliKind.FreeWar => "claims:cb_reason_freewar",
+                    CasusBelliKind.AllyAtWar => "claims:cb_reason_ally",
+                    _ => "claims:cb_reason_grievance"
+                });
+                string name = StringFunctions.replaceUnderscore(cb.TargetName);
+                sb.AppendLine(cb.ExpiresAt > now
+                    ? Lang.Get("claims:cb_against_timed", name, typeLabel, reason,
+                        StringFunctions.FormatDuration(cb.ExpiresAt - now))
+                    : Lang.Get("claims:cb_against_reason", name, typeLabel, reason));
+                if (cb.CooldownUntil > now && cb.Kind != CasusBelliKind.FreeWar)
+                    sb.AppendLine("  " + Lang.Get("claims:gui_war_cooldown_left", StringFunctions.FormatDuration(cb.CooldownUntil - now)));
             }
             if (sb.Length == 0) sb.Append(Lang.Get("claims:cb_none"));
             return TextCommandResult.Success(sb.ToString());
@@ -502,7 +408,7 @@ namespace claims.src.commands
             string name = Filter.filterName(parsedName);
             if (!TryResolveWarTarget(name, targetType, out IConflictParty targetParty, out string errorMsg))
                 return TextCommandResult.Success(errorMsg);
-            if (targetParty.Equals(ourParty)) return TextCommandResult.Success(Lang.Get("claims:same_alliance"));
+            if (targetParty.Equals(ourParty)) return TextCommandResult.Success(Lang.Get("claims:same_war_target"));
             if (ConflictHandler.conflictAlreadyExist(ourParty, targetParty)) return TextCommandResult.Success(Lang.Get("claims:conflict_already_exists"));
             if (NonAggressionHelper.HasActivePact(ourParty, targetParty)) return TextCommandResult.Success(Lang.Get("claims:nap_already_active"));
             if (ConflictHandler.TryGetConflictLetter(ourParty, targetParty, LetterPurpose.NON_AGGRESSION, out _))
@@ -515,33 +421,9 @@ namespace claims.src.commands
 
             long letterExpire = TimeFunctions.getEpochSeconds() + claims.config.DELAY_FOR_CONFLICT_ACTIVATED;
             string napLetterGuid = ConflictLetter.GetUnusedGuid().ToString();
-            if (ConflictHandler.addConflictLetter(new ConflictLetter(ourParty, targetParty, LetterPurpose.NON_AGGRESSION, letterExpire,
-                () =>
-                {
-                    ConflictHandler.removeConflictLetter(ourParty, targetParty, LetterPurpose.NON_AGGRESSION);
-                    SyncLetterRemove(ourParty, targetParty, napLetterGuid, LetterPurpose.NON_AGGRESSION);
-                    if (ConflictHandler.conflictAlreadyExist(ourParty, targetParty)) return; // war started meanwhile
-                    long expiry = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + (long)daysCaptured * 86400;
-                    NonAggressionHelper.RecordPact(ourParty, targetParty, expiry);
-                    MessageHandler.SendMsgInAlliance(ourParty, Lang.Get("claims:nap_signed", targetParty.GetPartName(), daysCaptured));
-                    MessageHandler.SendMsgInAlliance(targetParty, Lang.Get("claims:nap_signed", ourParty.GetPartName(), daysCaptured));
-                },
-                () =>
-                {
-                    ConflictHandler.removeConflictLetter(ourParty, targetParty, LetterPurpose.NON_AGGRESSION);
-                    SyncLetterRemove(ourParty, targetParty, napLetterGuid, LetterPurpose.NON_AGGRESSION);
-                    MessageHandler.SendMsgInAlliance(ourParty, Lang.Get("claims:nap_declined"));
-                },
-                napLetterGuid)))
+            if (ConflictHandler.addConflictLetter(ConflictLetterFactory.Build(
+                    ourParty, targetParty, LetterPurpose.NON_AGGRESSION, letterExpire, napLetterGuid, napDays: daysCaptured)))
             {
-                // Mirror the letter to both parties' clients so it shows in the conflict-letters GUI.
-                var letterCellElement = new ClientConflictLetterCellElement(ourParty.GetPartName(), ourParty.Guid.ToString(),
-                        WarTargetTypeHelper.FromConflictParty(ourParty),
-                        targetParty.GetPartName(), targetParty.Guid.ToString(),
-                        WarTargetTypeHelper.FromConflictParty(targetParty),
-                        LetterPurpose.NON_AGGRESSION, letterExpire, napLetterGuid);
-                UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourParty, new Dictionary<string, object> { { "value", letterCellElement } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_ADD);
-                UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty, new Dictionary<string, object> { { "value", letterCellElement } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_ADD);
                 MessageHandler.SendMsgInAlliance(targetParty, Lang.Get("claims:nap_offered", ourParty.GetPartName(), daysCaptured));
                 return TextCommandResult.Success(Lang.Get("claims:nap_offer_sent"));
             }
@@ -557,28 +439,10 @@ namespace claims.src.commands
         }
 
         public static TextCommandResult NapAccept(TextCommandCallingArgs args)
-        {
-            if (!TryResolveMyParty(args, true, out _, out _, out var ourParty, out var err)) return err;
-            var (parsedName, targetType) = ParseWarTargetInput((string)args.Parsers[0].GetValue());
-            if (!TryResolveWarTarget(Filter.filterName(parsedName), targetType, out IConflictParty targetParty, out string errorMsg))
-                return TextCommandResult.Success(errorMsg);
-            if (!ConflictHandler.TryGetConflictLetter(ourParty, targetParty, LetterPurpose.NON_AGGRESSION, out var letter))
-                return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
-            letter.OnAccept?.Invoke();
-            return TextCommandResult.Success();
-        }
+            => RespondAsParty(args, LetterPurpose.NON_AGGRESSION, accept: true);
 
         public static TextCommandResult NapDeny(TextCommandCallingArgs args)
-        {
-            if (!TryResolveMyParty(args, true, out _, out _, out var ourParty, out var err)) return err;
-            var (parsedName, targetType) = ParseWarTargetInput((string)args.Parsers[0].GetValue());
-            if (!TryResolveWarTarget(Filter.filterName(parsedName), targetType, out IConflictParty targetParty, out string errorMsg))
-                return TextCommandResult.Success(errorMsg);
-            if (!ConflictHandler.TryGetConflictLetter(ourParty, targetParty, LetterPurpose.NON_AGGRESSION, out var letter))
-                return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
-            letter.OnDeny?.Invoke();
-            return TextCommandResult.Success();
-        }
+            => RespondAsParty(args, LetterPurpose.NON_AGGRESSION, accept: false);
 
         public static TextCommandResult NapList(TextCommandCallingArgs args)
         {
@@ -637,7 +501,7 @@ namespace claims.src.commands
             string name = Filter.filterName(parsedName);
             if (!TryResolveWarTarget(name, targetType, out IConflictParty targetParty, out string errorMsg))
                 return TextCommandResult.Success(errorMsg);
-            if (targetParty.Equals(ourParty)) return TextCommandResult.Success(Lang.Get("claims:same_alliance"));
+            if (targetParty.Equals(ourParty)) return TextCommandResult.Success(Lang.Get("claims:same_war_target"));
             if (ConflictHandler.conflictAlreadyExist(ourParty, targetParty)) return TextCommandResult.Success(Lang.Get("claims:conflict_already_exists"));
             if (NonAggressionHelper.HasActivePact(ourParty, targetParty)) return TextCommandResult.Success(Lang.Get("claims:ultimatum_nap_active"));
             if (ConflictHandler.TryGetConflictLetter(ourParty, targetParty, LetterPurpose.ULTIMATUM, out _))
@@ -664,46 +528,13 @@ namespace claims.src.commands
             }
             else return TextCommandResult.Success(Lang.Get("claims:ultimatum_bad_type"));
 
-            long letterExpire = TimeFunctions.getEpochSeconds() + claims.config.DELAY_FOR_CONFLICT_ACTIVATED;
+            // Ultimatums get their own (much longer) window: silence counts as a refusal, so the
+            // 5-minute letter delay would punish the target for simply being offline.
+            long letterExpire = TimeFunctions.getEpochSeconds() + (long)claims.config.WAR_ULTIMATUM_EXPIRE_HOURS * 3600;
             string ultLetterGuid = ConflictLetter.GetUnusedGuid().ToString();
-            if (ConflictHandler.addConflictLetter(new ConflictLetter(ourParty, targetParty, LetterPurpose.ULTIMATUM, letterExpire,
-                () =>
-                {
-                    // Complied: transfer the demand (a member-plot cession may need the owning mayor's co-sign).
-                    ConflictHandler.removeConflictLetter(ourParty, targetParty, LetterPurpose.ULTIMATUM);
-                    SyncLetterRemove(ourParty, targetParty, ultLetterGuid, LetterPurpose.ULTIMATUM);
-                    PeaceTermsHelper.ApplyWithConfirm(ourParty, targetParty, terms,
-                        () =>
-                        {
-                            MessageHandler.SendMsgInAlliance(ourParty, Lang.Get("claims:ultimatum_complied_by", targetParty.GetPartName()));
-                            MessageHandler.SendMsgInAlliance(targetParty, Lang.Get("claims:ultimatum_you_complied", ourParty.GetPartName()));
-                        },
-                        () =>
-                        {
-                            // The owning member refused to cede — the ultimatum is unsatisfied, so the demander gets a free war.
-                            WarDeclarationHelper.RecordWarJustification(ourParty, targetParty);
-                            MessageHandler.SendMsgInAlliance(ourParty, Lang.Get("claims:ultimatum_refused_by", targetParty.GetPartName()));
-                            MessageHandler.SendMsgInAlliance(targetParty, Lang.Get("claims:ultimatum_you_refused", ourParty.GetPartName()));
-                        });
-                },
-                () =>
-                {
-                    // Refused or expired: the demander gets a free, justified war against the target.
-                    ConflictHandler.removeConflictLetter(ourParty, targetParty, LetterPurpose.ULTIMATUM);
-                    SyncLetterRemove(ourParty, targetParty, ultLetterGuid, LetterPurpose.ULTIMATUM);
-                    WarDeclarationHelper.RecordWarJustification(ourParty, targetParty);
-                    MessageHandler.SendMsgInAlliance(ourParty, Lang.Get("claims:ultimatum_refused_by", targetParty.GetPartName()));
-                    MessageHandler.SendMsgInAlliance(targetParty, Lang.Get("claims:ultimatum_you_refused", ourParty.GetPartName()));
-                },
-                ultLetterGuid)))
+            if (ConflictHandler.addConflictLetter(ConflictLetterFactory.Build(
+                    ourParty, targetParty, LetterPurpose.ULTIMATUM, letterExpire, ultLetterGuid, terms)))
             {
-                var letterCellElement = new ClientConflictLetterCellElement(ourParty.GetPartName(), ourParty.Guid.ToString(),
-                        WarTargetTypeHelper.FromConflictParty(ourParty),
-                        targetParty.GetPartName(), targetParty.Guid.ToString(),
-                        WarTargetTypeHelper.FromConflictParty(targetParty),
-                        LetterPurpose.ULTIMATUM, letterExpire, ultLetterGuid);
-                UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourParty, new Dictionary<string, object> { { "value", letterCellElement } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_ADD);
-                UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty, new Dictionary<string, object> { { "value", letterCellElement } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_ADD);
                 MessageHandler.SendMsgInAlliance(targetParty, Lang.Get("claims:ultimatum_received", ourParty.GetPartName(), demandLabel));
                 return TextCommandResult.Success(Lang.Get("claims:ultimatum_sent", demandLabel, targetParty.GetPartName()));
             }
@@ -711,28 +542,10 @@ namespace claims.src.commands
         }
 
         public static TextCommandResult UltimatumAccept(TextCommandCallingArgs args)
-        {
-            if (!TryResolveMyParty(args, true, out _, out _, out var ourParty, out var err)) return err;
-            var (parsedName, targetType) = ParseWarTargetInput((string)args.Parsers[0].GetValue());
-            if (!TryResolveWarTarget(Filter.filterName(parsedName), targetType, out IConflictParty targetParty, out string errorMsg))
-                return TextCommandResult.Success(errorMsg);
-            if (!ConflictHandler.TryGetConflictLetter(ourParty, targetParty, LetterPurpose.ULTIMATUM, out var letter))
-                return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
-            letter.OnAccept?.Invoke();
-            return TextCommandResult.Success();
-        }
+            => RespondAsParty(args, LetterPurpose.ULTIMATUM, accept: true);
 
         public static TextCommandResult UltimatumDeny(TextCommandCallingArgs args)
-        {
-            if (!TryResolveMyParty(args, true, out _, out _, out var ourParty, out var err)) return err;
-            var (parsedName, targetType) = ParseWarTargetInput((string)args.Parsers[0].GetValue());
-            if (!TryResolveWarTarget(Filter.filterName(parsedName), targetType, out IConflictParty targetParty, out string errorMsg))
-                return TextCommandResult.Success(errorMsg);
-            if (!ConflictHandler.TryGetConflictLetter(ourParty, targetParty, LetterPurpose.ULTIMATUM, out var letter))
-                return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
-            letter.OnDeny?.Invoke();
-            return TextCommandResult.Success();
-        }
+            => RespondAsParty(args, LetterPurpose.ULTIMATUM, accept: false);
 
         // Lists the free-war justifications this party holds from refused/expired ultimatums.
         public static TextCommandResult UltimatumList(TextCommandCallingArgs args)
@@ -757,33 +570,28 @@ namespace claims.src.commands
         }
 
         // The owning mayor confirms/refuses an alliance leader's decision to cede this city's plot (peace/ultimatum co-sign).
-        public static TextCommandResult CessionAccept(TextCommandCallingArgs args)
+        /// <summary>
+        /// Answering as the mayor of a city, alliance or not - the member co-sign on a plot cession is
+        /// addressed to the owning mayor personally, not to the party that negotiates the peace.
+        /// </summary>
+        private static TextCommandResult RespondAsMayor(TextCommandCallingArgs args, LetterPurpose purpose, bool accept)
         {
             if (!TryResolveCaller(args, out _, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.hasCity() || !playerInfo.City.isMayor(playerInfo))
                 return TextCommandResult.Success(Lang.Get("claims:you_are_not_mayor"));
+
             var (parsedName, targetType) = ParseWarTargetInput((string)args.Parsers[0].GetValue());
             if (!TryResolveWarTarget(Filter.filterName(parsedName), targetType, out IConflictParty winnerParty, out string errorMsg))
                 return TextCommandResult.Success(errorMsg);
-            if (!ConflictHandler.TryGetConflictLetter(playerInfo.City, winnerParty, LetterPurpose.CESSION_CONFIRM, out var letter))
-                return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
-            letter.OnAccept?.Invoke();
-            return TextCommandResult.Success();
+
+            return RespondToConflictLetter(playerInfo.City, winnerParty, purpose, accept, EnumWarStateRequirement.Any);
         }
 
+        public static TextCommandResult CessionAccept(TextCommandCallingArgs args)
+            => RespondAsMayor(args, LetterPurpose.CESSION_CONFIRM, accept: true);
+
         public static TextCommandResult CessionDeny(TextCommandCallingArgs args)
-        {
-            if (!TryResolveCaller(args, out _, out var playerInfo, out var callerErr)) return callerErr;
-            if (!playerInfo.hasCity() || !playerInfo.City.isMayor(playerInfo))
-                return TextCommandResult.Success(Lang.Get("claims:you_are_not_mayor"));
-            var (parsedName, targetType) = ParseWarTargetInput((string)args.Parsers[0].GetValue());
-            if (!TryResolveWarTarget(Filter.filterName(parsedName), targetType, out IConflictParty winnerParty, out string errorMsg))
-                return TextCommandResult.Success(errorMsg);
-            if (!ConflictHandler.TryGetConflictLetter(playerInfo.City, winnerParty, LetterPurpose.CESSION_CONFIRM, out var letter))
-                return TextCommandResult.Success(Lang.Get("claims:conflict_letter_doesnt_exist"));
-            letter.OnDeny?.Invoke();
-            return TextCommandResult.Success();
-        }
+            => RespondAsMayor(args, LetterPurpose.CESSION_CONFIRM, accept: false);
 
         // Claims the plot the mayor stands on as a war camp for the current active battle window.
         public static TextCommandResult ClaimCamp(TextCommandCallingArgs args)
@@ -857,6 +665,15 @@ namespace claims.src.commands
             city.saveToDatabase();
             camp.saveToDatabase();
             claims.serverPlayerMovementListener.markPlotToWasReUpdated(camp.getPos());
+
+            // Without this event the players subscribed to the zone never get the ADD_SINGLE_PLOT
+            // packet, so the camp stays invisible on their map until they re-enter the zone.
+            TreeAttribute claimedTree = new TreeAttribute();
+            claimedTree.SetInt("chX", camp.getPos().X);
+            claimedTree.SetInt("chZ", camp.getPos().Y);
+            claimedTree.SetString("name", city.GetPartName());
+            claims.sapi.World.Api.Event.PushEvent("plotclaimed", claimedTree);
+
             UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CLAIMED_PLOTS);
             city.FirePlotsMapChanged(EnumPlotsMapChangeReason.Claimed);
             camp.CheckBorderPlotValue();
@@ -877,6 +694,67 @@ namespace claims.src.commands
 
             PartDemolition.DemolishCamp(plot);
             return TextCommandResult.Success(Lang.Get("claims:camp_removed"));
+        }
+
+        // Channelled teleport to the own city's war camp of an active conflict. Moving cancels it
+        // (same handling as a summon), finishing puts the player on WAR_CAMP_TP_COOLDOWN_SECONDS.
+        public static TextCommandResult CampTeleport(TextCommandCallingArgs args)
+        {
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
+
+            string langKey = TryStartCampTeleport(player, playerInfo, out object[] msgParams);
+            return msgParams == null
+                ? TextCommandResult.Success(Lang.Get(langKey))
+                : SuccessWithParams(langKey, msgParams);
+        }
+
+        /// <summary>
+        /// Shared by the command and the GUI button. Returns the lang key describing the outcome.
+        /// </summary>
+        public static string TryStartCampTeleport(IServerPlayer player, PlayerInfo playerInfo, out object[] msgParams)
+        {
+            msgParams = null;
+            if (!claims.config.WAR_CAMP_ENABLED || !claims.config.WAR_CAMP_TP_ENABLED)
+                return "claims:camp_tp_disabled";
+            if (player?.Entity == null || playerInfo == null || !playerInfo.hasCity())
+                return "claims:no_city";
+
+            long cooldownUntil = CooldownHandler.hasCooldown(playerInfo, CooldownType.CAMP_TELEPORT);
+            if (cooldownUntil > 0)
+            {
+                msgParams = new object[] { cooldownUntil - TimeFunctions.getEpochSeconds() };
+                return "claims:camp_tp_cooldown";
+            }
+            if (TeleportationHandler.hasTeleportation(playerInfo))
+                return "claims:already_awaits_teleportation";
+
+            // Only camps of a conflict that is currently in its battle window are reachable
+            Vec3i target = null;
+            double nearest = double.MaxValue;
+            Vec3i playerPos = player.Entity.Pos.XYZ.AsVec3i;
+            foreach (Plot camp in playerInfo.City.campPlots)
+            {
+                if (camp.PlotDesc is not PlotDescCamp campDesc || campDesc.AnchorPos == null) continue;
+                if (!ConflictHandler.TryGetConflictByGuid(campDesc.ConflictGuid, out Conflict campConflict)) continue;
+                if (!campConflict.ActiveWarTime) continue;
+
+                double dist = campDesc.AnchorPos.DistanceTo(playerPos);
+                if (dist < nearest)
+                {
+                    nearest = dist;
+                    target = campDesc.AnchorPos;
+                }
+            }
+            if (target == null)
+                return "claims:camp_tp_no_camp";
+
+            TeleportationHandler.addTeleportation(new TeleportationInfo(playerInfo,
+                new Vec3d(target.X, target.Y + 1, target.Z), true,
+                TimeFunctions.getEpochSeconds() + claims.config.WAR_CAMP_TP_CAST_SECONDS,
+                CooldownType.CAMP_TELEPORT, claims.config.WAR_CAMP_TP_COOLDOWN_SECONDS));
+
+            msgParams = new object[] { claims.config.WAR_CAMP_TP_CAST_SECONDS };
+            return "claims:camp_tp_started";
         }
     }
 }

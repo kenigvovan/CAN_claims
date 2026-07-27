@@ -59,6 +59,7 @@ namespace claims.src.timers
             {
                 ConflictHandler.updateConflictLetters();
                 UnionHander.updateUnionLetters();
+                UnionBreakHelper.ApplyDueBreaks();
             }
             ), 300);
         }

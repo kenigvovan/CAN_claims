@@ -155,7 +155,7 @@ namespace claims.src.commands
             city.AddLogEntry(EnumCityLogEvent.CitizenKicked, targetPlayer.GetPartName());
             city.FireCitizenLeft(targetPlayer, EnumCityLeaveReason.Kicked);
             MessageHandler.sendMsgInCity(city, Lang.Get("claims:player_was_kicked", targetPlayer.GetPartName()));
-            MessageHandler.sendMsgToPlayerInfo(targetPlayer, Lang.Get("claims:you_were_kicked_from_city"));
+            MessageHandler.sendMsgToPlayerInfo(targetPlayer, Lang.Get("claims:you_were_kicked_from_city", city.getPartNameReplaceUnder()));
             targetPlayer.clearCity();
             TreeAttribute tree = new();
             tree.SetString("cityname", city.GetPartName());
