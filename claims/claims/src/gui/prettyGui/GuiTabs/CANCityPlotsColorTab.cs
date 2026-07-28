@@ -102,11 +102,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
                 if (GreenButton(Lang.Get("claims:gui-color-apply")))
                 {
-                    ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                    clientEventManager.TriggerNewClientChatLine(
-                        GlobalConstants.CurrentChatGroup,
-                        "/city set colorint " + colors[selectedColorIndex],
-                        EnumChatType.Macro, "");
+                    SendCommand("/city set colorint " + colors[selectedColorIndex]);
                     selectedColorIndex = -1;
                 }
             }

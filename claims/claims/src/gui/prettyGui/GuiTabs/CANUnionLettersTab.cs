@@ -52,9 +52,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 {
                     if (GreenIconButton("acceptunion", "check-mark", 16))
                     {
-                        ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-
-                        clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/a union accept " + letter.From, EnumChatType.Macro, "");
+                        SendCommand("/a union accept " + letter.From);
 
                         var cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientUnionLetterCellElements.FirstOrDefault(c => c.From == letter.From);
                         if (cell != null)
@@ -72,8 +70,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     {
                         targetName = letter.To;
                     }
-                    ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                    clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/a union decline " + letter.To, EnumChatType.Macro, "");
+                    SendCommand("/a union decline " + letter.To);
                     var cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientUnionLetterCellElements.FirstOrDefault(c => c.Guid == letter.Guid);
                     if (cell != null)
                     {

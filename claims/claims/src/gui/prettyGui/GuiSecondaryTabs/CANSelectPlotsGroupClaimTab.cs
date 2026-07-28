@@ -35,9 +35,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             ImGui.Text(Lang.Get(TitleString, cell.Name));
             if (ImGui.Button(Lang.Get(ButtonString)))
             {
-                ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup,
-                   this.CommandCallOnClick + " " + cell.Name, EnumChatType.Macro, "");
+                SendCommand(this.CommandCallOnClick + " " + cell.Name);
                 GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.NONE;
             }
             ImGui.End();

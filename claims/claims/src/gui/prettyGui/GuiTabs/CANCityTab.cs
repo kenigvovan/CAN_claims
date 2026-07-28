@@ -276,8 +276,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
                         if (GreenButton(Lang.Get("claims:gui-city-tab-accept")))
                         {
-                            ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                            clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/accept " + invite.CityName, EnumChatType.Macro, "");
+                            SendCommand("/accept " + invite.CityName);
                             toRemove.Add(invite);
                         }
 
@@ -285,8 +284,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
                         if (RedButton(Lang.Get("claims:gui-city-tab-decline")))
                         {
-                            ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                            clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/deny " + invite.CityName, EnumChatType.Macro, "");
+                            SendCommand("/deny " + invite.CityName);
                             toRemove.Add(invite);
                         }
 

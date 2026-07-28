@@ -29,8 +29,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
 
             if(ImGui.Button(Lang.Get("claims:gui-agree-button")))
             {
-                ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/agree", EnumChatType.Macro, "");
+                SendCommand("/agree");
                 GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.NONE;
                 GuiSys.textInput = "";
             }

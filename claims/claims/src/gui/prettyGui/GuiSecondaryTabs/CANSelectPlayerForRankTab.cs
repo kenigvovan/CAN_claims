@@ -39,12 +39,10 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
 
             if (ImGui.Button(Lang.Get(YesButtonString)))
             {
-                ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                 GuiSys.textInput2 = claims.clientDataStorage.clientPlayerInfo.CityInfo.PlayersNames[GuiSys.selectedComboFirst];
                 string rankName = GuiSys.textInput;
                 string playerName = GuiSys.textInput2;
-                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, this.CommandToCallOnYes + " " +
-                    rankName + " " + playerName, EnumChatType.Macro, "");
+                SendCommand(this.CommandToCallOnYes + " " + rankName + " " + playerName);
                 // Optimistic local update
                 if (claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.CITY_SET_RANK))
                 {

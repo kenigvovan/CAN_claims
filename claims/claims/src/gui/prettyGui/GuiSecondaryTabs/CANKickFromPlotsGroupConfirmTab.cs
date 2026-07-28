@@ -37,10 +37,8 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
 
             if (ImGui.Button(Lang.Get(ButtonString, GuiSys.textInput, GuiSys.textInput2)))
             {
-                ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                 string memberToKick = GuiSys.textInput2;
-                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup,
-                   string.Format("/c plotsgroup kick {0} {1}", cell.Name, memberToKick), EnumChatType.Macro, "");
+                SendCommand(string.Format("/c plotsgroup kick {0} {1}", cell.Name, memberToKick));
                 // Optimistic local update
                 if (claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.CITY_PLOTSGROUP_KICK_PLAYER))
                 {

@@ -34,9 +34,8 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             
             if(ImGui.Button((Lang.Get(ButtonString))))
             {
-                ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                 string inputValue = GuiSys.textInput;
-                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, CommandCallOnClick + inputValue, EnumChatType.Macro, "");
+                SendCommand(CommandCallOnClick + inputValue);
                 // Optimistic local updates
                 var perms = claims.clientDataStorage.clientPlayerInfo.PlayerPermissions;
                 if (CommandCallOnClick.StartsWith("/city criminal add ")

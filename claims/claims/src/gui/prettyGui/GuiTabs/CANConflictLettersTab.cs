@@ -1,16 +1,14 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using claims.src.auxialiry;
+﻿using claims.src.auxialiry;
 using claims.src.gui.playerGui.structures.cellElements;
 using claims.src.part.structure.conflict;
 using claims.src.part.structure.war;
 using ImGuiNET;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
 using Vintagestory.API.Client;
-using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
-using Vintagestory.Client.NoObf;
 
 namespace claims.src.gui.prettyGui.GuiTabs
 {
@@ -164,7 +162,6 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
                     if (IconButton("cancel", "peace-dove", 32, cancelTooltip))
                     {
-                        ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                         string cmd = CmdPrefix;
                         string macro;
                         if (letter.Purpose == LetterPurpose.START_CONFLICT)
@@ -177,7 +174,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                             macro = "/city war cession deny " + letter.From; // city-mayor action even for an allianced member
                         else
                             macro = cmd + "denystop " + (isAttacker ? letter.To : letter.From);
-                        clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, macro, EnumChatType.Macro, "");
+                        SendCommand(macro);
                         var cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientConflictLetterCellElements.FirstOrDefault(c => c.Guid == letter.Guid);
                         if (cell != null) toRemove.Add(cell);
                     }
@@ -200,7 +197,6 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     string acceptIcon = (letter.Purpose == LetterPurpose.NON_AGGRESSION || letter.Purpose == LetterPurpose.ULTIMATUM || letter.Purpose == LetterPurpose.CESSION_CONFIRM) ? "peace-dove" : "sword-brandish";
                     if (IconButton("acceptconflict", acceptIcon, 32, acceptTooltip))
                     {
-                        ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                         string cmd = CmdPrefix;
                         string macro;
                         if (letter.Purpose == LetterPurpose.START_CONFLICT)
@@ -213,7 +209,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                             macro = "/city war cession accept " + letter.From; // city-mayor action even for an allianced member
                         else
                             macro = cmd + "acceptstop " + letter.From;
-                        clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, macro, EnumChatType.Macro, "");
+                        SendCommand(macro);
                         var cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientConflictLetterCellElements.FirstOrDefault(c => c.Guid == letter.Guid);
                         if (cell != null) toRemove.Add(cell);
                     }

@@ -270,99 +270,72 @@ namespace claims.src.auxialiry
                    }
                    , player);
         }
+        /// <summary>
+        /// Merges a payload into one of the delayed-info collectors. The city and the player queue used
+        /// to carry two hand-copied versions of this; they differ only in whether a list value is stored
+        /// as one entry or unpacked into entries.
+        /// </summary>
+        private static void EnqueueInfo(
+            ConcurrentDictionary<string, Dictionary<EnumPlayerRelatedInfo, Dictionary<string, List<object>>>> collector,
+            string key, Dictionary<string, object> additionalInfo, EnumPlayerRelatedInfo toUpdate, bool unpackLists)
+        {
+            // field name -> the values collected for it since the last send
+            Dictionary<string, List<object>> build(Dictionary<string, object> info) => info.ToDictionary(
+                k => k.Key,
+                k => unpackLists && k.Value is System.Collections.IList list
+                        ? list.Cast<object>().ToList()
+                        : new List<object> { k.Value });
+
+            if (collector.TryGetValue(key, out var byEnum))
+            {
+                // Such enum was queued before - just add the new values to it.
+                if (byEnum.TryGetValue(toUpdate, out var storedValues) && storedValues != null)
+                {
+                    foreach (var pair in additionalInfo)
+                    {
+                        if (!storedValues.TryGetValue(pair.Key, out var values)) continue;
+                        if (unpackLists && pair.Value is List<object> listValue) values.AddRange(listValue);
+                        else values.Add(pair.Value);
+                    }
+                }
+                else
+                {
+                    byEnum[toUpdate] = build(additionalInfo);
+                }
+            }
+            else
+            {
+                collector.TryAdd(key,
+                    new Dictionary<EnumPlayerRelatedInfo, Dictionary<string, List<object>>> { { toUpdate, build(additionalInfo) } });
+            }
+        }
+
+        /// <summary>Queues enums with no payload: the sender rebuilds their value at send time.</summary>
+        private static void EnqueueInfo(
+            ConcurrentDictionary<string, Dictionary<EnumPlayerRelatedInfo, Dictionary<string, List<object>>>> collector,
+            string key, EnumPlayerRelatedInfo[] toUpdate)
+        {
+            if (collector.TryGetValue(key, out var byEnum))
+            {
+                foreach (var it in toUpdate) byEnum.TryAdd(it, null);
+            }
+            else
+            {
+                collector.TryAdd(key, toUpdate.ToDictionary(k => k, k => (Dictionary<string, List<object>>)null));
+            }
+        }
+
         public static void AddToQueueCityInfoUpdate(string cityName, Dictionary<string, object> additionalInfo, EnumPlayerRelatedInfo toUpdate)
-        {
-            if (cityDelayedInfoCollector.TryGetValue(cityName, out Dictionary<EnumPlayerRelatedInfo, Dictionary<string, List<object>>> cityHashSet))
-            {
-                //such enum was added before, just add new additional info to it
-                if (cityHashSet.TryGetValue(toUpdate, out var already_stored_dict))
-                {
-                    foreach (var value_pair in additionalInfo)
-                    {
-                        if (already_stored_dict.TryGetValue(value_pair.Key, out var inner_value))
-                        {
-                            inner_value.Add(value_pair.Value);
-                        }
-                    }
-                }
-                else
-                {
-                    cityHashSet.Add(toUpdate, additionalInfo.ToDictionary(k => k.Key, k => new List<object> { k.Value }));
-                }                
-            }
-            else
-            {               
-                    cityDelayedInfoCollector.TryAdd(cityName,
-                        new Dictionary<EnumPlayerRelatedInfo, Dictionary<string, List<object>>> { { toUpdate, additionalInfo.ToDictionary(k => k.Key, k => new List<object> { k.Value }) } });
-            }
-        }
+            => EnqueueInfo(cityDelayedInfoCollector, cityName, additionalInfo, toUpdate, unpackLists: false);
+
         public static void AddToQueueCityInfoUpdate(string cityName, params EnumPlayerRelatedInfo[] toUpdate)
-        {
-            if (cityDelayedInfoCollector.TryGetValue(cityName, out Dictionary<EnumPlayerRelatedInfo, Dictionary<string, List<object>>> cityHashSet))
-            {               
-                foreach (var it in toUpdate)
-                {
-                    cityHashSet.TryAdd(it, null);
-                }
-            }
-            else
-            {
-                cityDelayedInfoCollector.TryAdd(cityName, toUpdate.ToDictionary(k => k, k => (Dictionary<string, List<object>>)null));
-            }
-        }
+            => EnqueueInfo(cityDelayedInfoCollector, cityName, toUpdate);
+
         public static void AddToQueuePlayerInfoUpdate(string playerName, Dictionary<string, object> additionalInfo, EnumPlayerRelatedInfo toUpdate)
-        {
-            if (playerDelayedInfoCollector.TryGetValue(playerName, out Dictionary<EnumPlayerRelatedInfo, Dictionary<string, List<object>>> playerHashSet))
-            {
-                //such enum was added before, just add new additional info to it
-                if (playerHashSet.TryGetValue(toUpdate, out var already_stored_dict))
-                {
-                    foreach (var value_pair in additionalInfo)
-                    {
-                        if (already_stored_dict.TryGetValue(value_pair.Key, out var inner_value))
-                        {
-                            if(value_pair.Value is List<object> listValue)
-                            {
-                                inner_value.AddRange(listValue);
-                            }
-                            else
-                            {
-                                inner_value.Add(value_pair.Value);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    playerHashSet.Add(toUpdate, additionalInfo.ToDictionary(k => k.Key,
-                                                                            k => k.Value is System.Collections.IList list
-                                                                                    ? list.Cast<object>().ToList()
-                                                                                    : new List<object> { k.Value }));
-                }
-            }
-            else
-            {
-                playerDelayedInfoCollector.TryAdd(playerName,
-                    new Dictionary<EnumPlayerRelatedInfo, Dictionary<string, List<object>>> { { toUpdate, additionalInfo.ToDictionary(k => k.Key, k => new List<object> { k.Value }) } });
-            }
-        }
+            => EnqueueInfo(playerDelayedInfoCollector, playerName, additionalInfo, toUpdate, unpackLists: true);
+
         public static void AddToQueuePlayerInfoUpdate(string playerName, params EnumPlayerRelatedInfo[] toUpdate)
-        {
-            if (playerDelayedInfoCollector.TryGetValue(playerName, out Dictionary<EnumPlayerRelatedInfo, Dictionary<string, List<object>>> playerHashSet))
-            {
-                foreach (var it in toUpdate)
-                {
-                    if (!playerHashSet.ContainsKey(it))
-                    {
-                        playerHashSet.Add(it, null);
-                    }
-                }
-            }
-            else
-            {
-                playerDelayedInfoCollector.TryAdd(playerName, toUpdate.ToDictionary(k => k, k => (Dictionary<string, List<object>>)null));
-            }
-        }
+            => EnqueueInfo(playerDelayedInfoCollector, playerName, toUpdate);
         public static void AddToQueueAllPlayersInfoUpdate(Dictionary<string, object> additionalInfo, EnumPlayerRelatedInfo toUpdate)
         {
             foreach(var pl in claims.sapi.World.AllOnlinePlayers)

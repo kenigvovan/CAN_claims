@@ -40,8 +40,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             {
                 string prefix = selectedTargetType == 0 ? "city:" : "alliance:";
                 string command = baseCommand + prefix + GuiSys.textInput;
-                ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, command, EnumChatType.Macro, "");
+                SendCommand(command);
                 GuiSys.textInput = "";
                 GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.NONE;
             }

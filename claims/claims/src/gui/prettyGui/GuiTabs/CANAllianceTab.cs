@@ -169,8 +169,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
                         if (GreenButton(Lang.Get("claims:gui-city-tab-accept")))
                         {
-                            ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                            clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/c inviteaccept " + invite.AllianceName, EnumChatType.Macro, "");
+                            SendCommand("/c inviteaccept " + invite.AllianceName);
                             var cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientToAllianceInvitations.FirstOrDefault(c => c.AllianceName == invite.AllianceName);
                             if (cell != null)
                             {

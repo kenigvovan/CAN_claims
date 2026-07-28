@@ -88,8 +88,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
 
             if (selectedTerm == 1) command += " " + reparationsAmount;
 
-            ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-            clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, command, EnumChatType.Macro, "");
+            SendCommand(command);
         }
     }
 }

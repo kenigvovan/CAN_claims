@@ -90,8 +90,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SameLine();
                 if (IconButton("addprisoncell", "pencil", 15, Lang.Get("claims:gui-plot-add-prison-cell-tooltip")))
                 {
-                    ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                    clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/c prison addcell", EnumChatType.Macro, "");
+                    SendCommand("/c prison addcell");
                 }
             }
             else if (clientInfo.CurrentPlotInfo.PlotType == PlotType.SUMMON && perms.HasPermission(rights.EnumPlayerPermissions.CITY_SET_SUMMON))
@@ -99,8 +98,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SameLine();
                 if (IconButton("setsummonpoint", "pencil", 15, Lang.Get("claims:gui-plot-set-summon-tooltip")))
                 {
-                    ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                    clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/c summon set point", EnumChatType.Macro, "");
+                    SendCommand("/c summon set point");
                 }
             }
 
@@ -132,8 +130,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SameLine();
                 if (RedIconButton("plotnfs", "contract", 15, Lang.Get("claims:gui-plot-not-for-sale-tooltip")))
                 {
-                    ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                    clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/plot nfs", EnumChatType.Macro, "");
+                    SendCommand("/plot nfs");
                     // Optimistic local update
                     clientInfo.CurrentPlotInfo.Price = -1;
                 }
@@ -157,14 +154,12 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.SameLine();
             if (GreenIconButton("showplotborders", "medal", 15, Lang.Get("claims:gui-plot-show-borders-tooltip")))
             {
-                ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/plot borders on", EnumChatType.Macro, "");
+                SendCommand("/plot borders on");
             }
             ImGui.SameLine();
             if (RedIconButton("hideplotborders", "medal", 15, Lang.Get("claims:gui-plot-hide-borders-tooltip")))
             {
-                ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/plot borders off", EnumChatType.Macro, "");
+                SendCommand("/plot borders off");
             }
         }
     }

@@ -40,8 +40,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                 if (claims.clientDataStorage.clientPlayerInfo.CityInfo.PlayersNames.Count > GuiSys.selectedComboFirst)
                 {
                     string playerName = claims.clientDataStorage.clientPlayerInfo.CityInfo.PlayersNames[GuiSys.selectedComboFirst];
-                    ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                    clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, this.CommandCallOnClick + playerName, EnumChatType.Macro, "");
+                    SendCommand(this.CommandCallOnClick + playerName);
                     // Optimistic local update
                     claims.clientDataStorage.clientPlayerInfo.Friends.Remove(playerName);
                     GuiSys.textInput = "";

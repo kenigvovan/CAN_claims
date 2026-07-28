@@ -481,7 +481,8 @@ namespace claims.src
             clientDataStorage = null;
             playerCityInfo = null;
             movementClaimGui = null;
-            config = null;    
+            gui.ClientChat.Reset();
+            config = null;
         }
 
         /*==============================================================================================*/

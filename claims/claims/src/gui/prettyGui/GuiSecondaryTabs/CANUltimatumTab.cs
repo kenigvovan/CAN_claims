@@ -97,8 +97,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                 : $"/city war ultimatum offer {target} ";
             command += selectedDemand == 0 ? "money " + demandAmount : "plot";
 
-            ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-            clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, command, EnumChatType.Macro, "");
+            SendCommand(command);
         }
     }
 }

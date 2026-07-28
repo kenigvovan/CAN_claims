@@ -46,8 +46,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                 if (availableTypes.Count > GuiSys.selectedComboFirst)
                 {
                     string playerName = availableTypes[GuiSys.selectedComboFirst];
-                    ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                    clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, this.CommandCallOnClick + playerName, EnumChatType.Macro, "");
+                    SendCommand(this.CommandCallOnClick + playerName);
                     // Optimistic local update
                     if ((claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_TYPE)
                         || claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS))

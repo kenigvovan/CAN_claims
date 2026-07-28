@@ -53,9 +53,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
                     if (GreenIconButton("acceptplotsgroup", "expander", 16, Lang.Get("claims:gui-plotsgroup-accept-tooltip")))
                     {
-                        ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                        clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/plotsgroupaccept "
-                            + invite.CityName + " " + invite.PlotsGroupName, EnumChatType.Macro, "");
+                        SendCommand("/plotsgroupaccept " + invite.CityName + " " + invite.PlotsGroupName);
                         var cell = claims.clientDataStorage.clientPlayerInfo.ReceivedPlotsGroupInvitations.FirstOrDefault(c => c.CityName == invite.CityName && c.PlotsGroupName == invite.PlotsGroupName);
                         if (cell != null)
                         {
@@ -66,9 +64,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     ImGui.SameLine();
                     if (RedIconButton("declineplotsgroup", "contract", 16, Lang.Get("claims:gui-plotsgroup-decline-tooltip")))
                     {
-                        ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                        clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/plotsgroupdeny "
-                            + invite.CityName + " " + invite.PlotsGroupName, EnumChatType.Macro, "");
+                        SendCommand("/plotsgroupdeny " + invite.CityName + " " + invite.PlotsGroupName);
                         var cell = claims.clientDataStorage.clientPlayerInfo.ReceivedPlotsGroupInvitations.FirstOrDefault(c => c.CityName == invite.CityName && c.PlotsGroupName == invite.PlotsGroupName);
                         if (cell != null)
                         {

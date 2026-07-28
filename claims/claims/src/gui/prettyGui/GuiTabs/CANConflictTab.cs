@@ -209,8 +209,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     {
                         string command = (HasAlliance ? "/a conflict declare " : "/city war declare ")
                             + (cb.TargetType == WarTargetType.Alliance ? "alliance:" : "city:") + cb.TargetName;
-                        ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                        clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, command, EnumChatType.Macro, "");
+                        SendCommand(command);
                     }
                 }
 
