@@ -49,8 +49,8 @@ namespace claims.src.harmony
         public static void ApplyClientPatches(Harmony harmonyInstance, string harmonyID)
         {
             harmonyInstance = new Harmony(harmonyID);
-            TryPatch(harmonyInstance, typeof(Vintagestory.Common.PlayerInventoryManager).GetMethod("DropMouseSlotItems"),
-                "PlayerInventoryManager.DropMouseSlotItems", prefix: "Prefix_DropMouseSlotItems");
+            // No client patches at present. DropMouseSlotItems used to be patched for an ImGui
+            // inventory grid that was never wired up, so the prefix always fell through.
         }
         public static void ApplyServerPatches(Harmony harmonyInstance, string harmonyID)
         {

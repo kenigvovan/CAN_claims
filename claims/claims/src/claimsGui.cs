@@ -21,10 +21,6 @@ namespace claims.src
         public static LoadedTexture myTex = null;
         public static int active_button = 0;
         public static int svgid = 0;
-        public static bool showBalanceHud = false;
-        public static bool showBountyBoard = false;
-        public static List<BountyBoardEntry> BountyBoard = new List<BountyBoardEntry>();
-        public static bool showWarHud = true;
         private ImGuiModSystem imguiSys;
         private IconHandler iconHandler;
         private TabDrawHandler tabDrawHandler;
@@ -53,8 +49,6 @@ namespace claims.src
         private bool _isAdmin = false;
         private bool _adminChecked = false;
         private bool _adminPanelVisible = true;
-        public Dictionary<string, AdminCityFlagsItem> AdminCityFlags { get; } = new Dictionary<string, AdminCityFlagsItem>();
-        public AdminWorldFlags AdminWorldState { get; set; }
 
         private static readonly string[] AdminTabIcons    = { "queen-crown", "highlighter", "sword-brandish", "soldering-iron" };
         private static readonly string[] AdminTabTooltips = { "Admin: World Settings", "Admin: Cities", "Admin: War", "Admin: Player & Plot" };
@@ -75,122 +69,15 @@ namespace claims.src
             iconHandler = new IconHandler(api);
             imageHandler = new ImageHandler(api);
             secondaryTabDrawHandler = new SecondaryTabDrawHandler(api, iconHandler);
-            if (claims.config?.BalanceHudOverride.HasValue == true)
-                showBalanceHud = claims.config.BalanceHudOverride.Value;
-            api.ChatCommands.Create("claimshud")
-                .WithDescription("Toggle balance HUD")
-                .HandleWith(args =>
-                {
-                    showBalanceHud = !showBalanceHud;
-                    claims.config.BalanceHudOverride = showBalanceHud;
-                    // Load the file first so we only update BalanceHudOverride,
-                    // not overwrite server settings with the client's in-memory copy
-                    var savedCfg = api.LoadModConfig<Config>("claims.json") ?? new Config();
-                    savedCfg.BalanceHudOverride = showBalanceHud;
-                    api.StoreModConfig(savedCfg, "claims.json");
-                    return TextCommandResult.Success("Balance HUD: " + (showBalanceHud ? "on" : "off"));
-                });
-            api.ChatCommands.Create("bounties")
-                .WithDescription("Toggle the bounty board")
-                .HandleWith(args =>
-                {
-                    showBountyBoard = !showBountyBoard;
-                    return TextCommandResult.Success("Bounty board: " + (showBountyBoard ? "on" : "off"));
-                });
-            api.ChatCommands.Create("warhud")
-                .WithDescription("Toggle the war HUD")
-                .HandleWith(args =>
-                {
-                    showWarHud = !showWarHud;
-                    return TextCommandResult.Success("War HUD: " + (showWarHud ? "on" : "off"));
-                });
+            // The HUD toggles (/claimshud, /bounties, /warhud) and the stored balance preference are
+            // registered by the main mod system, so they outlive this front-end.
             api.Event.LevelFinalize += () =>
             {
                 tabDrawHandler = new TabDrawHandler(api, iconHandler);
+                // Only the main window is drawn here: the three HUD panels are their own dialogs now
+                // and would otherwise be on screen twice.
                 api.ModLoader.GetModSystem<ImGuiModSystem>().Draw += Draw;
-                api.ModLoader.GetModSystem<ImGuiModSystem>().Draw += DrawBalanceHUD;
-                api.ModLoader.GetModSystem<ImGuiModSystem>().Draw += DrawBountyBoard;
-                api.ModLoader.GetModSystem<ImGuiModSystem>().Draw += DrawWarHUD;
             };
-        }
-
-        private CallbackGUIStatus DrawWarHUD(float deltaSeconds)
-        {
-            if (!showWarHud || claims.config?.WAR_HUD_ENABLED != true)
-                return CallbackGUIStatus.DontGrabMouse;
-            var conflicts = claims.clientDataStorage?.clientPlayerInfo?.CityInfo?.ClientConflictCellElements;
-            if (conflicts == null)
-                return CallbackGUIStatus.DontGrabMouse;
-            var active = conflicts.Where(c => c.ActiveWarTime).ToList();
-            if (active.Count == 0)
-                return CallbackGUIStatus.DontGrabMouse;
-
-            var io = ImGui.GetIO();
-            ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, 40), ImGuiCond.FirstUseEver);
-            ImGui.SetNextWindowBgAlpha(0.8f);
-            ImGui.Begin("##warhud",
-                ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.AlwaysAutoResize |
-                ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoNav);
-
-            ImGui.Text(Lang.Get("claims:gui-war-hud-title", claims.config.WAR_SCORE_TO_WIN));
-            foreach (var c in active)
-                ImGui.Text(c.FirstPartyName + "   " + c.FirstScore + " : " + c.SecondScore + "   " + c.SecondPartyName);
-
-            ImGui.End();
-            return CallbackGUIStatus.DontGrabMouse;
-        }
-
-        private CallbackGUIStatus DrawBountyBoard(float deltaSeconds)
-        {
-            if (!showBountyBoard)
-                return CallbackGUIStatus.DontGrabMouse;
-
-            var io = ImGui.GetIO();
-            ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.2f), ImGuiCond.FirstUseEver);
-            ImGui.SetNextWindowBgAlpha(0.85f);
-            ImGui.Begin(Lang.Get("claims:gui-bounty-board-title"),
-                ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoNav);
-
-            if (BountyBoard == null || BountyBoard.Count == 0)
-            {
-                ImGui.TextDisabled(Lang.Get("claims:gui-bounty-board-empty"));
-            }
-            else
-            {
-                foreach (var e in BountyBoard)
-                    ImGui.Text(e.Name + "  —  " + e.Amount);
-            }
-
-            ImGui.End();
-            return CallbackGUIStatus.DontGrabMouse;
-        }
-        private CallbackGUIStatus DrawBalanceHUD(float deltaSeconds)
-        {
-            if (claims.config?.SELECTED_ECONOMY_HANDLER != "VIRTUAL_MONEY")
-                return CallbackGUIStatus.DontGrabMouse;
-            if (!showBalanceHud)
-                return CallbackGUIStatus.DontGrabMouse;
-            var clientInfo = claims.clientDataStorage?.clientPlayerInfo;
-            if (clientInfo == null)
-                return CallbackGUIStatus.DontGrabMouse;
-
-            var io = ImGui.GetIO();
-            ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.78f, io.DisplaySize.Y - 60), ImGuiCond.FirstUseEver);
-            ImGui.SetNextWindowBgAlpha(0.75f);
-            ImGui.Begin("##balancehud",
-                ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.AlwaysAutoResize |
-                ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoNav);
-
-            ImGui.Text(Lang.Get("claims:gui-hud-player-balance", clientInfo.PlayerBalance));
-
-            if (clientInfo.CityInfo != null &&
-                clientInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.CITY_SEE_BALANCE))
-            {
-                ImGui.Text(Lang.Get("claims:gui-city-balance-hud", clientInfo.CityInfo.CityBalance));
-            }
-
-            ImGui.End();
-            return CallbackGUIStatus.DontGrabMouse;
         }
 
         private bool SwitchGui(KeyCombination comb)
@@ -232,8 +119,6 @@ namespace claims.src
 
         private CallbackGUIStatus Draw(float deltaSeconds)
         {
-            // Reset each frame — will be set to true by ImGuiInventoryGrid.Draw() if active
-            ImGuiInventoryGrid.SuppressMouseDrop = false;
 
             CheckAdminRole();
 

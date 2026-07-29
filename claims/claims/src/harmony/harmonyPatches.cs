@@ -622,18 +622,6 @@ namespace claims.src.harmony
             }
         }
 
-        /// <summary>
-        /// Prevents the game from auto-dropping mouse cursor items
-        /// while an ImGui inventory grid is active.
-        /// </summary>
-        public static bool Prefix_DropMouseSlotItems()
-        {
-            if (ImGuiInventoryGrid.SuppressMouseDrop)
-            {
-                return false; // skip original method
-            }
-            return true;
-        }
 
         /// <summary>
         /// Strips the fruit off fruit trees that do not stand on an ORCHARD plot, right after the

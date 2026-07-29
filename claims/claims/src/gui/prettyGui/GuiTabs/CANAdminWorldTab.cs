@@ -24,7 +24,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 Lang.Get("claims:gui-admin-world-subtitle")
             );
 
-            var w = GuiSys.AdminWorldState;
+            var w = network.packets.AdminClientState.World;
 
             if (w == null)
             {

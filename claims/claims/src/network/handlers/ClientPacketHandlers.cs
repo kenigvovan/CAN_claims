@@ -111,8 +111,9 @@ namespace claims.src.network.handlers
                         claims.capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = gui.prettyGui.EnumSecondaryWindowTab.NEED_AGREE;
                         if (claims.CANCityGui != null)
                         {
-                            claims.CANCityGui.CreateNewCityState = gui.playerGui.CANClaimsGui.EnumUpperWindowSelectedState.NEED_AGREE;
-                            claims.CANCityGui.collectedNewCityName = packet.data;
+                            // The proposed city name rides along in Text so the dialog can name it.
+                            claims.CANCityGui.OpenDialog(gui.playerGui.EnumUpperWindowSelectedState.NEED_AGREE,
+                                args => args.Text = packet.data);
                             if (claims.CANCityGui.IsOpened())
                             {
                                 claims.CANCityGui.BuildMainWindow();
@@ -164,7 +165,7 @@ namespace claims.src.network.handlers
                         claims.clientDataStorage.clientPlayerInfo.AcceptChangedValues(someUpdateDict);
                         if (claims.CANCityGui?.IsOpened() ?? false)
                         {
-                            if(claims.CANCityGui.SelectedTab == gui.playerGui.CANClaimsGui.EnumSelectedTab.ConflictInfoPage)
+                            if(claims.CANCityGui.SelectedTab == gui.playerGui.EnumSelectedTab.ConflictInfoPage)
                             {
                                 claims.CANCityGui.SelectRangeAndFill();
                             }
@@ -180,14 +181,10 @@ namespace claims.src.network.handlers
                         break;
                     case PacketsContentEnum.ADMIN_CITY_FLAGS_ALL:
                         var adminData = JsonConvert.DeserializeObject<AdminDataPacket>(packet.data);
-                        if (adminData != null)
+                        AdminClientState.Accept(adminData);
+                        if (claims.CANCityGui?.IsOpened() ?? false)
                         {
-                            var gui = claims.capi.ModLoader.GetModSystem<claimsGui>();
-                            gui.AdminCityFlags.Clear();
-                            if (adminData.Cities != null)
-                                foreach (var item in adminData.Cities)
-                                    gui.AdminCityFlags[item.Name] = item;
-                            gui.AdminWorldState = adminData.World;
+                            claims.CANCityGui.BuildMainWindow();
                         }
                         break;
                 }
@@ -334,7 +331,7 @@ namespace claims.src.network.handlers
                 PlotInfo.initDicts();
 
                 if (!claims.config.BalanceHudOverride.HasValue)
-                    claimsGui.showBalanceHud = packet.SHOW_BALANCE_HUD_DEFAULT;
+                    gui.hud.ClaimsHudState.ShowBalance = packet.SHOW_BALANCE_HUD_DEFAULT;
                 if (claims.config.AVAILABLE_CITY_PERMISSIONS == null)
                 {
                     claims.config.AVAILABLE_CITY_PERMISSIONS = new();
@@ -346,7 +343,7 @@ namespace claims.src.network.handlers
             });
             claims.clientChannel.SetMessageHandler<BountyBoardPacket>((packet) =>
             {
-                claimsGui.BountyBoard = packet.Entries ?? new System.Collections.Generic.List<BountyBoardEntry>();
+                gui.hud.ClaimsHudState.BountyBoard = packet.Entries ?? new System.Collections.Generic.List<BountyBoardEntry>();
             });
         }
 

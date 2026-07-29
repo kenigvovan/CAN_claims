@@ -14,6 +14,7 @@ using claims.src.clextentions;
 using claims.src.clientMapHandling;
 using claims.src.database;
 using claims.src.events;
+using claims.src.gui.hud;
 using claims.src.gui.playerGui;
 using claims.src.gui.playerGui.structures;
 using claims.src.gui.plotMovementGui;
@@ -73,6 +74,11 @@ namespace claims.src
         public PlotsMapLayer plotsMapLayer;
         WorldMapManager mapmgr;
         public static CANClaimsGui CANCityGui { get; set; }
+
+        // Static because ShutDownClient, which tears them down, is static too.
+        private static BalanceHud balanceHud;
+        private static BountyBoardHud bountyBoardHud;
+        private static WarHud warHud;
         public static CityInfo playerCityInfo;
         public static bool DebugValSet = false;
 
@@ -103,7 +109,12 @@ namespace claims.src
                                                        "magic-portal", "dodging", "highlighter",
                                                        "huts-village", "vertical-banner", "village", "stairs-goal",
                                                         "info", "pencil", "soldering-iron", "envelope", "peace-dove",
-                                                        "sword-brandish", "frog-mouth-helm"};
+                                                        "sword-brandish", "frog-mouth-helm",
+                                                        // city log, admin entry, union letters, back button
+                                                        "files", "id-card", "tower-flag", "fast-backward-button",
+                                                        // plot and city page actions
+                                                        "hamburger-menu", "open-book", "receive-money", "contract",
+                                                        "cancel", "check-mark"};
             foreach (var icon in iconList)
             {
                 capi.Gui.Icons.CustomIcons["claims:" + icon] = delegate (Context ctx, int x, int y, float w, float h, double[] rgba)
@@ -169,7 +180,61 @@ namespace claims.src
 
             ClientPacketHandlers.RegisterHandlers();
             CANCityGui = new CANClaimsGui(capi);
+
+            // HUD panels open once and stay up; each decides for itself whether it has anything to
+            // show, so there is nothing to toggle here.
+            balanceHud = new BalanceHud(capi);
+            bountyBoardHud = new BountyBoardHud(capi);
+            warHud = new WarHud(capi);
+            balanceHud.TryOpen();
+            bountyBoardHud.TryOpen();
+            warHud.TryOpen();
+
+            RegisterHudCommands(api);
         }
+
+        /// <summary>
+        /// Toggles for the three HUD panels. They live here rather than in a GUI front-end so that
+        /// removing either front-end leaves the commands and the stored preference intact.
+        /// </summary>
+        private void RegisterHudCommands(ICoreClientAPI api)
+        {
+            if (config?.BalanceHudOverride.HasValue == true)
+                ClaimsHudState.ShowBalance = config.BalanceHudOverride.Value;
+
+            api.ChatCommands.Create("claimshud")
+                .WithDescription("Toggle balance HUD")
+                .HandleWith(args =>
+                {
+                    ClaimsHudState.ShowBalance = !ClaimsHudState.ShowBalance;
+                    config.BalanceHudOverride = ClaimsHudState.ShowBalance;
+
+                    // Load the file first so we only update BalanceHudOverride, rather than writing
+                    // the client's in-memory copy of the server settings back over it.
+                    var savedCfg = api.LoadModConfig<Config>("claims.json") ?? new Config();
+                    savedCfg.BalanceHudOverride = ClaimsHudState.ShowBalance;
+                    api.StoreModConfig(savedCfg, "claims.json");
+
+                    return TextCommandResult.Success("Balance HUD: " + (ClaimsHudState.ShowBalance ? "on" : "off"));
+                });
+
+            api.ChatCommands.Create("bounties")
+                .WithDescription("Toggle the bounty board")
+                .HandleWith(args =>
+                {
+                    ClaimsHudState.ShowBountyBoard = !ClaimsHudState.ShowBountyBoard;
+                    return TextCommandResult.Success("Bounty board: " + (ClaimsHudState.ShowBountyBoard ? "on" : "off"));
+                });
+
+            api.ChatCommands.Create("warhud")
+                .WithDescription("Toggle the war HUD")
+                .HandleWith(args =>
+                {
+                    ClaimsHudState.ShowWarHud = !ClaimsHudState.ShowWarHud;
+                    return TextCommandResult.Success("War HUD: " + (ClaimsHudState.ShowWarHud ? "on" : "off"));
+                });
+        }
+
         public override void StartServerSide(ICoreServerAPI api)
         {
             base.StartServerSide(api);
@@ -474,6 +539,14 @@ namespace claims.src
                 claims.clientModInstance.pmlc.OnShutDown();
             }
             CANCityGui = null;
+
+            balanceHud?.Dispose();
+            bountyBoardHud?.Dispose();
+            warHud?.Dispose();
+            balanceHud = null;
+            bountyBoardHud = null;
+            warHud = null;
+
             harmonyInstance.UnpatchAll(harmonyID);
             harmonyInstance = null;
             clientModInstance = null;

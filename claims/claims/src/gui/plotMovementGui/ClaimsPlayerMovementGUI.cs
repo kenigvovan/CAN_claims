@@ -26,7 +26,7 @@ namespace claims.src.gui.plotMovementGui
             ElementBounds bgBounds = ElementBounds.Fill.WithFixedPadding(GuiStyle.ElementToDialogPadding);
             bgBounds.BothSizing = ElementSizing.FitToChildren;
 
-            SingleComposer = capi.Gui.CreateCompo("NewCityCreationDialog-", dialogBounds)
+            SingleComposer = capi.Gui.CreateCompo("claims-plot-hud", dialogBounds)
                 //.AddShadedDialogBG(bgBounds)
                 .BeginChildElements(bgBounds);
             SingleComposer.AddRichtext(Lang.Get("claims:movementgui-city-name", ""),

@@ -145,7 +145,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.SetWindowFontScale(1.0f);
             ImGui.PopStyleColor();
 
-            GuiSys.AdminCityFlags.TryGetValue(_selectedCityName, out AdminCityFlagsItem flags);
+            network.packets.AdminClientState.CityFlags.TryGetValue(_selectedCityName, out AdminCityFlagsItem flags);
             if (flags != null)
             {
                 ImGui.PushStyleColor(ImGuiCol.Text, ColHint);
