@@ -26,7 +26,12 @@ namespace claims.src.gui.playerGui.Widgets
     /// </summary>
     public static class NavRow
     {
-        private const double LineHeightFraction = 0.85;
+        /// <summary>
+        /// Fraction of the dialog height the separator sits at. Public so a page that fills the
+        /// window - the log, the map - can size itself to stop right above the row.
+        /// </summary>
+        public const double LineHeightFraction = 0.85;
+
         private const double ButtonHeightFraction = 0.90;
 
         // 40px with a 12px gap fits eight buttons in the 500px window; the old 48/20 sizing ran

@@ -59,6 +59,16 @@ namespace claims.src.gui.playerGui
 
         /// <summary>Player the player page is acting on.</summary>
         public string SelectedPlayer = "";
+
+        /// <summary>Narrows the war settings list, which is some fifty rows long.</summary>
+        public string WarCfgFilter = "";
+
+        /// <summary>
+        /// How far the war settings list is scrolled. Kept here because acting on a row rebuilds the
+        /// window, and a fresh scrollbar starts at the top - which threw the admin back to the first
+        /// row after every click.
+        /// </summary>
+        public float WarCfgScroll;
     }
 
     /// <summary>

@@ -54,9 +54,23 @@ namespace claims.src.gui.playerGui.Pages
         /// <summary>The page's own content, drawn under the shared strip.</summary>
         protected abstract void BuildAdminContent(PageBuildContext ctx);
 
-        /// <summary>Width a Normal button needs for its caption, padding included.</summary>
+        /// <summary>
+        /// Width a Normal button needs for its caption, padding included. The 20 this used to add was
+        /// less than the button's own padding, so neighbouring captions overlapped.
+        /// </summary>
         protected static double ButtonWidth(string caption) =>
-            CairoFont.ButtonText().GetTextExtents(caption).Width + 20;
+            CairoFont.ButtonText().GetTextExtents(caption).Width + 34;
+
+        /// <summary>
+        /// How many lines a block of text wraps into at the given width. Cards are framed before
+        /// their contents are added, so a hint has to be measured rather than assumed to be one line.
+        /// </summary>
+        protected static double TextHeight(string text, double width, double lineHeight = 18)
+        {
+            double textWidth = CairoFont.WhiteSmallText().GetTextExtents(text).Width;
+            int lines = (int)System.Math.Ceiling(textWidth / System.Math.Max(1, width));
+            return System.Math.Max(1, lines) * lineHeight;
+        }
 
         /// <summary>
         /// Lays buttons out left to right, sizing every one to its own caption and wrapping to a new
@@ -66,7 +80,39 @@ namespace claims.src.gui.playerGui.Pages
         protected sealed class ButtonRow
         {
             private const double Spacing = 8;
-            private const double ButtonHeight = 28;
+
+            /// <summary>
+            /// What a Normal button actually occupies. The bounds are 28 tall but the button draws
+            /// its border outside them, so a card framed to 28 clipped its own buttons.
+            /// </summary>
+            public const double ButtonHeight = 28;
+            public const double ButtonExtent = 34;
+
+            /// <summary>Vertical step between two wrapped lines of buttons.</summary>
+            public const double LineStep = ButtonExtent + 6;
+
+            /// <summary>
+            /// How tall the same set of captions will end up, so a card can be framed before its
+            /// buttons are laid out. Mirrors the wrapping rule in <see cref="Add"/>.
+            /// </summary>
+            public static double HeightFor(double maxWidth, double startX, params string[] captions)
+            {
+                int lines = 1;
+                double offsetX = startX;
+
+                foreach (string caption in captions)
+                {
+                    double width = ButtonWidth(caption);
+                    if (offsetX > startX && offsetX + width > maxWidth)
+                    {
+                        lines++;
+                        offsetX = startX;
+                    }
+                    offsetX += width + Spacing;
+                }
+
+                return ButtonExtent + (lines - 1) * LineStep;
+            }
 
             private readonly GuiComposer compo;
             private readonly double maxWidth;
@@ -92,7 +138,8 @@ namespace claims.src.gui.playerGui.Pages
 
                 if (offsetX > startX && offsetX + width > maxWidth)
                 {
-                    row = row.BelowCopy(0, 6);
+                    // Same step HeightFor counts with, so a framed card fits the rows it predicted.
+                    row = row.BelowCopy(0, LineStep - ButtonHeight);
                     offsetX = startX;
                 }
 

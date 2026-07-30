@@ -353,7 +353,17 @@ namespace claims.src.gui.playerGui.structures
             HashSet<PrisonCellElement> pc = JsonConvert.DeserializeObject<HashSet<PrisonCellElement>>(val);
             foreach (var it in pc)
             {
-                CityInfo.PrisonCells.Remove(it);
+                // Matched on position, the way the summon points are: the element came off the wire,
+                // so it is never the same instance the list holds and Remove(it) found nothing - the
+                // cell stayed in the GUI although the server had already deleted it.
+                foreach (var it_current in CityInfo.PrisonCells.ToArray())
+                {
+                    if (it_current.SpawnPosition.Equals(it.SpawnPosition))
+                    {
+                        CityInfo.PrisonCells.Remove(it_current);
+                        break;
+                    }
+                }
             }
         }
         private void OnCityCityPrisonCellUpdate(string val)

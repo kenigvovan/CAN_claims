@@ -16,81 +16,90 @@ namespace claims.src.gui.playerGui.Pages
 {
     public sealed class ConflictLettersPage : CANGuiPage
     {
+        /// <summary>Height of the anchor the list hangs its own heading off.</summary>
+        private const double HeadingHeight = 24;
+
+        /// <summary>The list is never squeezed below this, however little room the window leaves.</summary>
+        private const double MinListHeight = 70;
+
         protected override void BuildContent(PageBuildContext ctx)
         {
-            var gui = Gui;
             var lineBounds = ctx.Line;
             var compo = ctx.Compo;
             var clientInfo = Player;
 
-            var currentBounds = ctx.Current;
-            currentBounds.WithAlignment(EnumDialogArea.LeftTop);
-            currentBounds.fixedWidth = lineBounds.fixedWidth;
-            currentBounds = currentBounds.BelowCopy(0, 0);
-
-            var list = ScrollableList.Add(Gui, currentBounds,
-                Lang.Get("claims:conflict_letters_list"),
-                clientInfo.CityInfo.ClientConflictLetterCellElements,
-                (ClientConflictLetterCellElement cell, ElementBounds bounds) => new GuiElementConflictLetterCell(compo.Api, cell, bounds) { On = true },
-                new ScrollableListOptions { Key = "conflict-letters", HeightReserve = 350 });
+            var anchor = ctx.Line.BelowCopy(0, 14);
+            anchor.Alignment = EnumDialogArea.LeftTop;
+            anchor.fixedWidth = lineBounds.fixedWidth;
+            anchor.fixedHeight = HeadingHeight;
 
             bool inAlliance = Player.AllianceInfo != null;
 
-            ElementBounds actionBounds = list.Inset.BelowCopy(15, 15);
-            actionBounds.WithFixedWidth(25).WithFixedHeight(25);
-            compo.AddInset(actionBounds);
-            compo.AddIconButton("claims:sword-brandish", (bool t) =>
+            // The card of buttons goes above the list, its height known before the list is sized -
+            // hanging them off the list's inset put them wherever that list's clip happened to end.
+            double y = anchor.fixedY;
+            y = Card.Actions(compo, anchor, y, Lang.Get("claims:gui-conflict-letters-actions"), slot =>
             {
-                if (t)
-                {
-                    // Alliances declare war as a bloc, lone cities on their own behalf.
-                    OpenDialog(inAlliance
-                        ? EnumUpperWindowSelectedState.ALLIANCE_SEND_NEW_CONFLICT_LETTER_NEED_NAME
-                        : EnumUpperWindowSelectedState.CITY_SEND_NEW_CONFLICT_LETTER_NEED_NAME);
-                }
-            }, actionBounds);
-            compo.AddHoverText(Lang.Get("claims:gui-send-new-conflict-letter"),
-                                            CairoFont.SmallButtonText(),
-                                            (int)currentBounds.fixedWidth / 2, actionBounds);
+                var actions = new ActionRow(compo, slot);
 
-            // Non-aggression pacts are a peacetime tool for any party - alliance leader or
-            // independent city mayor.
-            if (claims.config.WAR_NAP_ENABLED)
-            {
-                actionBounds = actionBounds.RightCopy(15);
-                compo.AddInset(actionBounds);
-                var napBounds = actionBounds;
-                compo.AddIconButton("claims:peace-dove", (bool t) =>
-                {
-                    if (t)
+                // Alliances declare war as a bloc, lone cities on their own behalf.
+                actions.Add("claims:sword-brandish", "sendConflictLetter",
+                    on =>
                     {
-                        OpenDialog(inAlliance
-                            ? EnumUpperWindowSelectedState.ALLIANCE_SEND_NAP_OFFER_NEED_NAME
-                            : EnumUpperWindowSelectedState.CITY_SEND_NAP_OFFER_NEED_NAME);
-                    }
-                }, napBounds);
-                compo.AddHoverText(Lang.Get("claims:gui-send-new-nap-letter"),
-                    CairoFont.SmallButtonText(), (int)currentBounds.fixedWidth / 2, napBounds);
-            }
+                        if (on)
+                        {
+                            OpenDialog(inAlliance
+                                ? EnumUpperWindowSelectedState.ALLIANCE_SEND_NEW_CONFLICT_LETTER_NEED_NAME
+                                : EnumUpperWindowSelectedState.CITY_SEND_NEW_CONFLICT_LETTER_NEED_NAME);
+                        }
+                    },
+                    Lang.Get("claims:gui-send-new-conflict-letter"));
 
-            // An ultimatum is also a peacetime move: comply, or hand the sender a free war.
-            if (claims.config.WAR_ULTIMATUM_ENABLED)
-            {
-                actionBounds = actionBounds.RightCopy(15);
-                compo.AddInset(actionBounds);
-                var ultimatumBounds = actionBounds;
-                compo.AddIconButton("claims:price-tag", (bool t) =>
+                // Non-aggression pacts are a peacetime tool for any party - alliance leader or
+                // independent city mayor.
+                if (claims.config.WAR_NAP_ENABLED)
                 {
-                    if (t) OpenDialog(EnumUpperWindowSelectedState.SEND_ULTIMATUM);
-                }, ultimatumBounds);
-                compo.AddHoverText(Lang.Get("claims:gui-send-new-ultimatum"),
-                    CairoFont.SmallButtonText(), (int)currentBounds.fixedWidth / 2, ultimatumBounds);
-            }
+                    actions.Add("claims:peace-dove", "sendNapOffer",
+                        on =>
+                        {
+                            if (on)
+                            {
+                                OpenDialog(inAlliance
+                                    ? EnumUpperWindowSelectedState.ALLIANCE_SEND_NAP_OFFER_NEED_NAME
+                                    : EnumUpperWindowSelectedState.CITY_SEND_NAP_OFFER_NEED_NAME);
+                            }
+                        },
+                        Lang.Get("claims:gui-send-new-nap-letter"));
+                }
+
+                // An ultimatum is also a peacetime move: comply, or hand the sender a free war.
+                if (claims.config.WAR_ULTIMATUM_ENABLED)
+                {
+                    actions.Add("claims:price-tag", "sendUltimatum",
+                        on => { if (on) OpenDialog(EnumUpperWindowSelectedState.SEND_ULTIMATUM); },
+                        Lang.Get("claims:gui-send-new-ultimatum"));
+                }
+            });
+
+            var listAnchor = anchor.FlatCopy();
+            listAnchor.fixedY = y;
+
+            var listOpts = new ScrollableListOptions { Key = "conflict-letters", TitleHeightShrink = 0 };
+            listOpts.HeightReserve = ScrollableList.ReserveFor(Gui,
+                Math.Max(MinListHeight,
+                    Gui.mainBounds.fixedHeight * NavRow.LineHeightFraction
+                        - y - Card.Gap - ScrollableList.Overhead(listAnchor, listOpts)));
+
+            var list = ScrollableList.Add(Gui, listAnchor,
+                Lang.Get("claims:conflict_letters_list"),
+                clientInfo.CityInfo.ClientConflictLetterCellElements,
+                (ClientConflictLetterCellElement cell, ElementBounds bounds) => new GuiElementConflictLetterCell(compo.Api, cell, bounds) { On = true },
+                listOpts);
 
             /*==============================================================================================*/
             /*=====================================UNDER 2 LINE=============================================*/
             /*==============================================================================================*/
-            NavRow.Build(Gui, currentBounds, lineBounds, 15,
+            NavRow.Build(Gui, anchor, lineBounds, 15,
                 new NavButton("claims:fast-backward-button", () => GoTo(State.ConflictSourceTab), Lang.Get("claims:gui-nav-back")),
                 new NavButton("claims:frog-mouth-helm", () => GoTo(EnumSelectedTab.ConflictsPage), Lang.Get("claims:gui-nav-conflicts")));
 
@@ -100,22 +109,42 @@ namespace claims.src.gui.playerGui.Pages
 
     public sealed class ConflictsPage : CANGuiPage
     {
+        /// <summary>Height of the anchor each list hangs its own heading off.</summary>
+        private const double HeadingHeight = 24;
+
+        /// <summary>No list is squeezed below this, however little room the window leaves.</summary>
+        private const double MinListHeight = 70;
+
         protected override void BuildContent(PageBuildContext ctx)
         {
             var lineBounds = ctx.Line;
             var compo = ctx.Compo;
             var clientInfo = Player;
 
-            var currentBounds = ctx.Current;
-            currentBounds.WithAlignment(EnumDialogArea.LeftTop);
-            currentBounds.fixedWidth = lineBounds.fixedWidth;
-            currentBounds = currentBounds.BelowCopy(0, 0);
+            var anchor = ctx.Line.BelowCopy(0, 14);
+            anchor.Alignment = EnumDialogArea.LeftTop;
+            anchor.fixedWidth = lineBounds.fixedWidth;
+            anchor.fixedHeight = HeadingHeight;
 
-            var list = ScrollableList.Add(Gui, currentBounds,
+            // Two lists share the page, so the space between the tab bar and the navigation row is
+            // split between them. The casus belli list used to be anchored under the first list's
+            // inset - bounds living inside that list's own clip - which put it past the bottom edge.
+            var conflictOpts = new ScrollableListOptions { Key = "conflicts", TitleHeightShrink = 0 };
+            var casusOpts = new ScrollableListOptions { Key = "casus-belli", TitleHeightShrink = 0 };
+
+            double overhead = ScrollableList.Overhead(anchor, conflictOpts);
+            double usable = Gui.mainBounds.fixedHeight * NavRow.LineHeightFraction;
+            double listHeight = Math.Max(MinListHeight,
+                (usable - anchor.fixedY - Card.Gap - overhead * 2) / 2);
+
+            conflictOpts.HeightReserve = ScrollableList.ReserveFor(Gui, listHeight);
+            casusOpts.HeightReserve = conflictOpts.HeightReserve;
+
+            var list = ScrollableList.Add(Gui, anchor,
                 Lang.Get("claims:conflict_list"),
                 clientInfo.CityInfo.ClientConflictCellElements,
                 (ClientConflictCellElement cell, ElementBounds bounds) => new GuiElementConflictCell(compo.Api, cell, bounds) { On = true },
-                new ScrollableListOptions { Key = "conflicts", HeightReserve = 480 });
+                conflictOpts);
 
             // Who we may go to war with, and what stands in the way. The server owns the answer, and
             // an ally's war can start without any event addressed to us, so ask on every rebuild.
@@ -128,21 +157,21 @@ namespace claims.src.gui.playerGui.Pages
                           || cb.CooldownUntil > now || cb.PactUntil > now || cb.UnionBreakUntil > now)
                 .ToList();
 
-            var cbAnchor = list.Inset.BelowCopy(0, 10);
-            cbAnchor.fixedWidth = lineBounds.fixedWidth;
+            var cbAnchor = anchor.FlatCopy();
+            cbAnchor.fixedY = anchor.fixedY + overhead + listHeight + Card.Gap;
 
             var cbList = ScrollableList.Add(Gui, cbAnchor,
                 Lang.Get("claims:gui_casus_belli_list"),
                 casusBelli,
                 (ClientCasusBelliCellElement cell, ElementBounds bounds) => new GuiElementCasusBelliCell(compo.Api, cell, bounds) { On = true },
-                new ScrollableListOptions { Key = "casus-belli", HeightReserve = 620, TitleHeightShrink = 0 });
+                casusOpts);
 
             Tooltip.Add(compo, Lang.Get("claims:gui_casus_belli_hint"), cbList.Title, "tip-casusbelli");
 
             /*==============================================================================================*/
             /*=====================================UNDER 2 LINE=============================================*/
             /*==============================================================================================*/
-            NavRow.Build(Gui, currentBounds, lineBounds, 15,
+            NavRow.Build(Gui, anchor, lineBounds, 15,
                 new NavButton("claims:fast-backward-button", () => GoTo(State.ConflictSourceTab), Lang.Get("claims:gui-nav-back")),
                 new NavButton("claims:envelope", () => GoTo(EnumSelectedTab.ConflictLettersPage), Lang.Get("claims:gui-nav-conflict-letters")));
 
@@ -156,6 +185,15 @@ namespace claims.src.gui.playerGui.Pages
 
     public sealed class ConflictInfoPage : CANGuiPage
     {
+        /// <summary>Height of the anchor the schedule list is measured from.</summary>
+        private const double HeadingHeight = 24;
+
+        /// <summary>The schedule is never squeezed below this, however little room is left.</summary>
+        private const double MinListHeight = 70;
+
+        /// <summary>Height of the approved/suggested tab strip.</summary>
+        private const double TabRowHeight = 30;
+
         private ClientConflictCellElement SelectedConflict()
             => Player.CityInfo?.ClientConflictCellElements.FirstOrDefault(c => c.Guid == State.DialogArgs.Selected);
 
@@ -163,7 +201,7 @@ namespace claims.src.gui.playerGui.Pages
         /// The name our side fights under. An independent city has no alliance, so reading
         /// AllianceInfo.Name outright threw as soon as a lone mayor opened a conflict.
         /// </summary>
-        private static string OurPartyName()
+        public static string OurPartyName()
         {
             var info = claims.clientDataStorage.clientPlayerInfo;
             return info.AllianceInfo?.Name ?? info.CityInfo?.Name ?? "";
@@ -189,69 +227,110 @@ namespace claims.src.gui.playerGui.Pages
             var compo = ctx.Compo;
             var clientInfo = Player;
 
-            var currentBounds = ctx.Current;
-            currentBounds.WithAlignment(EnumDialogArea.LeftTop);
-            currentBounds.fixedWidth = lineBounds.fixedWidth;
-            currentBounds = currentBounds.BelowCopy(0, 0);
-
-            ElementBounds createCityBounds = currentBounds.FlatCopy();
-            ElementBounds invitationTextBounds = createCityBounds.BelowCopy();
-            invitationTextBounds.WithAlignment(EnumDialogArea.CenterTop);
-
             var cell = SelectedConflict();
 
-            // Party types belong in the heading: a war against a city is not a war against its alliance.
-            compo.AddStaticText(string.Format("{0} ({1}) x {2} ({3})",
-                                                cell.FirstPartyName, WarTargetTypeHelper.LangLabel(cell.FirstPartyType),
-                                                cell.SecondPartyName, WarTargetTypeHelper.LangLabel(cell.SecondPartyType)),
-                                            CairoFont.WhiteMediumText().WithOrientation(EnumTextOrientation.Center),
-                                            invitationTextBounds);
+            var anchor = ctx.Line.BelowCopy(0, 14);
+            anchor.Alignment = EnumDialogArea.LeftTop;
+            anchor.fixedWidth = lineBounds.fixedWidth;
+            anchor.fixedHeight = HeadingHeight;
 
-            currentBounds = invitationTextBounds.BelowCopy();
+            double columnWidth = (lineBounds.fixedWidth - Card.ColumnGap) / 2;
+
+            // --- left: who is fighting and how it stands ---
+            var leftColumn = anchor.FlatCopy();
+            leftColumn.fixedWidth = columnWidth;
+
+            var conflictRows = new List<CardRow>
+            {
+                // Party types belong here: a war against a city is not a war against its alliance.
+                new CardRow
+                {
+                    Label = WarTargetTypeHelper.LangLabel(cell.FirstPartyType),
+                    Value = cell.FirstPartyName,
+                    Key = "firstParty"
+                },
+                new CardRow
+                {
+                    Label = WarTargetTypeHelper.LangLabel(cell.SecondPartyType),
+                    Value = cell.SecondPartyName,
+                    Key = "secondParty"
+                },
+                new CardRow
+                {
+                    Label = Lang.Get("claims:gui_conflict_info_war_score"),
+                    Value = cell.FirstScore + " : " + cell.SecondScore,
+                    Tooltip = Lang.Get("claims:gui_conflict_info_to_win", claims.config.WAR_SCORE_TO_WIN),
+                    Key = "warScore"
+                },
+                new CardRow
+                {
+                    Label = Lang.Get("claims:gui_conflict_info_started_by"),
+                    Value = cell.StartedByPartyName,
+                    Key = "startedBy"
+                },
+                new CardRow
+                {
+                    Label = Lang.Get("claims:gui_conflict_info_created"),
+                    Value = TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(cell.TimeStampCreated, true),
+                    Key = "conflictCreated"
+                }
+            };
+
             if (cell.ActiveWarTime)
             {
-                compo.AddStaticText(Lang.Get("claims:gui_battle_active"),
-                    CairoFont.WhiteSmallText().WithColor(new double[] { 0.95, 0.25, 0.25, 1.0 }),
-                    currentBounds, "battleActive");
-                currentBounds = currentBounds.BelowCopy();
+                conflictRows.Insert(0, new CardRow
+                {
+                    Label = Lang.Get("claims:gui_battle_active"),
+                    Value = "",
+                    ValueColor = ClaimsColors.Danger,
+                    Key = "battleActive"
+                });
             }
 
-            compo.AddStaticText(Lang.Get("claims:gui_conflict_info_war_score") + " "
-                    + cell.FirstScore + " : " + cell.SecondScore
-                    + "   (" + Lang.Get("claims:gui_conflict_info_to_win", claims.config.WAR_SCORE_TO_WIN) + ")",
-                CairoFont.WhiteSmallText().WithOrientation(EnumTextOrientation.Left),
-                currentBounds, "warScore");
+            double leftY = Card.Rows(compo, leftColumn, leftColumn.fixedY,
+                Lang.Get("claims:gui-conflict-section-conflict"), conflictRows);
 
-            currentBounds = currentBounds.BelowCopy();
-            compo.AddStaticText(Lang.Get("claims:gui_conflict_info_started_by") + " " + cell.StartedByPartyName,
-                CairoFont.WhiteSmallText().WithOrientation(EnumTextOrientation.Left),
-                currentBounds, "startedBy");
+            // --- right: when the fighting happens ---
+            var rightColumn = anchor.FlatCopy();
+            rightColumn.fixedWidth = columnWidth;
+            rightColumn.fixedX += columnWidth + Card.ColumnGap;
 
-            currentBounds = currentBounds.BelowCopy();
-            compo.AddStaticText(Lang.Get("claims:gui_conflict_info_created") + " "
-                    + TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(cell.TimeStampCreated, true),
-                CairoFont.WhiteSmallText().WithOrientation(EnumTextOrientation.Left),
-                currentBounds, "conflictCreated");
+            double rightY = Card.Rows(compo, rightColumn, rightColumn.fixedY,
+                Lang.Get("claims:gui-conflict-section-battles"), new List<CardRow>
+            {
+                new CardRow
+                {
+                    Label = Lang.Get("claims:gui_conflict_info_pause_days"),
+                    Value = cell.MinimumDaysBetweenBattles.ToString(),
+                    Key = "pauseDays"
+                },
+                new CardRow
+                {
+                    Label = Lang.Get("claims:gui-conflict-label-last-battle"),
+                    Value = TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.LastBattleDateStart).ToUnixTimeSeconds()),
+                    Tooltip = Lang.Get("claims:gui_last_start_end_battle",
+                        TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.LastBattleDateStart).ToUnixTimeSeconds()),
+                        TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.LastBattleDateEnd).ToUnixTimeSeconds())),
+                    Key = "lastBattle"
+                },
+                new CardRow
+                {
+                    Label = Lang.Get("claims:gui-conflict-label-next-battle"),
+                    Value = TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.NextBattleDateStart).ToUnixTimeSeconds()),
+                    Tooltip = Lang.Get("claims:gui_next_start_end_battle",
+                        TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.NextBattleDateStart).ToUnixTimeSeconds()),
+                        TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.NextBattleDateEnd).ToUnixTimeSeconds())),
+                    Key = "nextBattle"
+                }
+            });
 
-            currentBounds = currentBounds.BelowCopy();
-            compo.AddStaticText(Lang.Get("claims:gui_conflict_info_pause_days") + " " + cell.MinimumDaysBetweenBattles,
-                CairoFont.WhiteSmallText().WithOrientation(EnumTextOrientation.Left),
-                currentBounds, "pauseDays");
+            double headerBottom = Math.Max(leftY, rightY);
 
-            currentBounds = currentBounds.BelowCopy();
-            compo.AddStaticText(Lang.Get("claims:gui_last_start_end_battle",
-                TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.LastBattleDateStart).ToUnixTimeSeconds()),
-                TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.LastBattleDateEnd).ToUnixTimeSeconds())),
-                CairoFont.WhiteSmallText().WithOrientation(EnumTextOrientation.Left),
-                currentBounds, "MinimumDaysBetweenBattles");
-
-            currentBounds = currentBounds.BelowCopy();
-            compo.AddStaticText(Lang.Get("claims:gui_next_start_end_battle",
-                TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.NextBattleDateStart).ToUnixTimeSeconds()),
-                TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.NextBattleDateEnd).ToUnixTimeSeconds())),
-                CairoFont.WhiteSmallText().WithOrientation(EnumTextOrientation.Left),
-                currentBounds, "TimeStampCreated");
-            var p = currentBounds.BelowCopy().WithFixedSize(500, 30);
+            // The tab strip keeps the row to itself except for the submit button on its right: the
+            // button used to sit alone under the list, a bare icon with a whole row to itself.
+            var p = anchor.FlatCopy()
+                .WithFixedSize(lineBounds.fixedWidth - Card.ActionSize - Card.ActionGap, TabRowHeight);
+            p.fixedY = headerBottom;
 
             GuiTab[] horizontalTabs = new GuiTab[2];
 
@@ -301,28 +380,46 @@ namespace claims.src.gui.playerGui.Pages
             var listOpts = new ScrollableListOptions
             {
                 Key = "war-ranges",
-                HeightReserve = 300,
-                Container = currentBounds,
                 TitleHeightShrink = 0
             };
+
+            var listAnchor = anchor.FlatCopy();
+            listAnchor.fixedY = headerBottom + TabRowHeight + Card.Gap;
+            listAnchor.fixedHeight = 0;
+
+            // The schedule is parented on the cursor itself rather than on a title row it does not
+            // have, so it starts where it is put instead of a heading's height further down.
+            listOpts.Container = listAnchor;
+
+            // The schedule fills everything left down to the navigation row, rather than a fixed
+            // reserve that assumed a header of one particular height. It carries no heading of its
+            // own - the tabs above already name it - so no room is left for one.
+            double listHeight = Math.Max(MinListHeight,
+                Gui.mainBounds.fixedHeight * NavRow.LineHeightFraction
+                    - listAnchor.fixedY - Card.Gap
+                    - ScrollableList.Overhead(listAnchor, listOpts, hasTitle: false));
+            listOpts.HeightReserve = ScrollableList.ReserveFor(Gui, listHeight);
+
             ScrollableListLayout list;
             if (State.SelectedTabGroup == (int)EnumSelectedWarRangesTab.APPROVED)
             {
-                list = ScrollableList.Add(gui, createCityBounds, null,
+                list = ScrollableList.Add(gui, listAnchor, null,
                     clientInfo.CityInfo.ClientWarRangeCellElements,
                     (ClientWarRangeCellElement c, ElementBounds bounds) => new GuiElementWarRangeCell(compo.Api, c, bounds, State.SelectedTabGroup != 0) { On = true },
                     listOpts);
             }
             else
             {
-                list = ScrollableList.Add(gui, createCityBounds, null,
+                list = ScrollableList.Add(gui, listAnchor, null,
                     clientInfo.CityInfo.ClientTwoWarRangesCellElement,
                     (ClientTwoWarRangesCellElement c, ElementBounds bounds) => new GuiElementTwoWarRangesCell(compo.Api, c, bounds) { On = true },
                     listOpts);
             }
 
-            currentBounds = list.Inset.BelowCopy(0, 10).WithFixedSize(25, 25);
-            compo.AddIconButton("line", (bool t) =>
+            var submitBounds = anchor.FlatCopy().WithFixedSize(Card.ActionSize, Card.ActionSize);
+            submitBounds.fixedX += lineBounds.fixedWidth - Card.ActionSize;
+            submitBounds.fixedY = headerBottom + (TabRowHeight - Card.ActionSize) / 2;
+            compo.AddIconButton("claims:check-mark", (bool t) =>
             {
                 if (t)
                 {
@@ -452,9 +549,12 @@ namespace claims.src.gui.playerGui.Pages
                         playerGuiRelatedInfoDictionary = collector
                     });
                 }
-            }, currentBounds);
+            }, submitBounds);
 
-            compo.AddHoverText(Lang.Get("claims:gui-send-new-conflict-time"), CairoFont.WhiteDetailText(), 160, currentBounds);
+            Tooltip.Add(compo, Lang.Get("claims:gui-send-new-conflict-time"), submitBounds, "tip-sendwarrange");
+
+            NavRow.Build(Gui, anchor, lineBounds, 15,
+                new NavButton("claims:fast-backward-button", () => GoTo(EnumSelectedTab.ConflictsPage), Lang.Get("claims:gui-nav-back")));
 
             ctx.AfterCompose(() => list.ApplyScrollbarHeights(compo));
         }

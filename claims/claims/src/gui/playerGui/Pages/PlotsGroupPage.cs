@@ -179,6 +179,12 @@ namespace claims.src.gui.playerGui.Pages
                         Lang.Get("claims:gui-remove-plotsgroup-member"));
                 }
             });
+
+            // Reached by clicking a group in the list, and the tab bar entry rebuilds this same page
+            // - so without this there was no way back to the group list at all.
+            NavRow.Build(Gui, ctx.Current, ctx.Line, 0,
+                new NavButton("claims:fast-backward-button", () => GoTo(EnumSelectedTab.PlotsGroup),
+                    Lang.Get("claims:gui-nav-back")));
         }
 
         /// <summary>Fees are doubles; whole values should not read "5.0".</summary>
@@ -202,6 +208,8 @@ namespace claims.src.gui.playerGui.Pages
                 compo.AddStaticText(Lang.Get("claims:gui-no-plotsgroup-invites"),
                     CairoFont.WhiteMediumText().WithOrientation(EnumTextOrientation.Center),
                     emptyBounds);
+
+                BuildNav(ctx);
                 return;
             }
 
@@ -209,9 +217,23 @@ namespace claims.src.gui.playerGui.Pages
                 Lang.Get("claims:gui-city-tab-invitations", invites.Count),
                 invites,
                 (ClientToPlotsGroupInvitation cell, ElementBounds bounds) => new GuiElementPlotsGroupInvitation(compo.Api, cell, bounds) { On = true },
-                new ScrollableListOptions { Key = "plotsgroup-invitations", HeightReserve = 230, TitleGap = 35, ContainerBelowTitle = true });
+                // 280 rather than 230: the list has to stop above the navigation row below it.
+                new ScrollableListOptions { Key = "plotsgroup-invitations", HeightReserve = 280, TitleGap = 35, ContainerBelowTitle = true });
+
+            BuildNav(ctx);
 
             ctx.AfterCompose(() => list.ApplyScrollbarHeights(compo));
+        }
+
+        /// <summary>
+        /// This page is opened from the group list's envelope button and has no tab of its own, so
+        /// the way back has to be drawn here.
+        /// </summary>
+        private void BuildNav(PageBuildContext ctx)
+        {
+            NavRow.Build(Gui, ctx.Current, ctx.Line, 0,
+                new NavButton("claims:fast-backward-button", () => GoTo(EnumSelectedTab.PlotsGroup),
+                    Lang.Get("claims:gui-nav-back")));
         }
     }
 }

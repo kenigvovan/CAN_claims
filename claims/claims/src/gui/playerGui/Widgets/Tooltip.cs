@@ -15,6 +15,13 @@ namespace claims.src.gui.playerGui.Widgets
         private const double MaxWidth = 320;
         private const double MinHoverHeight = 25;
 
+        /// <summary>
+        /// Below this a row has no hover area worth speaking of and is grown to <see cref="MinHoverHeight"/>.
+        /// Anything taller is left alone: card rows are 17 tall, and growing those made every row's
+        /// hover area reach 8 pixels into the next one, so two tooltips lit up on top of each other.
+        /// </summary>
+        private const double MinUsableHeight = 10;
+
         public static void Add(GuiComposer compo, string text, ElementBounds bounds, string key)
         {
             if (string.IsNullOrEmpty(text)) return;
@@ -26,7 +33,7 @@ namespace claims.src.gui.playerGui.Widgets
             // A row that was shrunk to fit its text can end up with no height at all - list headings
             // are one such - and then there is nothing the cursor can be inside of.
             ElementBounds area = bounds;
-            if (area.fixedHeight < MinHoverHeight)
+            if (area.fixedHeight < MinUsableHeight)
             {
                 area = bounds.FlatCopy();
                 area.fixedHeight = MinHoverHeight;

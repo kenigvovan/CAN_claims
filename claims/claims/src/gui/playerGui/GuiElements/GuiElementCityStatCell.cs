@@ -15,6 +15,10 @@ namespace claims.src.gui.playerGui.GuiElements
     {
         private readonly ClientCityInfoCellElement cityStatCell;
 
+        /// <summary>Joining and the info hover are the cell's own buttons, so the row itself is not
+        /// clickable and must not be lit as three columns.</summary>
+        protected override bool UseHoverHighlights => false;
+
         public GuiElementCityStatCell(ICoreClientAPI capi, ClientCityInfoCellElement cityStatCell, ElementBounds bounds)
             : base(capi, bounds)
         {

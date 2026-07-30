@@ -25,17 +25,18 @@ namespace claims.src.gui.hud
             && claims.config?.SELECTED_ECONOMY_HANDLER == "VIRTUAL_MONEY"
             && claims.clientDataStorage?.clientPlayerInfo != null;
 
-        protected override List<string> BuildLines()
+        protected override List<HudLine> BuildLines()
         {
-            var lines = new List<string>();
+            var lines = new List<HudLine>();
             var clientInfo = claims.clientDataStorage.clientPlayerInfo;
 
-            lines.Add(Lang.Get("claims:gui-hud-player-balance", clientInfo.PlayerBalance));
+            lines.Add(HudLine.Value(Lang.Get("claims:gui-hud-player-balance", clientInfo.PlayerBalance)));
 
             if (clientInfo.CityInfo != null
                 && clientInfo.PlayerPermissions.HasPermission(EnumPlayerPermissions.CITY_SEE_BALANCE))
             {
-                lines.Add(Lang.Get("claims:gui-city-balance-hud", clientInfo.CityInfo.CityBalance));
+                // The city's money is not the player's, so it does not read as another purse of theirs.
+                lines.Add(HudLine.Muted(Lang.Get("claims:gui-city-balance-hud", clientInfo.CityInfo.CityBalance)));
             }
 
             return lines;

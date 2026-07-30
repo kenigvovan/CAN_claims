@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using claims.src.part.structure;
 using claims.src.part.structure.plots;
+using claims.src.gui.playerGui.structures;
 using claims.src.gui.playerGui.Widgets;
 using claims.src.network.packets;
 using Vintagestory.API.Client;
@@ -19,6 +20,12 @@ namespace claims.src.gui.playerGui.Pages
     /// </summary>
     public sealed class AdminPlayerPage : AdminPageBase
     {
+        private const double InputHeight = 28;
+        private const double RowGap = 6;
+
+        /// <summary>One line of a switch grid. The grids run one entry per row inside a column.</summary>
+        private const double GridRowHeight = 31;
+
         private static readonly string[] PermTokens = { "use", "build", "attack" };
         private static readonly string[] PermLangKeys =
         {
@@ -31,31 +38,79 @@ namespace claims.src.gui.playerGui.Pages
         {
             var compo = ctx.Compo;
 
-            var currentBounds = ctx.Current.BelowCopy(0, 5);
-            currentBounds.fixedWidth = ctx.Line.fixedWidth;
-            currentBounds.WithAlignment(EnumDialogArea.LeftTop);
+            var anchor = ctx.Current.BelowCopy(0, 5);
+            anchor.fixedWidth = ctx.Line.fixedWidth;
+            anchor.WithAlignment(EnumDialogArea.LeftTop);
 
-            compo.AddStaticText(Lang.Get("claims:gui-admin-player-diag"), ClaimsFonts.PageLabel, currentBounds);
-            compo.AddHoverText(Lang.Get("claims:gui-admin-player-diag-hint"), CairoFont.SmallButtonText(), 300, currentBounds);
+            // Two columns: stacked, the four cards added up to more than the window is tall and the
+            // permissions ran off the bottom. Each column's grids drop to one entry per row to fit.
+            double columnWidth = (ctx.Line.fixedWidth - Card.ColumnGap) / 2;
 
-            var nameBounds = currentBounds.BelowCopy(0, 8).WithFixedSize(180, 28);
+            var left = anchor.FlatCopy();
+            left.fixedWidth = columnWidth;
+
+            var right = anchor.FlatCopy();
+            right.fixedWidth = columnWidth;
+            right.fixedX += columnWidth + Card.ColumnGap;
+
+            double leftY = BuildDiagnosticsCard(compo, left, left.fixedY);
+
+            var plot = Player.CurrentPlotInfo;
+            if (plot?.PermsHandler == null)
+            {
+                BuildPlotCard(compo, left, leftY, null);
+                return;
+            }
+
+            BuildPlotCard(compo, left, leftY, plot);
+
+            double rightY = BuildPlotSettingsCard(compo, right, right.fixedY, plot);
+            BuildPermissionsCard(compo, right, rightY, plot);
+        }
+
+        /// <summary>Asking the server what it knows about one player.</summary>
+        private double BuildDiagnosticsCard(GuiComposer compo, ElementBounds column, double y)
+        {
+            double height = Card.HeaderHeight + InputHeight + Card.Padding * 2;
+
+            ElementBounds inner = Card.Frame(compo, column, y, height,
+                Lang.Get("claims:gui-admin-player-diag"));
+
+            var nameBounds = inner.FlatCopy().WithFixedSize(180, InputHeight);
             compo.AddTextInput(nameBounds, v => Admin.SelectedPlayer = v, null, "admin-diag-player");
             compo.GetTextInput("admin-diag-player").SetValue(Admin.SelectedPlayer);
+            Tooltip.Add(compo, Lang.Get("claims:gui-admin-player-diag-hint"), nameBounds, "tip-admin-diag");
 
-            AddCommand(compo, nameBounds.RightCopy(10).WithFixedHeight(28), "claims:gui-admin-diag",
-                () => "/cadmin diag " + Admin.SelectedPlayer, "claims:gui-admin-diag-tooltip");
+            string caption = Lang.Get("claims:gui-admin-diag");
+            var buttonBounds = nameBounds.RightCopy(10).WithFixedSize(ButtonWidth(caption), InputHeight);
+            compo.AddButton(caption, new ActionConsumable(() =>
+            {
+                Send("/cadmin diag " + Admin.SelectedPlayer);
+                return true;
+            }), buttonBounds, EnumButtonStyle.Normal);
+            Tooltip.Add(compo, Lang.Get("claims:gui-admin-diag-tooltip"), buttonBounds, "tip-admin-diag-run");
 
-            // --- the plot underfoot ---
-            var plotBounds = nameBounds.BelowCopy(0, 12);
+            return y + height + Card.Gap;
+        }
+
+        /// <summary>
+        /// The plot underfoot: the refresh that fetches it, and its three flags. Passing a null plot
+        /// draws the card explaining that no plot data has arrived.
+        /// </summary>
+        private double BuildPlotCard(GuiComposer compo, ElementBounds column, double y, CurrentPlotInfo plot)
+        {
             string refreshCaption = Lang.Get("claims:gui-admin-refresh-plot");
-            double refreshWidth = ButtonWidth(refreshCaption);
-            plotBounds.fixedWidth = ctx.Line.fixedWidth - refreshWidth - 10;
-            compo.AddStaticText(Lang.Get("claims:gui-admin-plot-at-position"), ClaimsFonts.PageLabel, plotBounds);
-            compo.AddHoverText(Lang.Get("claims:gui-admin-plot-at-position-hint"), CairoFont.SmallButtonText(), 300, plotBounds);
+
+            int flagRows = plot == null ? 1 : 3;
+            double body = InputHeight + RowGap + flagRows * GridRowHeight;
+            double height = Card.HeaderHeight + body + Card.Padding * 2;
+
+            ElementBounds inner = Card.Frame(compo, column, y, height,
+                Lang.Get("claims:gui-admin-plot-at-position"));
 
             // The plot only arrives with a packet, so without this the page can sit on data from
             // wherever the admin stood last.
-            var refreshBounds = plotBounds.RightCopy(10).WithFixedSize(refreshWidth, 28);
+            var refreshBounds = inner.FlatCopy().WithFixedSize(ButtonWidth(refreshCaption), InputHeight);
             compo.AddButton(refreshCaption, new ActionConsumable(() =>
             {
                 claims.clientChannel.SendPacket(new SavedPlotsPacket
@@ -64,17 +119,20 @@ namespace claims.src.gui.playerGui.Pages
                 });
                 return true;
             }), refreshBounds, EnumButtonStyle.Normal);
-            compo.AddHoverText(Lang.Get("claims:gui-admin-refresh-plot-tooltip"), CairoFont.SmallButtonText(), 250, refreshBounds);
+            Tooltip.Add(compo, Lang.Get("claims:gui-admin-refresh-plot-tooltip"), refreshBounds, "tip-admin-refresh-plot");
 
-            var plot = Player.CurrentPlotInfo;
-            if (plot?.PermsHandler == null)
+            double gridY = inner.fixedY + InputHeight + RowGap;
+
+            if (plot == null)
             {
-                compo.AddStaticText(Lang.Get("claims:gui-admin-no-plot-data"), CairoFont.WhiteDetailText(),
-                    plotBounds.BelowCopy(0, 8).WithFixedWidth(ctx.Line.fixedWidth));
-                return;
+                var noneBounds = inner.FlatCopy().WithFixedHeight(GridRowHeight);
+                noneBounds.fixedY = gridY;
+                compo.AddStaticText(Lang.Get("claims:gui-admin-no-plot-data"),
+                    CairoFont.WhiteSmallText().WithColor(ClaimsColors.Label), noneBounds, "admin-no-plot-data");
+
+                return y + height + Card.Gap;
             }
 
-            // --- plot flags, one grid ---
             var flagDefs = new (string Key, string Label, bool Value, Action<bool> Apply, string TooltipKey)[]
             {
                 ("pvp", Lang.Get("claims:gui-admin-flag-pvp"), plot.PermsHandler.pvpFlag,
@@ -85,16 +143,14 @@ namespace claims.src.gui.playerGui.Pages
                     v => plot.PermsHandler.blastFlag = v, "claims:gui-admin-plot-blast-tooltip"),
             };
 
-            var flagGridStart = plotBounds.BelowCopy(0, 8).WithFixedSize(120, 25);
-            int flagRows = (flagDefs.Length + 1) / 2;
             for (int i = 0; i < flagDefs.Length; i++)
             {
                 var def = flagDefs[i];
 
-                var labelBounds = flagGridStart.FlatCopy();
-                labelBounds.fixedX += (i % 2) * 220;
-                labelBounds.fixedY += (i / 2) * 31;
-                compo.AddStaticText(def.Label, CairoFont.WhiteDetailText(), labelBounds);
+                var labelBounds = inner.FlatCopy().WithFixedSize(inner.fixedWidth - 40, 25);
+                labelBounds.fixedY = gridY + i * GridRowHeight;
+                compo.AddStaticText(def.Label,
+                    CairoFont.WhiteSmallText().WithColor(ClaimsColors.Label), labelBounds, "admin-plotflag-" + def.Key);
 
                 var switchBounds = labelBounds.RightCopy(5, 0).WithFixedSize(25, 25);
                 string switchKey = "admin-plot-" + def.Key;
@@ -104,47 +160,72 @@ namespace claims.src.gui.playerGui.Pages
                     Send("/cadmin plot set " + def.Key + (on ? " on" : " off"));
                 }, switchBounds, switchKey);
                 compo.GetSwitch(switchKey).SetValue(def.Value);
-                compo.AddHoverText(Lang.Get(def.TooltipKey), CairoFont.SmallButtonText(), 250, switchBounds);
+                Tooltip.Add(compo, Lang.Get(def.TooltipKey), switchBounds, "tip-" + switchKey);
             }
 
-            var flagAnchor = flagGridStart.FlatCopy();
-            flagAnchor.fixedY += (flagRows - 1) * 31;
+            return y + height + Card.Gap;
+        }
 
-            // --- fee and sale price, one row: both are short numbers ---
-            var feeInput = flagAnchor.BelowCopy(0, 10).WithFixedSize(70, 28);
+        /// <summary>What the plot costs and what it is: fee, sale price, type.</summary>
+        private double BuildPlotSettingsCard(GuiComposer compo, ElementBounds column, double y, CurrentPlotInfo plot)
+        {
+            const double numberInput = 70;
+
+            string feeCaption = Lang.Get("claims:gui-admin-tax-fee");
+            string priceCaption = Lang.Get("claims:gui-admin-fs-price");
+
+            double innerWidth = column.fixedWidth - Card.Padding * 2;
+
+            // Fee and sale price share one row when both fit - both are short numbers.
+            bool priceFitsOnSameRow = numberInput + 8 + ButtonWidth(feeCaption) + 16
+                                    + numberInput + 8 + ButtonWidth(priceCaption) <= innerWidth;
+            double numbersHeight = priceFitsOnSameRow ? InputHeight : InputHeight * 2 + RowGap;
+
+            double body = numbersHeight + RowGap + InputHeight;
+            double height = Card.HeaderHeight + body + Card.Padding * 2;
+
+            ElementBounds inner = Card.Frame(compo, column, y, height,
+                Lang.Get("claims:gui-admin-section-plot-settings"));
+
+            var feeInput = inner.FlatCopy().WithFixedSize(numberInput, InputHeight);
             compo.AddTextInput(feeInput, v => Admin.CityFee = v, null, "admin-plot-fee");
             compo.GetTextInput("admin-plot-fee").SetValue(Admin.CityFee ?? "");
-            var feeButton = AddCommand(compo, feeInput.RightCopy(8).WithFixedHeight(28), "claims:gui-admin-tax-fee",
+
+            var feeButton = AddCommand(compo, feeInput.RightCopy(8).WithFixedHeight(InputHeight), feeCaption,
                 () => "/cadmin plot fee " + Admin.CityFee, "claims:gui-admin-tax-fee-tooltip");
 
-            var priceInput = feeButton.RightCopy(16).WithFixedSize(70, 28);
+            var priceInput = priceFitsOnSameRow
+                ? feeButton.RightCopy(16).WithFixedSize(numberInput, InputHeight)
+                : feeInput.BelowCopy(0, RowGap).WithFixedSize(numberInput, InputHeight);
             compo.AddTextInput(priceInput, v => Admin.BonusClaims = v, null, "admin-plot-fs");
             compo.GetTextInput("admin-plot-fs").SetValue(Admin.BonusClaims ?? "");
-            AddCommand(compo, priceInput.RightCopy(8).WithFixedHeight(28), "claims:gui-admin-fs-price",
+
+            AddCommand(compo, priceInput.RightCopy(8).WithFixedHeight(InputHeight), priceCaption,
                 () => "/cadmin plot fs " + Admin.BonusClaims, "claims:gui-admin-fs-price-tooltip");
 
-            // --- plot type ---
-            var typeBounds = feeInput.BelowCopy(0, 10).WithFixedSize(180, 28);
-            string[] typeNames = System.Enum.GetNames(typeof(PlotType));
+            var typeBounds = inner.FlatCopy().WithFixedSize(180, InputHeight);
+            typeBounds.fixedY = inner.fixedY + numbersHeight + RowGap;
+
+            string[] typeNames = Enum.GetNames(typeof(PlotType));
             string[] typeLabels = typeNames.Select(n => n.ToLowerInvariant()).ToArray();
-            int selectedType = System.Array.IndexOf(typeNames, plot.PlotType.ToString());
+            int selectedType = Array.IndexOf(typeNames, plot.PlotType.ToString());
 
             compo.AddDropDown(typeLabels, typeLabels, selectedType < 0 ? 0 : selectedType, (code, on) =>
             {
                 if (!on) return;
                 // Written locally too, so the dropdown keeps the picked entry until the server
                 // sends the plot back.
-                plot.PlotType = (PlotType)System.Enum.Parse(typeof(PlotType), code, true);
+                plot.PlotType = (PlotType)Enum.Parse(typeof(PlotType), code, true);
                 Send("/cadmin plot type " + code);
             }, typeBounds, "admin-plot-type");
-            compo.AddHoverText(Lang.Get("claims:gui-admin-plot-type-tooltip"), CairoFont.SmallButtonText(), 250, typeBounds);
+            Tooltip.Add(compo, Lang.Get("claims:gui-admin-plot-type-tooltip"), typeBounds, "tip-admin-plot-type");
 
-            // --- per-group permissions, two groups per row ---
-            var permBounds = typeBounds.BelowCopy(0, 12);
-            permBounds.fixedWidth = ctx.Line.fixedWidth;
-            compo.AddStaticText(Lang.Get("claims:gui-admin-permissions"), ClaimsFonts.PageLabel, permBounds);
-            compo.AddHoverText(Lang.Get("claims:gui-admin-permissions-help"), CairoFont.SmallButtonText(), 300, permBounds);
+            return y + height + Card.Gap;
+        }
 
+        /// <summary>Who may do what on the plot, one group per row.</summary>
+        private void BuildPermissionsCard(GuiComposer compo, ElementBounds column, double y, CurrentPlotInfo plot)
+        {
             var groupDefs = new (string Label, string Cmd, bool[] Perms)[]
             {
                 (Lang.Get("claims:gui-admin-group-citizen"), "citizen", plot.PermsHandler.CitizenPerms),
@@ -153,12 +234,19 @@ namespace claims.src.gui.playerGui.Pages
                 (Lang.Get("claims:gui-admin-group-friend"), "friend", plot.PermsHandler.ComradePerms),
             };
 
-            var permGridStart = permBounds.BelowCopy(0, 8).WithFixedSize(90, 25);
+            double height = Card.HeaderHeight + groupDefs.Length * GridRowHeight + Card.Padding * 2;
+
+            ElementBounds inner = Card.Frame(compo, column, y, height,
+                Lang.Get("claims:gui-admin-permissions"));
+
+            Tooltip.Add(compo, Lang.Get("claims:gui-admin-permissions-help"),
+                inner.FlatCopy().WithFixedSize(inner.fixedWidth, 12), "tip-admin-perms");
+
             for (int i = 0; i < groupDefs.Length; i++)
             {
-                var cell = permGridStart.FlatCopy();
-                cell.fixedX += (i % 2) * 240;
-                cell.fixedY += (i / 2) * 31;
+                var cell = inner.FlatCopy().WithFixedSize(90, 25);
+                cell.fixedY = inner.fixedY + i * GridRowHeight;
+
                 AddPermGroup(compo, cell, groupDefs[i].Label, groupDefs[i].Cmd, groupDefs[i].Perms);
             }
         }
@@ -168,7 +256,8 @@ namespace claims.src.gui.playerGui.Pages
         {
             if (perms == null) return;
 
-            compo.AddStaticText(groupLabel, CairoFont.WhiteDetailText(), cell);
+            compo.AddStaticText(groupLabel,
+                CairoFont.WhiteSmallText().WithColor(ClaimsColors.Label), cell, "admin-permgroup-" + groupCmd);
 
             ElementBounds switchBounds = cell;
             for (int i = 0; i < perms.Length && i < PermTokens.Length; i++)
@@ -184,7 +273,7 @@ namespace claims.src.gui.playerGui.Pages
                     Send("/cadmin plot set permissions " + groupCmd + " " + PermTokens[index] + (on ? " on" : " off"));
                 }, target, key);
                 compo.GetSwitch(key).SetValue(perms[i]);
-                compo.AddHoverText(Lang.Get(PermLangKeys[i]), CairoFont.SmallButtonText(), 120, target);
+                Tooltip.Add(compo, Lang.Get(PermLangKeys[i]), target, "tip-" + key);
             }
         }
 
@@ -192,9 +281,8 @@ namespace claims.src.gui.playerGui.Pages
         /// A command button sized to its own caption - a fixed width clipped the longer translations
         /// and made neighbouring captions overlap. Returns the bounds actually used.
         /// </summary>
-        private ElementBounds AddCommand(GuiComposer compo, ElementBounds bounds, string labelKey, Func<string> command, string tooltipKey)
+        private ElementBounds AddCommand(GuiComposer compo, ElementBounds bounds, string caption, Func<string> command, string tooltipKey)
         {
-            string caption = Lang.Get(labelKey);
             var target = bounds.FlatCopy().WithFixedWidth(ButtonWidth(caption));
 
             compo.AddButton(caption, new ActionConsumable(() =>
@@ -205,7 +293,7 @@ namespace claims.src.gui.playerGui.Pages
 
             if (tooltipKey != null)
             {
-                compo.AddHoverText(Lang.Get(tooltipKey), CairoFont.SmallButtonText(), 250, target);
+                Tooltip.Add(compo, Lang.Get(tooltipKey), target, "tip-cmd-" + caption);
             }
 
             return target;

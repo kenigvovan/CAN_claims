@@ -20,20 +20,20 @@ namespace claims.src.gui.hud
 
         protected override bool IsVisible => ClaimsHudState.ShowBountyBoard;
 
-        protected override List<string> BuildLines()
+        protected override List<HudLine> BuildLines()
         {
-            var lines = new List<string> { Lang.Get("claims:gui-bounty-board-title") };
+            var lines = new List<HudLine> { HudLine.Title(Lang.Get("claims:gui-bounty-board-title")) };
 
             var board = ClaimsHudState.BountyBoard;
             if (board == null || board.Count == 0)
             {
-                lines.Add(Lang.Get("claims:gui-bounty-board-empty"));
+                lines.Add(HudLine.Muted(Lang.Get("claims:gui-bounty-board-empty")));
                 return lines;
             }
 
             foreach (var entry in board)
             {
-                lines.Add(entry.Name + "  -  " + entry.Amount);
+                lines.Add(HudLine.Value(entry.Name + "  -  " + entry.Amount));
             }
             return lines;
         }

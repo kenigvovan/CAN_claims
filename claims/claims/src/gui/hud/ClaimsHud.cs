@@ -1,8 +1,32 @@
 using System.Collections.Generic;
+using claims.src.gui.playerGui.Widgets;
 using Vintagestory.API.Client;
 
 namespace claims.src.gui.hud
 {
+    /// <summary>
+    /// One line of a HUD panel. The panels used to hand up bare strings and every one of them was
+    /// drawn in the same white, so a heading, a score and a "nothing here" notice all read alike.
+    /// </summary>
+    public sealed class HudLine
+    {
+        public string Text;
+        public double[] Color;
+        public int FontSize;
+
+        /// <summary>Heading of a panel, in the shared section colour.</summary>
+        public static HudLine Title(string text)
+            => new HudLine { Text = text, Color = ClaimsColors.Section, FontSize = 17 };
+
+        /// <summary>An ordinary line - what the panel exists to show.</summary>
+        public static HudLine Value(string text)
+            => new HudLine { Text = text, Color = ClaimsColors.Value, FontSize = 15 };
+
+        /// <summary>An aside: an empty state, a caption, something not worth the accent colour.</summary>
+        public static HudLine Muted(string text)
+            => new HudLine { Text = text, Color = ClaimsColors.Label, FontSize = 15 };
+    }
+
     /// <summary>
     /// A HUD panel made of plain text lines.
     ///
@@ -13,7 +37,7 @@ namespace claims.src.gui.hud
     /// </summary>
     public abstract class ClaimsHud : HudElement
     {
-        private List<string> shownLines = new List<string>();
+        private List<HudLine> shownLines = new List<HudLine>();
         private bool wasVisible;
 
         protected ClaimsHud(ICoreClientAPI capi) : base(capi)
@@ -29,7 +53,7 @@ namespace claims.src.gui.hud
         protected abstract bool IsVisible { get; }
 
         /// <summary>The lines to show, top to bottom. An empty list hides the panel.</summary>
-        protected abstract List<string> BuildLines();
+        protected abstract List<HudLine> BuildLines();
 
         /// <summary>Where the panel sits, as a fraction of the screen.</summary>
         protected abstract EnumDialogArea Anchor { get; }
@@ -53,13 +77,13 @@ namespace claims.src.gui.hud
                 if (wasVisible)
                 {
                     wasVisible = false;
-                    shownLines = new List<string>();
+                    shownLines = new List<HudLine>();
                     SingleComposer = null;
                 }
                 return;
             }
 
-            List<string> lines = BuildLines();
+            List<HudLine> lines = BuildLines();
             if (wasVisible && SameLines(lines, shownLines)) return;
 
             wasVisible = true;
@@ -67,17 +91,18 @@ namespace claims.src.gui.hud
             Compose(lines);
         }
 
-        private static bool SameLines(List<string> a, List<string> b)
+        private static bool SameLines(List<HudLine> a, List<HudLine> b)
         {
             if (a.Count != b.Count) return false;
             for (int i = 0; i < a.Count; i++)
             {
-                if (a[i] != b[i]) return false;
+                // Colour too: a line can keep its wording and change what it means.
+                if (a[i].Text != b[i].Text || a[i].Color != b[i].Color) return false;
             }
             return true;
         }
 
-        private void Compose(List<string> lines)
+        private void Compose(List<HudLine> lines)
         {
             const double lineHeight = 22;
 
@@ -93,9 +118,13 @@ namespace claims.src.gui.hud
                                    .AddDialogBG(bgBounds, false);
 
             ElementBounds row = ElementBounds.Fixed(0, 0, PanelWidth - 16, lineHeight);
-            foreach (var line in lines)
+            for (int i = 0; i < lines.Count; i++)
             {
-                composer.AddStaticText(line, CairoFont.WhiteSmallText(), row);
+                HudLine line = lines[i];
+
+                composer.AddStaticText(line.Text,
+                    CairoFont.WhiteSmallText().WithFontSize(line.FontSize).WithColor(line.Color),
+                    row, ComposerKey + "-line" + i);
                 row = row.BelowCopy();
             }
 

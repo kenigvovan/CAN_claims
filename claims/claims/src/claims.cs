@@ -649,73 +649,63 @@ namespace claims.src
         }
         public static void updateMovementGUIInfo(SavedPlotInfo plot = null)
         {
+            // The panel speaks in the same palette the dialog does: whose land it is in the accent
+            // colour, the details under it muted, and whether PVP is on in red or green - that line
+            // is the one a player crossing a border actually looks for.
+            var titleFont = CairoFont.WhiteDetailText().WithFontSize(18)
+                .WithColor(gui.playerGui.Widgets.ClaimsColors.Value);
+            var detailFont = CairoFont.WhiteDetailText().WithFontSize(16)
+                .WithColor(gui.playerGui.Widgets.ClaimsColors.Label);
+
             if (plot == null)
             {
-                var cai = CairoFont.WhiteDetailText().WithFontSize(18);
-                movementClaimGui.SingleComposer.GetRichtext("line_1")
-                    .SetNewText(Lang.Get("claims:movementgui-wild-lands"), cai);
-                movementClaimGui.SingleComposer.GetRichtext("line_2")
-              .SetNewText("", cai);
-                movementClaimGui.SingleComposer.GetRichtext("line_3")
-               .SetNewText("", cai);
-                movementClaimGui.SingleComposer.GetRichtext("line_4")
-               .SetNewText("", cai);
-                movementClaimGui.SingleComposer.GetRichtext("line_5")
-              .SetNewText("", cai);
+                SetMovementLine(1, Lang.Get("claims:movementgui-wild-lands"), detailFont);
+                ClearMovementLines(2, detailFont);
+                return;
             }
-            else
+
+            SetMovementLine(1, Lang.Get("claims:movementgui-city-name", plot.cityName), titleFont);
+
+            int currentLine = 2;
+
+            if (plot.plotName.Length > 0)
             {
-                var cai = CairoFont.WhiteDetailText().WithFontSize(18).WithOrientation(EnumTextOrientation.Center);
-               /* var f = movementClaimGui.Single*Composer.GetRichtext("line_1");
-                var p = f.Components[0];*/
-
-                //(p as RichTextComponent).Font.Orientation = EnumTextOrientation.Center;
-                movementClaimGui.SingleComposer.GetRichtext("line_1")
-               .SetNewText(Lang.Get("claims:movementgui-city-name", plot.cityName), cai);
-                
-                int currentLine = 2;
-
-                if (plot.plotName.Length > 0)
-                {
-                    movementClaimGui.SingleComposer.GetRichtext("line_" + currentLine)
-                   .SetNewText(Lang.Get("claims:movementgui-plot-name", plot.plotName), cai);
-                    currentLine++;
-                }
-
-                if (plot.groupName.Length > 0)
-                {
-                    movementClaimGui.SingleComposer.GetRichtext("line_" + currentLine)
-                    .SetNewText(Lang.Get("claims:movementgui-group-name", plot.groupName), cai);
-                    currentLine++;
-                }
-
-                if (plot.PvPIsOn)
-                {
-                    movementClaimGui.SingleComposer.GetRichtext("line_" + currentLine)
-                    .SetNewText(Lang.Get("claims:movementgui-pvp-on"), cai);
-                }
-                else
-                {
-                    movementClaimGui.SingleComposer.GetRichtext("line_" + currentLine)
-                    .SetNewText(Lang.Get("claims:movementgui-pvp-off"), cai);
-                }
-                currentLine++;
-                if (plot.price > -1)
-                {
-                    movementClaimGui.SingleComposer.GetRichtext("line_" + currentLine)
-                   .SetNewText(Lang.Get("claims:movementgui-price", plot.price), cai);
-                    currentLine++;
-                }
-                
-                for (; currentLine <= 5; currentLine++)
-                {
-                    movementClaimGui.SingleComposer.GetRichtext("line_" + currentLine)
-                   .SetNewText("", cai);
-                }
-
-                //claimsext.movementClaimGui.SetupDialog();
+                SetMovementLine(currentLine++, Lang.Get("claims:movementgui-plot-name", plot.plotName), detailFont);
             }
 
+            if (plot.groupName.Length > 0)
+            {
+                SetMovementLine(currentLine++, Lang.Get("claims:movementgui-group-name", plot.groupName), detailFont);
+            }
+
+            var pvpFont = CairoFont.WhiteDetailText().WithFontSize(16).WithColor(plot.PvPIsOn
+                ? gui.playerGui.Widgets.ClaimsColors.Danger
+                : gui.playerGui.Widgets.ClaimsColors.Success);
+            SetMovementLine(currentLine++,
+                Lang.Get(plot.PvPIsOn ? "claims:movementgui-pvp-on" : "claims:movementgui-pvp-off"), pvpFont);
+
+            if (plot.price > -1)
+            {
+                SetMovementLine(currentLine++, Lang.Get("claims:movementgui-price", plot.price), titleFont);
+            }
+
+            ClearMovementLines(currentLine, detailFont);
+        }
+
+        private static void SetMovementLine(int line, string text, CairoFont font)
+        {
+            if (line > gui.plotMovementGui.ClaimsPlayerMovementGUI.LineCount) return;
+
+            movementClaimGui.SingleComposer.GetRichtext("line_" + line).SetNewText(text, font);
+        }
+
+        /// <summary>Blanks the slots a shorter plot description left over.</summary>
+        private static void ClearMovementLines(int from, CairoFont font)
+        {
+            for (int line = from; line <= gui.plotMovementGui.ClaimsPlayerMovementGUI.LineCount; line++)
+            {
+                SetMovementLine(line, "", font);
+            }
         }
 
     }

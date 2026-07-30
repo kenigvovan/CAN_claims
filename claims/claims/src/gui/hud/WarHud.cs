@@ -24,14 +24,17 @@ namespace claims.src.gui.hud
             && claims.config?.WAR_HUD_ENABLED == true
             && ActiveConflicts().Count > 0;
 
-        protected override List<string> BuildLines()
+        protected override List<HudLine> BuildLines()
         {
-            var lines = new List<string> { Lang.Get("claims:gui-war-hud-title", claims.config.WAR_SCORE_TO_WIN) };
+            var lines = new List<HudLine>
+            {
+                HudLine.Title(Lang.Get("claims:gui-war-hud-title", claims.config.WAR_SCORE_TO_WIN))
+            };
 
             foreach (var conflict in ActiveConflicts())
             {
-                lines.Add(conflict.FirstPartyName + "   " + conflict.FirstScore
-                    + " : " + conflict.SecondScore + "   " + conflict.SecondPartyName);
+                lines.Add(HudLine.Value(conflict.FirstPartyName + "   " + conflict.FirstScore
+                    + " : " + conflict.SecondScore + "   " + conflict.SecondPartyName));
             }
             return lines;
         }

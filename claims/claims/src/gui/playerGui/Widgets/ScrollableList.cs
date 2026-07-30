@@ -70,6 +70,50 @@ namespace claims.src.gui.playerGui.Widgets
     /// </summary>
     public static class ScrollableList
     {
+        /// <summary>Where the title row sits inside the container, and how tall it is.</summary>
+        private const double TitleRowY = 40;
+        private const double TitleRowHeight = 30;
+
+        /// <summary>Gap between the title row and the clipped area, and the inset drawn around it.</summary>
+        private const double ListGap = 5;
+        private const double InsetGrow = 6;
+
+        /// <summary>
+        /// Vertical space the whole thing takes below its anchor, the clipped area itself excluded.
+        /// A page stacking a second list under the first had to guess this from the first list's
+        /// inset - bounds that belong to the first list's clip, so the guess put the second list off
+        /// the bottom of the window.
+        /// </summary>
+        /// <param name="hasTitle">Whether the list is given a heading. A list without one reserves
+        /// no room for it - a titleless list used to leave 75 empty pixels above its frame, with the
+        /// scrollbar starting below them.</param>
+        public static double Overhead(ElementBounds anchor, ScrollableListOptions opts = null, bool hasTitle = true)
+        {
+            opts = opts ?? new ScrollableListOptions();
+
+            // An explicit container is where the list starts, full stop - the title row the anchor
+            // would otherwise push it past belongs to the default layout only.
+            double y = 0;
+            if (opts.Container == null)
+            {
+                y = anchor.fixedHeight + opts.TitleGap;
+                if (opts.ContainerBelowTitle) y += anchor.fixedHeight - opts.TitleHeightShrink;
+            }
+
+            return y + TitleRowOffset(hasTitle) - InsetGrow / 2 + InsetGrow;
+        }
+
+        /// <summary>Where the clipped area starts inside the container.</summary>
+        private static double TitleRowOffset(bool hasTitle)
+            => hasTitle ? TitleRowY + TitleRowHeight + ListGap : 0;
+
+        /// <summary>
+        /// The <see cref="ScrollableListOptions.HeightReserve"/> that gives the clipped area exactly
+        /// <paramref name="listHeight"/>. Pages used to reach the same end by trying reserve numbers.
+        /// </summary>
+        public static double ReserveFor(CANClaimsGui gui, double listHeight)
+            => gui.mainBounds.fixedHeight - listHeight;
+
         /// <summary>
         /// Adds the list to the page composer. Does not compose: the caller owns that, so it can
         /// keep adding elements afterwards.
@@ -88,17 +132,17 @@ namespace claims.src.gui.playerGui.Widgets
             ElementBounds outer = anchor.FlatCopy();
             double width = outer.fixedWidth - 30;
 
-            ElementBounds topTextBounds = ElementBounds.Fixed(GuiStyle.ElementToDialogPadding, 40, width, 30);
+            // Without a heading the list starts at the top of its container: the spacer row used to
+            // be added regardless, leaving an empty band above the frame that the scrollbar tracked.
             ElementBounds listArea = ElementBounds
-                .Fixed(0, 0, width, gui.mainBounds.fixedHeight - opts.HeightReserve)
-                .FixedUnder(topTextBounds, 5);
+                .Fixed(0, TitleRowOffset(title != null), width, gui.mainBounds.fixedHeight - opts.HeightReserve);
 
             ElementBounds titleBounds = outer.BelowCopy(0, opts.TitleGap);
             titleBounds.fixedHeight -= opts.TitleHeightShrink;
             titleBounds.WithAlignment(EnumDialogArea.CenterTop);
 
             ElementBounds clippingBounds = listArea.ForkBoundingParent();
-            ElementBounds insetBounds = listArea.FlatCopy().FixedGrow(6).WithFixedOffset(-3, -3);
+            ElementBounds insetBounds = listArea.FlatCopy().FixedGrow(InsetGrow).WithFixedOffset(-InsetGrow / 2, -InsetGrow / 2);
             ElementBounds scrollbarBounds = insetBounds.CopyOffsetedSibling(listArea.fixedWidth + 7).WithFixedWidth(20);
 
             if (title != null)

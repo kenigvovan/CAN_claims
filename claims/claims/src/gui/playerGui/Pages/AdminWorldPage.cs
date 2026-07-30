@@ -13,68 +13,106 @@ namespace claims.src.gui.playerGui.Pages
     /// </summary>
     public sealed class AdminWorldPage : AdminPageBase
     {
+        /// <summary>Caption line of one flag pair, and the row of switches under it.</summary>
+        private const double FlagLabelHeight = 18;
+        private const double FlagRowHeight = 25;
+        private const double FlagSectionGap = 8;
+
+        private const double FlagSectionHeight = FlagLabelHeight + FlagRowHeight + FlagSectionGap;
+
         protected override void BuildAdminContent(PageBuildContext ctx)
         {
             var compo = ctx.Compo;
 
-            var currentBounds = ctx.Current.BelowCopy(0, 10).WithFixedHeight(25);
-            currentBounds.fixedWidth = ctx.Line.fixedWidth;
-            currentBounds.WithAlignment(EnumDialogArea.LeftTop);
-
-            compo.AddStaticText(Lang.Get("claims:gui-admin-world-title"), ClaimsFonts.PageLabel, currentBounds);
+            var column = ctx.Current.BelowCopy(0, 10);
+            column.fixedWidth = ctx.Line.fixedWidth;
+            column.WithAlignment(EnumDialogArea.LeftTop);
 
             var world = AdminClientState.World;
             if (world == null)
             {
                 // The reply to ADMIN_REQUEST_CITY_FLAGS has not arrived yet.
+                const double loadingHeight = 24;
+                ElementBounds loadingInner = Card.Frame(compo, column, column.fixedY,
+                    Card.HeaderHeight + loadingHeight + Card.Padding * 2,
+                    Lang.Get("claims:gui-admin-world-title"));
+
                 compo.AddStaticText(Lang.Get("claims:gui-admin-world-loading"),
-                    CairoFont.WhiteDetailText(), currentBounds.BelowCopy(0, 20));
+                    CairoFont.WhiteSmallText().WithColor(ClaimsColors.Label),
+                    loadingInner.FlatCopy().WithFixedHeight(loadingHeight), "admin-world-loading");
                 return;
             }
 
-            currentBounds = currentBounds.BelowCopy(0, 5);
+            // --- the three world-wide overrides ---
+            double flagsHeight = Card.HeaderHeight + FlagSectionHeight * 3 + Card.Padding * 2;
+            ElementBounds inner = Card.Frame(compo, column, column.fixedY, flagsHeight,
+                Lang.Get("claims:gui-admin-world-title"));
 
-            currentBounds = AddFlagSection(compo, currentBounds, Lang.Get("claims:gui-admin-pvp"), "pvp",
+            double y = inner.fixedY;
+            y = AddFlagSection(compo, inner, y, Lang.Get("claims:gui-admin-pvp"), "pvp",
                 world.PvpEverywhere, v => world.PvpEverywhere = v,
                 world.PvpForbidden, v => world.PvpForbidden = v);
 
-            currentBounds = AddFlagSection(compo, currentBounds, Lang.Get("claims:gui-admin-fire-spread"), "fire",
+            y = AddFlagSection(compo, inner, y, Lang.Get("claims:gui-admin-fire-spread"), "fire",
                 world.FireEverywhere, v => world.FireEverywhere = v,
                 world.FireForbidden, v => world.FireForbidden = v);
 
-            currentBounds = AddFlagSection(compo, currentBounds, Lang.Get("claims:gui-admin-explosions"), "blast",
+            AddFlagSection(compo, inner, y, Lang.Get("claims:gui-admin-explosions"), "blast",
                 world.BlastEverywhere, v => world.BlastEverywhere = v,
                 world.BlastForbidden, v => world.BlastForbidden = v);
 
-            currentBounds = currentBounds.BelowCopy(0, 10);
-            compo.AddStaticText(Lang.Get("claims:gui-admin-diagnostics"), ClaimsFonts.PageLabel, currentBounds);
+            // --- one-off triggers ---
+            string ndayCaption = Lang.Get("claims:gui-admin-force-nday");
+            string nhourCaption = Lang.Get("claims:gui-admin-force-nhour");
+            string backupCaption = Lang.Get("claims:gui-admin-force-backup");
 
-            currentBounds = currentBounds.BelowCopy(0, 2);
-            compo.AddStaticText(Lang.Get("claims:gui-admin-diagnostics-hint"),
-                CairoFont.WhiteDetailText(), currentBounds);
+            double innerWidth = column.fixedWidth - Card.Padding * 2;
 
-            var triggers = new ButtonRow(compo, currentBounds.BelowCopy(0, 8), ctx.Line.fixedWidth);
-            AddTrigger(triggers, "claims:gui-admin-force-nday", "/cadmin nday", "claims:gui-admin-nday-world-tooltip");
-            AddTrigger(triggers, "claims:gui-admin-force-nhour", "/cadmin nhour", "claims:gui-admin-nhour-world-tooltip");
-            AddTrigger(triggers, "claims:gui-admin-force-backup", "/cadmin backup", "claims:gui-admin-backup-world-tooltip");
+            // Both measured rather than assumed: the hint wraps to two lines at this width, and the
+            // three buttons wrap to two rows - a card framed for one of each clipped them both.
+            string hint = Lang.Get("claims:gui-admin-diagnostics-hint");
+            double hintHeight = TextHeight(hint, innerWidth) + 4;
+            double triggerRowHeight = ButtonRow.HeightFor(innerWidth, 0, ndayCaption, nhourCaption, backupCaption);
+
+            double diagnosticsHeight = Card.HeaderHeight + hintHeight + triggerRowHeight + Card.Padding * 2;
+
+            ElementBounds diagnostics = Card.Frame(compo, column,
+                column.fixedY + flagsHeight + Card.Gap, diagnosticsHeight,
+                Lang.Get("claims:gui-admin-diagnostics"));
+
+            compo.AddStaticText(hint,
+                CairoFont.WhiteSmallText().WithColor(ClaimsColors.Label),
+                diagnostics.FlatCopy().WithFixedHeight(hintHeight), "admin-diagnostics-hint");
+
+            var triggerAnchor = diagnostics.FlatCopy().WithFixedHeight(ButtonRow.ButtonHeight);
+            triggerAnchor.fixedY += hintHeight;
+
+            var triggers = new ButtonRow(compo, triggerAnchor, diagnostics.fixedWidth);
+            AddTrigger(triggers, ndayCaption, "/cadmin nday", "claims:gui-admin-nday-world-tooltip");
+            AddTrigger(triggers, nhourCaption, "/cadmin nhour", "claims:gui-admin-nhour-world-tooltip");
+            AddTrigger(triggers, backupCaption, "/cadmin backup", "claims:gui-admin-backup-world-tooltip");
         }
 
         /// <summary>
         /// One pair of mutually exclusive switches. "Everywhere" and "forbidden" contradict each
-        /// other, so whichever is on locks the other out.
+        /// other, so whichever is on locks the other out. Returns the y the next section starts at.
         /// </summary>
-        private ElementBounds AddFlagSection(GuiComposer compo, ElementBounds bounds, string sectionName, string key,
+        private double AddFlagSection(GuiComposer compo, ElementBounds inner, double y, string sectionName, string key,
             bool everywhere, Action<bool> setEverywhere,
             bool forbidden, Action<bool> setForbidden)
         {
-            compo.AddStaticText(sectionName, CairoFont.WhiteDetailText(), bounds);
+            var labelBounds = inner.FlatCopy().WithFixedHeight(FlagLabelHeight);
+            labelBounds.fixedY = y;
+            compo.AddStaticText(sectionName,
+                CairoFont.WhiteSmallText().WithColor(ClaimsColors.Value), labelBounds, "admin-flag-" + key);
 
-            var row = bounds.BelowCopy(0, 2).WithFixedHeight(25);
+            var row = inner.FlatCopy().WithFixedSize(110, FlagRowHeight);
+            row.fixedY = y + FlagLabelHeight;
 
-            var everywhereLabel = row.FlatCopy().WithFixedWidth(110);
-            compo.AddStaticText(Lang.Get("claims:gui-admin-everywhere"), CairoFont.WhiteDetailText(), everywhereLabel);
+            compo.AddStaticText(Lang.Get("claims:gui-admin-everywhere"),
+                CairoFont.WhiteSmallText().WithColor(ClaimsColors.Label), row);
 
-            var everywhereSwitch = everywhereLabel.RightCopy(0, 0).WithFixedSize(25, 25);
+            var everywhereSwitch = row.RightCopy(0, 0).WithFixedSize(25, 25);
             compo.AddSwitch((on) =>
             {
                 setEverywhere(on);
@@ -84,8 +122,9 @@ namespace claims.src.gui.playerGui.Pages
             compo.GetSwitch(key + "-everywhere").SetValue(everywhere);
             compo.GetSwitch(key + "-everywhere").Enabled = !forbidden;
 
-            var forbiddenLabel = everywhereSwitch.RightCopy(20, 0).WithFixedWidth(110);
-            compo.AddStaticText(Lang.Get("claims:gui-admin-forbidden"), CairoFont.WhiteDetailText(), forbiddenLabel);
+            var forbiddenLabel = everywhereSwitch.RightCopy(20, 0).WithFixedSize(110, FlagRowHeight);
+            compo.AddStaticText(Lang.Get("claims:gui-admin-forbidden"),
+                CairoFont.WhiteSmallText().WithColor(ClaimsColors.Label), forbiddenLabel);
 
             var forbiddenSwitch = forbiddenLabel.RightCopy(0, 0).WithFixedSize(25, 25);
             compo.AddSwitch((on) =>
@@ -97,12 +136,12 @@ namespace claims.src.gui.playerGui.Pages
             compo.GetSwitch(key + "-forbidden").SetValue(forbidden);
             compo.GetSwitch(key + "-forbidden").Enabled = !everywhere;
 
-            return row.BelowCopy(0, 10).WithFixedHeight(25);
+            return y + FlagSectionHeight;
         }
 
-        private void AddTrigger(ButtonRow row, string labelLangKey, string command, string tooltipLangKey)
+        private void AddTrigger(ButtonRow row, string caption, string command, string tooltipLangKey)
         {
-            row.Add(Lang.Get(labelLangKey), () =>
+            row.Add(caption, () =>
             {
                 Send(command);
                 return true;

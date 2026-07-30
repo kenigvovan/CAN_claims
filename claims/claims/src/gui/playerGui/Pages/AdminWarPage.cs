@@ -1,4 +1,7 @@
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
+using claims.src.gui.playerGui.GuiElements;
 using claims.src.gui.playerGui.Widgets;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -12,6 +15,16 @@ namespace claims.src.gui.playerGui.Pages
     /// </summary>
     public sealed class AdminWarPage : AdminPageBase
     {
+        private const double InputHeight = 28;
+        private const double RowGap = 6;
+        private const double LabelHeight = 22;
+
+        /// <summary>Width the scrollbar needs beside the settings list.</summary>
+        private const double ScrollbarReserve = 27;
+
+        /// <summary>The settings list never shrinks below this, however tall the cards above are.</summary>
+        private const double MinConfigHeight = 90;
+
         private AdminPageState Admin => State.Admin;
 
         protected override void BuildAdminContent(PageBuildContext ctx)
@@ -20,67 +33,72 @@ namespace claims.src.gui.playerGui.Pages
 
             // No page title of its own: the admin tab strip above already names the page, and the
             // window has no vertical room to spare.
-            var currentBounds = ctx.Current.BelowCopy(0, 5);
-            currentBounds.fixedWidth = ctx.Line.fixedWidth;
-            currentBounds.WithAlignment(EnumDialogArea.LeftTop);
+            var column = ctx.Current.BelowCopy(0, 5);
+            column.fixedWidth = ctx.Line.fixedWidth;
+            column.WithAlignment(EnumDialogArea.LeftTop);
 
-            // --- the two sides ---
-            var firstBounds = currentBounds.FlatCopy().WithFixedSize(150, 28);
+            double y = BuildWarCard(compo, column, column.fixedY);
+            BuildConfigCard(ctx, compo, column, y);
+        }
+
+        /// <summary>The two sides, the two commands that act on them, and a picker that fills them in.</summary>
+        private double BuildWarCard(GuiComposer compo, ElementBounds column, double y)
+        {
+            string startCaption = Lang.Get("claims:gui-admin-force-start-war");
+            string endCaption = Lang.Get("claims:gui-admin-force-end-war");
+
+            double innerWidth = column.fixedWidth - Card.Padding * 2;
+            double buttonsHeight = ButtonRow.HeightFor(innerWidth, 0, startCaption, endCaption);
+
+            var conflicts = claims.clientDataStorage?.clientPlayerInfo?.CityInfo?.ClientConflictCellElements;
+            bool hasConflicts = conflicts != null && conflicts.Count > 0;
+
+            // With conflicts the picker names itself through its tooltip; the caption line is only
+            // there to say when there are none. Every line here is a line the settings list loses.
+            double pickHeight = hasConflicts ? InputHeight : LabelHeight;
+
+            // The battle window row lives in this card too: as a card of its own it cost a heading, a
+            // frame and two gaps, and the settings list below had no room left to be usable.
+            double body = InputHeight + RowGap + buttonsHeight + RowGap + pickHeight
+                        + RowGap + InputHeight;
+
+            ElementBounds inner = Card.Frame(compo, column, y, Card.HeaderHeight + body + Card.Padding * 2,
+                Lang.Get("claims:gui-admin-section-war"));
+
+            var firstBounds = inner.FlatCopy().WithFixedSize(150, InputHeight);
             compo.AddTextInput(firstBounds, v => Admin.RenameTo = v, null, "admin-war-first");
             compo.GetTextInput("admin-war-first").SetValue(Admin.RenameTo);
 
-            var secondBounds = firstBounds.RightCopy(10).WithFixedSize(150, 28);
+            var secondBounds = firstBounds.RightCopy(10).WithFixedSize(150, InputHeight);
             compo.AddTextInput(secondBounds, v => Admin.PlayerName = v, null, "admin-war-second");
             compo.GetTextInput("admin-war-second").SetValue(Admin.PlayerName);
 
-            var startBounds = AddCommand(compo, firstBounds.BelowCopy(0, 8).WithFixedHeight(28), "claims:gui-admin-force-start-war",
+            var buttonAnchor = inner.FlatCopy().WithFixedHeight(ButtonRow.ButtonHeight);
+            buttonAnchor.fixedY = inner.fixedY + InputHeight + RowGap;
+
+            var commands = new ButtonRow(compo, buttonAnchor, inner.fixedWidth);
+            AddCommand(commands, startCaption,
                 () => "/cadmin startwar " + Admin.RenameTo + " " + Admin.PlayerName,
                 "claims:gui-admin-force-start-war-tooltip");
-
-            AddCommand(compo, startBounds.RightCopy(10), "claims:gui-admin-force-end-war",
+            AddCommand(commands, endCaption,
                 () => "/cadmin endwar " + Admin.RenameTo + " " + Admin.PlayerName,
                 "claims:gui-admin-force-end-war-tooltip");
 
-            // --- battle window override ---
-            var overrideBounds = startBounds.BelowCopy(0, 12);
-            compo.AddStaticText(Lang.Get("claims:gui-admin-override-battle"), CairoFont.WhiteDetailText(), overrideBounds.FlatCopy().WithFixedWidth(ctx.Line.fixedWidth));
+            // Picking a conflict fills both party fields, so the commands above act on it without
+            // the admin retyping two names.
+            double pickY = buttonAnchor.fixedY + buttonsHeight + RowGap;
 
-            var startInBounds = overrideBounds.BelowCopy(0, 6).WithFixedSize(80, 28);
-            compo.AddTextInput(startInBounds, v => Admin.BonusClaims = v, null, "admin-war-startin");
-            compo.GetTextInput("admin-war-startin").SetValue(Admin.BonusClaims);
+            var labelBounds = inner.FlatCopy().WithFixedHeight(LabelHeight);
+            labelBounds.fixedY = pickY;
 
-            var durationBounds = startInBounds.RightCopy(10).WithFixedSize(80, 28);
-            compo.AddTextInput(durationBounds, v => Admin.CityFee = v, null, "admin-war-duration");
-            compo.GetTextInput("admin-war-duration").SetValue(Admin.CityFee);
-
-            AddCommand(compo, durationBounds.RightCopy(10), "claims:gui-admin-set-battle-date",
-                () => "/cadmin setbattledate " + Admin.RenameTo + " " + Admin.PlayerName
-                      + " " + Admin.BonusClaims + " " + Admin.CityFee,
-                "claims:gui-admin-set-battle-date-tooltip");
-
-            // --- active conflicts ---
-            var conflictAnchor = AddActiveConflicts(ctx, compo, startInBounds);
-
-            // --- runtime settings, one scrollable block ---
-            BuildConfigList(ctx, compo, conflictAnchor);
-        }
-
-        /// <summary>
-        /// Picking a conflict fills both party fields, so the commands above act on it without the
-        /// admin retyping two names. Returns the anchor the settings list continues from.
-        /// </summary>
-        private ElementBounds AddActiveConflicts(PageBuildContext ctx, GuiComposer compo, ElementBounds anchor)
-        {
-            var labelBounds = anchor.BelowCopy(0, 10).WithFixedSize(ctx.Line.fixedWidth, 22);
-
-            var conflicts = claims.clientDataStorage?.clientPlayerInfo?.CityInfo?.ClientConflictCellElements;
-            if (conflicts == null || conflicts.Count == 0)
+            if (!hasConflicts)
             {
-                compo.AddStaticText(Lang.Get("claims:gui-admin-no-active-conflicts"), CairoFont.WhiteDetailText(), labelBounds);
-                return labelBounds;
-            }
+                compo.AddStaticText(Lang.Get("claims:gui-admin-no-active-conflicts"),
+                    CairoFont.WhiteSmallText().WithColor(ClaimsColors.Label), labelBounds, "admin-no-conflicts");
 
-            compo.AddStaticText(Lang.Get("claims:gui-admin-active-conflicts"), CairoFont.WhiteDetailText(), labelBounds);
+                AddBattleWindowRow(compo, inner, pickY + pickHeight + RowGap);
+                return y + Card.HeaderHeight + body + Card.Padding * 2 + Card.Gap;
+            }
 
             var values = new string[conflicts.Count];
             var names = new string[conflicts.Count];
@@ -92,7 +110,9 @@ namespace claims.src.gui.playerGui.Pages
                            + "  [" + c.FirstScore + ":" + c.SecondScore + "]";
             }
 
-            var pickBounds = labelBounds.BelowCopy(0, 4).WithFixedSize(ctx.Line.fixedWidth - 40, 28);
+            var pickBounds = inner.FlatCopy().WithFixedSize(inner.fixedWidth - 20, InputHeight);
+            pickBounds.fixedY = pickY;
+
             compo.AddDropDown(values, names, -1, (code, selected) =>
             {
                 if (!selected) return;
@@ -104,114 +124,206 @@ namespace claims.src.gui.playerGui.Pages
                 Admin.PlayerName = conflicts[index].SecondPartyName;
                 Gui.BuildMainWindow();
             }, pickBounds, "admin-war-conflict");
-            compo.AddHoverText(Lang.Get("claims:gui-admin-use-tooltip"), CairoFont.SmallButtonText(), 250, pickBounds);
+            Tooltip.Add(compo, Lang.Get("claims:gui-admin-use-tooltip"), pickBounds, "tip-admin-war-conflict");
 
-            return pickBounds;
+            AddBattleWindowRow(compo, inner, pickY + pickHeight + RowGap);
+
+            return y + Card.HeaderHeight + body + Card.Padding * 2 + Card.Gap;
         }
 
-        private void BuildConfigList(PageBuildContext ctx, GuiComposer compo, ElementBounds anchor)
+        /// <summary>When the next battle starts and how long it runs, for the two parties above.</summary>
+        private void AddBattleWindowRow(GuiComposer compo, ElementBounds inner, double y)
         {
-            const int rowHeight = 30;
+            var startInBounds = inner.FlatCopy().WithFixedSize(80, InputHeight);
+            startInBounds.fixedY = y;
+            compo.AddTextInput(startInBounds, v => Admin.BonusClaims = v, null, "admin-war-startin");
+            compo.GetTextInput("admin-war-startin").SetValue(Admin.BonusClaims);
 
-            // The edit row sits ABOVE the list. Below it the list would have to share the last
-            // pixels of the window and both used to spill past the edge.
-            //
-            // The values in the list are read-only; editing goes through this one field plus one
-            // button, because fifty inline inputs would not fit the dialog and every one of them
-            // would be its own composer element rebuilt on each packet.
-            var keyBounds = anchor.BelowCopy(0, 10).WithFixedSize(170, 28);
-            compo.AddTextInput(keyBounds, v => Admin.ClaimRadius = v, null, "warcfg-key");
-            compo.GetTextInput("warcfg-key").SetValue(Admin.ClaimRadius);
-            compo.AddHoverText(Lang.Get("claims:gui-admin-warcfg-key-hint"), CairoFont.SmallButtonText(), 250, keyBounds);
+            var durationBounds = startInBounds.RightCopy(10).WithFixedSize(80, InputHeight);
+            compo.AddTextInput(durationBounds, v => Admin.CityFee = v, null, "admin-war-duration");
+            compo.GetTextInput("admin-war-duration").SetValue(Admin.CityFee);
 
-            var valueBounds = keyBounds.RightCopy(10).WithFixedSize(90, 28);
-            compo.AddTextInput(valueBounds, v => Admin.NewCityName = v, null, "warcfg-value");
-            compo.GetTextInput("warcfg-value").SetValue(Admin.NewCityName);
-
-            AddCommand(compo, valueBounds.RightCopy(10), "claims:gui-admin-warcfg-apply",
-                () => "/cadmin setcfg " + Admin.ClaimRadius + " " + Admin.NewCityName, null);
-
-            // What is left of the window belongs to the list. The reserve covers everything stacked
-            // above it - strip, inputs, buttons, conflict picker, edit row - plus a bottom margin.
-            double listHeight = Gui.mainBounds.fixedHeight - 449;
-
-            // Built the same way the shared list widget builds its lists, and off the edit row rather
-            // than off a bounds of its own: ElementBounds.Fixed(...).FixedUnder(...) had no parent, so
-            // the whole block was laid out in the dialog's coordinates and covered the inputs above.
-            ElementBounds listArea = keyBounds.BelowCopy(0, 8).WithFixedSize(ctx.Line.fixedWidth - 40, listHeight);
-            ElementBounds clippingBounds = listArea.ForkBoundingParent();
-            ElementBounds insetBounds = listArea.FlatCopy().FixedGrow(6).WithFixedOffset(-3, -3);
-            ElementBounds scrollbarBounds = insetBounds.CopyOffsetedSibling(listArea.fixedWidth + 7).WithFixedWidth(20);
-            ElementBounds clipInner = insetBounds.ForkContainingChild(3, 3, 3, 3);
-            ElementBounds containerBounds = clipInner.ForkContainingChild(0, 0, 0, -3).WithFixedPadding(5);
-
-            compo.BeginClip(clippingBounds)
-                    .AddInset(insetBounds, 3)
-                    .AddContainer(containerBounds, "warcfg-content")
-                 .EndClip()
-                 .AddVerticalScrollbar((value) =>
-                 {
-                     ElementBounds bounds = compo.GetContainer("warcfg-content").Bounds;
-                     bounds.fixedY = 5 - value;
-                     bounds.CalcWorldBounds();
-                 }, scrollbarBounds, "warcfg-scrollbar");
-
-            GuiElementContainer scrollArea = compo.GetContainer("warcfg-content");
-            ElementBounds rowBounds = ElementBounds.Fixed(0, 0, listArea.fixedWidth - 30, rowHeight);
-
-            int rendered = 0;
-            foreach (var row in WarConfigTable.Rows)
+            string caption = Lang.Get("claims:gui-admin-set-battle-date");
+            var buttonBounds = durationBounds.RightCopy(10).WithFixedSize(ButtonWidth(caption), InputHeight);
+            compo.AddButton(caption, new ActionConsumable(() =>
             {
-                var font = row.Kind == EnumCfgKind.Group
-                    ? CairoFont.WhiteMediumText().WithFontSize(18)
-                    : CairoFont.WhiteDetailText();
-
-                string label = Lang.Get(row.LabelLangKey);
-                if (row.Kind != EnumCfgKind.Group) label += ":  " + CurrentValue(row);
-
-                scrollArea.Add(new GuiElementRichtext(compo.Api,
-                    VtmlUtil.Richtextify(compo.Api, label, font), rowBounds));
-
-                rowBounds = rowBounds.BelowCopy();
-                rendered++;
-            }
-
-            ctx.AfterCompose(() =>
-                compo.GetScrollbar("warcfg-scrollbar").SetHeights((float)clipInner.fixedHeight, rowHeight * rendered));
-        }
-
-        private static string CurrentValue(WarCfgRow row)
-        {
-            switch (row.Kind)
-            {
-                case EnumCfgKind.Flag: return row.GetFlag() ? "on" : "off";
-                case EnumCfgKind.Int: return row.GetInt().ToString(CultureInfo.InvariantCulture);
-                case EnumCfgKind.Double: return row.GetDouble().ToString(CultureInfo.InvariantCulture);
-                default: return "";
-            }
+                Send("/cadmin setbattledate " + Admin.RenameTo + " " + Admin.PlayerName
+                     + " " + Admin.BonusClaims + " " + Admin.CityFee);
+                return true;
+            }), buttonBounds, EnumButtonStyle.Normal);
+            Tooltip.Add(compo, Lang.Get("claims:gui-admin-set-battle-date-tooltip"), buttonBounds, "tip-admin-battledate");
+            Tooltip.Add(compo, Lang.Get("claims:gui-admin-override-battle"), startInBounds, "tip-admin-battlewindow");
         }
 
         /// <summary>
-        /// A command button sized to its own caption - a fixed width clipped the longer translations
-        /// and made neighbouring captions overlap. Returns the bounds actually used.
+        /// The runtime settings: a filter and an edit row over the list of current values. Clicking a
+        /// row acts on it directly - a switch flips, a number loads into the edit field - so an admin
+        /// no longer has to read a key off the screen and retype it, misspellings and all.
+        ///
+        /// The values are still not edited in place: fifty inline inputs would not fit the dialog,
+        /// and every one of them would be its own composer element rebuilt on each config packet.
         /// </summary>
-        private ElementBounds AddCommand(GuiComposer compo, ElementBounds bounds, string labelKey, System.Func<string> command, string tooltipKey)
+        private void BuildConfigCard(PageBuildContext ctx, GuiComposer compo, ElementBounds column, double y)
         {
-            string caption = Lang.Get(labelKey);
-            var target = bounds.FlatCopy().WithFixedWidth(ButtonWidth(caption));
+            // The card runs down to just above the navigation row, so the list gets whatever the
+            // card above did not use, rather than a height counted back from the window bottom.
+            double cardHeight = System.Math.Max(
+                Card.HeaderHeight + InputHeight * 2 + 8 + MinConfigHeight + Card.Padding * 2,
+                Gui.mainBounds.fixedHeight * NavRow.LineHeightFraction - y - Card.Gap);
 
-            compo.AddButton(caption, new ActionConsumable(() =>
+            ElementBounds inner = Card.Frame(compo, column, y, cardHeight,
+                Lang.Get("claims:gui-admin-section-warcfg"));
+
+            // Filter and edit share one row: two rows of controls over a list this short left barely
+            // three settings visible at a time.
+            var filterBounds = inner.FlatCopy().WithFixedSize(120, InputHeight);
+            compo.AddTextInput(filterBounds, v => Admin.WarCfgFilter = v, null, "warcfg-filter");
+            compo.GetTextInput("warcfg-filter").SetValue(Admin.WarCfgFilter ?? "");
+            Tooltip.Add(compo, Lang.Get("claims:gui-admin-warcfg-filter-hint"), filterBounds, "tip-warcfg-filter");
+
+            string filterCaption = Lang.Get("claims:gui-admin-filter");
+            var filterButton = filterBounds.RightCopy(6).WithFixedSize(ButtonWidth(filterCaption), InputHeight);
+            compo.AddButton(filterCaption, new ActionConsumable(() =>
+            {
+                // A different set of rows makes the old scroll position meaningless.
+                Admin.WarCfgScroll = 0;
+                Gui.BuildMainWindow();
+                return true;
+            }), filterButton, EnumButtonStyle.Normal);
+
+            // --- edit fields: filled in by clicking a row, or typed by hand as before ---
+            var keyBounds = filterButton.RightCopy(14).WithFixedSize(130, InputHeight);
+            compo.AddTextInput(keyBounds, v => Admin.ClaimRadius = v, null, "warcfg-key");
+            compo.GetTextInput("warcfg-key").SetValue(Admin.ClaimRadius);
+            Tooltip.Add(compo, Lang.Get("claims:gui-admin-warcfg-key-hint"), keyBounds, "tip-warcfg-key");
+
+            var valueBounds = keyBounds.RightCopy(6).WithFixedSize(70, InputHeight);
+            compo.AddTextInput(valueBounds, v => Admin.NewCityName = v, null, "warcfg-value");
+            compo.GetTextInput("warcfg-value").SetValue(Admin.NewCityName);
+
+            string applyCaption = Lang.Get("claims:gui-admin-warcfg-apply");
+            var applyBounds = valueBounds.RightCopy(6).WithFixedSize(ButtonWidth(applyCaption), InputHeight);
+            compo.AddButton(applyCaption, new ActionConsumable(() =>
+            {
+                Send("/cadmin setcfg " + Admin.ClaimRadius + " " + Admin.NewCityName);
+                return true;
+            }), applyBounds, EnumButtonStyle.Normal);
+
+            var rows = VisibleRows();
+
+            double editRowsHeight = InputHeight + 8;
+
+            // The clip is added to the composer and everything else forks from it: a bounds that is
+            // only forked from and never added has no parent, and the renderer dereferences that
+            // parent while pushing the scissor.
+            ElementBounds clipBounds = ElementBounds.Fixed(0, editRowsHeight,
+                inner.fixedWidth - ScrollbarReserve, inner.fixedHeight - editRowsHeight);
+            ElementBounds scrollbarBounds = clipBounds.RightCopy(7).WithFixedWidth(20);
+            ElementBounds listBounds = clipBounds.ForkContainingChild(0, 0, 0, -3).WithFixedPadding(3);
+
+            compo.BeginChildElements(inner)
+                    .BeginClip(clipBounds)
+                        .AddCellList(listBounds,
+                            (WarCfgRow row, ElementBounds bounds) => new GuiElementWarCfgCell(compo.Api, row, bounds)
+                            {
+                                On = true,
+                                OnMouseDownOnCellLeft = index => OnRowClicked(rows, index)
+                            },
+                            rows, "warcfg-cells")
+                    .EndClip()
+                    .AddVerticalScrollbar((value) =>
+                    {
+                        // Remembered, so acting on a row - which rebuilds the window - does not throw
+                        // the admin back to the top of a fifty-row list.
+                        Admin.WarCfgScroll = value;
+
+                        ElementBounds bounds = compo.GetCellList<WarCfgRow>("warcfg-cells").Bounds;
+                        bounds.fixedY = 0 - value;
+                        bounds.CalcWorldBounds();
+                    }, scrollbarBounds, "warcfg-scrollbar")
+                .EndChildElements();
+
+            compo.GetCellList<WarCfgRow>("warcfg-cells").BeforeCalcBounds();
+
+            float restoreTo = Admin.WarCfgScroll;
+            ctx.AfterCompose(() =>
+            {
+                var scrollbar = compo.GetScrollbar("warcfg-scrollbar");
+                scrollbar.SetHeights(
+                    (float)clipBounds.fixedHeight,
+                    (float)compo.GetCellList<WarCfgRow>("warcfg-cells").Bounds.fixedHeight);
+
+                // After the heights, or the position would be clamped against a total height of zero.
+                scrollbar.CurrentYPosition = restoreTo;
+                scrollbar.TriggerChanged();
+            });
+        }
+
+        /// <summary>
+        /// The rows the filter leaves. A group heading is kept only when something under it survived,
+        /// so a filtered list is not a run of empty headings.
+        /// </summary>
+        private List<WarCfgRow> VisibleRows()
+        {
+            string filter = (Admin.WarCfgFilter ?? "").Trim().ToLowerInvariant();
+            if (filter.Length == 0) return WarConfigTable.Rows.ToList();
+
+            var kept = new List<WarCfgRow>();
+            WarCfgRow pendingGroup = null;
+
+            foreach (var row in WarConfigTable.Rows)
+            {
+                if (row.Kind == EnumCfgKind.Group)
+                {
+                    pendingGroup = row;
+                    continue;
+                }
+
+                bool matches = (row.CfgKey ?? "").ToLowerInvariant().Contains(filter)
+                            || Lang.Get(row.LabelLangKey).ToLowerInvariant().Contains(filter);
+                if (!matches) continue;
+
+                if (pendingGroup != null)
+                {
+                    kept.Add(pendingGroup);
+                    pendingGroup = null;
+                }
+                kept.Add(row);
+            }
+
+            return kept;
+        }
+
+        /// <summary>
+        /// A switch is flipped on the spot - that is the whole edit. Anything with a number loads
+        /// into the edit field instead, so the admin types the new value and nothing else.
+        /// </summary>
+        private void OnRowClicked(List<WarCfgRow> rows, int index)
+        {
+            if (index < 0 || index >= rows.Count) return;
+
+            WarCfgRow row = rows[index];
+            if (row.Kind == EnumCfgKind.Group) return;
+
+            if (row.Kind == EnumCfgKind.Flag)
+            {
+                Send("/cadmin setcfg " + row.CfgKey + (row.GetFlag() ? " off" : " on"));
+                return;
+            }
+
+            Admin.ClaimRadius = row.CfgKey;
+            Admin.NewCityName = GuiElementWarCfgCell.CurrentValue(row);
+            Gui.BuildMainWindow();
+        }
+
+        /// <summary>A command button in a wrapping row, named by its tooltip.</summary>
+        private void AddCommand(ButtonRow row, string caption, System.Func<string> command, string tooltipKey)
+        {
+            row.Add(caption, () =>
             {
                 Send(command());
                 return true;
-            }), target, EnumButtonStyle.Normal);
-
-            if (tooltipKey != null)
-            {
-                compo.AddHoverText(Lang.Get(tooltipKey), CairoFont.SmallButtonText(), 250, target);
-            }
-
-            return target;
+            }, tooltipKey != null ? Lang.Get(tooltipKey) : null);
         }
     }
 }

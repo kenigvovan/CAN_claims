@@ -327,7 +327,11 @@ namespace claims.src.gui.playerGui
             if (tabs != null)
             {
 
-                var cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientConflictCellElements.FirstOrDefault(c => c.Guid == State.DialogArgs.Selected);
+                // A packet can arrive before the player has a city, or after they left one.
+                var cityInfo = claims.clientDataStorage.clientPlayerInfo?.CityInfo;
+                if (cityInfo == null) return;
+
+                var cell = cityInfo.ClientConflictCellElements.FirstOrDefault(c => c.Guid == State.DialogArgs.Selected);
                 if (cell == null)
                 {
                     return;
@@ -338,7 +342,9 @@ namespace claims.src.gui.playerGui
                 }
                 else
                 {
-                    if (claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Name.Equals(cell.FirstPartyName))
+                    // An independent city fights under its own name; reading AllianceInfo.Name
+                    // outright threw for a lone mayor, exactly as it once did on the page itself.
+                    if (Pages.ConflictInfoPage.OurPartyName().Equals(cell.FirstPartyName))
                     {
                         WarRangeMath.FillTwoWarRangesArrays(cell.FirstWarRanges, cell.SecondWarRanges);
                     }
