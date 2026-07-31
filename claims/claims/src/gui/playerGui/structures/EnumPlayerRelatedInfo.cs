@@ -83,6 +83,9 @@
         // Full snapshot of the announced (not yet effective) union breaks of our alliance.
         ALLIANCE_UNION_BREAKS_ALL,
 
-        PLAYER_BALANCE
+        PLAYER_BALANCE,
+
+        // Coat of arms of our own city / alliance, as an EmblemHandler layer string.
+        CITY_EMBLEM, ALLIANCE_EMBLEM
     }
 }

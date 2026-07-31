@@ -4,7 +4,7 @@
   "name": "Claims",
   "authors": [ "KenigVovan" ],
   "description": "Land protection mod",
-  "version": "4.3.19",
+  "version": "4.3.20",
     "dependencies": {
         "game": "",
         "vsimgui": ""

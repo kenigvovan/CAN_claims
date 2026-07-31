@@ -37,6 +37,16 @@ namespace claims.src.network.handlers
                         claims.clientDataStorage.removeClientSavedPlots(savedPlotTupleRemove.Item1);
                         ResolvePlotsMapLayer()?.OnResChunkPixels(savedPlotTupleRemove.Item1, "");
                         break;
+                    case PacketsContentEnum.ALL_CITY_EMBLEMS:
+                        var emblems = JsonConvert.DeserializeObject<Dictionary<string, string>>(packet.data);
+                        if (claims.clientDataStorage == null) break;
+                        // Only when something actually changed: dropping the textures makes the map
+                        // recompose every icon, and this packet is broadcast on every emblem edit.
+                        if (claims.clientDataStorage.ClientSetCityEmblems(emblems))
+                        {
+                            gui.playerGui.GuiElements.EmblemCache.Invalidate();
+                        }
+                        break;
                     case PacketsContentEnum.ALL_CITY_COLORS:
                         Dictionary<string, int> colors = JsonConvert.DeserializeObject<Dictionary<string, int>>(packet.data);
                         claims.clientDataStorage.ClientSetCityNameToColorDict(colors);

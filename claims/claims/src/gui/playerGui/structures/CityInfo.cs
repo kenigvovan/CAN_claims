@@ -23,6 +23,8 @@ namespace claims.src.gui.playerGui.structures
         //public List<RankCellElement> CitizensRanks { get; set; } = new();
         //public HashSet<string> PossibleCityRanks { get; set; }
         public int PlotsColor;
+        /// <summary>Coat of arms as an EmblemHandler layer string; empty when the city has none.</summary>
+        public string Emblem { get; set; } = "";
         public double CityBalance { get; set; }
         public double CityDebt { get; set; }
         public double CityDayPayment { get; set; }

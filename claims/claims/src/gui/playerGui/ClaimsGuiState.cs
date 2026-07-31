@@ -16,6 +16,12 @@ namespace claims.src.gui.playerGui
         public int SelectedTabGroup;
         public int SelectedColor = -1;
 
+        /// <summary>
+        /// The coat of arms being edited. Held client-side until Apply - a stack of six layers is
+        /// built one pick at a time.
+        /// </summary>
+        public EmblemEditState Emblem = new EmblemEditState();
+
         /// <summary>How the world-wide alliance list is ordered.</summary>
         public EnumAllianceSort AllianceSort = EnumAllianceSort.Default;
         public EnumCitySort CitySort = EnumCitySort.Default;
@@ -37,6 +43,35 @@ namespace claims.src.gui.playerGui
             DialogArgs.First = "";
             DialogArgs.Second = "";
         }
+    }
+
+    /// <summary>
+    /// The working copy of a coat of arms while the emblem page is open: which part it belongs to,
+    /// the layers so far, and what the two pickers are pointing at.
+    /// </summary>
+    public sealed class EmblemEditState
+    {
+        /// <summary>Whether the alliance's emblem is being edited rather than the city's.</summary>
+        public bool ForAlliance;
+
+        public System.Collections.Generic.List<string> Layers = new System.Collections.Generic.List<string>();
+
+        public string Pattern = "";
+        public string Color = "";
+
+        /// <summary>
+        /// Starts an edit from what the part carries now, discarding any older draft. Sanitized on
+        /// the way in, so an emblem stored before the background rule stays editable.
+        /// </summary>
+        public void Begin(bool forAlliance, string current)
+        {
+            ForAlliance = forAlliance;
+            Layers = part.structure.EmblemHandler.Sanitize(part.structure.EmblemHandler.Parse(current));
+            Pattern = "";
+            Color = "";
+        }
+
+        public string AsString() => part.structure.EmblemHandler.Join(Layers);
     }
 
     /// <summary>

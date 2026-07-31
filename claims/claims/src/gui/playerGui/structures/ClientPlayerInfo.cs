@@ -58,6 +58,8 @@ namespace claims.src.gui.playerGui.structures
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_BALANCE, OnCityCityBalance);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_DEBT, OnCityCityDebt);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_FEE, OnCityCityFee);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_EMBLEM, OnCityEmblem);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_EMBLEM, OnAllianceEmblem);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_CRIMINAL_ADDED, OnCityCityCriminalAdded);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_CRIMINAL_REMOVED, OnCityCityCriminalRemoved);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_CRIMINALS_LIST, OnCityCityCriminalsList);
@@ -310,6 +312,16 @@ namespace claims.src.gui.playerGui.structures
         private void OnCityCityFee(string val)
         {
             CityInfo.CityFee = int.Parse(val);
+        }
+        private void OnCityEmblem(string val)
+        {
+            CityInfo.Emblem = val ?? "";
+        }
+        private void OnAllianceEmblem(string val)
+        {
+            // Arrives with the city block, which is also sent to citizens of an alliance-less city -
+            // there is simply nothing to put it on then.
+            if (AllianceInfo != null) AllianceInfo.Emblem = val ?? "";
         }
         private void OnCityCityCriminalAdded(string val)
         {

@@ -447,6 +447,33 @@ namespace claims.src.commands
             playerInfo.Alliance.saveToDatabase();
             return TextCommandResult.Success();
         }
+        /// <summary>
+        /// Sets the alliance's coat of arms from a layer string ("color_blue;lion_left_yellow").
+        /// No argument clears it. Leader only, like every other alliance setting.
+        /// </summary>
+        public static TextCommandResult SetEmblemAlliance(TextCommandCallingArgs args)
+        {
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
+            if (!playerInfo.HasAlliance())
+            {
+                return TextCommandResult.Success(Lang.Get("claims:no_alliance"));
+            }
+            if (!playerInfo.City.Alliance.IsLeader(playerInfo))
+            {
+                return TextCommandResult.Success(Lang.Get("claims:you_dont_have_right_for_that_command"));
+            }
+
+            string raw = args.LastArg == null ? "" : ((string)args.LastArg).Trim();
+            if (!EmblemHandler.TryParse(raw, out var layers, out string error))
+            {
+                return TextCommandResult.Success(Lang.Get("claims:emblem_invalid", error));
+            }
+
+            playerInfo.Alliance.SetEmblem(EmblemHandler.Join(layers));
+            return TextCommandResult.Success(layers.Count == 0
+                ? Lang.Get("claims:emblem_cleared")
+                : Lang.Get("claims:emblem_was_set_to", EmblemHandler.Join(layers)));
+        }
         public static TextCommandResult PrintInviteList(TextCommandCallingArgs args)
         {
             if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;

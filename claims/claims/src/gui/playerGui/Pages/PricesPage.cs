@@ -44,7 +44,9 @@ namespace claims.src.gui.playerGui.Pages
                     string name = entry.Value.getFullName();
                     plotRows.Add(new CardRow
                     {
-                        Label = name,
+                        // The code name is the lang key, not the caption - the list used to read
+                        // "default, mainplot, orchard" regardless of the player's language.
+                        Label = Lang.Get("claims:gui-plot-type-" + name),
                         Value = Number(entry.Value.getCost()),
                         // The type's own description, which only ever lived in an ImGui tooltip.
                         Tooltip = Lang.Get("claims:gui-plot-type-desc-" + name),

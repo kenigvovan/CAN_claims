@@ -242,6 +242,11 @@ namespace claims.src.database
                         "ALTER TABLE CONFLICTS ADD COLUMN firstpillaged INTEGER DEFAULT 0");
                     TryAlterTable("SELECT secondpillaged FROM CONFLICTS LIMIT 1",
                         "ALTER TABLE CONFLICTS ADD COLUMN secondpillaged INTEGER DEFAULT 0");
+                    // Coats of arms (CITIES, ALLIANCIES)
+                    TryAlterTable("SELECT emblem FROM CITIES LIMIT 1",
+                        "ALTER TABLE CITIES ADD COLUMN emblem TEXT DEFAULT \"\"");
+                    TryAlterTable("SELECT emblem FROM ALLIANCIES LIMIT 1",
+                        "ALTER TABLE ALLIANCIES ADD COLUMN emblem TEXT DEFAULT \"\"");
         }
 
         /// <summary>
@@ -534,7 +539,8 @@ namespace claims.src.database
                 { "@vassals", StringFunctions.concatStringsWithDelim(city.VassalCities, ';') },
                 { "@vassalsince", city.VassalSince },
                 { "@naps", JsonConvert.SerializeObject(city.NonAggressionPacts) },
-                { "@warjustifications", JsonConvert.SerializeObject(city.WarJustifications) }
+                { "@warjustifications", JsonConvert.SerializeObject(city.WarJustifications) },
+                { "@emblem", city.Emblem ?? "" }
             };
 
             queryQueue.Enqueue(new QuerryInfo("CITIES", update ? QuerryType.UPDATE : QuerryType.INSERT, tmpDict));
@@ -726,6 +732,12 @@ namespace claims.src.database
                 }
             }
             catch (Exception ex) { claims.sapi.Logger.Warning("[claims] Failed to load war/vassal data for '{0}': {1}", city.GetPartName(), ex.Message); }
+
+            // Stored verbatim, not normalized: a server that temporarily narrows the emblem
+            // whitelist should not have every city's emblem stripped on the next save. Layers are
+            // filtered where they are drawn instead.
+            if (it.Table.Columns.Contains("emblem"))
+                city.Emblem = it["emblem"].ToString();
 
             foreach(var citizen in city.getCityCitizens())
             {
@@ -1203,7 +1215,8 @@ namespace claims.src.database
                 { "@prefix", alliance.Prefix },
                 { "@timestampcreated", alliance.TimeStampCreated },
                 { "@pendingunionbreaks", JsonConvert.SerializeObject(alliance.PendingUnionBreaks) },
-                { "@unionbreakcooldowns", JsonConvert.SerializeObject(alliance.UnionBreakCooldowns) }
+                { "@unionbreakcooldowns", JsonConvert.SerializeObject(alliance.UnionBreakCooldowns) },
+                { "@emblem", alliance.Emblem ?? "" }
             };
 
             queryQueue.Enqueue(new QuerryInfo("ALLIANCIES", update ? QuerryType.UPDATE : QuerryType.INSERT, tmpDict));
@@ -1280,6 +1293,9 @@ namespace claims.src.database
                 alliance.UnionBreakCooldowns = ReadTimestampDict(it, "unionbreakcooldowns", alliance.UnionBreakCooldowns);
             }
             catch (Exception ex) { claims.sapi.Logger.Warning("[claims] Failed to load union data for '{0}': {1}", alliance.GetPartName(), ex.Message); }
+
+            if (it.Table.Columns.Contains("emblem"))
+                alliance.Emblem = it["emblem"].ToString();
             return true;
         }
 

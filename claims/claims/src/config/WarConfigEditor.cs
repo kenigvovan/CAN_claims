@@ -157,6 +157,11 @@ namespace claims.src.config
             // after-action report / HUD
             { "war_report_enabled", new BoolSpec(v => C.WAR_REPORT_ENABLED = v) },
             { "war_hud_enabled", new BoolSpec(v => C.WAR_HUD_ENABLED = v) },
+
+            // boats shared with the owner's city (not war-related, but this is the one
+            // runtime-editable config surface the mod has)
+            { "boat_share_with_city", new BoolSpec(v => C.BOAT_SHARE_WITH_CITY = v) },
+            { "boat_share_with_alliance", new BoolSpec(v => C.BOAT_SHARE_WITH_ALLIANCE = v) },
         };
 
         /// <summary>Known editable keys (for help/error messages).</summary>

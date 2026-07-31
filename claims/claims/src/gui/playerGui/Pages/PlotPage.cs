@@ -62,7 +62,9 @@ namespace claims.src.gui.playerGui.Pages
                 new CardRow
                 {
                     Label = Lang.Get("claims:gui-plot-label-type"),
-                    Value = PlotInfo.dictPlotTypes.TryGetValue(plot.PlotType, out PlotInfo plotInfo) ? plotInfo.getFullName() : "-",
+                    Value = PlotInfo.dictPlotTypes.TryGetValue(plot.PlotType, out PlotInfo plotInfo)
+                        ? Lang.Get("claims:gui-plot-type-" + plotInfo.getFullName())
+                        : "-",
                     Key = "plottype"
                 },
                 new CardRow

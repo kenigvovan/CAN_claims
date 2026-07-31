@@ -30,13 +30,28 @@ namespace claims.src.gui.playerGui.GuiElements
         private static readonly double[] LabelColor = new double[] { 0.70, 0.70, 0.70, 1.0 };
         private static readonly double[] BattleColor = new double[] { 0.95, 0.25, 0.25, 1.0 };
 
+        /// <summary>Edge of a side's arms, and the room the column of two takes from the text.</summary>
+        private const double EmblemSize = 24;
+        private const double EmblemColumn = EmblemSize + 8;
+
+        /// <summary>Where the text starts - moved right when the row shows the sides' arms.</summary>
+        private readonly double textX;
+
         public GuiElementConflictCell(ICoreClientAPI capi, ClientConflictCellElement cell, ElementBounds bounds)
             : base(capi, bounds)
         {
             this.cell = cell;
 
             double cellWidth = Bounds.fixedWidth > 0 ? Bounds.fixedWidth : 430;
-            double textWidth = cellWidth - ButtonSize * 2 - EdgePadding * 3 - 8;
+
+            // Arms of both sides, stacked at the left edge in name order. The column only appears
+            // when at least one side has arms, so other rows keep their full width.
+            string firstEmblem = claims.clientDataStorage?.ClientGetEmblem(cell.FirstPartyGuid) ?? "";
+            string secondEmblem = claims.clientDataStorage?.ClientGetEmblem(cell.SecondPartyGuid) ?? "";
+            bool anyEmblem = firstEmblem.Length > 0 || secondEmblem.Length > 0;
+            textX = EdgePadding + (anyEmblem ? EmblemColumn : 0);
+
+            double textWidth = cellWidth - ButtonSize * 2 - EdgePadding * 3 - 8 - (anyEmblem ? EmblemColumn : 0);
             if (textWidth < 120) textWidth = 120;
 
             double y = 8;
@@ -64,12 +79,27 @@ namespace claims.src.gui.playerGui.GuiElements
             if (cellHeight < 74) cellHeight = 74;
             Bounds.fixedHeight = cellHeight;
 
+            if (anyEmblem)
+            {
+                AddEmblem(capi, firstEmblem, 8);
+                AddEmblem(capi, secondEmblem, 8 + EmblemSize + 4);
+            }
+
             AddButtons(capi, cellWidth);
+        }
+
+        /// <summary>One side's arms at the given height, or an empty slot when that side has none.</summary>
+        private void AddEmblem(ICoreClientAPI capi, string emblem, double y)
+        {
+            if (emblem.Length == 0) return;
+
+            var emblemBounds = ElementBounds.Fixed(EdgePadding, y, EmblemSize, EmblemSize).WithParent(Bounds);
+            children.Add(new GuiElementEmblem(capi, emblemBounds, emblem, drawPlaceholder: false, surfaceOrigin: Bounds));
         }
 
         private double AddLine(ICoreClientAPI capi, string text, CairoFont font, double width, double y, double height)
         {
-            var lineBounds = ElementBounds.Fixed(EdgePadding, y, width, height).WithParent(Bounds);
+            var lineBounds = ElementBounds.Fixed(textX, y, width, height).WithParent(Bounds);
             richTexts.Add(new GuiElementRichtext(capi, VtmlUtil.Richtextify(capi, text, font), lineBounds));
             return y + height;
         }

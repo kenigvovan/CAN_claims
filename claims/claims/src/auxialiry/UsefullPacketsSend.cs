@@ -43,6 +43,49 @@ namespace claims.src.auxialiry
                 data = serializedPlots
             }, player);
         }       
+        /// <summary>Sends the coat of arms of every city and alliance, keyed by guid - what the
+        /// drawers hold, and unlike a name it does not change.</summary>
+        public static void sendAllCityEmblemsToPlayer(IServerPlayer player)
+        {
+            claims.serverChannel.SendPacket(new SavedPlotsPacket()
+            {
+                type = PacketsContentEnum.ALL_CITY_EMBLEMS,
+                data = JsonConvert.SerializeObject(BuildEmblemDict())
+            }, player);
+        }
+
+        /// <summary>Pushes the emblems to everyone. Sent whole, not as a delta - a few hundred short
+        /// strings at most, and a missed update would otherwise persist until reconnect.</summary>
+        public static void BroadcastCityEmblems()
+        {
+            string data = JsonConvert.SerializeObject(BuildEmblemDict());
+            foreach (var p in claims.sapi.World.AllOnlinePlayers)
+            {
+                if (p is not IServerPlayer sp) continue;
+                claims.serverChannel.SendPacket(new SavedPlotsPacket()
+                {
+                    type = PacketsContentEnum.ALL_CITY_EMBLEMS,
+                    data = data
+                }, sp);
+            }
+        }
+
+        private static Dictionary<string, string> BuildEmblemDict()
+        {
+            var emblems = new Dictionary<string, string>();
+            foreach (City cityItem in claims.dataStorage.getCitiesList())
+            {
+                if (string.IsNullOrEmpty(cityItem.Emblem)) continue;
+                emblems[cityItem.Guid] = cityItem.Emblem;
+            }
+            foreach (Alliance alliance in claims.dataStorage.getAllAlliances())
+            {
+                if (string.IsNullOrEmpty(alliance.Emblem)) continue;
+                emblems[alliance.Guid] = alliance.Emblem;
+            }
+            return emblems;
+        }
+
         public static void SendPlayerCityRelatedInfo(IServerPlayer player)
         {
             Dictionary<EnumPlayerRelatedInfo, string> collector = new Dictionary<EnumPlayerRelatedInfo, string>();
@@ -73,7 +116,8 @@ namespace claims.src.auxialiry
                                            EnumPlayerRelatedInfo.CITY_PLOTS_COLOR, EnumPlayerRelatedInfo.CITY_DEBT, EnumPlayerRelatedInfo.CITY_DAY_PAYMENT,
                                            EnumPlayerRelatedInfo.CITY_PERMISSIONS_UPDATED, EnumPlayerRelatedInfo.CITY_BALANCE, EnumPlayerRelatedInfo.CITY_FEE, EnumPlayerRelatedInfo.CITY_CRIMINALS_LIST,
                                            EnumPlayerRelatedInfo.CITY_PRISON_CELL_ALL, EnumPlayerRelatedInfo.CITY_SUMMON_POINT_ALL, EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_ALL,
-                                           EnumPlayerRelatedInfo.CITY_LOG, EnumPlayerRelatedInfo.CITY_PLOTS_MAP]);
+                                           EnumPlayerRelatedInfo.CITY_LOG, EnumPlayerRelatedInfo.CITY_PLOTS_MAP,
+                                           EnumPlayerRelatedInfo.CITY_EMBLEM, EnumPlayerRelatedInfo.ALLIANCE_EMBLEM]);
             }
             infoToUpdatePlayer.AddRange([EnumPlayerRelatedInfo.SHOW_PLOT_MOVEMENT, EnumPlayerRelatedInfo.FRIENDS, EnumPlayerRelatedInfo.TO_CITY_INVITES,
                                          EnumPlayerRelatedInfo.PLAYER_PREFIX, EnumPlayerRelatedInfo.PLAYER_AFTER_NAME, EnumPlayerRelatedInfo.PLAYER_CITY_TITLES,
@@ -588,7 +632,8 @@ namespace claims.src.auxialiry
                     (double)claims.economyProvider.GetBalance(alliance.MoneyAccountName),
                     alliance.Guid,
                     StringFunctions.GetPartsNames(alliance.ComradAlliancies)
-                ));
+                )
+                { Emblem = alliance.Emblem ?? "" });
             }
             return null;
         }
@@ -635,6 +680,12 @@ namespace claims.src.auxialiry
                             break;
                         case EnumPlayerRelatedInfo.CITY_PLOTS_COLOR:
                             result[pair.Key] = city.cityColor.ToString();
+                            break;
+                        case EnumPlayerRelatedInfo.CITY_EMBLEM:
+                            result[pair.Key] = city.Emblem ?? "";
+                            break;
+                        case EnumPlayerRelatedInfo.ALLIANCE_EMBLEM:
+                            result[pair.Key] = city.HasAlliance() ? (city.Alliance.Emblem ?? "") : "";
                             break;
                         case EnumPlayerRelatedInfo.CITY_CRIMINALS_LIST:
                             result[pair.Key] = JsonConvert.SerializeObject(StringFunctions.getNamesOfCriminals(city));

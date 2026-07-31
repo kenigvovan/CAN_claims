@@ -132,6 +132,32 @@ namespace claims.src.gui.playerGui.GuiElements
             AddTooltip(ElementBounds.Fixed(x, 0, w, Bounds.fixedHeight).WithParent(Bounds), text);
         }
 
+        // ---- the coat of arms column both world lists start with ----
+
+        /// <summary>Geometry of the column. Shared so the city and alliance lists, one tab apart,
+        /// line up.</summary>
+        protected const double EmblemSize = 48;
+        private const double EmblemX = 12;
+        private const double EmblemGap = 14;
+
+        /// <summary>Where text starts in a row that carries arms.</summary>
+        protected const double EmblemTextX = EmblemX + EmblemSize + EmblemGap;
+
+        /// <summary>
+        /// Puts the arms in their column, centred against the row height. Rows without arms keep the
+        /// column and get an empty plate, so the list stays aligned. Call from the constructor.
+        /// </summary>
+        protected void AddEmblemColumn(ICoreClientAPI capi, string emblem, double cellHeight)
+        {
+            var bounds = ElementBounds
+                .Fixed(EmblemX, (cellHeight - EmblemSize) / 2, EmblemSize, EmblemSize)
+                .WithParent(Bounds);
+
+            // A cell composes into a surface of its own size, so the element draws in local
+            // coordinates relative to Bounds. See GuiElementEmblem.surfaceOrigin.
+            children.Add(new GuiElementEmblem(capi, bounds, emblem, surfaceOrigin: Bounds));
+        }
+
         /// <summary>Names one of the cell's buttons on hover. Call from the constructor.</summary>
         protected void AddTooltip(ElementBounds bounds, string text)
         {

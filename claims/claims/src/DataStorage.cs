@@ -378,6 +378,28 @@ namespace claims.src
             return true;
         }
 
+        /// <summary>Party guid (city or alliance) -> coat of arms, for everyone who has one. Client side only.</summary>
+        private Dictionary<string, string> cityEmblems = new Dictionary<string, string>();
+
+        /// <summary>Replaces the known emblems and reports whether anything changed, so callers can
+        /// keep their caches when a broadcast carried no news.</summary>
+        public bool ClientSetCityEmblems(Dictionary<string, string> val)
+        {
+            var incoming = val ?? new Dictionary<string, string>();
+            bool changed = incoming.Count != cityEmblems.Count
+                || incoming.Any(pair => !cityEmblems.TryGetValue(pair.Key, out string old) || old != pair.Value);
+
+            cityEmblems = incoming;
+            return changed;
+        }
+
+        /// <summary>Arms of a city or an alliance by guid; empty when it has none or none arrived yet.</summary>
+        public string ClientGetEmblem(string partyGuid)
+        {
+            if (partyGuid != null && cityEmblems.TryGetValue(partyGuid, out string emblem)) return emblem;
+            return "";
+        }
+
         /*==============================================================================================*/
         /*=====================================WORLD====================================================*/
         /*==============================================================================================*/

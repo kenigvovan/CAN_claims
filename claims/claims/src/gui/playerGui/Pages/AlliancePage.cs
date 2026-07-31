@@ -55,6 +55,12 @@ namespace claims.src.gui.playerGui.Pages
 
             y = Card.RowsWithActions(compo, column, y, Lang.Get("claims:gui-alliance-section-alliance"), allianceRows, slot =>
             {
+                // The arms go at the right end of the action strip, as on the city page.
+                var emblemBounds = slot.FlatCopy().WithFixedSize(Card.ActionSize, Card.ActionSize);
+                emblemBounds.fixedX = column.fixedX + columnWidth - Card.Padding - Card.ActionSize;
+                compo.AddEmblem(alliance.Emblem, emblemBounds, "alliance-emblem");
+                Tooltip.Add(compo, Lang.Get("claims:gui-emblem-alliance-tooltip"), emblemBounds, "tip-alliance-emblem");
+
                 var actions = new ActionRow(compo, slot);
 
                 actions.Add("claims:pencil", "setAllianceName",
@@ -64,6 +70,13 @@ namespace claims.src.gui.playerGui.Pages
                 actions.Add("claims:soldering-iron", "setAlliancePrefix",
                     on => { if (on) OpenDialog(EnumUpperWindowSelectedState.ALLIANCE_PREFIX_NEED_NAME); },
                     Lang.Get("claims:gui-alliance-set-prefix-tooltip"));
+
+                actions.Add("claims:tower-flag", "setAllianceEmblem", on =>
+                {
+                    if (!on) return;
+                    State.Emblem.Begin(true, alliance.Emblem);
+                    GoTo(EnumSelectedTab.EmblemEditor);
+                }, Lang.Get("claims:gui-nav-emblem"));
 
                 // Leaving is an action on the alliance, so it lives in this card rather than in the
                 // navigation row, which is for moving between pages.

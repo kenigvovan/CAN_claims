@@ -66,6 +66,12 @@ namespace claims.src.gui.playerGui.Pages
 
                 y = Card.RowsWithActions(compo, column, y, Lang.Get("claims:gui-city-section-city"), cityRows, slot =>
                 {
+                    // The arms go at the right end of the action strip, where nothing else is drawn.
+                    var emblemBounds = slot.FlatCopy().WithFixedSize(Card.ActionSize, Card.ActionSize);
+                    emblemBounds.fixedX = column.fixedX + columnWidth - Card.Padding - Card.ActionSize;
+                    compo.AddEmblem(city.Emblem, emblemBounds, "city-emblem");
+                    Tooltip.Add(compo, Lang.Get("claims:gui-emblem-city-tooltip"), emblemBounds, "tip-city-emblem");
+
                     var actions = new ActionRow(compo, slot);
 
                     // The name may only be changed by whoever is allowed to; everyone else just reads it.
@@ -279,6 +285,16 @@ namespace claims.src.gui.playerGui.Pages
                 {
                     navButtons.Add(new NavButton("claims:large-paint-brush", () => GoTo(EnumSelectedTab.CityPlotsColorSelector), Lang.Get("claims:gui-nav-plots-color")));
                 }
+                if (perms2.HasPermission(rights.EnumPlayerPermissions.CITY_SET_EMBLEM) || canSetAll)
+                {
+                    navButtons.Add(new NavButton("claims:tower-flag", () =>
+                    {
+                        // The draft always starts from what the city carries now, so leaving the page
+                        // and coming back does not resume an edit the player already walked away from.
+                        State.Emblem.Begin(false, city.Emblem);
+                        GoTo(EnumSelectedTab.EmblemEditor);
+                    }, Lang.Get("claims:gui-nav-emblem")));
+                }
 
                 navButtons.Add(new NavButton("claims:vertical-banner", () => GoTo(EnumSelectedTab.AllianceInfoPage), Lang.Get("claims:gui-nav-alliance")));
                 navButtons.Add(new NavButton("claims:files", () => GoTo(EnumSelectedTab.CityLog),
@@ -482,6 +498,12 @@ namespace claims.src.gui.playerGui.Pages
 
     public sealed class CitiesListPage : CANGuiPage
     {
+        /// <summary>Height of the anchor the list is measured from - same shape as the alliance list.</summary>
+        private const double HeadingHeight = 24;
+
+        /// <summary>The list is never squeezed below this, however little room is left.</summary>
+        private const double MinListHeight = 70;
+
         private static readonly EnumCitySort[] SortOrder =
         {
             EnumCitySort.Default, EnumCitySort.Oldest, EnumCitySort.Population, EnumCitySort.Plots
@@ -499,15 +521,12 @@ namespace claims.src.gui.playerGui.Pages
         {
             var compo = ctx.Compo;
 
-            var currentBounds = ctx.Current;
-            currentBounds.WithAlignment(EnumDialogArea.LeftTop);
-            currentBounds.fixedWidth = ctx.Line.fixedWidth;
-
             // The sort control gets the same framed heading every other block on the city tabs has,
             // instead of floating above the list with only a hover text to name it.
             var column = ctx.Line.BelowCopy(0, 14);
             column.Alignment = EnumDialogArea.LeftTop;
             column.fixedWidth = ctx.Line.fixedWidth;
+            column.fixedHeight = HeadingHeight;
 
             const double tabsHeight = 30;
             double sortHeight = Card.HeaderHeight + tabsHeight + Card.Padding * 2;
@@ -533,19 +552,31 @@ namespace claims.src.gui.playerGui.Pages
 
             compo.GetHorizontalTabs("citySortTabs").activeElement = System.Array.IndexOf(SortOrder, State.CitySort);
 
-            ElementBounds listAnchor = currentBounds.FlatCopy();
+            ElementBounds listAnchor = column.FlatCopy();
             listAnchor.fixedY = column.fixedY + sortHeight + Card.Gap;
 
+            // The list fills what is left down to the navigation row. A fixed reserve (it was 340)
+            // does not know where the list actually starts, so the frame and its scrollbar ran past
+            // the separator and under the back button.
+            var listOpts = new ScrollableListOptions { Key = "city-stats", TitleHeightShrink = 0 };
+            listOpts.HeightReserve = ScrollableList.ReserveFor(Gui,
+                System.Math.Max(MinListHeight,
+                    Gui.mainBounds.fixedHeight * NavRow.LineHeightFraction
+                        - listAnchor.fixedY - Card.Gap - ScrollableList.Overhead(listAnchor, listOpts)));
+
+            // How many cities there are belongs in the heading: the sort tabs above it are only
+            // worth touching once the list is long, and the count says when that is.
+            var cities = Sorted().ToList();
+
             var list = ScrollableList.Add(Gui, listAnchor,
-                Lang.Get("claims:gui_city_list_title"),
-                Sorted().ToList(),
+                Lang.Get("claims:gui_city_list_title") + " (" + cities.Count + ")",
+                cities,
                 (ClientCityInfoCellElement cell, ElementBounds bounds) => new GuiElementCityStatCell(compo.Api, cell, bounds) { On = true },
-                // 340 rather than 300: the list has to stop above the navigation row below it.
-                new ScrollableListOptions { Key = "city-stats", HeightReserve = 340 });
+                listOpts);
 
             // Reached from both the player tab and the city tab of a player with no city; either way
             // there was no way back but the top tab bar.
-            NavRow.Build(Gui, ctx.Current, ctx.Line, 0,
+            NavRow.Build(Gui, column, ctx.Line, 15,
                 new NavButton("claims:fast-backward-button", () => GoTo(EnumSelectedTab.Player), Lang.Get("claims:gui-nav-back")));
 
             ctx.AfterCompose(() => list.ApplyScrollbarHeights(compo));

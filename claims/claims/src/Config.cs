@@ -200,6 +200,22 @@ namespace claims.src
         //WAR - after-action report / HUD
         public bool WAR_REPORT_ENABLED = true;
         public bool WAR_HUD_ENABLED = true;
+        //EMBLEM - coat of arms of cities and alliances
+        //Empty offers EmblemHandler.DEFAULT_PATTERNS / DEFAULT_COLORS; a non-empty list replaces
+        //that default, widening or narrowing it. Names are the texture file names in
+        //assets/claims/textures/emblem/pattern, without the "_<color>" suffix.
+        public HashSet<string> EMBLEM_AVAILABLE_PATTERNS = new HashSet<string>();
+        public HashSet<string> EMBLEM_AVAILABLE_COLORS = new HashSet<string>();
+        //Layers per emblem. Each unique combination costs one entry in the texture atlas, so keep low.
+        public int EMBLEM_MAX_LAYERS = 6;
+
+        //BOATS - vanilla entity ownership (EntityBehaviorOwnable: boats, ships) widened so that a
+        //fellow citizen of the boat's owner counts as its owner - the "town tag" servers asked for.
+        //Affects the helm, attached storage, roping and damage tolerance alike.
+        public bool BOAT_SHARE_WITH_CITY = true;
+        //Also share with the rest of the owner's alliance, not just the city.
+        public bool BOAT_SHARE_WITH_ALLIANCE = false;
+
         //PATCHES
         public bool FALLING_BLOCKS_TO_CITY_PLOTS_PATCH = true;
         public bool WATER_FLOW_CITY_PLOTS_PATCH = true;
@@ -407,7 +423,9 @@ namespace claims.src
             EnumPlayerPermissions.CITY_DELETE_CITY_RANK,
             EnumPlayerPermissions.CITY_SEE_CITY_RANKS,
             EnumPlayerPermissions.CITY_ADD_PERMISSION_TO_RANK,
-            EnumPlayerPermissions.CITY_REMOVE_PERMISSION_FROM_RANK};
+            EnumPlayerPermissions.CITY_REMOVE_PERMISSION_FROM_RANK,
+
+            EnumPlayerPermissions.CITY_SET_EMBLEM};
             claims.config.ROLE_CODES_WITH_ADMIN_RIGHTS = new HashSet<string> { "admin" };
             var c = new BlockPos(0, 0, 0);
             /* public Vec3i ToLocalPosition(ICoreAPI api)

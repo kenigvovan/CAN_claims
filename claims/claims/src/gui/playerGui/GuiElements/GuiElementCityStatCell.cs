@@ -19,6 +19,11 @@ namespace claims.src.gui.playerGui.GuiElements
         /// clickable and must not be lit as three columns.</summary>
         protected override bool UseHoverHighlights => false;
 
+        /// <summary>Right edge kept clear for the join and info buttons.</summary>
+        private const double ButtonColumn = 110;
+
+        private const double CellHeight = 105;
+
         public GuiElementCityStatCell(ICoreClientAPI capi, ClientCityInfoCellElement cityStatCell, ElementBounds bounds)
             : base(capi, bounds)
         {
@@ -28,22 +33,30 @@ namespace claims.src.gui.playerGui.GuiElements
             string cellName = string.Format("{0} {1}", cityStatCell.Name,
                 cityStatCell.AllianceName.Length > 0 ? "[" + cityStatCell.AllianceName + "]" : "");
 
-            ElementBounds row = ElementBounds.Fixed(10, 5, bounds.fixedWidth, 25).WithParent(Bounds);
-            AddLine(capi, cellName, 25, row);
+            double textWidth = bounds.fixedWidth - EmblemTextX - ButtonColumn;
+            if (textWidth < 120) textWidth = 120;
 
-            row = row.BelowCopy(15, 5);
+            ElementBounds row = ElementBounds.Fixed(EmblemTextX, 8, textWidth, 25).WithParent(Bounds);
+            AddLine(capi, cellName, 22, row);
+
+            row = row.BelowCopy(0, 4);
             AddLine(capi, Lang.Get("claims:gui-mayor-name", cityStatCell.MayorName), 15, row);
 
             row = row.BelowCopy();
-            row.fixedWidth /= 2;
             AddLine(capi, Lang.Get("claims:gui-city-population", cityStatCell.CitizensAmount)
                         + " " + Lang.Get("claims:gui-claimed-plots", cityStatCell.ClaimedPlotsAmount), 15, row);
+
+            // Resolved by guid from the world-wide emblem cache - the list itself carries no emblem.
+            AddEmblemColumn(capi, claims.clientDataStorage?.ClientGetEmblem(cityStatCell.Guid) ?? "", CellHeight);
+
+            // Both buttons ride the vertical centre of the row, like the arms do.
+            double buttonY = (CellHeight - 32) / 2;
 
             if (cityStatCell.Open)
             {
                 ElementBounds joinBounds = new ElementBounds().WithFixedSize(32, 32);
                 joinBounds.fixedX = bounds.fixedWidth - 64;
-                joinBounds.fixedY += 10;
+                joinBounds.fixedY = buttonY;
                 bounds.WithChild(joinBounds);
                 children.Add(new GuiElementToggleButton(capi, "claims:stairs-goal", "", font, (bool t) =>
                 {
@@ -55,7 +68,7 @@ namespace claims.src.gui.playerGui.GuiElements
             {
                 ElementBounds infoBounds = new ElementBounds().WithFixedSize(32, 32);
                 infoBounds.fixedX = bounds.fixedWidth - 96;
-                infoBounds.fixedY += 10;
+                infoBounds.fixedY = buttonY;
                 bounds.WithChild(infoBounds);
                 children.Add(new GuiElementToggleButton(capi, "claims:info", "", font, (bool t) => { }, infoBounds));
                 children.Add(new GuiElementHoverText(capi, cityStatCell.InvMsg, font, 300, infoBounds));
@@ -65,15 +78,7 @@ namespace claims.src.gui.playerGui.GuiElements
             AddLine(capi, Lang.Get("claims:gui-date-created",
                 TimeFunctions.getDateFromEpochSeconds(cityStatCell.TimeStampCreated)), 15, row);
 
-            TextExtents extents = CairoFont.WhiteMediumText().GetTextExtents(this.text);
-            double offsetY = 45;
-            var labelBounds = ElementBounds.Fixed(15, offsetY, extents.Width, 35.0).WithParent(Bounds);
-            AddLine(capi, this.text, 15, labelBounds);
-
-            if (offsetY > 30)
-            {
-                Bounds.fixedHeight = offsetY + 60;
-            }
+            Bounds.fixedHeight = CellHeight;
         }
 
         private void AddLine(ICoreClientAPI capi, string line, int fontSize, ElementBounds bounds)

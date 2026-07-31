@@ -25,6 +25,7 @@ namespace claims.src.gui.playerGui.Pages
             Add(EnumSelectedTab.Ranks, new RanksPage());
             Add(EnumSelectedTab.RankInfoPage, new RankInfoPage());
             Add(EnumSelectedTab.CityPlotsColorSelector, new PlotColorSelectorPage());
+            Add(EnumSelectedTab.EmblemEditor, new EmblemPage());
             Add(EnumSelectedTab.CitiesListPage, new CitiesListPage());
             Add(EnumSelectedTab.AllianceInfoPage, new AlliancePage());
             Add(EnumSelectedTab.ConflictLettersPage, new ConflictLettersPage());

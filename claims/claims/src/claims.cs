@@ -83,6 +83,7 @@ namespace claims.src
         public static bool DebugValSet = false;
 
         public static ClaimsPlayerMovementGUI movementClaimGui { get; set; }
+        private static gui.BoatShareDialog boatShareDialog;
         public ClaimsModApi Api { get; private set; }
         /*==============================================================================================*/
         /*=====================================FUNCTIONS================================================*/
@@ -175,6 +176,9 @@ namespace claims.src
 
             api.Input.RegisterHotKey("claimsplayermovementgui", "Plot info GUI", GlKeys.K, HotkeyType.GUIOrOtherControls);
             api.Input.SetHotKeyHandler("claimsplayermovementgui", new ActionConsumable<KeyCombination>(this.OnHotKeyPlayerMovementGUI));
+
+            api.Input.RegisterHotKey("claimsboatshare", "Share owned boat with city", GlKeys.B, HotkeyType.GUIOrOtherControls, ctrlPressed: true);
+            api.Input.SetHotKeyHandler("claimsboatshare", new ActionConsumable<KeyCombination>(this.OnHotKeyBoatShare));
 
             api.Event.LeftWorld += ShutDownClient;
 
@@ -554,6 +558,7 @@ namespace claims.src
             clientDataStorage = null;
             playerCityInfo = null;
             movementClaimGui = null;
+            boatShareDialog = null;
             gui.ClientChat.Reset();
             config = null;
         }
@@ -570,6 +575,25 @@ namespace claims.src
             }
             else
                 CANCityGui.TryOpen();
+            return true;
+        }
+        /// <summary>
+        /// Opens the boat sharing dialog for the boat under the crosshair. Created lazily and kept,
+        /// like the other client dialogs, so it holds no stale entity between uses.
+        /// </summary>
+        private bool OnHotKeyBoatShare(KeyCombination comb)
+        {
+            if (!claims.config.BOAT_SHARE_WITH_CITY) return true;
+
+            boatShareDialog ??= new gui.BoatShareDialog(capi);
+            if (boatShareDialog.IsOpened())
+            {
+                boatShareDialog.TryClose();
+                return true;
+            }
+
+            // TryOpen finds the boat and refuses (with a message) when there is none in sight.
+            boatShareDialog.TryOpen();
             return true;
         }
         private bool OnHotKeyPlayerMovementGUI(KeyCombination comb)

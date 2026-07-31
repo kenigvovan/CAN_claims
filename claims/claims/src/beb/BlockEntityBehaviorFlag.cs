@@ -56,17 +56,50 @@ namespace claims.src.beb
             this.Banner?.ResolveBlockOrItem(this.Api.World);
             if (this.Banner != null && this.Api is ICoreClientAPI client)
             {
-                client.Tesselator.TesselateShape(this.Banner.Item, Shape.TryGet(client, "claims:shapes/flag/banner.json"), out MeshData meshData);
-                this.renderer = new FlagRenderer(client, meshData, this.Pos, this, this.BlockBehavior.PoleTop, this.BlockBehavior.PoleBottom);
-                client.Event.RegisterRenderer(this.renderer, EnumRenderStage.Opaque, "flag");
-
+                RebuildRenderer(client);
             }
 
             //this.updateRef = api.Event.RegisterGameTickListener(this.Update, 1000);
 
         }
+        /// <summary>
+        /// Builds the banner mesh and hangs it on the pole.
+        ///
+        /// The cloth flies the arms of whoever planted it - the attacking city, or its alliance when
+        /// the city has none of its own - so a defender can see at a glance who is storming the plot.
+        /// Without arms (or before they reached this client) it falls back to the dyed cloth that was
+        /// used to raise the flag, which is what it always looked like.
+        /// </summary>
+        private void RebuildRenderer(ICoreClientAPI client)
+        {
+            Shape shape = Shape.TryGet(client, "claims:shapes/flag/banner.json");
+            if (shape == null) return;
+
+            MeshData meshData;
+            var arms = new renderer.EmblemTexSource(client, AttackerEmblem(), client.ItemTextureAtlas);
+            if (arms.Resolved)
+            {
+                client.Tesselator.TesselateShape("captureflag", shape, out meshData, arms);
+            }
+            else
+            {
+                client.Tesselator.TesselateShape(this.Banner.Item, shape, out meshData);
+            }
+
+            this.renderer = new FlagRenderer(client, meshData, this.Pos, this, this.BlockBehavior.PoleTop, this.BlockBehavior.PoleBottom);
+            client.Event.RegisterRenderer(this.renderer, EnumRenderStage.Opaque, "flag");
+        }
+
+        /// <summary>Arms of the attacking party, city first, empty when neither has any.</summary>
+        private string AttackerEmblem()
+        {
+            string emblem = claims.clientDataStorage?.ClientGetEmblem(this.CityGuid) ?? "";
+            if (emblem.Length == 0) emblem = claims.clientDataStorage?.ClientGetEmblem(this.AllianceGuid) ?? "";
+            return emblem;
+        }
+
         public override void OnBlockBroken(IPlayer byPlayer = null)
-        {          
+        {
             base.OnBlockBroken(byPlayer);
             this.renderer?.Dispose();
             if (this.updateRef.HasValue) this.Api.Event.UnregisterGameTickListener(this.updateRef.Value);
@@ -541,12 +574,8 @@ namespace claims.src.beb
 
                         if (this.Api is ICoreClientAPI client)
                         {
-
                             this.renderer?.Dispose();
-                            client.Tesselator.TesselateShape(this.Banner.Item, Shape.TryGet(client, "claims:shapes/flag/banner.json"), out MeshData meshData);
-                            this.renderer = new FlagRenderer(client, meshData, this.Pos, this, this.BlockBehavior.PoleTop, this.BlockBehavior.PoleBottom);
-                            client.Event.RegisterRenderer(this.renderer, EnumRenderStage.Opaque, "flag");
-
+                            RebuildRenderer(client);
                         }
                     }
                     if (claims.config.SEND_ANNOUNCEMENTS_PLOT_IN_UNDER_ATTACK)
@@ -585,9 +614,7 @@ namespace claims.src.beb
                         this.Banner = newBanner;
                         this.Banner?.ResolveBlockOrItem(this.Api.World);
                         this.renderer?.Dispose();
-                        client.Tesselator.TesselateShape(this.Banner.Item, Shape.TryGet(client, "claims:shapes/flag/banner.json"), out MeshData meshData);
-                        this.renderer = new FlagRenderer(client, meshData, this.Pos, this, this.BlockBehavior.PoleTop, this.BlockBehavior.PoleBottom);
-                        client.Event.RegisterRenderer(this.renderer, EnumRenderStage.Opaque, "flag");
+                        RebuildRenderer(client);
                         // No client-side tick: capture progress is server-authoritative and arrives
                         // via MarkDirty sync; the renderer reads CapturedPercent directly each frame.
                     }

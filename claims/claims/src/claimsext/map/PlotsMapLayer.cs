@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Cairo;
 using claims.src.auxialiry;
 using claims.src.clientMapHandling;
+using claims.src.gui.playerGui.GuiElements;
 using claims.src.playerMovements;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -32,8 +33,6 @@ namespace claims.src.claimsext.map
         public Dictionary<string, Vec3d> cityNameToChestCoords = new Dictionary<string, Vec3d>();
         bool shouldRender = true;
         bool shouldRenderBanks = false;
-        public Dictionary<string, LoadedTexture> texturesByIcon;
-        public MeshRef quadModel;
 
         public override MapLegendItem[] LegendItems => throw new NotImplementedException();
         public override EnumMinMagFilter MinFilter => EnumMinMagFilter.Linear;
@@ -52,10 +51,8 @@ namespace claims.src.claimsext.map
         }
         public PlotsMapLayer(ICoreAPI api, IWorldMapManager mapSink) : base(api, mapSink)
         {
-            if (api.Side == EnumAppSide.Client)
-            {
-                quadModel = (api as ICoreClientAPI).Render.UploadMesh(QuadMeshUtil.GetQuad());
-            }
+            // Used to upload a quad mesh here for icon rendering that never happened; the field it
+            // went into was read nowhere.
         }
         public bool toggleRender(KeyCombination comb)
         {
@@ -149,6 +146,8 @@ namespace claims.src.claimsext.map
             }
 
             curVisibleChunks.Clear();
+            // Otherwise the arms of whatever was last pointed at reappear the moment the map opens.
+            hoveredEmblem = "";
         }
 
         public override void Dispose()
@@ -162,6 +161,7 @@ namespace claims.src.claimsext.map
             }
 
             CANMultiChunkMapComponent.DisposeStatic();
+            EmblemCache.Invalidate();
 
             base.Dispose();
         }
@@ -213,16 +213,10 @@ namespace claims.src.claimsext.map
         }
         private async Task OnResChunkPixelsAsync(Vec2i cord, string cityName)
         {
-            await Task.Run(async () =>
+            await Task.Run(() =>
             {
-                //System.Threading.Thread.Sleep(1000);
-                int color = 0;
-                if (cityName != null)
-                {
-                    claims.clientDataStorage.ClientGetCityColor(cityName);
-                }
-
-
+                // Colour is resolved per plot inside GenerateChunkImage - a chunk can hold plots of
+                // different cities.
                 int[] pixels = (int[])GenerateChunkImage(cord, true)?.Clone();
                 
                 if (pixels == null)
@@ -248,6 +242,24 @@ namespace claims.src.claimsext.map
             });
         }
          
+        /// <summary>Arms of the city under the cursor, drawn inside the map's hover box as a custom
+        /// icon (see <see cref="EmblemIconName"/>).</summary>
+        private string hoveredEmblem = "";
+
+        /// <summary>Name in the engine's icon table. A single entry redrawn from
+        /// <see cref="hoveredEmblem"/> - that table lives as long as the client, so one icon per city
+        /// would leak a delegate per city.</summary>
+        private const string EmblemIconName = "claims-hovered-emblem";
+
+        private bool emblemIconRegistered;
+
+        /// <summary>Unscaled font size of the icon - IconComponent takes its size from the font, and
+        /// the hover box's own ~14 is too small for a coat of arms.</summary>
+        private const int EmblemFontSize = 32;
+
+        /// <summary>Scratch for the cursor-to-world conversion, kept to avoid allocating per move.</summary>
+        private Vec3d hoveredWorldPos = new Vec3d();
+
         public override void Render(GuiElementMap mapElem, float dt)
         {
             if(!this.Active)
@@ -258,90 +270,80 @@ namespace claims.src.claimsext.map
             foreach (var val in loadedMapData)
             {
                 val.Value.Render(mapElem, dt);
-            }          
-        }
-        public override void OnMapOpenedClient()
-        {
-            if (texturesByIcon == null)
-            {
-                if (texturesByIcon != null)
-                {
-                    foreach (var val in texturesByIcon)
-                    {
-                        val.Value.Dispose();
-                    }
-                }
-
-                texturesByIcon = new Dictionary<string, LoadedTexture>();
-
-                double scale = RuntimeEnv.GUIScale;
-                int size = (int)(27 * scale);
-
-                ImageSurface surface = new ImageSurface(Format.Argb32, size, size);
-                Context ctx = new Context(surface);
-
-                string[] icons = new string[] { "circle", "bee", "cave", "home", "ladder", "pick", "rocks", "ruins", "spiral", "star1", "star2", "trader", "vessel", "cross" };
-                ICoreClientAPI capi = api as ICoreClientAPI;
-
-                foreach (var val in icons)
-                {
-                    ctx.Operator = Operator.Clear;
-                    ctx.SetSourceRGBA(0, 0, 0, 0);
-                    ctx.Paint();
-                    ctx.Operator = Operator.Over;
-
-                    capi.Gui.Icons.DrawIcon(ctx, "wp" + val.UcFirst(), 1, 1, size - 2, size - 2, new double[] { 0, 0, 0, 1 });
-                    capi.Gui.Icons.DrawIcon(ctx, "wp" + val.UcFirst(), 2, 2, size - 4, size - 4, ColorUtil.WhiteArgbDouble);
-
-                    texturesByIcon[val] = new LoadedTexture(api as ICoreClientAPI, (api as ICoreClientAPI).Gui.LoadCairoTexture(surface, false), (int)(20 * scale), (int)(20 * scale));
-                }
-
-                ctx.Dispose();
-                surface.Dispose();
             }
+
         }
+
+        /// <summary>Registers the icon that "&lt;icon name=...&gt;" in the hover text renders. Once,
+        /// on first use.</summary>
+        private void EnsureEmblemIcon(ICoreClientAPI capi)
+        {
+            if (emblemIconRegistered) return;
+            emblemIconRegistered = true;
+
+            capi.Gui.Icons.CustomIcons[EmblemIconName] = (ctx, x, y, w, h, rgba) =>
+            {
+                if (hoveredEmblem.Length == 0) return;
+                EmblemCache.Draw(capi, ctx, hoveredEmblem, x, y, w, h);
+            };
+        }
+
+        /// <summary>Arms of a city by name - plots carry names, the emblem cache is keyed by guid,
+        /// and the world city list maps one to the other.</summary>
+        private static string EmblemOfCity(string cityName)
+        {
+            var cities = claims.clientDataStorage?.clientPlayerInfo?.AllCitiesList;
+            if (cities == null) return "";
+
+            foreach (var city in cities)
+            {
+                if (city.Name != cityName) continue;
+                return claims.clientDataStorage.ClientGetEmblem(city.Guid);
+            }
+            return "";
+        }
+
+        // OnMapOpenedClient used to build fourteen waypoint-style icons into GL textures every time
+        // the map opened, into a dictionary nothing ever read. Removed with the dictionary itself.
+
         public override void OnMouseMoveClient(MouseEvent args, GuiElementMap mapElem, StringBuilder hoverText)
         {
 
-            foreach (var val in loadedMapData)
-            {
-                val.Value.OnMouseMove(args, mapElem, hoverText);
-                var c = val.Value;
-                Vec2f viewPos = new Vec2f();
-                mapElem.TranslateWorldPosToViewPos(new Vec3d(val.Value.chunkCoord.X * PlotPosition.plotSize + PlotPosition.plotSize / 2, 0, val.Value.chunkCoord.Y * PlotPosition.plotSize + PlotPosition.plotSize / 2), ref viewPos);
-            }
-            double mouseX = args.X - mapElem.Bounds.renderX;
-            double mouseY = args.Y - mapElem.Bounds.renderY;
-            float halfPlot = PlotPosition.plotSize / 2f * mapElem.ZoomLevel;
+            // The plot under the cursor is a coordinate conversion, not a search: cursor to world
+            // position, world position to exactly one plot.
+            mapElem.TranslateViewPosToWorldPos(
+                new Vec2f((float)(args.X - mapElem.Bounds.renderX), (float)(args.Y - mapElem.Bounds.renderY)),
+                ref hoveredWorldPos);
 
-            // Only ever describe ONE plot: the one closest to the cursor. Appending for every plot whose
-            // hit box contains the cursor printed the city line two (or more) times on plot boundaries.
-            SavedPlotInfo hovered = null;
-            double bestDist = double.MaxValue;
-            Vec2f plotViewPos = new Vec2f();
-            foreach (var zone in claims.clientDataStorage.getClientSavedPlots())
-            {
-                foreach (var savedPlot in zone.Value.savedPlots)
-                {
-                    mapElem.TranslateWorldPosToViewPos(new Vec3d(savedPlot.Key.X * PlotPosition.plotSize + PlotPosition.plotSize / 2, 0, savedPlot.Key.Y * PlotPosition.plotSize + PlotPosition.plotSize / 2), ref plotViewPos);
+            // Floor, not truncation - plots -1 and 0 both truncate to 0.
+            var plotPos = new Vec2i(
+                (int)Math.Floor(hoveredWorldPos.X / PlotPosition.plotSize),
+                (int)Math.Floor(hoveredWorldPos.Z / PlotPosition.plotSize));
 
-                    double dx = plotViewPos.X - mouseX;
-                    double dy = plotViewPos.Y - mouseY;
-                    if (Math.Abs(dx) >= halfPlot || Math.Abs(dy) >= halfPlot) continue;
-
-                    double dist = dx * dx + dy * dy;
-                    if (dist >= bestDist) continue;
-                    bestDist = dist;
-                    hovered = savedPlot.Value;
-                }
-            }
+            claims.clientDataStorage.getSavedPlot(plotPos, out SavedPlotInfo hovered);
             if (hovered != null && hovered.cityName.Length > 0)
             {
-                hoverText.AppendLine(Lang.Get("claims:map_plot_city_name", hovered.cityName));
+                hoveredEmblem = EmblemOfCity(hovered.cityName);
+
+                string cityLine = Lang.Get("claims:map_plot_city_name", hovered.cityName);
+                if (hoveredEmblem.Length > 0 && api is ICoreClientAPI capi)
+                {
+                    EnsureEmblemIcon(capi);
+                    // The font tag sets the icon size. Closing the icon explicitly is required - the
+                    // parser rejects a </font> over an open <icon>.
+                    cityLine = "<font size=\"" + EmblemFontSize + "\"><icon name=\"" + EmblemIconName
+                             + "\"></icon></font> " + cityLine;
+                }
+
+                hoverText.AppendLine(cityLine);
                 if (hovered.price > 0)
                 {
                     hoverText.AppendLine(Lang.Get("claims:map_plot_price", hovered.price));
                 }
+            }
+            else
+            {
+                hoveredEmblem = "";
             }
         }
         public override void OnMouseUpClient(MouseEvent args, GuiElementMap mapElem)

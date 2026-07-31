@@ -79,7 +79,8 @@ namespace claims.src
                         EnumPlayerPermissions.CITY_ADD_PERMISSION_TO_RANK,
                         EnumPlayerPermissions.CITY_REMOVE_PERMISSION_FROM_RANK,
                         EnumPlayerPermissions.CITY_SET_PLOT_ACCESS_PERMISSIONS,
-                        EnumPlayerPermissions.CITY_BUY_OUTPOST
+                        EnumPlayerPermissions.CITY_BUY_OUTPOST,
+                        EnumPlayerPermissions.CITY_SET_EMBLEM
                     }
                 },
                 {
@@ -96,7 +97,8 @@ namespace claims.src
                         EnumPlayerPermissions.ALLIANCE_ACCEPT_UNION,
                         EnumPlayerPermissions.ALLIANCE_DECLARE_UNION,
                         EnumPlayerPermissions.ALLIANCE_DENY_UNION,
-                        EnumPlayerPermissions.ALLIANCE_REVOKE_UNION
+                        EnumPlayerPermissions.ALLIANCE_REVOKE_UNION,
+                        EnumPlayerPermissions.ALLIANCE_SET_EMBLEM
                     }
                 }
 

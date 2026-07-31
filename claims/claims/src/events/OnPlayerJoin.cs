@@ -55,6 +55,7 @@ namespace claims.src.events
             playerInfo.saveToDatabase();
 
             UsefullPacketsSend.sendAllCitiesColorsToPlayer(player);
+            UsefullPacketsSend.sendAllCityEmblemsToPlayer(player);
             UsefullPacketsSend.SendPlayerCityRelatedInfo(player);
             UsefullPacketsSend.SendUpdatedConfigValues(player);
             BountyHelper.BroadcastBoard();

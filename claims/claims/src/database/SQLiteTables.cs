@@ -33,7 +33,8 @@
             "vassals TEXT DEFAULT \"\"," +
             "vassalsince INTEGER DEFAULT 0," +
             "naps TEXT DEFAULT \"\"," +
-            "warjustifications TEXT DEFAULT \"\"" +
+            "warjustifications TEXT DEFAULT \"\"," +
+            "emblem TEXT DEFAULT \"\"" +
              ");";
 
         public static string playerTable =
@@ -117,7 +118,8 @@
            "alliancefee INTEGER," +
            "neutral INTEGER," +
            "pendingunionbreaks TEXT," +
-           "unionbreakcooldowns TEXT" +
+           "unionbreakcooldowns TEXT," +
+           "emblem TEXT DEFAULT \"\"" +
            ");";
 
         public static string conflictsTable =

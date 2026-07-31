@@ -1,5 +1,6 @@
 ﻿using claims.src.auxialiry;
 using claims.src.delayed.invitations;
+using claims.src.gui.playerGui.structures;
 using claims.src.part;
 using claims.src.part.interfaces;
 using claims.src.part.structure.conflict;
@@ -30,6 +31,8 @@ namespace claims.src.part.structure
         // Feeds the "no war yet" / "no new union yet" cooldowns.
         public Dictionary<string, long> UnionBreakCooldowns { get; set; } = new();
         public int AllianceFee { get; set; } = 0;
+        // Coat of arms: ';'-separated texture layers, see EmblemHandler. Empty means none yet.
+        public string Emblem { get; set; } = "";
         public long TimeStampCreated { get; set; }
         public bool Neutral { get; set; } = false;
         public HashSet<Conflict> RunningConflicts { get; } = new HashSet<Conflict>();
@@ -69,6 +72,15 @@ namespace claims.src.part.structure
         public override bool saveToDatabase(bool update = true)
         {
             return claims.getModInstance().getDatabaseHandler().saveAlliance(this, update);
+        }
+        /// <summary>Replaces the coat of arms and pushes it to every member city.</summary>
+        public void SetEmblem(string emblem)
+        {
+            Emblem = EmblemHandler.Normalize(emblem);
+            this.saveToDatabase();
+            UsefullPacketsSend.AddToQueueAllianceInfoUpdate(Guid, EnumPlayerRelatedInfo.ALLIANCE_EMBLEM);
+            // Also to everyone else: an alliance's arms fly on the capture flags of its members.
+            UsefullPacketsSend.BroadcastCityEmblems();
         }
         public List<Invitation> GetSentInvitations()
         {

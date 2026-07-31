@@ -20,20 +20,23 @@ namespace claims.src.harmony
         /// Passing a null method to Harmony throws, which would abort the whole patch chain and leave the
         /// mod half-patched after a VS update.
         /// </summary>
+        /// <param name="patchClass">Where the named patch methods live. Defaults to the catch-all
+        /// harmonyPatches; a feature with its own class passes it here.</param>
         private static void TryPatch(Harmony harmonyInstance, MethodInfo target, string targetName,
-            string prefix = null, string postfix = null, string transpiler = null)
+            string prefix = null, string postfix = null, string transpiler = null, Type patchClass = null)
         {
             if (target == null)
             {
                 Logger()?.Warning("[claims] patch skipped: {0} not found (VS update?)", targetName);
                 return;
             }
+            patchClass ??= typeof(harmonyPatches);
             try
             {
                 harmonyInstance.Patch(target,
-                    prefix: prefix == null ? null : new HarmonyMethod(typeof(harmonyPatches).GetMethod(prefix)),
-                    postfix: postfix == null ? null : new HarmonyMethod(typeof(harmonyPatches).GetMethod(postfix)),
-                    transpiler: transpiler == null ? null : new HarmonyMethod(typeof(harmonyPatches).GetMethod(transpiler)));
+                    prefix: prefix == null ? null : new HarmonyMethod(patchClass.GetMethod(prefix)),
+                    postfix: postfix == null ? null : new HarmonyMethod(patchClass.GetMethod(postfix)),
+                    transpiler: transpiler == null ? null : new HarmonyMethod(patchClass.GetMethod(transpiler)));
             }
             catch (Exception e)
             {
@@ -49,8 +52,13 @@ namespace claims.src.harmony
         public static void ApplyClientPatches(Harmony harmonyInstance, string harmonyID)
         {
             harmonyInstance = new Harmony(harmonyID);
-            // No client patches at present. DropMouseSlotItems used to be patched for an ImGui
-            // inventory grid that was never wired up, so the prefix always fell through.
+
+            // Boat sharing needs the client too: CanMount checks ownership before asking the server,
+            // and the tooltip is client-only. The client answers from the synced stamp.
+            TryPatch(harmonyInstance, typeof(EntityBehaviorOwnable).GetMethod("IsOwner"),
+                "EntityBehaviorOwnable.IsOwner", postfix: "Postfix_Ownable_IsOwner", patchClass: typeof(BoatSharePatches));
+            TryPatch(harmonyInstance, typeof(EntityBehaviorOwnable).GetMethod("GetInfoText"),
+                "EntityBehaviorOwnable.GetInfoText", postfix: "Postfix_Ownable_GetInfoText", patchClass: typeof(BoatSharePatches));
         }
         public static void ApplyServerPatches(Harmony harmonyInstance, string harmonyID)
         {
@@ -110,6 +118,13 @@ namespace claims.src.harmony
             TryPatch(harmonyInstance, typeof(ServerSystemEntitySimulation).GetMethod("OnPlayerRespawn", BindingFlags.NonPublic | BindingFlags.Instance),
                 "ServerSystemEntitySimulation.OnPlayerRespawn", transpiler: "Transpiler_ComposeSlotOverlays_Add_Socket_Overlays_Not_Draw_ItemDamage");
 
+            // Boat sharing: IsOwner is the gate every ownership check goes through, verifyOwnership
+            // stamps the owner's city onto the boat for clients. Patched regardless of
+            // BOAT_SHARE_WITH_CITY - the postfix reads the flag, so setcfg works without a restart.
+            TryPatch(harmonyInstance, typeof(EntityBehaviorOwnable).GetMethod("IsOwner"),
+                "EntityBehaviorOwnable.IsOwner", postfix: "Postfix_Ownable_IsOwner", patchClass: typeof(BoatSharePatches));
+            TryPatch(harmonyInstance, typeof(EntityBehaviorOwnable).GetMethod("verifyOwnership", BindingFlags.NonPublic | BindingFlags.Instance),
+                "EntityBehaviorOwnable.verifyOwnership", postfix: "Postfix_Ownable_VerifyOwnership", patchClass: typeof(BoatSharePatches));
         }
     }
 }

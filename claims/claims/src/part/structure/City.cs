@@ -48,6 +48,8 @@ namespace claims.src.part
         public HashSet<Plot> campPlots = new HashSet<Plot>();
         public int Extrachunksbought { get; set; } = 0;
         public int cityColor { get; set; } = -992222222;
+        // Coat of arms: ';'-separated texture layers, see Emblem. Empty means the city has none yet.
+        public string Emblem { get; set; } = "";
         public string MoneyAccountName => claims.config.CITY_ACCOUNT_STRING_PREFIX + Guid;
         public Dictionary<Vec2i, Vec3i> TempleRespawnPoints { get; } = new Dictionary<Vec2i, Vec3i>();
         public List<City> HostileCities { get; set; } = new List<City>();
@@ -540,6 +542,15 @@ namespace claims.src.part
         {
             cityColor = color;
             this.saveToDatabase();
+        }
+        /// <summary>Replaces the coat of arms, normalized so that what is stored can be drawn.</summary>
+        public void SetEmblem(string emblem)
+        {
+            Emblem = EmblemHandler.Normalize(emblem);
+            this.saveToDatabase();
+            UsefullPacketsSend.AddToQueueCityInfoUpdate(Guid, EnumPlayerRelatedInfo.CITY_EMBLEM);
+            // Everyone, not just the citizens: banners of this city stand where anybody may walk past.
+            UsefullPacketsSend.BroadcastCityEmblems();
         }
         public void setAllCityPlotsMarkedAsUpdated()
         {
