@@ -61,6 +61,8 @@ namespace claims.src
         // Plot positions where a village fell -> unix seconds until anything may be founded there
         // again. Persisted in VILLAGERUINS.
         public Dictionary<Vec2i, long> VillageRuins { get; } = new Dictionary<Vec2i, long>();
+        // Completed inter-city plot sales, oldest first. Persisted in PLOTSALES.
+        public List<PlotSaleRecord> PlotSaleHistory { get; } = new List<PlotSaleRecord>();
 
         //zone pos and timestamp when we get info about it last time
         //will be used by client when it enters new zone and send to server this timestamps

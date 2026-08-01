@@ -42,6 +42,63 @@ namespace claims.src.gui.playerGui.Dialogs
 
         private static string SelectedGroupName() => SelectedGroup()?.Name;
 
+        /// <summary>Audiences offered in the GUI, command word plus display key. Selling to one named
+        /// city stays a command-line option: it needs a city name the dropdown cannot ask for.</summary>
+        private static readonly List<KeyValuePair<string, string>> MarketAudiences = new()
+        {
+            new("allies", "claims:plot_trade_audience_allies"),
+            new("nonhostile", "claims:plot_trade_audience_nonhostile"),
+            new("everyone", "claims:plot_trade_audience_everyone")
+        };
+
+        /// <summary>The audience the plot underfoot is listed with, so resending keeps it.</summary>
+        private static string CurrentAudienceWord()
+        {
+            var plot = claims.clientDataStorage.clientPlayerInfo?.CurrentPlotInfo;
+            return plot?.SaleAudience switch
+            {
+                EnumPlotSaleAudience.NON_HOSTILE => "nonhostile",
+                EnumPlotSaleAudience.EVERYONE => "everyone",
+                EnumPlotSaleAudience.SPECIFIC_CITY => "city",
+                _ => "allies"
+            };
+        }
+
+        /// <summary>
+        /// The listing rebuilt as command arguments. An addressed offer has to carry its buyer along:
+        /// resending it without the name would widen "only this city" to "all allies" behind the
+        /// mayor's back, just because the price changed.
+        /// </summary>
+        private static string CurrentAudienceArgs()
+        {
+            string word = CurrentAudienceWord();
+            if (word != "city") return word;
+
+            string target = claims.clientDataStorage.clientPlayerInfo?.CurrentPlotInfo?.SaleTargetCityName;
+            // Without a resolvable buyer the server would refuse the command, so fall back to the
+            // narrowest audience rather than sending something that cannot be applied.
+            return target?.Length > 0 ? "city " + target : "allies";
+        }
+
+        /// <summary>Every city but our own - the possible buyers of an addressed offer.</summary>
+        private static string[] OtherCityNames()
+        {
+            string ours = claims.clientDataStorage.clientPlayerInfo?.CityInfo?.Name;
+            return claims.clientDataStorage.clientPlayerInfo?.AllCitiesList?
+                       .Select(c => c.Name)
+                       .Where(n => n != ours)
+                       .OrderBy(n => n)
+                       .ToArray()
+                   ?? new string[0];
+        }
+
+        /// <summary>Asking price of the plot underfoot; 0 when it is not listed yet.</summary>
+        private static int CurrentCityPrice()
+        {
+            int price = claims.clientDataStorage.clientPlayerInfo?.CurrentPlotInfo?.PriceForCityBuy ?? -1;
+            return price < 0 ? 0 : price;
+        }
+
         public DialogRegistry()
         {
             // ---- city ----
@@ -81,6 +138,29 @@ namespace claims.src.gui.playerGui.Dialogs
                     "/plot set type ", "claims:gui-set-type-button",
                     displayNamesProvider: () => EnabledPlotTypes().Select(p => Lang.Get(p.Value)).ToArray()));
             Add(PLOT_PERMISSIONS, new PermissionsDialog("claims:gui-plot-permissions-title", PermissionsScopes.Plot));
+
+            // ---- inter-city plot market ----
+            // Price and audience are one listing, so setting either resends both: entering a new
+            // price must not silently widen an "allies only" offer to everyone.
+            Add(PLOT_SET_CITY_PRICE_NEED_NUMBER, new NeedNameDialog("claims:gui-enter-plot-city-price", null,
+                    "claims:gui-set-price-button", inputKind: EnumDialogInput.Integer,
+                    commandBuilder: args => "/plot citysell " + args.Text + " " + CurrentAudienceArgs()));
+            Add(PLOT_SET_CITY_AUDIENCE, new DropDownDialog("claims:gui-select-plot-city-audience",
+                    () => MarketAudiences.Select(a => a.Key).ToArray(),
+                    null, "claims:gui-set-button",
+                    displayNamesProvider: () => MarketAudiences.Select(a => Lang.Get(a.Value)).ToArray(),
+                    commandBuilder: args => "/plot citysell " + CurrentCityPrice() + " " + args.Text));
+            // Naming one buyer is its own step: the audience dropdown has no way to ask for a city.
+            Add(PLOT_SET_CITY_TARGET, new DropDownDialog("claims:gui-select-plot-city-target",
+                    () => OtherCityNames(), null, "claims:gui-set-button",
+                    commandBuilder: args => "/plot citysell " + CurrentCityPrice() + " city " + args.Text));
+            Add(PLOT_CITY_BUY_CONFIRM, new YesNoDialog("claims:gui-plot-city-buy-confirm", "/plot citybuy",
+                    textArgs: args => new object[] { CurrentCityPrice() }));
+            // From the market tab the plot is named by its coordinates, not by where the player stands.
+            // Pos carries the plot coordinates: X and Z, with Y unused.
+            Add(PLOT_MARKET_BUY_CONFIRM, new YesNoDialog("claims:gui-plot-market-buy-confirm",
+                    args => string.Format("/plot citybuy {0} {1}", args.Pos.X, args.Pos.Z),
+                    textArgs: args => new object[] { args.First, args.Second }));
 
             // ---- ranks ----
             Add(CITY_RANK_CREATION_NEED_NAME, new NeedNameDialog("claims:gui-enter-rank-name", "/c rank create ", "claims:gui-add-button"));

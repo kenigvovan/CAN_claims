@@ -2,6 +2,7 @@
 using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
+using claims.src.part.structure.plots;
 using claims.src.part.structure.union;
 
 namespace claims.src.database
@@ -79,6 +80,10 @@ namespace claims.src.database
         abstract public bool saveVillageRuin(int x, int z, long until, bool update = true);
         abstract public bool deleteVillageRuin(int x, int z);
 
+        //INTER-CITY PLOT SALES
+        abstract public bool loadPlotSales();
+        abstract public bool savePlotSale(PlotSaleRecord record, bool update = false);
+
         //PENDING UNION LETTERS
         abstract public bool loadUnionLetters();
         abstract public bool saveUnionLetter(UnionLetter letter, bool update = true);
@@ -104,7 +109,9 @@ namespace claims.src.database
                // after conflicts: a letter references parties that must already exist
                && loadConflictLetters()
                && loadUnionLetters()
-               && loadVillageRuins();
+               && loadVillageRuins()
+               // after cities: a sale record is matched back to the cities that made it
+               && loadPlotSales();
         }
         abstract public bool saveEveryThing();
 

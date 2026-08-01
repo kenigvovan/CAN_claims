@@ -5,6 +5,7 @@ using claims.src.economy;
 using claims.src.gui.playerGui.structures;
 using claims.src.messages;
 using claims.src.part.structure.conflict;
+using claims.src.part.structure.plots;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 
@@ -106,24 +107,7 @@ namespace claims.src.part.structure.war
             if (!loser.GetCities().Contains(loserCity)) return;   // plot changed hands since the offer
             if (loserCity.getCityPlots().Count <= 1) return;      // never strand the loser's last plot
 
-            plot.setCity(winnerCity);
-            loserCity.getCityPlots().Remove(plot);
-            winnerCity.getCityPlots().Add(plot);
-            plot.setPlotOwner(null);
-            plot.setCustomTax(0);
-            plot.setNewType(new TextCommandResult(), "default", null, true);
-            plot.setPlotGroup(null);
-            plot.extraBought = false;
-            plot.WasCaptured = true;
-            plot.UpdateBorderPlotValue();
-            loserCity.saveToDatabase();
-            winnerCity.saveToDatabase();
-            plot.saveToDatabase();
-            plot.CheckBorderPlotValue();
-            claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
-            UsefullPacketsSend.AddToQueueCityInfoUpdate(loserCity.Guid, EnumPlayerRelatedInfo.CLAIMED_PLOTS);
-            UsefullPacketsSend.AddToQueueCityInfoUpdate(winnerCity.Guid, EnumPlayerRelatedInfo.CLAIMED_PLOTS);
-            UsefullPacketsSend.AddToQueueAllPlayersInfoUpdate(new Dictionary<string, object> { { "value", plot.getPos() } }, EnumPlayerRelatedInfo.CITY_PLOT_RECOLOR);
+            PlotTransferHelper.Transfer(plot, loserCity, winnerCity, markCaptured: true);
             loserCity.FirePlotsMapChanged(EnumPlotsMapChangeReason.PlotLostToEnemy);
             winnerCity.FirePlotsMapChanged(EnumPlotsMapChangeReason.PlotCapturedByUs);
             MessageHandler.SendMsgInAlliance(loser, Lang.Get("claims:peace_ceded_plot", winner.GetPartName()));

@@ -114,6 +114,12 @@ namespace claims.src.part
                     data = JsonConvert.SerializeObject(collector)
 
                 }, player as IServerPlayer);
+
+                // The founder's CityInfo is built fresh by this packet, and the land market is not
+                // part of it - without this their market tab stays empty until some other city
+                // changes a listing.
+                UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
+                    EnumPlayerRelatedInfo.CITY_PLOT_MARKET, EnumPlayerRelatedInfo.CITY_PLOT_MARKET_HISTORY);
             }
             claims.economyProvider.NewAccount(city.MoneyAccountName, new Dictionary<string, object> { { "lastknownname", city.GetPartName() } });
             return;

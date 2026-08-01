@@ -216,6 +216,23 @@ namespace claims.src
         //Also share with the rest of the owner's alliance, not just the city.
         public bool BOAT_SHARE_WITH_ALLIANCE = false;
 
+        //INTER-CITY PLOT MARKET - a city puts one of its own plots up for a price, another city buys
+        //it and the plot changes hands together with the ground it stands on. Off by default: it
+        //redraws borders without a war, so a host opts in deliberately.
+        public bool CITY_PLOT_TRADE_ENABLED = false;
+        //Shows the market tab in the player window. Turning this off while the feature is on leaves
+        //the commands working but hides the browser - for hosts who want deals arranged in chat.
+        public bool CITY_PLOT_TRADE_GUI = true;
+        //Buy straight from the market tab. When off, the buyer's mayor has to travel to the plot and
+        //stand on it, which keeps distant land from being bought sight unseen.
+        public bool CITY_PLOT_TRADE_REMOTE_BUY = false;
+        //Require the bought plot to touch the buyer's own territory. Off by default: enclaves and
+        //concessions inside another city are allowed, the same way a ceded plot already is.
+        public bool CITY_PLOT_TRADE_REQUIRE_ADJACENCY = false;
+        //How many past deals the market history keeps on screen. The rows themselves are never
+        //deleted from the database.
+        public int CITY_PLOT_TRADE_HISTORY_SHOWN = 50;
+
         //VILLAGE - a cut-down settlement kept alive by supplies instead of money. No treasury,
         //alliances, wars, prisons, summons, outposts, plot groups or custom ranks.
         //Off by default: villages change how a server plays, so a host opts in deliberately.

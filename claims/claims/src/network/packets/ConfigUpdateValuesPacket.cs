@@ -248,5 +248,14 @@ namespace claims.src.network.packets
         // for the server to recount at the top of the hour.
         [ProtoMember(97)]
         public int VILLAGE_SUPPLY_HOURS_PER_ITEM;
+
+        // Inter-city plot market. The client needs these to decide whether the market tab and the
+        // plot page's market card exist at all, and whether a remote purchase is worth offering.
+        [ProtoMember(98)]
+        public bool CITY_PLOT_TRADE_ENABLED;
+        [ProtoMember(99)]
+        public bool CITY_PLOT_TRADE_GUI;
+        [ProtoMember(100)]
+        public bool CITY_PLOT_TRADE_REMOTE_BUY;
     }
 }

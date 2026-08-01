@@ -10,6 +10,7 @@ using claims.src.messages;
 using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
+using claims.src.part.structure.plots;
 using claims.src.part.structure.war;
 using claims.src.renderer;
 using Vintagestory.API.Client;
@@ -331,26 +332,13 @@ namespace claims.src.beb
                         City defenderCity = defenderPlot.getCity();
                         defenderCity.AddLogEntry(EnumCityLogEvent.FlagCaptured, attackerCity.GetPartName(), defenderPlot.GetPartName());
                         attackerCity.AddLogEntry(EnumCityLogEvent.FlagCaptured, attackerCity.GetPartName(), defenderPlot.GetPartName());
-                        defenderPlot.setCity(attackerCity);
-                        defenderCity.getCityPlots().Remove(defenderPlot);
-                        attackerCity.getCityPlots().Add(defenderPlot);
-                        defenderPlot.setPlotOwner(null);
-                        defenderPlot.UpdateBorderPlotValue();
-                        defenderPlot.setCustomTax(0);
-                        //shouldn't crash with default but better to remake it somehow with init functions
-                        defenderPlot.setNewType(new TextCommandResult(), "default", null, true);
-                        defenderPlot.setPlotGroup(null);
-                        defenderPlot.extraBought = false;
-                        defenderCity.saveToDatabase();
-                        defenderPlot.saveToDatabase();
+                        PlotTransferHelper.Transfer(defenderPlot, defenderCity, attackerCity, markCaptured: false);
 
-                        defenderPlot.CheckBorderPlotValue();
-                        claims.serverPlayerMovementListener.markPlotToWasReUpdated(defenderPlot.getPos());
-
-                        UsefullPacketsSend.AddToQueueCityInfoUpdate(defenderCity.Guid, EnumPlayerRelatedInfo.CLAIMED_PLOTS, EnumPlayerRelatedInfo.CITY_LOG);
-                        defenderCity.FirePlotsMapChanged(EnumPlotsMapChangeReason.PlotCapturedByUs);
+                        UsefullPacketsSend.AddToQueueCityInfoUpdate(defenderCity.Guid, EnumPlayerRelatedInfo.CITY_LOG);
+                        // One event per side: both were fired on the defender before, so the
+                        // attackers' own city map never learned about the plot they had just taken.
                         defenderCity.FirePlotsMapChanged(EnumPlotsMapChangeReason.PlotLostToEnemy);
-                        UsefullPacketsSend.AddToQueueAllPlayersInfoUpdate(new Dictionary<string, object> { { "value", defenderPlot.getPos() } }, EnumPlayerRelatedInfo.CITY_PLOT_RECOLOR);
+                        attackerCity.FirePlotsMapChanged(EnumPlotsMapChangeReason.PlotCapturedByUs);
                         // Treasury pillage + war score/stats for the successful plot capture.
                         long pillaged = WarPillageHelper.Pillage(attackerCity, defenderCity);
                         {

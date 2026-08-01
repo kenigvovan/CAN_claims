@@ -40,9 +40,19 @@ namespace claims.src.gui.playerGui.Dialogs
 
         // ---- building blocks ----
 
+        /// <summary>Writes into the row the cursor is on, without advancing it.</summary>
         protected static void Text(DialogLayout l, string text)
         {
             l.Compo.AddStaticText(text, CairoFont.WhiteDetailText(), l.Row);
+        }
+
+        /// <summary>
+        /// Writes on a row of its own. Text() stays on the current row, so a second line drawn with
+        /// it lands on top of the first - use this whenever a dialog says more than one thing.
+        /// </summary>
+        protected static void TextRow(DialogLayout l, string text)
+        {
+            l.Compo.AddStaticText(text, CairoFont.WhiteDetailText(), l.NextRow());
         }
 
         protected static void TextInput(DialogLayout l, string key, Action<string> onChange, string initial = null)

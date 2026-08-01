@@ -477,6 +477,12 @@ namespace claims.src.commands
             UsefullPacketsSend.SendCurrentPlotUpdate(player, plot);
 
             plot.setPlotGroup(searchedGroup);
+            // A plot inside a group is not sellable, so a standing offer to other cities goes with it.
+            if (plot.IsForSaleForCity)
+            {
+                PlotTransferHelper.ClearListing(plot);
+                PlotMarketHelper.NotifyMarketChanged();
+            }
             plot.saveToDatabase();
             tcr.Status = EnumCommandStatus.Success;
             return tcr;

@@ -114,6 +114,13 @@ namespace claims.src.commands
                 if (paymentSuccessfull)
                 {
                     plot.Price = -1;
+                    // The plot now belongs to a citizen, so any standing offer to other cities is
+                    // void - it would otherwise sit in the market tab refusing every buyer.
+                    if (plot.IsForSaleForCity)
+                    {
+                        PlotTransferHelper.ClearListing(plot);
+                        PlotMarketHelper.NotifyMarketChanged();
+                    }
                     plot.lastPaidPrice = (long)savedPrice;
                     plot.TimeStampClaimed = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                     plot.getPermsHandler().setPerm(playerInfo.PermsHandler);

@@ -181,6 +181,13 @@ namespace claims.src.config
             { "village_site_cooldown_hours", new IntSpec(0, 10000, v => C.VILLAGE_SITE_COOLDOWN_HOURS = v) },
             { "village_abandon_cooldown_hours", new IntSpec(0, 10000, v => C.VILLAGE_ABANDON_COOLDOWN_HOURS = v) },
             { "village_ruin_radius_plots", new IntSpec(0, 100, v => C.VILLAGE_RUIN_RADIUS_PLOTS = v) },
+
+            // inter-city plot market
+            { "city_plot_trade_enabled", new BoolSpec(v => C.CITY_PLOT_TRADE_ENABLED = v) },
+            { "city_plot_trade_gui", new BoolSpec(v => C.CITY_PLOT_TRADE_GUI = v) },
+            { "city_plot_trade_remote_buy", new BoolSpec(v => C.CITY_PLOT_TRADE_REMOTE_BUY = v) },
+            { "city_plot_trade_require_adjacency", new BoolSpec(v => C.CITY_PLOT_TRADE_REQUIRE_ADJACENCY = v) },
+            { "city_plot_trade_history_shown", new IntSpec(0, 1000, v => C.CITY_PLOT_TRADE_HISTORY_SHOWN = v) },
         };
 
         /// <summary>Known editable keys (for help/error messages).</summary>

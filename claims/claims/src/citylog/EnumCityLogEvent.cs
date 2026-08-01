@@ -19,5 +19,7 @@ namespace claims.src.citylog
         // Append only: entries are persisted by their numeric value.
         VillageFounded,
         VillageUpgraded,
+        PlotSoldToCity,
+        PlotBoughtFromCity,
     }
 }

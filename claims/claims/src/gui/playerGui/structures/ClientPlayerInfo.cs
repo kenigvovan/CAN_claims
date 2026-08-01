@@ -7,6 +7,7 @@ using claims.src.gui.playerGui.structures.cellElements;
 using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
+using claims.src.part.structure.plots;
 using claims.src.perms;
 using claims.src.rights;
 using Newtonsoft.Json;
@@ -113,6 +114,8 @@ namespace claims.src.gui.playerGui.structures
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_RAID_WINDOW, OnCityRaidWindow);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_LOG, OnCityLog);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_PLOTS_MAP, OnCityPlotsMap);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_PLOT_MARKET, OnCityPlotMarket);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_PLOT_MARKET_HISTORY, OnCityPlotMarketHistory);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.PLAYER_BALANCE, OnPlayerBalance);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_BALANCE, OnAllianceBalance);
         }
@@ -824,6 +827,18 @@ namespace claims.src.gui.playerGui.structures
             if (CityInfo == null) return;
             CityInfo.PlotsMap = JsonConvert.DeserializeObject<List<CityPlotMiniInfo>>(val) ?? new List<CityPlotMiniInfo>();
         }
+        private void OnCityPlotMarket(string val)
+        {
+            if (CityInfo == null) return;
+            CityInfo.PlotMarket = JsonConvert.DeserializeObject<List<PlotMarketCellElement>>(val) ?? new List<PlotMarketCellElement>();
+        }
+
+        private void OnCityPlotMarketHistory(string val)
+        {
+            if (CityInfo == null) return;
+            CityInfo.PlotMarketHistory = JsonConvert.DeserializeObject<List<PlotSaleRecord>>(val) ?? new List<PlotSaleRecord>();
+        }
+
         private void OnPlayerBalance(string val)
         {
             double.TryParse(val, System.Globalization.NumberStyles.Any,

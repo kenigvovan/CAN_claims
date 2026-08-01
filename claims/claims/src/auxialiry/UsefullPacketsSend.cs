@@ -118,7 +118,8 @@ namespace claims.src.auxialiry
                                            EnumPlayerRelatedInfo.CITY_PERMISSIONS_UPDATED, EnumPlayerRelatedInfo.CITY_BALANCE, EnumPlayerRelatedInfo.CITY_FEE, EnumPlayerRelatedInfo.CITY_CRIMINALS_LIST,
                                            EnumPlayerRelatedInfo.CITY_PRISON_CELL_ALL, EnumPlayerRelatedInfo.CITY_SUMMON_POINT_ALL, EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_ALL,
                                            EnumPlayerRelatedInfo.CITY_LOG, EnumPlayerRelatedInfo.CITY_PLOTS_MAP,
-                                           EnumPlayerRelatedInfo.CITY_EMBLEM, EnumPlayerRelatedInfo.ALLIANCE_EMBLEM]);
+                                           EnumPlayerRelatedInfo.CITY_EMBLEM, EnumPlayerRelatedInfo.ALLIANCE_EMBLEM,
+                                           EnumPlayerRelatedInfo.CITY_PLOT_MARKET, EnumPlayerRelatedInfo.CITY_PLOT_MARKET_HISTORY]);
             }
             infoToUpdatePlayer.AddRange([EnumPlayerRelatedInfo.SHOW_PLOT_MOVEMENT, EnumPlayerRelatedInfo.FRIENDS, EnumPlayerRelatedInfo.TO_CITY_INVITES,
                                          EnumPlayerRelatedInfo.PLAYER_PREFIX, EnumPlayerRelatedInfo.PLAYER_AFTER_NAME, EnumPlayerRelatedInfo.PLAYER_CITY_TITLES,
@@ -176,6 +177,12 @@ namespace claims.src.auxialiry
                     collector.Add(EnumPlayerRelatedInfo.PLAYER_AFTER_NAME, playerInfo.AfterName);
                     collector.Add(EnumPlayerRelatedInfo.PLAYER_CITY_TITLES, JsonConvert.SerializeObject(playerInfo.getCityTitles()));
                     collector.Add(EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT, JsonConvert.SerializeObject(playerInfo.GetNextPaymentsDict()));
+                    // The land market is not part of this packet, and the joiner's CityInfo was just
+                    // rebuilt empty - without this their market tab stays blank until some other
+                    // city happens to change a listing. Queued rather than inlined so the snapshot is
+                    // built in the one place that knows how.
+                    AddToQueueCityInfoUpdate(city.Guid,
+                        EnumPlayerRelatedInfo.CITY_PLOT_MARKET, EnumPlayerRelatedInfo.CITY_PLOT_MARKET_HISTORY);
                 }
                 claims.serverChannel.SendPacket(
                     new SavedPlotsPacket()
@@ -286,6 +293,10 @@ namespace claims.src.auxialiry
                        VILLAGE_FOOD_ITEMS = claims.config.VILLAGE_FOOD_ITEMS,
                        VILLAGE_FUEL_ITEMS = claims.config.VILLAGE_FUEL_ITEMS,
                        VILLAGE_SUPPLY_HOURS_PER_ITEM = claims.config.VILLAGE_SUPPLY_HOURS_PER_ITEM,
+
+                       CITY_PLOT_TRADE_ENABLED = claims.config.CITY_PLOT_TRADE_ENABLED,
+                       CITY_PLOT_TRADE_GUI = claims.config.CITY_PLOT_TRADE_GUI,
+                       CITY_PLOT_TRADE_REMOTE_BUY = claims.config.CITY_PLOT_TRADE_REMOTE_BUY,
 
                        WAR_RESPAWN_SAFEZONE_ENABLED = claims.config.WAR_RESPAWN_SAFEZONE_ENABLED,
                        WAR_RESPAWN_SAFEZONE_RADIUS = claims.config.WAR_RESPAWN_SAFEZONE_RADIUS,
@@ -489,10 +500,45 @@ namespace claims.src.auxialiry
                 }                                  
             }
         }
+        /// <summary>
+        /// Builds what one player is told about one plot. Both the periodic update and the client's
+        /// explicit request go through here, so neither can be left behind when a field is added.
+        /// Lives on the sending side rather than on CurrentPlotInfo: that type is the wire contract
+        /// the client deserialises, and it has no business reaching into the data storage.
+        /// </summary>
+        public static CurrentPlotInfo BuildCurrentPlotInfo(Plot plot, PlayerInfo viewer)
+        {
+            var info = new CurrentPlotInfo(plot.GetPartName(), plot.getPlotOwner()?.GetPartName() ?? "",
+                plot.Type, plot.getCustomTax(), plot.Price, plot.getPermsHandler(), plot.extraBought, plot.getPos())
+            {
+                CityName = plot.hasCity() ? plot.getCity().GetPartName() : ""
+            };
+
+            // The listing is told to the selling city - that is how its own mayor sees what is on
+            // offer - and to whoever the offer is open to. To anyone else the plot reads as not for
+            // sale: an offer addressed to one city is not something a passing enemy gets to price.
+            City viewerCity = viewer != null && viewer.hasCity() ? viewer.City : null;
+            bool ours = viewerCity != null && plot.hasCity() && plot.getCity().Equals(viewerCity);
+            if (plot.IsForSaleForCity && (ours || PlotMarketHelper.IsVisibleTo(plot, viewerCity)))
+            {
+                info.PriceForCityBuy = plot.PriceForCityBuy;
+                info.SaleAudience = plot.SaleAudience;
+                if (plot.SaleAudience == EnumPlotSaleAudience.SPECIFIC_CITY
+                    && claims.dataStorage.getCityByGUID(plot.SaleTargetCityGuid, out City target))
+                {
+                    info.SaleTargetCityName = target.GetPartName();
+                }
+            }
+
+            // The server's own verdict, so the page does not re-judge war, limits or money.
+            info.CanBuyAsCity = viewerCity != null && PlotMarketHelper.CanBuy(plot, viewerCity, out _);
+            return info;
+        }
+
         public static void SendCurrentPlotUpdate(IServerPlayer player, Plot plot)
         {
-            CurrentPlotInfo cpi = new CurrentPlotInfo(plot.GetPartName(), plot.getPlotOwner()?.GetPartName() ?? "",
-                plot.Type, plot.getCustomTax(), plot.Price, plot.getPermsHandler(), plot.extraBought, plot.getPos());
+            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo plotViewer);
+            CurrentPlotInfo cpi = BuildCurrentPlotInfo(plot, plotViewer);
             string serializedZones = JsonConvert.SerializeObject(cpi);
 
             claims.serverChannel.SendPacket(new SavedPlotsPacket()
@@ -743,6 +789,21 @@ namespace claims.src.auxialiry
                             break;
                         case EnumPlayerRelatedInfo.CITY_PLOTS_MAP:
                             result[pair.Key] = JsonConvert.SerializeObject(city.getCityPlots().Select(p => new CityPlotMiniInfo(p.plotPosition.X, p.plotPosition.Z, p.Type)).ToList());
+                            break;
+                        case EnumPlayerRelatedInfo.CITY_PLOT_MARKET:
+                            result[pair.Key] = JsonConvert.SerializeObject(
+                                PlotMarketHelper.GetListingsFor(city)
+                                    .Select(p => new PlotMarketCellElement(p, PlotMarketHelper.CanBuy(p, city, out _)))
+                                    .ToList());
+                            break;
+                        case EnumPlayerRelatedInfo.CITY_PLOT_MARKET_HISTORY:
+                            // Newest first, capped by config - the table keeps every row regardless.
+                            result[pair.Key] = JsonConvert.SerializeObject(
+                                claims.dataStorage.PlotSaleHistory
+                                    .Where(r => r.Involves(city))
+                                    .Reverse()
+                                    .Take(claims.config.CITY_PLOT_TRADE_HISTORY_SHOWN)
+                                    .ToList());
                             break;
                         case EnumPlayerRelatedInfo.CITY_PRISON_CELL_ALL:
                             if (city.hasPrison())

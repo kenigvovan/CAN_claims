@@ -346,6 +346,13 @@ namespace claims.src.gui.playerGui.Pages
                     Lang.Get("claims:gui-city-log-title")));
                 navButtons.Add(new NavButton("claims:flat-platform", () => GoTo(EnumSelectedTab.CityMap),
                     Lang.Get("claims:gui-city-map-title")));
+                // A village trades no land, and the host may have the market or its window switched off.
+                if (!city.IsVillage && claims.config?.CITY_PLOT_TRADE_ENABLED == true
+                    && claims.config?.CITY_PLOT_TRADE_GUI == true)
+                {
+                    navButtons.Add(new NavButton("claims:price-tag", () => GoTo(EnumSelectedTab.PlotMarket),
+                        Lang.Get("claims:gui-plot-market-title")));
+                }
                 if (!city.IsVillage)
                 {
                     navButtons.Add(new NavButton("claims:envelope", () =>

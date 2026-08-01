@@ -94,6 +94,9 @@
 
         // When our village is open to attack, as "unixStart;minutes". Only ever sent to its own
         // citizens - an outsider has to come and find out on the spot.
-        CITY_RAID_WINDOW
+        CITY_RAID_WINDOW,
+
+        // Inter-city plot market: the listings our city may act on, and the deals it took part in.
+        CITY_PLOT_MARKET, CITY_PLOT_MARKET_HISTORY
     }
 }

@@ -66,8 +66,8 @@ namespace claims.src.network.handlers
                     var currentPos = player.Entity.Pos;
                     if(claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(currentPos), out Plot plot))
                     {
-                        CurrentPlotInfo cpi = new CurrentPlotInfo(plot.GetPartName(), plot.getPlotOwner()?.GetPartName() ?? "",
-                            plot.Type, plot.getCustomTax(), plot.Price, plot.getPermsHandler(), plot.extraBought, plot.getPos());
+                        claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo plotViewer);
+                        CurrentPlotInfo cpi = UsefullPacketsSend.BuildCurrentPlotInfo(plot, plotViewer);
                         string serializedZones = JsonConvert.SerializeObject(cpi);
                         
                         claims.serverChannel.SendPacket(new SavedPlotsPacket()

@@ -1040,6 +1040,28 @@ namespace claims.src.commands.register
                    .WithDesc("Remove plot from sale")
                    .WithAlias("notforsale")
                .EndSub()
+                /////////
+                .BeginSub("citysell")
+                    .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_SELL_PLOT_TO_CITY))
+                    .HandleWith(commands.PlotMarketCommand.SetForSaleToCities)
+                    .WithDesc("Offer this plot to other cities")
+                    .WithArgs(parsers.Int("price"),
+                              parsers.OptionalWord("audience"),
+                              parsers.OptionalWord("cityName"))
+                .EndSub()
+                /////////
+                .BeginSub("citynfs")
+                    .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_SELL_PLOT_TO_CITY))
+                    .HandleWith(commands.PlotMarketCommand.SetNotForSaleToCities)
+                    .WithDesc("Withdraw this plot from the inter-city market")
+                .EndSub()
+                /////////
+                .BeginSub("citybuy")
+                    .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_BUY_PLOT_FROM_CITY))
+                    .HandleWith(commands.PlotMarketCommand.BuyPlotAsCity)
+                    .WithDesc("Buy a plot another city offers")
+                    .WithArgs(parsers.OptionalInt("plotX"), parsers.OptionalInt("plotZ"))
+                .EndSub()
                    ;
 
             /*              

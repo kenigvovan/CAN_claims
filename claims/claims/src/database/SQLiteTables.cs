@@ -74,7 +74,25 @@
             "wascaptured INTEGER," +
             "timestampclaimed INTEGER DEFAULT 0," +
             "lastpaidprice INTEGER DEFAULT 0," +
+            "priceforcitybuy INTEGER DEFAULT -1," +
+            "saleaudience INTEGER DEFAULT 2," +   // 2 = ALLIES, same default as the code
+            "saletargetcity TEXT DEFAULT \"\"," +
             "PRIMARY KEY(x, z)" +
+            ");";
+
+        // Completed inter-city plot sales. City names are stored alongside the guids so the record
+        // survives a city being demolished - a guid alone would read as a blank row afterwards.
+        public static string plotSalesTable =
+            "CREATE TABLE IF NOT EXISTS PLOTSALES(" +
+            "guid TEXT PRIMARY KEY NOT NULL," +
+            "x INTEGER DEFAULT 0," +
+            "z INTEGER DEFAULT 0," +
+            "sellerguid TEXT," +
+            "sellername TEXT," +
+            "buyerguid TEXT," +
+            "buyername TEXT," +
+            "price INTEGER DEFAULT 0," +
+            "timestamp INTEGER DEFAULT 0" +
             ");";
 
         // Sites where a village fell. Blocks founding anything there until the timestamp passes,

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using claims.src.citylog;
 using claims.src.gui.playerGui.structures.cellElements;
 using claims.src.part.structure;
+using claims.src.part.structure.plots;
 using claims.src.perms;
 
 namespace claims.src.gui.playerGui.structures
@@ -53,6 +54,9 @@ namespace claims.src.gui.playerGui.structures
         public List<ClientCasusBelliCellElement> ClientCasusBelliCellElements { get; set; } = new();
         public List<CityLogEntry> EventLog { get; set; } = new List<CityLogEntry>();
         public List<CityPlotMiniInfo> PlotsMap { get; set; } = new List<CityPlotMiniInfo>();
+        /// <summary>Plots other cities offer to ours, and the deals our city already took part in.</summary>
+        public List<PlotMarketCellElement> PlotMarket { get; set; } = new List<PlotMarketCellElement>();
+        public List<PlotSaleRecord> PlotMarketHistory { get; set; } = new List<PlotSaleRecord>();
         public CityInfo()
         {
             Name = "";

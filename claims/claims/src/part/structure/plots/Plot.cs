@@ -25,6 +25,13 @@ namespace claims.src.part.structure
         public Prison Prison { get; set; }
         public int Price { get; set; } = -1;
         public bool IsForSale => Price != -1;
+        /// <summary>Price the owning city asks another city for this plot; -1 means not on the market.
+        /// Independent of Price, which is what a citizen of this city pays for it.</summary>
+        public int PriceForCityBuy { get; set; } = -1;
+        public bool IsForSaleForCity => PriceForCityBuy != -1;
+        public EnumPlotSaleAudience SaleAudience { get; set; } = EnumPlotSaleAudience.ALLIES;
+        /// <summary>Buyer this listing is addressed to; only read when SaleAudience is SPECIFIC_CITY.</summary>
+        public string SaleTargetCityGuid { get; set; } = "";
         CityPlotsGroup plotGroup;
         PermsHandler permsHandler = new PermsHandler();
         public bool MarkedNoPvp { get; set; } = false;
@@ -135,6 +142,16 @@ namespace claims.src.part.structure
             }
 
             if (plotType == PlotType.CAMP || plotType == PlotType.TOURNAMENT)
+            {
+                tcr.StatusMessage = "claims:use_other_command_for_that";
+                return false;
+            }
+
+            // A war camp is not retyped by hand: doing so unregisters it from the city while its
+            // anchor block stays in the world, which is a way to dismantle a camp the enemy is
+            // supposed to have to break. System calls (bypassDisabled) - capture, cession, sale,
+            // demolition - still retype it.
+            if (!bypassDisabled && this.Type == PlotType.CAMP)
             {
                 tcr.StatusMessage = "claims:use_other_command_for_that";
                 return false;

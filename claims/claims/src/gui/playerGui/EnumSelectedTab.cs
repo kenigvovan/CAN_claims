@@ -7,6 +7,7 @@ namespace claims.src.gui.playerGui
         AllianceInfoPage, CitiesListPage, ConflictLettersPage, ConflictsPage, ConflictInfoPage,
         UnionLettersPage, CityLog, AllianceListPage,
         CityMap,
+        PlotMarket, PlotMarketHistory,
         EmblemEditor,
         AdminWorld, AdminCities, AdminWar, AdminPlayer
     }

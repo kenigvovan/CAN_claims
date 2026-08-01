@@ -134,6 +134,10 @@ namespace claims.src.part
             if (city != null)
                 tree.SetString("name", city.GetPartName());
             claims.sapi.World.Api.Event.PushEvent("plotunclaimed", tree);
+
+            // A plot that was on the inter-city market is gone from it too - otherwise every other
+            // city keeps browsing an offer on ground that no longer exists.
+            if (plot.IsForSaleForCity) PlotMarketHelper.NotifyMarketChanged();
         }
         /// <summary>
         /// Takes down the blocks a village put into the world: its anchor and its granary. Whatever

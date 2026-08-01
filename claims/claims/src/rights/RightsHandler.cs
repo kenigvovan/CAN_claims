@@ -80,7 +80,9 @@ namespace claims.src
                         EnumPlayerPermissions.CITY_REMOVE_PERMISSION_FROM_RANK,
                         EnumPlayerPermissions.CITY_SET_PLOT_ACCESS_PERMISSIONS,
                         EnumPlayerPermissions.CITY_BUY_OUTPOST,
-                        EnumPlayerPermissions.CITY_SET_EMBLEM
+                        EnumPlayerPermissions.CITY_SET_EMBLEM,
+                        EnumPlayerPermissions.CITY_SELL_PLOT_TO_CITY,
+                        EnumPlayerPermissions.CITY_BUY_PLOT_FROM_CITY
                     }
                 },
                  // What a village head gets instead of MAYOR. Deliberately a whitelist: a village

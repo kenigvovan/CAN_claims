@@ -35,6 +35,8 @@ namespace claims.src.gui.playerGui.Pages
             Add(EnumSelectedTab.CityLog, new CityLogPage());
             Add(EnumSelectedTab.AllianceListPage, new AllianceListPage());
             Add(EnumSelectedTab.CityMap, new CityMapPage());
+            Add(EnumSelectedTab.PlotMarket, new PlotMarketPage());
+            Add(EnumSelectedTab.PlotMarketHistory, new PlotMarketHistoryPage());
         }
 
         /// <summary>

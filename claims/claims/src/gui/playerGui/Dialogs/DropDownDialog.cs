@@ -37,10 +37,24 @@ namespace claims.src.gui.playerGui.Dialogs
             string[] options = optionsProvider() ?? new string[0];
             string[] names = displayNamesProvider != null ? displayNamesProvider() : options;
 
+            // An empty dropdown crashes the client: opening its list menu composes a zero-sized
+            // Cairo surface, and the GL texture upload fails with "invalid texture format". So an
+            // empty choice is a message, not a control.
+            if (options.Length == 0)
+            {
+                TextRow(l, Lang.Get("claims:gui-dropdown-nothing-to-pick"));
+                return;
+            }
+
+            // Nothing is preselected on purpose. These dialogs kick citizens and delete groups, so a
+            // mis-click on the button must not act on whichever entry happens to be first; the box
+            // starts blank and the button does nothing until something is actually picked.
+            Args.Text = "";
             DropDown(l, options, names, picked => Args.Text = picked);
 
             Button(l, Lang.Get(buttonLangKey), () =>
             {
+                if (Args.Text.Length == 0) return true;
                 Send(commandBuilder != null ? commandBuilder(Args) : commandPrefix + Args.Text);
                 Close();
                 return true;

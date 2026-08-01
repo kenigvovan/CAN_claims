@@ -293,6 +293,12 @@ namespace claims.src.network.handlers
                 if (packet.VILLAGE_SUPPLY_HOURS_PER_ITEM > 0)
                     claims.config.VILLAGE_SUPPLY_HOURS_PER_ITEM = packet.VILLAGE_SUPPLY_HOURS_PER_ITEM;
 
+                // As with villages: the host decides whether the land market exists, not the
+                // client's own claims.json.
+                claims.config.CITY_PLOT_TRADE_ENABLED = packet.CITY_PLOT_TRADE_ENABLED;
+                claims.config.CITY_PLOT_TRADE_GUI = packet.CITY_PLOT_TRADE_GUI;
+                claims.config.CITY_PLOT_TRADE_REMOTE_BUY = packet.CITY_PLOT_TRADE_REMOTE_BUY;
+
                 claims.config.WAR_RESPAWN_SAFEZONE_ENABLED = packet.WAR_RESPAWN_SAFEZONE_ENABLED;
                 claims.config.WAR_RESPAWN_SAFEZONE_RADIUS = packet.WAR_RESPAWN_SAFEZONE_RADIUS;
                 claims.config.WAR_RESPAWN_SAFEZONE_SECONDS = packet.WAR_RESPAWN_SAFEZONE_SECONDS;

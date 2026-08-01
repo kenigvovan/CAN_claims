@@ -139,6 +139,10 @@ namespace claims.src.database
                 command = new SqliteCommand(SQLiteTables.villageRuinsTable, SqliteConnection);
                 command.ExecuteNonQuery();
 
+                //INTER-CITY PLOT SALES
+                command = new SqliteCommand(SQLiteTables.plotSalesTable, SqliteConnection);
+                command.ExecuteNonQuery();
+
                 // Column migrations run unconditionally, not gated by user_version. TryAlterTable is
                 // idempotent (it probes the column first), so re-running costs one cheap SELECT per
                 // column at startup, and it removes a whole class of bugs: a column appended to an
@@ -257,6 +261,14 @@ namespace claims.src.database
                     // Refounding cooldown after a village is gone (PLAYERS).
                     TryAlterTable("SELECT villagecooldown FROM PLAYERS LIMIT 1",
                         "ALTER TABLE PLAYERS ADD COLUMN villagecooldown INTEGER DEFAULT 0");
+                    // Inter-city plot market listing (PLOTS). -1 = not listed, so existing plots stay off it.
+                    TryAlterTable("SELECT priceforcitybuy FROM PLOTS LIMIT 1",
+                        "ALTER TABLE PLOTS ADD COLUMN priceforcitybuy INTEGER DEFAULT -1");
+                    // 2 = EnumPlotSaleAudience.ALLIES, the narrowest audience and the code's default.
+                    TryAlterTable("SELECT saleaudience FROM PLOTS LIMIT 1",
+                        "ALTER TABLE PLOTS ADD COLUMN saleaudience INTEGER DEFAULT 2");
+                    TryAlterTable("SELECT saletargetcity FROM PLOTS LIMIT 1",
+                        "ALTER TABLE PLOTS ADD COLUMN saletargetcity TEXT DEFAULT \"\"");
         }
 
         /// <summary>
@@ -847,7 +859,10 @@ namespace claims.src.database
                 { "@extraBought", plot.extraBought },
                 { "@wascaptured", plot.WasCaptured },
                 { "@timestampclaimed", plot.TimeStampClaimed },
-                { "@lastpaidprice", plot.lastPaidPrice }
+                { "@lastpaidprice", plot.lastPaidPrice },
+                { "@priceforcitybuy", plot.PriceForCityBuy },
+                { "@saleaudience", (int)plot.SaleAudience },
+                { "@saletargetcity", plot.SaleTargetCityGuid ?? "" }
             };
 
             queryQueue.Enqueue(new QuerryInfo("PLOTS", update ? QuerryType.UPDATE : QuerryType.INSERT, tmpDict));
@@ -909,6 +924,18 @@ namespace claims.src.database
             if (it.Table.Columns.Contains("lastpaidprice") && it["lastpaidprice"] != DBNull.Value)
             {
                 plot.lastPaidPrice = long.Parse(it["lastpaidprice"].ToString());
+            }
+            if (it.Table.Columns.Contains("priceforcitybuy") && it["priceforcitybuy"] != DBNull.Value)
+            {
+                plot.PriceForCityBuy = int.Parse(it["priceforcitybuy"].ToString());
+            }
+            if (it.Table.Columns.Contains("saleaudience") && it["saleaudience"] != DBNull.Value)
+            {
+                plot.SaleAudience = (EnumPlotSaleAudience)int.Parse(it["saleaudience"].ToString());
+            }
+            if (it.Table.Columns.Contains("saletargetcity") && it["saletargetcity"] != DBNull.Value)
+            {
+                plot.SaleTargetCityGuid = it["saletargetcity"].ToString();
             }
             return true;
         }
@@ -1581,6 +1608,58 @@ namespace claims.src.database
         {
             queryQueue.Enqueue(new QuerryInfo("VILLAGERUINS", QuerryType.DELETE,
                 new Dictionary<string, object> { { "@x", x }, { "@z", z } }));
+            return true;
+        }
+
+        public override bool loadPlotSales()
+        {
+            MessageHandler.sendDebugMsg("Load all PLOTSALES.");
+            if (this.SqliteConnection.State != System.Data.ConnectionState.Open)
+            {
+                SqliteConnection.Open();
+            }
+            try
+            {
+                DataTable dt = readFromDatabase("SELECT * FROM PLOTSALES ORDER BY timestamp ASC", new Dictionary<string, object> { });
+                foreach (DataRow it in dt.Rows)
+                {
+                    claims.dataStorage.PlotSaleHistory.Add(new PlotSaleRecord
+                    {
+                        Guid = it["guid"].ToString(),
+                        X = int.Parse(it["x"].ToString()),
+                        Z = int.Parse(it["z"].ToString()),
+                        SellerGuid = it["sellerguid"].ToString(),
+                        SellerName = it["sellername"].ToString(),
+                        BuyerGuid = it["buyerguid"].ToString(),
+                        BuyerName = it["buyername"].ToString(),
+                        Price = long.Parse(it["price"].ToString()),
+                        TimeStamp = long.Parse(it["timestamp"].ToString())
+                    });
+                }
+            }
+            catch (SqliteException e)
+            {
+                MessageHandler.sendErrorMsg("loadPlotSales::error" + e.Message);
+                return false;
+            }
+            return true;
+        }
+
+        public override bool savePlotSale(PlotSaleRecord record, bool update = false)
+        {
+            queryQueue.Enqueue(new QuerryInfo("PLOTSALES", update ? QuerryType.UPDATE : QuerryType.INSERT,
+                new Dictionary<string, object>
+                {
+                    { "@guid", record.Guid },
+                    { "@x", record.X },
+                    { "@z", record.Z },
+                    { "@sellerguid", record.SellerGuid },
+                    { "@sellername", record.SellerName },
+                    { "@buyerguid", record.BuyerGuid },
+                    { "@buyername", record.BuyerName },
+                    { "@price", record.Price },
+                    { "@timestamp", record.TimeStamp }
+                }));
             return true;
         }
 

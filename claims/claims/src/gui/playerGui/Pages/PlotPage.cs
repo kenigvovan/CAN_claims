@@ -94,6 +94,78 @@ namespace claims.src.gui.playerGui.Pages
                 },
             });
 
+            // --- what another city would pay for the ground itself ---
+            bool tradeOn = claims.config?.CITY_PLOT_TRADE_ENABLED == true;
+            bool ourPlot = plot.CityName?.Length > 0 && plot.CityName == clientInfo.CityInfo?.Name;
+            bool listedForCities = plot.PriceForCityBuy > -1;
+
+            if (tradeOn && (ourPlot || listedForCities))
+            {
+                var marketRows = new List<CardRow>
+                {
+                    new CardRow
+                    {
+                        Label = Lang.Get("claims:gui-plot-label-city-price"),
+                        Value = listedForCities
+                            ? Number(plot.PriceForCityBuy)
+                            : Lang.Get("claims:gui-not-for-sale"),
+                        ValueColor = listedForCities ? ClaimsColors.Success : ClaimsColors.Label,
+                        Key = "plotcityprice"
+                    }
+                };
+                if (listedForCities)
+                {
+                    marketRows.Add(new CardRow
+                    {
+                        Label = Lang.Get("claims:gui-plot-label-city-audience"),
+                        Value = plot.SaleAudience == EnumPlotSaleAudience.SPECIFIC_CITY
+                                && plot.SaleTargetCityName?.Length > 0
+                            ? plot.SaleTargetCityName
+                            : Lang.Get(plot.SaleAudience.LangKey()),
+                        Key = "plotcityaudience"
+                    });
+                }
+
+                y = Card.RowsWithActions(compo, anchor, y, Lang.Get("claims:gui-plot-section-city-market"), marketRows, slot =>
+                {
+                    var marketActions = new ActionRow(compo, slot);
+
+                    if (ourPlot && perms.HasPermission(EnumPlayerPermissions.CITY_SELL_PLOT_TO_CITY))
+                    {
+                        marketActions.Add("claims:price-tag", "setPlotCityPrice",
+                            on => Toggle(on, EnumUpperWindowSelectedState.PLOT_SET_CITY_PRICE_NEED_NUMBER),
+                            Lang.Get("claims:gui-plot-set-city-price-tooltip"), toggleable: true);
+
+                        if (listedForCities)
+                        {
+                            marketActions.Add("claims:open-book", "setPlotCityAudience",
+                                on => Toggle(on, EnumUpperWindowSelectedState.PLOT_SET_CITY_AUDIENCE),
+                                Lang.Get("claims:gui-plot-set-city-audience-tooltip"), toggleable: true);
+
+                            marketActions.Add("claims:village", "setPlotCityTarget",
+                                on => Toggle(on, EnumUpperWindowSelectedState.PLOT_SET_CITY_TARGET),
+                                Lang.Get("claims:gui-plot-set-city-target-tooltip"), toggleable: true);
+
+                            marketActions.Add("claims:cancel", "setPlotCityNfs", on =>
+                            {
+                                ClientChat.Send("/plot citynfs");
+                                // Optimistic local update, as with the citizen listing above.
+                                plot.PriceForCityBuy = -1;
+                                Gui.BuildMainWindow();
+                            }, Lang.Get("claims:gui-plot-city-not-for-sale-tooltip"));
+                        }
+                    }
+
+                    // CanBuyAsCity is the server's own verdict: no need to re-judge war, limits or money here.
+                    if (plot.CanBuyAsCity && perms.HasPermission(EnumPlayerPermissions.CITY_BUY_PLOT_FROM_CITY))
+                    {
+                        marketActions.Add("claims:receive-money", "buyPlotAsCity",
+                            on => { if (on) OpenDialog(EnumUpperWindowSelectedState.PLOT_CITY_BUY_CONFIRM); },
+                            Lang.Get("claims:gui-plot-city-buy-tooltip"));
+                    }
+                });
+            }
+
             // --- everything that can be done to it ---
             Card.Actions(compo, anchor, y, Lang.Get("claims:gui-plot-section-actions"), slot =>
             {
