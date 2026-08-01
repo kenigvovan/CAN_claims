@@ -303,6 +303,22 @@ namespace claims.src.claimsext.map
             return "";
         }
 
+        /// <summary>
+        /// Whether the settlement on the hovered plot is a village. The plot itself only carries a
+        /// name, so the tier comes from the settlement list the client already holds.
+        /// </summary>
+        private static bool IsVillage(string cityName)
+        {
+            var cities = claims.clientDataStorage?.clientPlayerInfo?.AllCitiesList;
+            if (cities == null) return false;
+
+            foreach (var city in cities)
+            {
+                if (city.Name == cityName) return city.Tier == part.structure.CityTier.VILLAGE;
+            }
+            return false;
+        }
+
         // OnMapOpenedClient used to build fourteen waypoint-style icons into GL textures every time
         // the map opened, into a dictionary nothing ever read. Removed with the dictionary itself.
 
@@ -325,7 +341,9 @@ namespace claims.src.claimsext.map
             {
                 hoveredEmblem = EmblemOfCity(hovered.cityName);
 
-                string cityLine = Lang.Get("claims:map_plot_city_name", hovered.cityName);
+                string cityLine = Lang.Get(IsVillage(hovered.cityName)
+                    ? "claims:map_plot_village_name"
+                    : "claims:map_plot_city_name", hovered.cityName);
                 if (hoveredEmblem.Length > 0 && api is ICoreClientAPI capi)
                 {
                     EnsureEmblemIcon(capi);

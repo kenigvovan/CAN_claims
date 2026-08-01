@@ -24,6 +24,7 @@ namespace claims.src.part.structure.plots
             PlotType.TEMPLE  => new PlotDescTemple(),
             PlotType.EMBASSY => new PlotDescEmbassy(),
             PlotType.CAMP    => new PlotDescCamp(),
+            PlotType.VILLAGE_MAIN => new PlotDescVillage(),
             _                => null
         };
 

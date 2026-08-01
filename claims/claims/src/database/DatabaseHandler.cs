@@ -74,6 +74,11 @@ namespace claims.src.database
         abstract public bool deleteFromDatabaseConflictLetter(ConflictLetter letter);
         abstract public bool deleteConflictLetterByGuid(string guid);
 
+        //VILLAGE RUINS
+        abstract public bool loadVillageRuins();
+        abstract public bool saveVillageRuin(int x, int z, long until, bool update = true);
+        abstract public bool deleteVillageRuin(int x, int z);
+
         //PENDING UNION LETTERS
         abstract public bool loadUnionLetters();
         abstract public bool saveUnionLetter(UnionLetter letter, bool update = true);
@@ -98,7 +103,8 @@ namespace claims.src.database
                && loadConflicts()
                // after conflicts: a letter references parties that must already exist
                && loadConflictLetters()
-               && loadUnionLetters();
+               && loadUnionLetters()
+               && loadVillageRuins();
         }
         abstract public bool saveEveryThing();
 

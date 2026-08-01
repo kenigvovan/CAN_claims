@@ -232,25 +232,46 @@ namespace claims.src.auxialiry
         }
         public static bool isPvpTime()
         {
-            float hoursNow = claims.sapi.World.Calendar.HourOfDay;
-            if(claims.config.PVP_TIME_START < hoursNow && hoursNow < claims.config.PVP_TIME_END)
-            {
-                return true;
-            }
-            return false;
+            return IsWithinDailyWindow(claims.sapi.World.Calendar.HourOfDay,
+                claims.config.PVP_TIME_START, claims.config.PVP_TIME_END);
+        }
+
+        /// <summary>
+        /// Whether <paramref name="hour"/> falls into the daily [start, end) window.
+        /// A window whose start is past its end wraps around midnight - 19 -> 6 is the night,
+        /// which is what the default PVP_TIME_START/END mean.
+        /// </summary>
+        public static bool IsWithinDailyWindow(float hour, float start, float end)
+        {
+            if (start == end) return false;
+            if (start < end) return hour >= start && hour < end;
+            return hour >= start || hour < end;
         }
         public static int getMaxNumberOfPlotForCity(City city)
         {
+            // A village has a flat limit instead of the citizen-count levels; the bonus plots an
+            // admin granted still apply, alliance bonuses cannot (villages have no alliance).
+            if (city.IsVillage())
+            {
+                return city.getBonusPlots() + claims.config.VILLAGE_MAX_PLOTS;
+            }
             CityLevelInfo cityLevel = getCityLevelInfo(city.getCityCitizens().Count);
-            return city.getBonusPlots() + cityLevel.AmountOfPlots + 
-                                                                    (city.HasAlliance() 
+            return city.getBonusPlots() + cityLevel.AmountOfPlots +
+                                                                    (city.HasAlliance()
                                                                         ? GetAllianceLevelInfo(city.Alliance.Cities.Count).AdditionalAmountOfPlots
                                                                         : 0);
         }
         public static Dictionary<string, int> getPossibleAmountOfPlotsDictForCity(City city)
         {
-            CityLevelInfo cityLevel = getCityLevelInfo(city.getCityCitizens().Count);
             Dictionary<string, int> res = new Dictionary<string, int>();
+            if (city.IsVillage())
+            {
+                res["base"] = claims.config.VILLAGE_MAX_PLOTS;
+                res["bonus"] = city.getBonusPlots();
+                res["alliance"] = 0;
+                return res;
+            }
+            CityLevelInfo cityLevel = getCityLevelInfo(city.getCityCitizens().Count);
             res["base"] = cityLevel.AmountOfPlots;
             res["bonus"] = city.getBonusPlots();
             res["alliance"] = city.HasAlliance() ? GetAllianceLevelInfo(city.Alliance.Cities.Count).AdditionalAmountOfPlots : 0;
@@ -258,8 +279,16 @@ namespace claims.src.auxialiry
         }
         public static int getMaxNumberOfExtraChunksBought(City city)
         {
+            // Villages cannot buy extra plots at all.
+            if (city.IsVillage()) return 0;
             CityLevelInfo cityLevel = getCityLevelInfo(city.getCityCitizens().Count);
             return cityLevel.Maxextrachunksbought;
+        }
+        /// <summary>Whether the settlement may still take in another citizen.</summary>
+        public static bool CanAcceptMoreCitizens(City city)
+        {
+            if (!city.IsVillage()) return true;
+            return city.getCityCitizens().Count < claims.config.VILLAGE_MAX_CITIZENS;
         }
 
         public static void InitColors()

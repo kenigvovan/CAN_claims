@@ -75,6 +75,11 @@ namespace claims.src.timers
                     MessageHandler.sendErrorMsg(Lang.Get("claims:city_istechnical_no_care_processing", city.GetPartName()));
                     continue;
                 }
+                // A village is kept alive by supplies in its granary, not by money.
+                if (city.IsVillage())
+                {
+                    continue;
+                }
                 processCityCare(city);
             }
             //DELETE CITIES WHICH WERE MARKED
@@ -145,8 +150,10 @@ namespace claims.src.timers
         {
             foreach(City city in citiesPlots.Keys)
             {
+                // Villages collect no fee and own no treasury to collect it into.
+                if (city.IsVillage()) continue;
                 processCityFee(city);
-            }           
+            }
         }
         public static void processCityFee(City city)
         {

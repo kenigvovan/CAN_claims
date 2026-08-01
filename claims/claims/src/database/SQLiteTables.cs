@@ -34,7 +34,8 @@
             "vassalsince INTEGER DEFAULT 0," +
             "naps TEXT DEFAULT \"\"," +
             "warjustifications TEXT DEFAULT \"\"," +
-            "emblem TEXT DEFAULT \"\"" +
+            "emblem TEXT DEFAULT \"\"," +
+            "tier INTEGER DEFAULT 0" +
              ");";
 
         public static string playerTable =
@@ -52,7 +53,8 @@
             "perms TEXT," +
             "prisonguid TEXT," +
             "prisonhoursleft INTEGER," +
-            "bounties TEXT DEFAULT \"\"" +
+            "bounties TEXT DEFAULT \"\"," +
+            "villagecooldown INTEGER DEFAULT 0" +
             ");";
         public static string plotTable =
             "CREATE TABLE IF NOT EXISTS PLOTS(" +
@@ -72,6 +74,16 @@
             "wascaptured INTEGER," +
             "timestampclaimed INTEGER DEFAULT 0," +
             "lastpaidprice INTEGER DEFAULT 0," +
+            "PRIMARY KEY(x, z)" +
+            ");";
+
+        // Sites where a village fell. Blocks founding anything there until the timestamp passes,
+        // so a raided village cannot be rebuilt on the spot the same evening.
+        public static string villageRuinsTable =
+            "CREATE TABLE IF NOT EXISTS VILLAGERUINS(" +
+            "x INTEGER DEFAULT 0," +
+            "z INTEGER DEFAULT 0," +
+            "until INTEGER DEFAULT 0," +
             "PRIMARY KEY(x, z)" +
             ");";
 

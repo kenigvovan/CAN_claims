@@ -140,6 +140,15 @@ namespace claims.src.part.structure
                 return false;
             }
 
+            // A village only runs the plain plot types; temples, taverns, prisons and the like
+            // belong to a city. Admin calls (bypassDisabled) stay exempt, as with DISABLED_PLOT_TYPES.
+            if (!bypassDisabled && hasCity() && getCity().IsVillage()
+                && !claims.config.VILLAGE_ALLOWED_PLOT_TYPES.Contains(newPlotType))
+            {
+                tcr.StatusMessage = "claims:village_plot_type_locked";
+                return false;
+            }
+
             PlotDesc newDesc = PlotDesc.Create(plotType, player);
             if (!newDesc.Validate(this, player, ref tcr)) return false;
             PlotDesc?.OnDeactivated(this);

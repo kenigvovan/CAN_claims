@@ -182,6 +182,12 @@ namespace claims.src.commands
                 tcr.StatusMessage = "claims:has_alliance_already";
                 return tcr;
             }
+            // The invitation may predate a downgrade, so re-check on accept, not only on invite.
+            if (playerInfo.City.IsVillage())
+            {
+                tcr.StatusMessage = "claims:village_cannot_join_alliance";
+                return tcr;
+            }
 
             int invitationsCount = playerInfo.City.getReceivedInvitations().Count;
             if (args.LastArg == null)

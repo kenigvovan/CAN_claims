@@ -135,6 +135,10 @@ namespace claims.src.database
                 command = new SqliteCommand(SQLiteTables.unionLettersTable, SqliteConnection);
                 command.ExecuteNonQuery();
 
+                //VILLAGE RUINS
+                command = new SqliteCommand(SQLiteTables.villageRuinsTable, SqliteConnection);
+                command.ExecuteNonQuery();
+
                 // Column migrations run unconditionally, not gated by user_version. TryAlterTable is
                 // idempotent (it probes the column first), so re-running costs one cheap SELECT per
                 // column at startup, and it removes a whole class of bugs: a column appended to an
@@ -247,6 +251,12 @@ namespace claims.src.database
                         "ALTER TABLE CITIES ADD COLUMN emblem TEXT DEFAULT \"\"");
                     TryAlterTable("SELECT emblem FROM ALLIANCIES LIMIT 1",
                         "ALTER TABLE ALLIANCIES ADD COLUMN emblem TEXT DEFAULT \"\"");
+                    // Settlement tier (CITIES). 0 = city, so existing rows stay cities.
+                    TryAlterTable("SELECT tier FROM CITIES LIMIT 1",
+                        "ALTER TABLE CITIES ADD COLUMN tier INTEGER DEFAULT 0");
+                    // Refounding cooldown after a village is gone (PLAYERS).
+                    TryAlterTable("SELECT villagecooldown FROM PLAYERS LIMIT 1",
+                        "ALTER TABLE PLAYERS ADD COLUMN villagecooldown INTEGER DEFAULT 0");
         }
 
         /// <summary>
@@ -389,7 +399,8 @@ namespace claims.src.database
                 { "@perms", player.PermsHandler.ToString() },
                 { "@prisonguid", player.isPrisoned() ? player.PrisonedIn.Guid : "" },
                 { "@prisonhoursleft", player.PrisonHoursLeft },
-                { "@bounties", JsonConvert.SerializeObject(player.BountyPosters) }
+                { "@bounties", JsonConvert.SerializeObject(player.BountyPosters) },
+                { "@villagecooldown", player.VillageCooldownUntil }
 
             };
 
@@ -455,6 +466,11 @@ namespace claims.src.database
                 string b = it["bounties"].ToString();
                 if (b.Length != 0)
                     tmp.BountyPosters = JsonConvert.DeserializeObject<Dictionary<string, long>>(b) ?? new();
+            }
+            if (it.Table.Columns.Contains("villagecooldown")
+                && long.TryParse(it["villagecooldown"].ToString(), out long villageCooldown))
+            {
+                tmp.VillageCooldownUntil = villageCooldown;
             }
             return true;
         }
@@ -540,7 +556,8 @@ namespace claims.src.database
                 { "@vassalsince", city.VassalSince },
                 { "@naps", JsonConvert.SerializeObject(city.NonAggressionPacts) },
                 { "@warjustifications", JsonConvert.SerializeObject(city.WarJustifications) },
-                { "@emblem", city.Emblem ?? "" }
+                { "@emblem", city.Emblem ?? "" },
+                { "@tier", (int)city.Tier }
             };
 
             queryQueue.Enqueue(new QuerryInfo("CITIES", update ? QuerryType.UPDATE : QuerryType.INSERT, tmpDict));
@@ -738,6 +755,11 @@ namespace claims.src.database
             // filtered where they are drawn instead.
             if (it.Table.Columns.Contains("emblem"))
                 city.Emblem = it["emblem"].ToString();
+
+            // Missing column or unparsable value keeps CityTier.CITY, i.e. the pre-village behaviour.
+            if (it.Table.Columns.Contains("tier") && int.TryParse(it["tier"].ToString(), out int tierValue)
+                && Enum.IsDefined(typeof(CityTier), tierValue))
+                city.Tier = (CityTier)tierValue;
 
             foreach(var citizen in city.getCityCitizens())
             {
@@ -1509,6 +1531,59 @@ namespace claims.src.database
                 new Dictionary<string, object> { { "@guid", guid } }));
             return true;
         }
+        public override bool loadVillageRuins()
+        {
+            MessageHandler.sendDebugMsg("Load all VILLAGERUINS.");
+            if (this.SqliteConnection.State != System.Data.ConnectionState.Open)
+            {
+                SqliteConnection.Open();
+            }
+            long now = TimeFunctions.getEpochSeconds();
+            List<Vec2i> expired = new List<Vec2i>();
+            try
+            {
+                DataTable dt = readFromDatabase("SELECT * FROM VILLAGERUINS", new Dictionary<string, object> { });
+                foreach (DataRow it in dt.Rows)
+                {
+                    int x = int.Parse(it["x"].ToString());
+                    int z = int.Parse(it["z"].ToString());
+                    long until = long.Parse(it["until"].ToString());
+                    if (until <= now)
+                    {
+                        expired.Add(new Vec2i(x, z));
+                        continue;
+                    }
+                    claims.dataStorage.VillageRuins[new Vec2i(x, z)] = until;
+                }
+            }
+            catch (SqliteException e)
+            {
+                MessageHandler.sendErrorMsg("loadVillageRuins::error" + e.Message);
+                return false;
+            }
+
+            // Sites whose ban ran out while the server was down are not worth keeping around.
+            foreach (Vec2i pos in expired)
+            {
+                deleteVillageRuin(pos.X, pos.Y);
+            }
+            return true;
+        }
+
+        public override bool saveVillageRuin(int x, int z, long until, bool update = true)
+        {
+            queryQueue.Enqueue(new QuerryInfo("VILLAGERUINS", update ? QuerryType.UPDATE : QuerryType.INSERT,
+                new Dictionary<string, object> { { "@x", x }, { "@z", z }, { "@until", until } }));
+            return true;
+        }
+
+        public override bool deleteVillageRuin(int x, int z)
+        {
+            queryQueue.Enqueue(new QuerryInfo("VILLAGERUINS", QuerryType.DELETE,
+                new Dictionary<string, object> { { "@x", x }, { "@z", z } }));
+            return true;
+        }
+
         public override bool loadUnionLetters()
         {
             MessageHandler.sendDebugMsg("Load all UNIONLETTERS.");

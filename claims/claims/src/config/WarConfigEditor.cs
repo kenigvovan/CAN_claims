@@ -162,6 +162,25 @@ namespace claims.src.config
             // runtime-editable config surface the mod has)
             { "boat_share_with_city", new BoolSpec(v => C.BOAT_SHARE_WITH_CITY = v) },
             { "boat_share_with_alliance", new BoolSpec(v => C.BOAT_SHARE_WITH_ALLIANCE = v) },
+
+            // villages
+            { "village_enabled", new BoolSpec(v => C.VILLAGE_ENABLED = v) },
+            { "village_create_cost", new DoubleSpec(0, 1000000, v => C.VILLAGE_CREATE_COST = v) },
+            { "village_max_plots", new IntSpec(1, 1000, v => C.VILLAGE_MAX_PLOTS = v) },
+            { "village_max_citizens", new IntSpec(1, 1000, v => C.VILLAGE_MAX_CITIZENS = v) },
+            { "village_min_distance", new IntSpec(0, 100, v => C.VILLAGE_MIN_DISTANCE_FROM_CITY = v) },
+            { "village_upgrade_cost", new DoubleSpec(0, 1000000, v => C.VILLAGE_UPGRADE_COST = v) },
+            { "village_upgrade_min_citizens", new IntSpec(1, 1000, v => C.VILLAGE_UPGRADE_MIN_CITIZENS = v) },
+            { "village_supply_hours_per_item", new IntSpec(1, 10000, v => C.VILLAGE_SUPPLY_HOURS_PER_ITEM = v) },
+            { "village_decay_hours", new IntSpec(1, 10000, v => C.VILLAGE_DECAY_HOURS = v) },
+            { "village_raidable", new BoolSpec(v => C.VILLAGE_RAIDABLE = v) },
+            { "village_raid_duration_seconds", new IntSpec(60, 86400, v => C.VILLAGE_RAID_DURATION_SECONDS = v) },
+            { "village_anchor_breaks", new IntSpec(1, 1000, v => C.VILLAGE_ANCHOR_BREAKS = v) },
+            { "village_raid_grace_days", new IntSpec(0, 3650, v => C.VILLAGE_RAID_GRACE_DAYS = v) },
+            { "village_refound_cooldown_hours", new IntSpec(0, 10000, v => C.VILLAGE_REFOUND_COOLDOWN_HOURS = v) },
+            { "village_site_cooldown_hours", new IntSpec(0, 10000, v => C.VILLAGE_SITE_COOLDOWN_HOURS = v) },
+            { "village_abandon_cooldown_hours", new IntSpec(0, 10000, v => C.VILLAGE_ABANDON_COOLDOWN_HOURS = v) },
+            { "village_ruin_radius_plots", new IntSpec(0, 100, v => C.VILLAGE_RUIN_RADIUS_PLOTS = v) },
         };
 
         /// <summary>Known editable keys (for help/error messages).</summary>

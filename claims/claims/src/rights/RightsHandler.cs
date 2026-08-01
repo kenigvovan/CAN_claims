@@ -83,6 +83,31 @@ namespace claims.src
                         EnumPlayerPermissions.CITY_SET_EMBLEM
                     }
                 },
+                 // What a village head gets instead of MAYOR. Deliberately a whitelist: a village
+                 // has no treasury, alliances, wars, prisons, summons, plot groups or ranks, and a
+                 // future city permission must not leak into villages just because nobody
+                 // remembered to deny it. CITY_SET_ALL is not here on purpose - it also covers the
+                 // fee and emblem setters.
+                 { "VILLAGE_MAYOR", new HashSet<EnumPlayerPermissions>
+                    {
+                        EnumPlayerPermissions.CITY_CLAIM_PLOT,
+                        EnumPlayerPermissions.CITY_UNCLAIM_PLOT,
+                        EnumPlayerPermissions.CITY_INVITE,
+                        EnumPlayerPermissions.CITY_UNINVITE,
+                        EnumPlayerPermissions.CITY_KICK,
+                        EnumPlayerPermissions.SHOW_INVITES_SENT,
+                        EnumPlayerPermissions.CITY_SET_NAME,
+                        EnumPlayerPermissions.CITY_SET_OPEN_STATE,
+                        EnumPlayerPermissions.CITY_SET_PVP,
+                        EnumPlayerPermissions.CITY_SET_FIRE,
+                        EnumPlayerPermissions.CITY_SET_BLAST,
+                        EnumPlayerPermissions.CITY_SET_DAILY_MSG,
+                        EnumPlayerPermissions.CITY_SET_INV_MSG,
+                        EnumPlayerPermissions.CITY_SET_PLOT_ACCESS_PERMISSIONS,
+                        EnumPlayerPermissions.CITY_SET_PLOTS_COLOR,
+                        EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS
+                    }
+                },
                 {
                     "LEADER", new HashSet<EnumPlayerPermissions>
                     {
@@ -118,16 +143,20 @@ namespace claims.src
 
             }
             City city = playerInfo.City;
-            if (city != null) 
+            if (city != null)
             {
                 if (city.isMayor(playerInfo))
                 {
-                    if (PlayerPermissionsByGroups.TryGetValue("MAYOR", out HashSet<EnumPlayerPermissions> mayorPerms))
+                    // A village head gets its own, much smaller group; see getDefaultRankPermsDict.
+                    string mayorGroup = city.IsVillage() ? "VILLAGE_MAYOR" : "MAYOR";
+                    if (PlayerPermissionsByGroups.TryGetValue(mayorGroup, out HashSet<EnumPlayerPermissions> mayorPerms))
                     {
                         playerInfo.PlayerPermissionsHandler.AddPermissions(mayorPerms);
                     }
                 }
-                if (playerInfo.hasCity())
+                // Custom ranks are a city feature; a village must not grant permissions through
+                // ranks it kept from before an admin downgraded it.
+                if (playerInfo.hasCity() && !city.IsVillage())
                 {
                     foreach (string str in playerInfo.getCityTitles())
                     {
@@ -211,6 +240,7 @@ namespace claims.src
                     settings.Converters.Add(new StringEnumConverter());
                     PlayerPermissionsByGroups = JsonConvert.DeserializeObject<Dictionary<string, HashSet<EnumPlayerPermissions>>>(json, settings);
                 }
+                AddMissingGroups(filePath);
             }
             else
             {
@@ -226,6 +256,40 @@ namespace claims.src
                 }
             }
         }
+        /// <summary>
+        /// Adds groups the current code knows about but an existing permissions file predates
+        /// (VILLAGE_MAYOR is the first such case). Groups the server admin already tuned are left
+        /// untouched; the file is only rewritten when something was actually missing.
+        /// </summary>
+        private static void AddMissingGroups(string filePath)
+        {
+            if (PlayerPermissionsByGroups == null)
+            {
+                PlayerPermissionsByGroups = getDefaultRankPermsDict();
+            }
+            bool added = false;
+            foreach (var group in getDefaultRankPermsDict())
+            {
+                if (PlayerPermissionsByGroups.ContainsKey(group.Key)) continue;
+                PlayerPermissionsByGroups.Add(group.Key, group.Value);
+                added = true;
+            }
+            if (!added) return;
+            try
+            {
+                JsonSerializerSettings settings = new();
+                settings.Converters.Add(new StringEnumConverter());
+                settings.Formatting = Formatting.Indented;
+                using StreamWriter w = new(filePath);
+                w.WriteLine(JsonConvert.SerializeObject(PlayerPermissionsByGroups, settings));
+            }
+            catch (Exception ex)
+            {
+                // The in-memory dict already has the group, so rights work either way this session.
+                claims.sapi?.Logger.Warning("[claims] Could not write new permission groups to {0}: {1}", filePath, ex.Message);
+            }
+        }
+
         public static bool hasRight(IServerPlayer player, string right)
         {
             return player.ServerData.PermaPrivileges.Contains(right) 

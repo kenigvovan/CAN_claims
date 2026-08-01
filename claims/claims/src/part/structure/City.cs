@@ -42,6 +42,34 @@ namespace claims.src.part
         public List<CityPlotsGroupInvitation> groupInvitations = new List<CityPlotsGroupInvitation>();
         public int fee { get; set; } = 0;
         bool isTechnical { get; set; } = false;
+        // Village or full city. Independent of isTechnical (an admin-owned city skipped by the
+        // day timer) and of PlotType.CAMP (a war camp).
+        public CityTier Tier { get; set; } = CityTier.CITY;
+        public bool IsVillage() => Tier == CityTier.VILLAGE;
+
+        /// <summary>
+        /// The main plot of a village - the one carrying its anchor, granary and raid state.
+        /// False for a city, and for a village that somehow lost it (an admin-made one, until
+        /// PartInits.EnsureVillageAnchor gives it one).
+        /// </summary>
+        public bool TryGetVillageMain(out Plot mainPlot, out PlotDescVillage desc)
+        {
+            if (IsVillage())
+            {
+                foreach (Plot plot in cityPlots)
+                {
+                    if (plot.Type == PlotType.VILLAGE_MAIN && plot.PlotDesc is PlotDescVillage villageDesc)
+                    {
+                        mainPlot = plot;
+                        desc = villageDesc;
+                        return true;
+                    }
+                }
+            }
+            mainPlot = null;
+            desc = null;
+            return false;
+        }
         int bonusPlots { get; set; } = 0;
         public HashSet<Plot> summonPlots = new HashSet<Plot>();
         // War camps (PlotType.CAMP) this city owns; forward respawn points during active wars.
@@ -419,13 +447,27 @@ namespace claims.src.part
             if(this.mayor != null)
                 outStrings.Add($"{Lang.Get("claims:mayor")}  {getMayor().getPartNameReplaceUnder()}\n");
 
-            if (claims.economyProvider.SupportsPlayerWallet)
-                outStrings.Add(Lang.Get("claims:bank_status", claims.economyProvider.GetBalance(this.MoneyAccountName)));
-            outStrings.Add(DebtBalance > 0 ? Lang.Get("claims:city_debt_status") + DebtBalance + "\n" : "\n");
+            // A village has no treasury, no debt and no upkeep, so none of that is printed for one.
+            if (!IsVillage())
+            {
+                if (claims.economyProvider.SupportsPlayerWallet)
+                    outStrings.Add(Lang.Get("claims:bank_status", claims.economyProvider.GetBalance(this.MoneyAccountName)));
+                outStrings.Add(DebtBalance > 0 ? Lang.Get("claims:city_debt_status") + DebtBalance + "\n" : "\n");
+            }
             CityLevelInfo cityLevelInfo = Settings.getCityLevelInfo(getCityCitizens().Count);
-            outStrings.Add($"{Lang.Get("claims:city_claimed_amount_status", this.getCityPlots().Count, cityLevelInfo.AmountOfPlots) + (cityLevelInfo.Maxextrachunksbought > 0 ? " " + Lang.Get("claims:city_claimed_extra_amount_status", this.Extrachunksbought, cityLevelInfo.Maxextrachunksbought) + "\n" : "\n")}");
+            // Villages have a flat plot limit of their own, not the citizen-count levels.
+            outStrings.Add($"{Lang.Get("claims:city_claimed_amount_status", this.getCityPlots().Count, Settings.getMaxNumberOfPlotForCity(this)) + (!IsVillage() && cityLevelInfo.Maxextrachunksbought > 0 ? " " + Lang.Get("claims:city_claimed_extra_amount_status", this.Extrachunksbought, cityLevelInfo.Maxextrachunksbought) + "\n" : "\n")}");
             outStrings.Add($"{Lang.Get("claims:created")} {TimeFunctions.getDateFromEpochSeconds(TimeStampCreated)}\n");
-            outStrings.Add(Lang.Get("claims:city_outgo") + (getExpense() + cityLevelInfo.UnconditionalPayment).ToString() + (getNoPVPCost() > 0 ? "(+" + getNoPVPCost().ToString() + ")" : "") + "\n");
+            // Its own people know when the village is open to attack; outsiders have to come and
+            // find out on the spot.
+            if (IsVillage() && forPlayer != null && isCitizen(forPlayer))
+            {
+                outStrings.Add(VillageRaidHelper.DescribeSchedule(this) + "\n");
+            }
+            if (!IsVillage())
+            {
+                outStrings.Add(Lang.Get("claims:city_outgo") + (getExpense() + cityLevelInfo.UnconditionalPayment).ToString() + (getNoPVPCost() > 0 ? "(+" + getNoPVPCost().ToString() + ")" : "") + "\n");
+            }
             outStrings.Add($"{Lang.Get("claims:citizens")} {StringFunctions.makeStringPlayersName(this.getCityCitizens(), ", ")}");
 
             outStrings.Add("\n");
@@ -481,6 +523,10 @@ namespace claims.src.part
         }
         public double GetDayPaymentAmount()
         {
+            // A village pays nothing: it lives off the supplies in its granary, and the day timer
+            // skips it entirely. Returning 0 also keeps the treasury out of its GUI.
+            if (IsVillage()) return 0;
+
             double sumToPay = claims.config.CITY_BASE_CARE;
             // Add additional cost for plot with plot with pvp on
             if (claims.config.ADDITIONAL_COST_OF_NO_PVP_PLOT)

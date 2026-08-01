@@ -160,6 +160,8 @@ namespace claims.src.gui.playerGui.Pages
                 case EnumCityLogEvent.UnionFormed: return Lang.Get("claims:log-union-formed", args0);
                 case EnumCityLogEvent.UnionBreakAnnounced: return Lang.Get("claims:log-union-break-announced", args0, args1);
                 case EnumCityLogEvent.UnionBroken: return Lang.Get("claims:log-union-broken", args0);
+                case EnumCityLogEvent.VillageFounded: return Lang.Get("claims:log-village-founded", args0);
+                case EnumCityLogEvent.VillageUpgraded: return Lang.Get("claims:log-village-upgraded", args0);
                 default: return entry.EventType.ToString();
             }
         }

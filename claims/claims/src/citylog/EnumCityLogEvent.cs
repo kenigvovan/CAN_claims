@@ -16,5 +16,8 @@ namespace claims.src.citylog
         UnionFormed,
         UnionBreakAnnounced,
         UnionBroken,
+        // Append only: entries are persisted by their numeric value.
+        VillageFounded,
+        VillageUpgraded,
     }
 }

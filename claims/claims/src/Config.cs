@@ -216,6 +216,57 @@ namespace claims.src
         //Also share with the rest of the owner's alliance, not just the city.
         public bool BOAT_SHARE_WITH_ALLIANCE = false;
 
+        //VILLAGE - a cut-down settlement kept alive by supplies instead of money. No treasury,
+        //alliances, wars, prisons, summons, outposts, plot groups or custom ranks.
+        //Off by default: villages change how a server plays, so a host opts in deliberately.
+        public bool VILLAGE_ENABLED = false;
+        public double VILLAGE_CREATE_COST = 0;
+        public int VILLAGE_MAX_PLOTS = 4;
+        public int VILLAGE_MAX_CITIZENS = 8;
+        //Distance rule of its own, so a village may settle closer than a city would be allowed to.
+        public int VILLAGE_MIN_DISTANCE_FROM_CITY = 2;
+        //Plot type codes a village may set, matching PlotInfo.nameToPlotType.
+        //Defaults live here rather than in AddDefaultValues: that one only runs when claims.json is
+        //written from scratch, so a server that upgraded would have got an empty list.
+        public HashSet<string> VILLAGE_ALLOWED_PLOT_TYPES = new HashSet<string> { "default", "farm", "orchard" };
+        //Price of turning a village into a full city, paid by its head personally, and how many
+        //citizens it takes. 1 = no requirement beyond the head themselves; raise it to make a city
+        //something a group has to reach together.
+        public int VILLAGE_UPGRADE_MIN_CITIZENS = 1;
+        public double VILLAGE_UPGRADE_COST = 150;
+
+        //VILLAGE - supplies. The granary is emptied by the hour timer; running dry starts the decay.
+        //Wildcards as in PROTECTED_MOB_TYPES. The granary accepts exactly what is listed here, so an
+        //empty list would mean a granary nothing goes into - hence the defaults sit on the fields.
+        public HashSet<string> VILLAGE_FOOD_ITEMS = new HashSet<string> {
+            "game:bread-*", "game:vegetable-*", "game:fruit-*", "game:grain-*", "game:legume-*",
+            "game:cheese-*", "game:pemmican-*", "game:redmeat-cooked", "game:bushmeat-cooked" };
+        public HashSet<string> VILLAGE_FUEL_ITEMS = new HashSet<string> {
+            "game:firewood", "game:firewood-aged", "game:charcoal" };
+        //Both in real hours, like the timer that spends them: the granary is emptied once an hour.
+        //Not in days - the raid window already counts in mod days, and mixing the two units in one
+        //feature made "3 days of decay" mean something different from three days of windows.
+        public int VILLAGE_SUPPLY_HOURS_PER_ITEM = 24;
+        public int VILLAGE_DECAY_HOURS = 72;
+
+        //VILLAGE - raid window. A village is vulnerable for one hour every day, at the same time of
+        //day it was founded. Inside that window it has no block protection at all and its anchor
+        //can be broken; outside it nothing of the village can be touched.
+        public bool VILLAGE_RAIDABLE = true;
+        public int VILLAGE_RAID_DURATION_SECONDS = 3600;
+        public int VILLAGE_ANCHOR_BREAKS = 50;
+        //A freshly founded village has no window at all for this many days.
+        public int VILLAGE_RAID_GRACE_DAYS = 7;
+
+        //VILLAGE - cooldowns after a village is gone, so it cannot simply be rebuilt on the spot.
+        //In hours: these are short enough that days are a clumsy unit, and players are told how
+        //many hours they have left. Joining someone else's settlement is never blocked - losing a
+        //village must not leave a player with nowhere to go.
+        public int VILLAGE_REFOUND_COOLDOWN_HOURS = 72;
+        public int VILLAGE_SITE_COOLDOWN_HOURS = 72;
+        public int VILLAGE_RUIN_RADIUS_PLOTS = 1;
+        public int VILLAGE_ABANDON_COOLDOWN_HOURS = 24;
+
         //PATCHES
         public bool FALLING_BLOCKS_TO_CITY_PLOTS_PATCH = true;
         public bool WATER_FLOW_CITY_PLOTS_PATCH = true;
@@ -463,6 +514,7 @@ namespace claims.src
                 if (claims.config != null)
                 {
                     ValidatePlotSize(api);
+                    FillEmptyVillageLists();
                     api.StoreModConfig<Config>(claims.config, "claims.json");
                     return;
                 }
@@ -486,6 +538,23 @@ namespace claims.src
                 }
             }
         }
+        /// <summary>
+        /// Refills the village lists when they come back empty. A server that upgraded to a build
+        /// with villages already had a claims.json, so these keys were written out as [] - and an
+        /// empty list means a granary that accepts nothing, which is never what anyone wants.
+        /// A host who really wants to forbid something narrows the list instead of emptying it.
+        /// </summary>
+        private static void FillEmptyVillageLists()
+        {
+            Config fresh = new Config();
+            if (claims.config.VILLAGE_FOOD_ITEMS == null || claims.config.VILLAGE_FOOD_ITEMS.Count == 0)
+                claims.config.VILLAGE_FOOD_ITEMS = fresh.VILLAGE_FOOD_ITEMS;
+            if (claims.config.VILLAGE_FUEL_ITEMS == null || claims.config.VILLAGE_FUEL_ITEMS.Count == 0)
+                claims.config.VILLAGE_FUEL_ITEMS = fresh.VILLAGE_FUEL_ITEMS;
+            if (claims.config.VILLAGE_ALLOWED_PLOT_TYPES == null || claims.config.VILLAGE_ALLOWED_PLOT_TYPES.Count == 0)
+                claims.config.VILLAGE_ALLOWED_PLOT_TYPES = fresh.VILLAGE_ALLOWED_PLOT_TYPES;
+        }
+
         private static void ValidatePlotSize(ICoreAPI api)
         {
             if (claims.config.PLOT_SIZE != 16 && claims.config.PLOT_SIZE != 32)

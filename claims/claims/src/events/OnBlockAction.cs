@@ -184,6 +184,10 @@ namespace claims.src.events
                 PartDemolition.DemolishCamp(plot);
                 return true;
             }
+            if (VillageBlockRules.TryHandleAnchorHit(byPlayer, playerInfo, plot, blockSel.Position, out bool anchorBreaks))
+            {
+                return anchorBreaks;
+            }
             PlotPosition currentPosPlayer = PlotPosition.fromBlockPos(blockSel.Position);
             if (currentPosPlayer.Equals(playerInfo.PlayerCache.getLastLocation()))
             {
@@ -354,6 +358,12 @@ namespace claims.src.events
             Func<bool> tavernFallback = null)
         {
             bool b;
+            if ((permType == PermType.BUILD_AND_DESTROY_PERM || permType == PermType.USE_PERM)
+                && VillageBlockRules.IsUnderRaidFor(playerInfo, plot))
+            {
+                if (updateCache) playerInfo.PlayerCache.getCache()[(int)permType] = true;
+                return true;
+            }
             switch (getPlotRelationForPlayerInfo(playerInfo, plot.plotPosition, plot))
             {
                 case PlotRelation.PLOT_OWNER:

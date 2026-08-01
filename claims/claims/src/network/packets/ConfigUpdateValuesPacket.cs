@@ -233,5 +233,20 @@ namespace claims.src.network.packets
         public bool WAR_ULTIMATUM_ENABLED;
         [ProtoMember(93)]
         public int WAR_ULTIMATUM_EXPIRE_HOURS;
+
+        // Villages. Only the on/off switch travels: the client must not be able to work out when
+        // someone else's village is exposed, so the raid timings stay server-side.
+        [ProtoMember(94)]
+        public bool VILLAGE_ENABLED;
+        // What the granary accepts. The client needs these to filter its slots and to show the
+        // player what a village can live on.
+        [ProtoMember(95)]
+        public HashSet<string> VILLAGE_FOOD_ITEMS = new HashSet<string>();
+        [ProtoMember(96)]
+        public HashSet<string> VILLAGE_FUEL_ITEMS = new HashSet<string>();
+        // Lets the granary window work out how long the stock inside it lasts, instead of waiting
+        // for the server to recount at the top of the hour.
+        [ProtoMember(97)]
+        public int VILLAGE_SUPPLY_HOURS_PER_ITEM;
     }
 }

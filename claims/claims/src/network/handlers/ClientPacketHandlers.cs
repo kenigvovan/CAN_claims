@@ -285,6 +285,13 @@ namespace claims.src.network.handlers
                 claims.config.WAR_ULTIMATUM_ENABLED = packet.WAR_ULTIMATUM_ENABLED;
                 if (packet.WAR_ULTIMATUM_EXPIRE_HOURS > 0)
                     claims.config.WAR_ULTIMATUM_EXPIRE_HOURS = packet.WAR_ULTIMATUM_EXPIRE_HOURS;
+                // The server decides whether villages exist at all; the client's own claims.json
+                // must not make the "found a village" button appear where the host turned them off.
+                claims.config.VILLAGE_ENABLED = packet.VILLAGE_ENABLED;
+                claims.config.VILLAGE_FOOD_ITEMS = packet.VILLAGE_FOOD_ITEMS ?? new HashSet<string>();
+                claims.config.VILLAGE_FUEL_ITEMS = packet.VILLAGE_FUEL_ITEMS ?? new HashSet<string>();
+                if (packet.VILLAGE_SUPPLY_HOURS_PER_ITEM > 0)
+                    claims.config.VILLAGE_SUPPLY_HOURS_PER_ITEM = packet.VILLAGE_SUPPLY_HOURS_PER_ITEM;
 
                 claims.config.WAR_RESPAWN_SAFEZONE_ENABLED = packet.WAR_RESPAWN_SAFEZONE_ENABLED;
                 claims.config.WAR_RESPAWN_SAFEZONE_RADIUS = packet.WAR_RESPAWN_SAFEZONE_RADIUS;

@@ -135,6 +135,9 @@ namespace claims.src
             api.RegisterBlockEntityBehaviorClass("FlagEntity", typeof(BlockEntityBehaviorFlag));
             api.RegisterBlockBehaviorClass("Flag", typeof(BlockBehaviorFlag));
             api.RegisterBlockEntityClass("CampAnchor", typeof(BlockEntityCampAnchor));
+            api.RegisterBlockEntityClass("VillageAnchor", typeof(BlockEntityVillageAnchor));
+            api.RegisterBlockClass("CANVillageGranaryBlock", typeof(BlockVillageGranary));
+            api.RegisterBlockEntityClass("VillageGranary", typeof(BlockEntityVillageGranary));
             //Environment.SetEnvironmentVariable("CAIRO_DEBUG_DISPOSE", "1");
         }
         public override void StartClientSide(ICoreClientAPI api)

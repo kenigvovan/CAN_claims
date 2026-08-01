@@ -177,6 +177,10 @@ namespace claims.src.network.handlers
                 {
                     if (!playerInfo.City.isMayor(playerInfo))
                         return;
+                    // The GUI reaches war ranges without going through the commands, so the
+                    // village gate in TryResolveMyParty does not cover this path.
+                    if (playerInfo.City.IsVillage())
+                        return;
                     ourParty = playerInfo.City;
                 }
                 else

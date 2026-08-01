@@ -30,8 +30,9 @@ namespace claims.src.gui.playerGui.GuiElements
             this.cityStatCell = cityStatCell;
             var font = CairoFont.WhiteDetailText();
 
-            string cellName = string.Format("{0} {1}", cityStatCell.Name,
-                cityStatCell.AllianceName.Length > 0 ? "[" + cityStatCell.AllianceName + "]" : "");
+            string cellName = string.Format("{0} {1}{2}", cityStatCell.Name,
+                cityStatCell.AllianceName.Length > 0 ? "[" + cityStatCell.AllianceName + "]" : "",
+                cityStatCell.Tier == part.structure.CityTier.VILLAGE ? " " + Lang.Get("claims:gui-village-mark") : "");
 
             double textWidth = bounds.fixedWidth - EmblemTextX - ButtonColumn;
             if (textWidth < 120) textWidth = 120;

@@ -25,6 +25,9 @@ namespace claims.src.part
         public long LastRespawnTimestamp { get; set; } = 0;
         // Bounties placed on this player's head: poster uid -> escrowed amount. Persisted.
         public Dictionary<string, long> BountyPosters { get; set; } = new();
+        // Unix seconds until this player may found a settlement again, set when their village is
+        // gone. Persisted - a restart must not wipe the penalty.
+        public long VillageCooldownUntil { get; set; } = 0;
         public long GetBountyTotal() { long s = 0; foreach (var v in BountyPosters.Values) s += v; return s; }
         public City City { get; private set; }     
         public Alliance Alliance { get { return City?.Alliance; } }

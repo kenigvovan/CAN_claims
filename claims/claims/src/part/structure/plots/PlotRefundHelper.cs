@@ -14,6 +14,8 @@ namespace claims.src.part.structure.plots
             if (plot.WasCaptured) return;
             if (plot.TimeStampClaimed == 0) return;
             if (!plot.hasCity()) return;
+            // Village plots cost nothing to claim, so there is nothing to refund either.
+            if (plot.getCity().IsVillage()) return;
 
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             if (now - plot.TimeStampClaimed < claims.config.PLOT_UNCLAIM_REFUND_MIN_AGE_SECONDS) return;

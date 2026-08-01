@@ -7,8 +7,13 @@ namespace claims.src.database
 
         //CITY
         public static readonly string DELETE_CITY = "DELETE FROM CITIES WHERE guid = @guid";
-        public static readonly string INSERT_CITY = "INSERT INTO CITIES (NAME, MAYOR, GUID, TIMESTAMPCREATED, debtbalance, perm, plotgroups, prisons, alliance, defaultplotcost, hostiles, comrades, invmsg, opencity, fee, criminals, istechnical, bonusplots, extrachunksbought, citycolor, templerespawnpoints, ranks, eventlog, warcooldowns, grievances, overlord, vassals, vassalsince, naps, warjustifications, emblem) VALUES (@name, @mayor, @guid, @timestampcreated, @debtbalance,@perm,@plotgroups,@prisons, @alliance, @defaultplotcost, @hostiles, @comrades, @invmsg, @opencity, @fee, @criminals, @istechnical, @bonusplots, @extrachunksbought, @citycolor, @templerespawnpoints, @ranks, @eventlog, @warcooldowns, @grievances, @overlord, @vassals, @vassalsince, @naps, @warjustifications, @emblem)";
-        public static readonly string UPDATE_CITY = "UPDATE CITIES SET NAME=@name, MAYOR=@mayor, GUID=@guid, timestampcreated=@timestampcreated, debtbalance=@debtbalance, perm=@perm, plotgroups=@plotgroups, prisons=@prisons, alliance=@alliance, defaultplotcost=@defaultplotcost, hostiles=@hostiles, comrades=@comrades, invmsg=@invmsg, opencity=@opencity, fee=@fee, criminals=@criminals, istechnical=@istechnical, bonusplots=@bonusplots, extrachunksbought=@extrachunksbought, citycolor=@citycolor, templerespawnpoints=@templerespawnpoints, ranks=@ranks, eventlog=@eventlog, warcooldowns=@warcooldowns, grievances=@grievances, overlord=@overlord, vassals=@vassals, vassalsince=@vassalsince, naps=@naps, warjustifications=@warjustifications, emblem=@emblem WHERE guid=@guid";
+        public static readonly string INSERT_CITY = "INSERT INTO CITIES (NAME, MAYOR, GUID, TIMESTAMPCREATED, debtbalance, perm, plotgroups, prisons, alliance, defaultplotcost, hostiles, comrades, invmsg, opencity, fee, criminals, istechnical, bonusplots, extrachunksbought, citycolor, templerespawnpoints, ranks, eventlog, warcooldowns, grievances, overlord, vassals, vassalsince, naps, warjustifications, emblem, tier) VALUES (@name, @mayor, @guid, @timestampcreated, @debtbalance,@perm,@plotgroups,@prisons, @alliance, @defaultplotcost, @hostiles, @comrades, @invmsg, @opencity, @fee, @criminals, @istechnical, @bonusplots, @extrachunksbought, @citycolor, @templerespawnpoints, @ranks, @eventlog, @warcooldowns, @grievances, @overlord, @vassals, @vassalsince, @naps, @warjustifications, @emblem, @tier)";
+        public static readonly string UPDATE_CITY = "UPDATE CITIES SET NAME=@name, MAYOR=@mayor, GUID=@guid, timestampcreated=@timestampcreated, debtbalance=@debtbalance, perm=@perm, plotgroups=@plotgroups, prisons=@prisons, alliance=@alliance, defaultplotcost=@defaultplotcost, hostiles=@hostiles, comrades=@comrades, invmsg=@invmsg, opencity=@opencity, fee=@fee, criminals=@criminals, istechnical=@istechnical, bonusplots=@bonusplots, extrachunksbought=@extrachunksbought, citycolor=@citycolor, templerespawnpoints=@templerespawnpoints, ranks=@ranks, eventlog=@eventlog, warcooldowns=@warcooldowns, grievances=@grievances, overlord=@overlord, vassals=@vassals, vassalsince=@vassalsince, naps=@naps, warjustifications=@warjustifications, emblem=@emblem, tier=@tier WHERE guid=@guid";
+
+        //VILLAGE RUINS
+        public static readonly string DELETE_VILLAGE_RUIN = "DELETE FROM VILLAGERUINS WHERE x=@x AND z=@z";
+        public static readonly string INSERT_VILLAGE_RUIN = "INSERT INTO VILLAGERUINS (x, z, until) VALUES (@x, @z, @until)";
+        public static readonly string UPDATE_VILLAGE_RUIN = "UPDATE VILLAGERUINS SET until=@until WHERE x=@x AND z=@z";
 
         //ALLIANCE
         public static readonly string DELETE_ALLIANCE = "DELETE FROM ALLIANCIES WHERE guid=@guid";
@@ -17,8 +22,8 @@ namespace claims.src.database
 
         //PLAYER
         public static readonly string DELETE_PLAYER = "DELETE FROM PLAYERS WHERE UID=@uid";
-        public static readonly string INSERT_PLAYER = "INSERT INTO PLAYERS (NAME, UID,timestampfirstjoined, timestamplastonline, comrades, city, citytitles, title, aftername, perms, prisonguid, prisonhoursleft, bounties) VALUES (@name, @uid, @timestampfirstjoined, @timestamplastonline, @comrades,@city,@citytitles,@title,@aftername,@perms,@prisonguid,@prisonhoursleft,@bounties)";
-        public static readonly string UPDATE_PLAYER = "UPDATE PLAYERS SET NAME=@name, UID=@uid, timestampfirstjoined=@timestampfirstjoined, timestamplastonline=@timestamplastonline, comrades=@comrades, city=@city, citytitles=@citytitles, title=@title, aftername=@aftername, perms=@perms,prisonguid=@prisonguid, prisonhoursleft=@prisonhoursleft, bounties=@bounties  WHERE UID=@uid";
+        public static readonly string INSERT_PLAYER = "INSERT INTO PLAYERS (NAME, UID,timestampfirstjoined, timestamplastonline, comrades, city, citytitles, title, aftername, perms, prisonguid, prisonhoursleft, bounties, villagecooldown) VALUES (@name, @uid, @timestampfirstjoined, @timestamplastonline, @comrades,@city,@citytitles,@title,@aftername,@perms,@prisonguid,@prisonhoursleft,@bounties,@villagecooldown)";
+        public static readonly string UPDATE_PLAYER = "UPDATE PLAYERS SET NAME=@name, UID=@uid, timestampfirstjoined=@timestampfirstjoined, timestamplastonline=@timestamplastonline, comrades=@comrades, city=@city, citytitles=@citytitles, title=@title, aftername=@aftername, perms=@perms,prisonguid=@prisonguid, prisonhoursleft=@prisonhoursleft, bounties=@bounties, villagecooldown=@villagecooldown  WHERE UID=@uid";
 
         //PLOTGROUP
         public static readonly string DELETE_CITYPLOTGROUP = "DELETE FROM CITYPLOTSGROUP WHERE guid=@guid";
@@ -75,6 +80,7 @@ namespace claims.src.database
                 { "CONFLICTS",       (INSERT_CONFLICT,       UPDATE_CONFLICT,       DELETE_CONFLICT) },
                 { "CONFLICTLETTERS", (INSERT_CONFLICTLETTER, UPDATE_CONFLICTLETTER, DELETE_CONFLICTLETTER) },
                 { "UNIONLETTERS",    (INSERT_UNIONLETTER,    UPDATE_UNIONLETTER,    DELETE_UNIONLETTER) },
+                { "VILLAGERUINS",    (INSERT_VILLAGE_RUIN,   UPDATE_VILLAGE_RUIN,   DELETE_VILLAGE_RUIN) },
             };
     }
 }

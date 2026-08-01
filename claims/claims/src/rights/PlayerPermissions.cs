@@ -86,6 +86,10 @@ namespace claims.src.rights
         {
             permissions.UnionWith(newPermissions);
         }
+        public void RemovePermissions(HashSet<EnumPlayerPermissions> unwantedPermissions)
+        {
+            permissions.ExceptWith(unwantedPermissions);
+        }
         public void ClearPermissions() 
         {
             permissions.Clear();

@@ -13,6 +13,7 @@ namespace claims.src.commands.register
             var parsers = sapi.ChatCommands.Parsers;
 
             RegisterCityCommands(parsers, sapi);
+            RegisterVillageCommands(parsers, sapi);
             RegisterCitizenCommands(parsers, sapi);
             RegisterPlotCommands(parsers, sapi);
             RegisterCAdminCommands(parsers, sapi);
@@ -49,6 +50,32 @@ namespace claims.src.commands.register
             sapi.ChatCommands.Create("plotsgroupleave").HandleWith(commands.AcceptCommand.onLeavePlotGroup)
               .RequiresPlayer().RequiresPrivilege(Privilege.chat)
               .WithArgs(parsers.Word("cityName"), parsers.Word("groupName"));
+        }
+        public static void RegisterVillageCommands(CommandArgumentParsers parsers, ICoreServerAPI sapi)
+        {
+            // Villages share every /city subcommand (a village IS a City); only founding, info and
+            // abandoning need their own entry points.
+            sapi.ChatCommands.Create("village")
+                .RequiresPlayer().RequiresPrivilege(Privilege.chat).WithAlias("v")
+                    .BeginSub("create")
+                        .HandleWith(commands.VillageCommand.CreateNewVillage)
+                        .WithAlias("new")
+                        .WithDesc("Found a village: cheap, small, kept alive by supplies instead of money.")
+                        .WithArgs(parsers.Word("villageName"))
+                    .EndSub()
+                    .BeginSub("info")
+                        .HandleWith(commands.VillageCommand.VillageInfo)
+                        .WithDesc("Show info about your village.")
+                    .EndSub()
+                    .BeginSub("abandon")
+                        .HandleWith(commands.VillageCommand.AbandonVillage)
+                        .WithDesc("Abandon the village.")
+                    .EndSub()
+                    .BeginSub("upgrade")
+                        .HandleWith(commands.VillageCommand.UpgradeVillage)
+                        .WithDesc("Turn the village into a full city.")
+                    .EndSub()
+                ;
         }
         public static void RegisterCityCommands(CommandArgumentParsers parsers, ICoreServerAPI sapi)
         {
@@ -1181,6 +1208,11 @@ namespace claims.src.commands.register
                              .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                             .HandleWith(commands.CAdminCommand.citySetBonusPlots)
                             .WithArgs(parsers.Word("cityName"), parsers.Int("bonusClaimAmount"))
+                        .EndSub()
+                        .BeginSub("tier")
+                             .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
+                            .HandleWith(commands.CAdminCommand.citySetTier)
+                            .WithArgs(parsers.Word("cityName"), parsers.WordRange("tier", "city", "village"))
                         .EndSub()
                     .EndSub()
                 .EndSub()

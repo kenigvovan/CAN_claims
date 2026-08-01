@@ -53,6 +53,26 @@ namespace claims.src.gui.playerGui.Pages
                     },
                 };
 
+                // When this village is open to attack. Sent only to its own citizens, so an
+                // outsider still has to come and find out on the spot.
+                if (city.IsVillage && city.RaidWindowStart > 0)
+                {
+                    long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                    long windowEnd = city.RaidWindowStart + city.RaidWindowMinutes * 60L;
+                    bool openNow = now >= city.RaidWindowStart && now < windowEnd;
+
+                    cityRows.Add(new CardRow
+                    {
+                        Label = Lang.Get("claims:gui-city-label-raid-window"),
+                        Value = openNow
+                            ? Lang.Get("claims:gui-village-raid-now", (windowEnd - now) / 60)
+                            : TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(city.RaidWindowStart)
+                              + " (" + city.RaidWindowMinutes + Lang.Get("claims:gui-minutes-short") + ")",
+                        ValueColor = openNow ? ClaimsColors.Danger : null,
+                        Key = "raidWindow"
+                    });
+                }
+
                 // The ranks this player holds in the city, if any.
                 if (city.CityTitles != null && city.CityTitles.Count > 0)
                 {
@@ -64,7 +84,8 @@ namespace claims.src.gui.playerGui.Pages
                     });
                 }
 
-                y = Card.RowsWithActions(compo, column, y, Lang.Get("claims:gui-city-section-city"), cityRows, slot =>
+                y = Card.RowsWithActions(compo, column, y,
+                    Lang.Get(city.IsVillage ? "claims:gui-city-section-village" : "claims:gui-city-section-city"), cityRows, slot =>
                 {
                     // The arms go at the right end of the action strip, where nothing else is drawn.
                     var emblemBounds = slot.FlatCopy().WithFixedSize(Card.ActionSize, Card.ActionSize);
@@ -87,6 +108,20 @@ namespace claims.src.gui.playerGui.Pages
                         actions.Add("claims:open-book", "setPermissions",
                             on => OpenDialog(on ? EnumUpperWindowSelectedState.CITY_PLOTS_PERMISSIONS : EnumUpperWindowSelectedState.NONE),
                             Lang.Get("claims:gui-city-plots-permissions"), toggleable: true);
+                    }
+
+                    // Growing up and giving up: both are the head's calls, and both only exist while
+                    // the settlement is still a village. A village grants CITY_SET_NAME to its head
+                    // and to nobody else (it has no custom ranks), so the permission stands in for
+                    // "is the head" here; the server checks mayorship itself either way.
+                    if (city.IsVillage && cityPerms.HasPermission(rights.EnumPlayerPermissions.CITY_SET_NAME))
+                    {
+                        actions.Add("claims:queen-crown", "upgradeVillage",
+                            on => { if (on) OpenDialog(EnumUpperWindowSelectedState.VILLAGE_UPGRADE_CONFIRM); },
+                            Lang.Get("claims:gui-village-upgrade-button"));
+                        actions.Add("claims:cancel", "abandonVillage",
+                            on => { if (on) OpenDialog(EnumUpperWindowSelectedState.VILLAGE_ABANDON_CONFIRM); },
+                            Lang.Get("claims:gui-village-abandon-button"));
                     }
 
                     actions.Add("claims:exit-door", "leaveCity",
@@ -163,7 +198,8 @@ namespace claims.src.gui.playerGui.Pages
                     }
                 };
 
-                rightY = Card.RowsWithActions(compo, rightColumn, rightY, Lang.Get("claims:gui-city-section-citizens"), citizenRows, slot =>
+                rightY = Card.RowsWithActions(compo, rightColumn, rightY,
+                    Lang.Get(city.IsVillage ? "claims:gui-village-section-citizens" : "claims:gui-city-section-citizens"), citizenRows, slot =>
                 {
                     var actions = new ActionRow(compo, slot);
 
@@ -190,48 +226,53 @@ namespace claims.src.gui.playerGui.Pages
                     }
                 });
 
-                // --- treasury: only where there is money to speak of ---
-                bool virtualMoney = claims.config.SELECTED_ECONOMY_HANDLER == "VIRTUAL_MONEY";
+                // --- treasury: only where there is money to speak of (a village has none at all) ---
+                bool virtualMoney = claims.config.SELECTED_ECONOMY_HANDLER == "VIRTUAL_MONEY" && !city.IsVillage;
                 bool seesBalance = cityPerms.HasPermission(rights.EnumPlayerPermissions.CITY_SEE_BALANCE);
                 bool canSetFee = cityPerms.HasPermission(rights.EnumPlayerPermissions.CITY_SET_GLOBAL_FEE) || canSetAll;
 
+                // A village is outside the economy entirely - no balance, no debt, no daily payment
+                // and no fee - so its treasury card is never built.
                 var treasuryRows = new List<CardRow>();
-                if (virtualMoney && seesBalance)
+                if (!city.IsVillage)
                 {
-                    treasuryRows.Add(new CardRow
+                    if (virtualMoney && seesBalance)
                     {
-                        Label = Lang.Get("claims:gui-city-label-balance"),
-                        Value = Number(city.CityBalance),
-                        Key = "cityBalance"
-                    });
-                }
-                if (claims.config.GUI_SHOW_DEBT && city.CityDebt > 0)
-                {
-                    treasuryRows.Add(new CardRow
+                        treasuryRows.Add(new CardRow
+                        {
+                            Label = Lang.Get("claims:gui-city-label-balance"),
+                            Value = Number(city.CityBalance),
+                            Key = "cityBalance"
+                        });
+                    }
+                    if (claims.config.GUI_SHOW_DEBT && city.CityDebt > 0)
                     {
-                        Label = Lang.Get("claims:gui-city-label-debt"),
-                        Value = Number(city.CityDebt),
-                        ValueColor = ClaimsColors.Danger,
-                        Key = "cityDebt"
-                    });
-                }
-                if (city.CityDayPayment > 0)
-                {
-                    treasuryRows.Add(new CardRow
+                        treasuryRows.Add(new CardRow
+                        {
+                            Label = Lang.Get("claims:gui-city-label-debt"),
+                            Value = Number(city.CityDebt),
+                            ValueColor = ClaimsColors.Danger,
+                            Key = "cityDebt"
+                        });
+                    }
+                    if (city.CityDayPayment > 0)
                     {
-                        Label = Lang.Get("claims:gui-city-label-payment"),
-                        Value = Number(city.CityDayPayment),
-                        Key = "cityPayment"
-                    });
-                }
-                if (canSetFee)
-                {
-                    treasuryRows.Add(new CardRow
+                        treasuryRows.Add(new CardRow
+                        {
+                            Label = Lang.Get("claims:gui-city-label-payment"),
+                            Value = Number(city.CityDayPayment),
+                            Key = "cityPayment"
+                        });
+                    }
+                    if (canSetFee)
                     {
-                        Label = Lang.Get("claims:gui-city-label-fee"),
-                        Value = Number(city.CityFee),
-                        Key = "cityFee"
-                    });
+                        treasuryRows.Add(new CardRow
+                        {
+                            Label = Lang.Get("claims:gui-city-label-fee"),
+                            Value = Number(city.CityFee),
+                            Key = "cityFee"
+                        });
+                    }
                 }
 
                 if (treasuryRows.Count > 0)
@@ -296,21 +337,28 @@ namespace claims.src.gui.playerGui.Pages
                     }, Lang.Get("claims:gui-nav-emblem")));
                 }
 
-                navButtons.Add(new NavButton("claims:vertical-banner", () => GoTo(EnumSelectedTab.AllianceInfoPage), Lang.Get("claims:gui-nav-alliance")));
+                // A village joins no alliances and fights no wars, so those three lead nowhere for it.
+                if (!city.IsVillage)
+                {
+                    navButtons.Add(new NavButton("claims:vertical-banner", () => GoTo(EnumSelectedTab.AllianceInfoPage), Lang.Get("claims:gui-nav-alliance")));
+                }
                 navButtons.Add(new NavButton("claims:files", () => GoTo(EnumSelectedTab.CityLog),
                     Lang.Get("claims:gui-city-log-title")));
                 navButtons.Add(new NavButton("claims:flat-platform", () => GoTo(EnumSelectedTab.CityMap),
                     Lang.Get("claims:gui-city-map-title")));
-                navButtons.Add(new NavButton("claims:envelope", () =>
+                if (!city.IsVillage)
                 {
-                    State.ConflictSourceTab = EnumSelectedTab.City;
-                    GoTo(EnumSelectedTab.ConflictLettersPage);
-                }, Lang.Get("claims:gui-nav-conflict-letters")));
-                navButtons.Add(new NavButton("claims:frog-mouth-helm", () =>
-                {
-                    State.ConflictSourceTab = EnumSelectedTab.City;
-                    GoTo(EnumSelectedTab.ConflictsPage);
-                }, Lang.Get("claims:gui-nav-conflicts")));
+                    navButtons.Add(new NavButton("claims:envelope", () =>
+                    {
+                        State.ConflictSourceTab = EnumSelectedTab.City;
+                        GoTo(EnumSelectedTab.ConflictLettersPage);
+                    }, Lang.Get("claims:gui-nav-conflict-letters")));
+                    navButtons.Add(new NavButton("claims:frog-mouth-helm", () =>
+                    {
+                        State.ConflictSourceTab = EnumSelectedTab.City;
+                        GoTo(EnumSelectedTab.ConflictsPage);
+                    }, Lang.Get("claims:gui-nav-conflicts")));
+                }
 
                 NavRow.Build(gui, currentBounds, lineBounds, 0, navButtons.ToArray());
             }
@@ -341,6 +389,13 @@ namespace claims.src.gui.playerGui.Pages
                 foundActions.Add("claims:queen-crown", "createCity",
                     on => { if (on) OpenDialog(EnumUpperWindowSelectedState.NEED_NAME); },
                     Lang.Get("claims:gui-new-city-button"));
+                // The cheap way in: a village costs nothing and lives off supplies instead of coin.
+                if (claims.config?.VILLAGE_ENABLED != false)
+                {
+                    foundActions.Add("claims:huts-village", "createVillage",
+                        on => { if (on) OpenDialog(EnumUpperWindowSelectedState.NEW_VILLAGE_NEED_NAME); },
+                        Lang.Get("claims:gui-new-village-button"));
+                }
 
                 double belowCard = column.fixedY + foundHeight + Card.Gap;
 

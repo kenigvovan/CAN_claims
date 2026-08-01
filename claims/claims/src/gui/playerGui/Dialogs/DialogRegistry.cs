@@ -46,6 +46,10 @@ namespace claims.src.gui.playerGui.Dialogs
         {
             // ---- city ----
             Add(NEED_NAME, new NeedNameDialog("claims:gui-enter-new-city-name", "/city new ", "-->", closeAfter: false));
+            // ---- village ----
+            Add(NEW_VILLAGE_NEED_NAME, new NeedNameDialog("claims:gui-enter-new-village-name", "/village new ", "-->", closeAfter: false));
+            Add(VILLAGE_ABANDON_CONFIRM, new YesNoDialog("claims:gui-village-abandon-confirm", "/village abandon"));
+            Add(VILLAGE_UPGRADE_CONFIRM, new YesNoDialog("claims:gui-village-upgrade-confirm", "/village upgrade"));
             Add(NEED_AGREE, new AgreeDialog());
             Add(SELECT_NEW_CITY_NAME, new NeedNameDialog("claims:gui-enter-new-city-name", "/city set name ", "claims:gui-set-name-button"));
             Add(INVITE_TO_CITY_NEED_NAME, new NeedNameDialog("claims:gui-enter-player-name", "/city invite ", "claims:gui-invite-button"));

@@ -109,6 +109,8 @@ namespace claims.src.gui.playerGui.structures
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.ALLIANCE_ALLY_REMOVED, OnAllianceAllyRemove);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT, OnPlayerNextPaymentDict);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_GUID, OnCityGuid);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_TIER, OnCityTier);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_RAID_WINDOW, OnCityRaidWindow);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_LOG, OnCityLog);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_PLOTS_MAP, OnCityPlotsMap);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.PLAYER_BALANCE, OnPlayerBalance);
@@ -190,6 +192,25 @@ namespace claims.src.gui.playerGui.structures
         private void OnCityGuid(string val)
         {
             this.CityInfo.Guid = val;
+        }
+        private void OnCityRaidWindow(string val)
+        {
+            // "unixStart;minutes" - kept as raw numbers so the client formats them in its own language.
+            string[] parts = val?.Split(';');
+            if (parts == null || parts.Length != 2) return;
+            if (long.TryParse(parts[0], out long start) && int.TryParse(parts[1], out int minutes))
+            {
+                this.CityInfo.RaidWindowStart = start;
+                this.CityInfo.RaidWindowMinutes = minutes;
+            }
+        }
+        private void OnCityTier(string val)
+        {
+            // Anything unparsable leaves the tier alone, i.e. a full city.
+            if (int.TryParse(val, out int tier) && System.Enum.IsDefined(typeof(CityTier), tier))
+            {
+                this.CityInfo.Tier = (CityTier)tier;
+            }
         }
         private void OnCityName(string val)
         {
@@ -536,6 +557,9 @@ namespace claims.src.gui.playerGui.structures
                     existing.Name = it.Name;
                     existing.Open = it.Open;
                     existing.InvMsg = it.InvMsg;
+                    // Without this a village upgraded to a city keeps its old label in the list
+                    // until the player rejoins.
+                    existing.Tier = it.Tier;
                 }
                 else
                 {

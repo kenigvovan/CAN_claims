@@ -17,6 +17,10 @@ namespace claims.src.timers
             InvitationHandler.findAndDeleteOverdueInvitations();
             CityPlotsGroupInvitationsHandler.updateCityPlotsGroupInvitations();
 
+            //villages live off their granary, not off money, so their upkeep is hourly
+            part.structure.VillageSupplyHelper.ProcessVillages();
+            part.structure.VillageCooldownHelper.PurgeExpired();
+
             //prison hours decrease and tp freed players
             foreach(PlayerInfo player in claims.dataStorage.getPlayersDict().Values.ToArray())
             {

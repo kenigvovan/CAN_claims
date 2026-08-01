@@ -55,13 +55,16 @@ namespace claims.src.commands
                 return TextCommandResult.Success("claims:you_dont_have_city");
             }
             City city = playerInfo.City;
-            if (claims.economyProvider.GetBalance(city.MoneyAccountName) < (decimal)claims.config.CITY_NAME_CHANGE_COST)
+            // A village has no treasury to pay from, so renaming it is free.
+            bool paysForRename = !city.IsVillage();
+            if (paysForRename && claims.economyProvider.GetBalance(city.MoneyAccountName) < (decimal)claims.config.CITY_NAME_CHANGE_COST)
             {
                 UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_NAME);
                 return TextCommandResult.Success("claims:not_enough_money");
             }
 
-            if (claims.economyProvider.Withdraw(playerInfo.City.MoneyAccountName, (decimal)claims.config.CITY_NAME_CHANGE_COST) == MoneyOperationResult.Success)
+            if (!paysForRename
+                || claims.economyProvider.Withdraw(playerInfo.City.MoneyAccountName, (decimal)claims.config.CITY_NAME_CHANGE_COST) == MoneyOperationResult.Success)
             {
                 if (city.rename((string)args.LastArg))
                 {

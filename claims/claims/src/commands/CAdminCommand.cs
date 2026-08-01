@@ -651,6 +651,60 @@ namespace claims.src.commands
             city.saveToDatabase();
             return tcr;
         }
+        /// <summary>
+        /// Moves a settlement between the two tiers by hand. Upgrading goes through the normal
+        /// upgrade path (anchor and granary taken down); downgrading only flips the flag, so an
+        /// admin-made village has no anchor until one is placed for it.
+        /// </summary>
+        public static TextCommandResult citySetTier(TextCommandCallingArgs args)
+        {
+            TextCommandResult tcr = new TextCommandResult();
+            tcr.Status = EnumCommandStatus.Success;
+
+            string filteredName = Filter.filterName((string)args.Parsers[0].GetValue());
+            if (filteredName.Length == 0 || !Filter.checkForBlockedNames(filteredName))
+            {
+                tcr.StatusMessage = "claims:invalid_name";
+                return tcr;
+            }
+            claims.dataStorage.GetCityByName(filteredName, out City city);
+            if (city == null)
+            {
+                tcr.StatusMessage = "claims:no_such_city";
+                return tcr;
+            }
+
+            string tier = ((string)args.Parsers[1].GetValue()).ToLowerInvariant();
+            if (tier == "city")
+            {
+                if (city.IsVillage()) VillageUpgradeHelper.UpgradeToCity(city);
+            }
+            else if (tier == "village")
+            {
+                city.Tier = CityTier.VILLAGE;
+                city.saveToDatabase();
+                // A city has no anchor of its own; a village without one never starves and is
+                // exposed every day with nothing to break.
+                PartInits.EnsureVillageAnchor(city);
+                foreach (PlayerInfo citizen in city.getCityCitizens())
+                {
+                    RightsHandler.reapplyRights(citizen);
+                }
+                UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_TIER,
+                    EnumPlayerRelatedInfo.MAX_COUNT_PLOTS);
+                VillageRaidHelper.Schedule(city);
+            }
+            else
+            {
+                tcr.Status = EnumCommandStatus.Error;
+                return tcr;
+            }
+
+            tcr.StatusMessage = "claims:city_tier_set";
+            tcr.MessageParams = new object[] { city.getPartNameReplaceUnder(), tier };
+            return tcr;
+        }
+
         public static TextCommandResult citySetTechnical(TextCommandCallingArgs args)
         {
             IServerPlayer player = args.Caller.Player as IServerPlayer;

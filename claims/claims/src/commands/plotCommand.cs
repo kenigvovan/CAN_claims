@@ -86,6 +86,12 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:no_city_here");
             }
+            // Villages are outside the economy: the coins would land on a treasury nobody can
+            // ever spend, so their plots are not for sale.
+            if (plot.getCity().IsVillage())
+            {
+                return TextCommandResult.Error("claims:village_feature_locked");
+            }
             if (plot.hasCityPlotsGroup())
             {
                 return TextCommandResult.Error("claims:has_plot_group");

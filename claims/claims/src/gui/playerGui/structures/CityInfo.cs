@@ -11,6 +11,15 @@ namespace claims.src.gui.playerGui.structures
     {
         public string Name { get; set; }
         public string Guid { get; set; }
+        /// <summary>Village or full city. CityTier.CITY is the default, so a settlement whose tier
+        /// never arrived behaves exactly as before villages existed.</summary>
+        public CityTier Tier { get; set; } = CityTier.CITY;
+        public bool IsVillage => Tier == CityTier.VILLAGE;
+        /// <summary>Unix seconds when this village's raid window next opens (or opened, while it
+        /// is running). 0 means "not a village" or "raids are off".</summary>
+        public long RaidWindowStart { get; set; } = 0;
+        /// <summary>How long that window lasts, in minutes.</summary>
+        public int RaidWindowMinutes { get; set; } = 0;
         public string MayorName { get; set; }
         public long TimeStampCreated { get; set; }
         public List<string> PlayersNames;

@@ -14,9 +14,13 @@ namespace claims.src.gui.playerGui.structures.cellElements
         public bool Open { get; set; }
         public string InvMsg { get;set; }
         public string Guid { get; set; }
+        /// <summary>Village or full city; drives the label in the settlement list.</summary>
+        public CityTier Tier { get; set; } = CityTier.CITY;
         public ClientCityInfoCellElement(int citizensAmount, string mayorName, int claimedPlotsAmount,
-                                         string allianceName, long timeStampCreated, string name, bool open, string invMsg, string guid)
+                                         string allianceName, long timeStampCreated, string name, bool open, string invMsg, string guid,
+                                         CityTier tier = CityTier.CITY)
         {
+            Tier = tier;
             CitizensAmount = citizensAmount;
             MayorName = mayorName;
             ClaimedPlotsAmount = claimedPlotsAmount;
@@ -30,6 +34,7 @@ namespace claims.src.gui.playerGui.structures.cellElements
 
         public void UpdateFrom(City city)
         {
+            Tier = city.Tier;
             AllianceName = city.Alliance?.GetPartName() ?? "";
             MayorName = city.getMayor()?.GetPartName() ?? "";
             Name = city.GetPartName();
@@ -51,7 +56,8 @@ namespace claims.src.gui.playerGui.structures.cellElements
                 city.GetPartName(),
                 city.openCity,
                 city.invMsg,
-                city.Guid);
+                city.Guid,
+                city.Tier);
         }
     }
 }

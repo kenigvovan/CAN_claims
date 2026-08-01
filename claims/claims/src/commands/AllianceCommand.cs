@@ -43,6 +43,10 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error(Lang.Get("claims:already_has_alliance"));
             }
+            if (city.IsVillage())
+            {
+                return TextCommandResult.Error(Lang.Get("claims:village_feature_locked"));
+            }
             string name = Filter.filterName((string)args.Parsers[0].GetValue());
             if (name.Length == 0 || !Filter.checkForBlockedNames(name))
             {
@@ -275,6 +279,10 @@ namespace claims.src.commands
             if (city.HasAlliance())
             {
                 return TextCommandResult.Success(Lang.Get("claims:has_other_alliance"));
+            }
+            if (city.IsVillage())
+            {
+                return TextCommandResult.Success(Lang.Get("claims:village_cannot_join_alliance"));
             }
             long timeStamp = TimeFunctions.getEpochSeconds() + claims.config.HOUR_TIMEOUT_INVITATION_TO_ALLIANCE * 60;
             if (InvitationHandler.addNewInvite(new Invitation(alliance, city, timeStamp,

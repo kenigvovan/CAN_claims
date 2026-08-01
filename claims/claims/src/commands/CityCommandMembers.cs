@@ -58,6 +58,10 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Success("claims:player_has_city_already");
             }
+            if (!Settings.CanAcceptMoreCitizens(city))
+            {
+                return TextCommandResult.Success("claims:village_is_full");
+            }
             if (InvitationHandler.addNewInvite(new Invitation(city, targetPlayer, TimeFunctions.getEpochSeconds() + claims.config.HOUR_TIMEOUT_INVITATION_CITY * 60 * 60,
                 () =>
                 {
@@ -275,6 +279,10 @@ namespace claims.src.commands
             if (!city.openCity)
             {
                 return TextCommandResult.Success("claims:not_open_city");
+            }
+            if (!Settings.CanAcceptMoreCitizens(city))
+            {
+                return TextCommandResult.Success("claims:village_is_full");
             }
             city.AddLogEntry(EnumCityLogEvent.CitizenJoined, playerInfo.GetPartName());
             city.FireCitizenJoined(playerInfo);

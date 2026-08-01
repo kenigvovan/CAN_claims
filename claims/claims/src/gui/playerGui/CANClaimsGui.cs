@@ -48,9 +48,13 @@ namespace claims.src.gui.playerGui
             new MainTab { Tab = EnumSelectedTab.Prices, Icon = "claims:price-tag",        TooltipLangKey = "claims:gui-maintab-prices",
                           Visible = () => !string.IsNullOrEmpty(claims.config?.SELECTED_ECONOMY_HANDLER) },
             new MainTab { Tab = EnumSelectedTab.Plot,       Icon = "claims:flat-platform", TooltipLangKey = "claims:gui-maintab-plot" },
-            new MainTab { Tab = EnumSelectedTab.Prison,     Icon = "claims:prisoner",      TooltipLangKey = "claims:gui-maintab-prison" },
-            new MainTab { Tab = EnumSelectedTab.Summon,     Icon = "claims:magic-portal",  TooltipLangKey = "claims:gui-maintab-summon" },
-            new MainTab { Tab = EnumSelectedTab.PlotsGroup, Icon = "claims:huts-village",  TooltipLangKey = "claims:gui-maintab-plotsgroup" },
+            // Prisons, summons and plot groups are city features - a village has none of them.
+            new MainTab { Tab = EnumSelectedTab.Prison,     Icon = "claims:prisoner",      TooltipLangKey = "claims:gui-maintab-prison",
+                          Visible = () => !IsOwnSettlementAVillage() },
+            new MainTab { Tab = EnumSelectedTab.Summon,     Icon = "claims:magic-portal",  TooltipLangKey = "claims:gui-maintab-summon",
+                          Visible = () => !IsOwnSettlementAVillage() },
+            new MainTab { Tab = EnumSelectedTab.PlotsGroup, Icon = "claims:huts-village",  TooltipLangKey = "claims:gui-maintab-plotsgroup",
+                          Visible = () => !IsOwnSettlementAVillage() },
 
             // One admin entry, hidden from everyone whose role is not listed in the config. The four
             // admin pages switch between themselves with their own tab strip - four more icons here
@@ -71,6 +75,15 @@ namespace claims.src.gui.playerGui
         /// Whether this player may see the admin tabs. The role is only known once the world has
         /// loaded, so the answer is worked out on first use and then kept.
         /// </summary>
+        /// <summary>
+        /// Whether the settlement the player belongs to is a village. Not cached, unlike IsAdmin:
+        /// a village can be upgraded to a city mid-session, and the tab row must follow.
+        /// </summary>
+        private static bool IsOwnSettlementAVillage()
+        {
+            return claims.clientDataStorage?.clientPlayerInfo?.CityInfo?.IsVillage == true;
+        }
+
         private static bool IsAdmin()
         {
             if (adminChecked) return isAdmin;

@@ -58,6 +58,9 @@ namespace claims.src
         public ClientPlayerInfo clientPlayerInfo { get; set; }
         public List<Conflict> conflicts { get; } = new List<Conflict>();
         public Dictionary<string, WarTime> WarsTimes { get; } = new Dictionary<string, WarTime>();
+        // Plot positions where a village fell -> unix seconds until anything may be founded there
+        // again. Persisted in VILLAGERUINS.
+        public Dictionary<Vec2i, long> VillageRuins { get; } = new Dictionary<Vec2i, long>();
 
         //zone pos and timestamp when we get info about it last time
         //will be used by client when it enters new zone and send to server this timestamps
@@ -727,6 +730,15 @@ namespace claims.src
         }
         public bool plotHasDistantEnoughFromOtherForNewCity(Vec2i pos)
         {
+            return plotHasDistantEnoughFromOtherForNewCity(pos, claims.config.MIN_DISTANCE_FROM_OTHER_CITY_NEW_CITY);
+        }
+        /// <summary>Same check with an explicit distance - villages settle by a rule of their own.</summary>
+        public bool plotHasDistantEnoughFromOtherForNewCity(Vec2i pos, int minDistance)
+        {
+            if (minDistance <= 0)
+            {
+                return true;
+            }
             foreach (City city in getCitiesList())
             {
                 foreach (Plot plot in city.getCityPlots())
@@ -735,8 +747,7 @@ namespace claims.src
                     {
                         continue;
                     }
-                    //var o = MathClaims.distanceBetween(plot.getPos(), pos);
-                    if (MathClaims.distanceBetween(plot.getPos(), pos) < claims.config.MIN_DISTANCE_FROM_OTHER_CITY_NEW_CITY)
+                    if (MathClaims.distanceBetween(plot.getPos(), pos) < minDistance)
                     {
                         return false;
                     }

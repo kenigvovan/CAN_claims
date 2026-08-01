@@ -111,7 +111,8 @@ namespace claims.src.auxialiry
                     }
                 }
 
-                infoToUpdateCity.AddRange([EnumPlayerRelatedInfo.CITY_GUID, EnumPlayerRelatedInfo.CITY_CREATED_TIMESTAMP, EnumPlayerRelatedInfo.CITY_MEMBERS,
+                infoToUpdateCity.AddRange([EnumPlayerRelatedInfo.CITY_GUID, EnumPlayerRelatedInfo.CITY_TIER, EnumPlayerRelatedInfo.CITY_RAID_WINDOW,
+                                           EnumPlayerRelatedInfo.CITY_CREATED_TIMESTAMP, EnumPlayerRelatedInfo.CITY_MEMBERS,
                                            EnumPlayerRelatedInfo.MAX_COUNT_PLOTS, EnumPlayerRelatedInfo.CLAIMED_PLOTS,
                                            EnumPlayerRelatedInfo.CITY_PLOTS_COLOR, EnumPlayerRelatedInfo.CITY_DEBT, EnumPlayerRelatedInfo.CITY_DAY_PAYMENT,
                                            EnumPlayerRelatedInfo.CITY_PERMISSIONS_UPDATED, EnumPlayerRelatedInfo.CITY_BALANCE, EnumPlayerRelatedInfo.CITY_FEE, EnumPlayerRelatedInfo.CITY_CRIMINALS_LIST,
@@ -166,6 +167,7 @@ namespace claims.src.auxialiry
                     {
                         collector.Add(EnumPlayerRelatedInfo.MAYOR_NAME, city.getMayor().GetPartName());
                     }
+                    collector.Add(EnumPlayerRelatedInfo.CITY_TIER, ((int)city.Tier).ToString());
                     collector.Add(EnumPlayerRelatedInfo.CITY_CREATED_TIMESTAMP, city.TimeStampCreated.ToString());
                     collector.Add(EnumPlayerRelatedInfo.CITY_MEMBERS, JsonConvert.SerializeObject(StringFunctions.getNamesOfCitizens(city)));
                     collector.Add(EnumPlayerRelatedInfo.MAX_COUNT_PLOTS, JsonConvert.SerializeObject(Settings.getPossibleAmountOfPlotsDictForCity(city)));
@@ -280,6 +282,10 @@ namespace claims.src.auxialiry
                        WAR_BATTLE_WARN_MINUTES = claims.config.WAR_BATTLE_WARN_MINUTES,
                        WAR_ULTIMATUM_ENABLED = claims.config.WAR_ULTIMATUM_ENABLED,
                        WAR_ULTIMATUM_EXPIRE_HOURS = claims.config.WAR_ULTIMATUM_EXPIRE_HOURS,
+                       VILLAGE_ENABLED = claims.config.VILLAGE_ENABLED,
+                       VILLAGE_FOOD_ITEMS = claims.config.VILLAGE_FOOD_ITEMS,
+                       VILLAGE_FUEL_ITEMS = claims.config.VILLAGE_FUEL_ITEMS,
+                       VILLAGE_SUPPLY_HOURS_PER_ITEM = claims.config.VILLAGE_SUPPLY_HOURS_PER_ITEM,
 
                        WAR_RESPAWN_SAFEZONE_ENABLED = claims.config.WAR_RESPAWN_SAFEZONE_ENABLED,
                        WAR_RESPAWN_SAFEZONE_RADIUS = claims.config.WAR_RESPAWN_SAFEZONE_RADIUS,
@@ -662,6 +668,15 @@ namespace claims.src.auxialiry
                             break;
                         case EnumPlayerRelatedInfo.CITY_GUID:
                             result[pair.Key] = city.Guid;
+                            break;
+                        case EnumPlayerRelatedInfo.CITY_TIER:
+                            result[pair.Key] = ((int)city.Tier).ToString();
+                            break;
+                        case EnumPlayerRelatedInfo.CITY_RAID_WINDOW:
+                            // Raw numbers, formatted client-side; empty for anything but a raidable village.
+                            result[pair.Key] = city.IsVillage() && claims.config.VILLAGE_RAIDABLE
+                                ? part.structure.VillageRaidHelper.NextWindowStart(city) + ";" + claims.config.VILLAGE_RAID_DURATION_SECONDS / 60
+                                : "0;0";
                             break;
                         case EnumPlayerRelatedInfo.MAX_COUNT_PLOTS:
                             result[pair.Key] = JsonConvert.SerializeObject(Settings.getPossibleAmountOfPlotsDictForCity(city));

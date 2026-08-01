@@ -27,6 +27,9 @@ namespace claims.src.gui.playerGui
         // Diplomacy: unions, non-aggression pacts, city-level war declarations, ultimatums.
         ALLIANCE_SEND_NEW_UNION_LETTER_NEED_NAME, ALLIANCE_CANCEL_UNION_SELECT,
         CITY_SEND_NEW_CONFLICT_LETTER_NEED_NAME, CITY_SEND_NAP_OFFER_NEED_NAME, ALLIANCE_SEND_NAP_OFFER_NEED_NAME,
-        SEND_ULTIMATUM
+        SEND_ULTIMATUM,
+
+        // Villages.
+        NEW_VILLAGE_NEED_NAME, VILLAGE_ABANDON_CONFIRM, VILLAGE_UPGRADE_CONFIRM
     }
 }

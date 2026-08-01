@@ -86,6 +86,14 @@
         PLAYER_BALANCE,
 
         // Coat of arms of our own city / alliance, as an EmblemHandler layer string.
-        CITY_EMBLEM, ALLIANCE_EMBLEM
+        CITY_EMBLEM, ALLIANCE_EMBLEM,
+
+        // Settlement tier (CityTier) of our own city. Append-only enum: the values travel as
+        // numbers in PlayerGuiRelatedInfoPacket, so new members must stay at the end.
+        CITY_TIER,
+
+        // When our village is open to attack, as "unixStart;minutes". Only ever sent to its own
+        // citizens - an outsider has to come and find out on the spot.
+        CITY_RAID_WINDOW
     }
 }

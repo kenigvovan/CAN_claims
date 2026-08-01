@@ -22,8 +22,20 @@ namespace claims.src.part
 {
     public class PartDemolition
     {
-        public static void demolishCity (City city, string reason)
+        /// <param name="applyVillagePenalty">
+        /// False when the caller already handed out its own cooldown - giving a village up
+        /// voluntarily costs less than losing it, and the two must not stack.
+        /// </param>
+        public static void demolishCity (City city, string reason, bool applyVillagePenalty = true)
         {
+            // Villages own physical blocks (anchor, granary); unclaiming the plots alone would
+            // leave them standing in the world.
+            if (city.IsVillage())
+            {
+                RemoveVillageBlocks(city);
+                // Runs before the citizens are detached below - they are the ones being penalised.
+                if (applyVillagePenalty) VillageCooldownHelper.RegisterFallenVillage(city);
+            }
             foreach(var plot in city.getCityPlots())
             {
                 claims.serverPlayerMovementListener.markPlotToWasRemoved(plot.getPos());
@@ -123,6 +135,47 @@ namespace claims.src.part
                 tree.SetString("name", city.GetPartName());
             claims.sapi.World.Api.Event.PushEvent("plotunclaimed", tree);
         }
+        /// <summary>
+        /// Takes down the blocks a village put into the world: its anchor and its granary. Whatever
+        /// was stored is dropped on the ground rather than deleted - the spoils of a raid, or simply
+        /// the stock handed back when a village grows into a city.
+        /// </summary>
+        public static void RemoveVillageBlocks(City village)
+        {
+            if (village == null) return;
+            foreach (Plot plot in village.getCityPlots())
+            {
+                if (plot.PlotDesc is not PlotDescVillage desc) continue;
+                RemoveBlockIfOurs(desc.AnchorPos, VillageBlocks.AnchorCode);
+                // Whatever was stored ends up on the ground - the spoils of a successful raid.
+                DropGranaryContents(desc.GranaryPos);
+                RemoveBlockIfOurs(desc.GranaryPos, VillageBlocks.GranaryCode);
+            }
+        }
+
+        private static void DropGranaryContents(Vec3i pos)
+        {
+            if (pos == null) return;
+            BlockPos bp = new BlockPos(pos.X, pos.Y, pos.Z);
+            if (claims.sapi.World.BlockAccessor.GetBlockEntity(bp) is beb.BlockEntityVillageGranary granary)
+            {
+                granary.Inventory?.DropAll(new Vec3d(bp.X + 0.5, bp.Y + 0.5, bp.Z + 0.5));
+            }
+        }
+
+        // Only clears the block when it is still the one we placed: an unloaded chunk returns air
+        // here, and leaving an orphan block in that rare case is better than deleting someone's build.
+        private static void RemoveBlockIfOurs(Vec3i pos, string blockPath)
+        {
+            if (pos == null) return;
+            BlockPos bp = new BlockPos(pos.X, pos.Y, pos.Z);
+            var block = claims.sapi.World.BlockAccessor.GetBlock(bp);
+            if (block?.Code != null && block.Code.Path == blockPath)
+            {
+                claims.sapi.World.BlockAccessor.SetBlock(0, bp);
+            }
+        }
+
         // Tears down a single war camp: unclaims the plot (which removes it from campPlots via
         // PlotDescCamp.OnDeactivated) and notifies the owning city.
         public static void DemolishCamp(Plot camp)

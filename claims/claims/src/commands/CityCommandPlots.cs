@@ -54,7 +54,10 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:plot_already_claimed");
             }
-            if (claims.economyProvider.GetBalance(city.MoneyAccountName) < (decimal)claims.config.PLOT_CLAIM_PRICE)
+            // A village has no treasury of its own, so its plots are free; the plot limit is what
+            // keeps it small.
+            bool paysForPlots = !city.IsVillage();
+            if (paysForPlots && claims.economyProvider.GetBalance(city.MoneyAccountName) < (decimal)claims.config.PLOT_CLAIM_PRICE)
             {
                 return TextCommandResult.Error("claims:not_enough_money");
             }
@@ -75,7 +78,8 @@ namespace claims.src.commands
                 return TextCommandResult.Error("claims:should_be_on_the_border_with_another_claimed_plot");
             }
 
-            if(claims.economyProvider.Withdraw(city.MoneyAccountName, (decimal)claims.config.PLOT_CLAIM_PRICE) != MoneyOperationResult.Success)
+            if (paysForPlots
+                && claims.economyProvider.Withdraw(city.MoneyAccountName, (decimal)claims.config.PLOT_CLAIM_PRICE) != MoneyOperationResult.Success)
             {
                 return TextCommandResult.Error("claims:economy_money_transaction_error");
             }
@@ -101,7 +105,7 @@ namespace claims.src.commands
 
             plotHere.CheckBorderPlotValue();
 
-            return SuccessWithParams("claims:plot_has_been_claimed", new object[] { currentPlotPosition.getPos().X, currentPlotPosition.getPos().Y, claims.config.PLOT_CLAIM_PRICE });
+            return SuccessWithParams("claims:plot_has_been_claimed", new object[] { currentPlotPosition.getPos().X, currentPlotPosition.getPos().Y, paysForPlots ? claims.config.PLOT_CLAIM_PRICE : 0 });
         }
         public static TextCommandResult UnclaimCityPlot(TextCommandCallingArgs args)
         {
@@ -130,6 +134,12 @@ namespace claims.src.commands
             if (plotHere.getCity().getCityPlots().Count == 1)
             {
                 return TextCommandResult.Error("claims:last_city_plot");
+            }
+            // The village anchor stands here and is what a raid has to destroy - it cannot be
+            // unclaimed away, unlike an ordinary plot.
+            if (plotHere.Type == PlotType.VILLAGE_MAIN)
+            {
+                return TextCommandResult.Error("claims:village_main_plot_locked");
             }
             if (plotHere.extraBought)
             {
