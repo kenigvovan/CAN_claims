@@ -42,15 +42,24 @@ namespace claims.src.database
 
         //PLOT
         public static readonly string DELETE_PLOT = "DELETE FROM PLOTS WHERE x=@x AND z=@z";
-        public static readonly string INSERT_PLOT = "INSERT INTO PLOTS (name, x,z,city,ownerofplot,type,price,customtax,perms,plotgroupguid, markednopvp, plotdesc, extraBought, wascaptured, timestampclaimed, lastpaidprice, priceforcitybuy, saleaudience, saletargetcity)" +
-                                                    " VALUES (@name,@x,@z,@city,@ownerofplot,@type,@price,@customtax,@perms,@plotgroupguid, @markednopvp, @plotdesc, @extraBought, @wascaptured, @timestampclaimed, @lastpaidprice, @priceforcitybuy, @saleaudience, @saletargetcity)";
-        public static readonly string UPDATE_PLOT = "UPDATE PLOTS SET name=@name, x=@x,z=@z,city=@city, ownerofplot=@ownerofplot, type=@type,price=@price,customtax=@customtax,perms=@perms, plotgroupguid=@plotgroupguid, markednopvp=@markednopvp, plotdesc=@plotdesc, extraBought=@extraBought, wascaptured=@wascaptured, timestampclaimed=@timestampclaimed, lastpaidprice=@lastpaidprice, priceforcitybuy=@priceforcitybuy, saleaudience=@saleaudience, saletargetcity=@saletargetcity" +
+        public static readonly string INSERT_PLOT = "INSERT INTO PLOTS (name, x,z,city,ownerofplot,type,price,customtax,perms,plotgroupguid, markednopvp, plotdesc, extraBought, wascaptured, timestampclaimed, lastpaidprice)" +
+                                                    " VALUES (@name,@x,@z,@city,@ownerofplot,@type,@price,@customtax,@perms,@plotgroupguid, @markednopvp, @plotdesc, @extraBought, @wascaptured, @timestampclaimed, @lastpaidprice)";
+        public static readonly string UPDATE_PLOT = "UPDATE PLOTS SET name=@name, x=@x,z=@z,city=@city, ownerofplot=@ownerofplot, type=@type,price=@price,customtax=@customtax,perms=@perms, plotgroupguid=@plotgroupguid, markednopvp=@markednopvp, plotdesc=@plotdesc, extraBought=@extraBought, wascaptured=@wascaptured, timestampclaimed=@timestampclaimed, lastpaidprice=@lastpaidprice" +
                                                     " where x=@x and z=@z";
 
         //PLOT SALE HISTORY
         public static readonly string DELETE_PLOTSALE = "DELETE FROM PLOTSALES WHERE guid=@guid";
         public static readonly string INSERT_PLOTSALE = "INSERT INTO PLOTSALES (guid, x, z, sellerguid, sellername, buyerguid, buyername, price, timestamp) VALUES (@guid, @x, @z, @sellerguid, @sellername, @buyerguid, @buyername, @price, @timestamp)";
         public static readonly string UPDATE_PLOTSALE = "UPDATE PLOTSALES SET x=@x, z=@z, sellerguid=@sellerguid, sellername=@sellername, buyerguid=@buyerguid, buyername=@buyername, price=@price, timestamp=@timestamp where guid=@guid";
+
+        //LAND AUCTION
+        public static readonly string DELETE_AUCTION = "DELETE FROM AUCTIONS WHERE guid=@guid";
+        public static readonly string INSERT_AUCTION = "INSERT INTO AUCTIONS (guid, kind, x, z, lotcity, sellercity, startprice, minincrement, buyoutprice, currentbid, currentbidder, startedat, endsat, audience, targetcity, reason, state) VALUES (@guid, @kind, @x, @z, @lotcity, @sellercity, @startprice, @minincrement, @buyoutprice, @currentbid, @currentbidder, @startedat, @endsat, @audience, @targetcity, @reason, @state)";
+        public static readonly string UPDATE_AUCTION = "UPDATE AUCTIONS SET kind=@kind, x=@x, z=@z, lotcity=@lotcity, sellercity=@sellercity, startprice=@startprice, minincrement=@minincrement, buyoutprice=@buyoutprice, currentbid=@currentbid, currentbidder=@currentbidder, startedat=@startedat, endsat=@endsat, audience=@audience, targetcity=@targetcity, reason=@reason, state=@state where guid=@guid";
+
+        public static readonly string DELETE_AUCTIONBID = "DELETE FROM AUCTIONBIDS WHERE guid=@guid";
+        public static readonly string INSERT_AUCTIONBID = "INSERT INTO AUCTIONBIDS (guid, auctionguid, cityguid, cityname, amount, timestamp) VALUES (@guid, @auctionguid, @cityguid, @cityname, @amount, @timestamp)";
+        public static readonly string UPDATE_AUCTIONBID = "UPDATE AUCTIONBIDS SET auctionguid=@auctionguid, cityguid=@cityguid, cityname=@cityname, amount=@amount, timestamp=@timestamp where guid=@guid";
 
         //CONFLICT
         public static readonly string DELETE_UNIONLETTER = "DELETE FROM UNIONLETTERS WHERE guid=@guid";
@@ -87,6 +96,8 @@ namespace claims.src.database
                 { "UNIONLETTERS",    (INSERT_UNIONLETTER,    UPDATE_UNIONLETTER,    DELETE_UNIONLETTER) },
                 { "VILLAGERUINS",    (INSERT_VILLAGE_RUIN,   UPDATE_VILLAGE_RUIN,   DELETE_VILLAGE_RUIN) },
                 { "PLOTSALES",       (INSERT_PLOTSALE,       UPDATE_PLOTSALE,       DELETE_PLOTSALE) },
+                { "AUCTIONS",        (INSERT_AUCTION,        UPDATE_AUCTION,        DELETE_AUCTION) },
+                { "AUCTIONBIDS",     (INSERT_AUCTIONBID,     UPDATE_AUCTIONBID,     DELETE_AUCTIONBID) },
             };
     }
 }

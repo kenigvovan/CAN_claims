@@ -81,7 +81,7 @@ namespace claims.src.gui.playerGui.Dialogs
         }
 
         /// <summary>Every city but our own - the possible buyers of an addressed offer.</summary>
-        private static string[] OtherCityNames()
+        internal static string[] OtherCityNames()
         {
             string ours = claims.clientDataStorage.clientPlayerInfo?.CityInfo?.Name;
             return claims.clientDataStorage.clientPlayerInfo?.AllCitiesList?
@@ -91,6 +91,13 @@ namespace claims.src.gui.playerGui.Dialogs
                        .ToArray()
                    ?? new string[0];
         }
+
+        /// <summary>Plot coordinates of the plot underfoot, as the buy command takes them.</summary>
+        private static int CurrentPlotX()
+            => claims.clientDataStorage.clientPlayerInfo?.CurrentPlotInfo?.PlotPosition?.X ?? 0;
+
+        private static int CurrentPlotZ()
+            => claims.clientDataStorage.clientPlayerInfo?.CurrentPlotInfo?.PlotPosition?.Y ?? 0;
 
         /// <summary>Asking price of the plot underfoot; 0 when it is not listed yet.</summary>
         private static int CurrentCityPrice()
@@ -154,13 +161,36 @@ namespace claims.src.gui.playerGui.Dialogs
             Add(PLOT_SET_CITY_TARGET, new DropDownDialog("claims:gui-select-plot-city-target",
                     () => OtherCityNames(), null, "claims:gui-set-button",
                     commandBuilder: args => "/plot citysell " + CurrentCityPrice() + " city " + args.Text));
-            Add(PLOT_CITY_BUY_CONFIRM, new YesNoDialog("claims:gui-plot-city-buy-confirm", "/plot citybuy",
+            // The price the player is looking at travels with the command: the seller may re-price
+            // the offer between the browser drawing it and the button being pressed, and a purchase
+            // must never be charged a price nobody agreed to.
+            Add(PLOT_CITY_BUY_CONFIRM, new YesNoDialog("claims:gui-plot-city-buy-confirm",
+                    args => string.Format("/plot citybuy {0} {1} {2}",
+                        CurrentPlotX(), CurrentPlotZ(), CurrentCityPrice()),
                     textArgs: args => new object[] { CurrentCityPrice() }));
             // From the market tab the plot is named by its coordinates, not by where the player stands.
             // Pos carries the plot coordinates: X and Z, with Y unused.
             Add(PLOT_MARKET_BUY_CONFIRM, new YesNoDialog("claims:gui-plot-market-buy-confirm",
-                    args => string.Format("/plot citybuy {0} {1}", args.Pos.X, args.Pos.Z),
+                    args => string.Format("/plot citybuy {0} {1} {2}", args.Pos.X, args.Pos.Z, args.Second),
                     textArgs: args => new object[] { args.First, args.Second }));
+
+            // ---- land auction ----
+            // Price plus a duration picked from the lengths the host allows. Increment, buyout and a
+            // named buyer stay command-line options: a form with five fields is a command line with
+            // extra steps.
+            Add(PLOT_AUCTION_START, new AuctionStartDialog());
+            Add(PLOT_AUCTION_CANCEL_CONFIRM, new YesNoDialog("claims:gui-auction-cancel-confirm", "/plot auctioncancel"));
+            // Pos carries the lot's plot coordinates when the bid comes from the market tab; from the
+            // plot page there are none and the lot is the one underfoot.
+            Add(PLOT_AUCTION_BID, new NeedNameDialog("claims:gui-enter-auction-bid", null,
+                    "claims:gui-auction-bid-button", inputKind: EnumDialogInput.Integer,
+                    commandBuilder: args => args.Pos != null
+                        ? string.Format("/plot bid {0} {1} {2}", args.Text, args.Pos.X, args.Pos.Z)
+                        : "/plot bid " + args.Text));
+            // A bankrupt settlement sold whole stands on no plot, so its lot is addressed by name.
+            Add(PLOT_AUCTION_BID_CITY, new NeedNameDialog("claims:gui-enter-auction-bid", null,
+                    "claims:gui-auction-bid-button", inputKind: EnumDialogInput.Integer,
+                    commandBuilder: args => string.Format("/plot bidcity {0} {1}", args.First, args.Text)));
 
             // ---- ranks ----
             Add(CITY_RANK_CREATION_NEED_NAME, new NeedNameDialog("claims:gui-enter-rank-name", "/c rank create ", "claims:gui-add-button"));

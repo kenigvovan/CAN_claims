@@ -141,6 +141,13 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:village_main_plot_locked");
             }
+            // Cities have money riding on this ground. Unclaiming it would end the auction they were
+            // promised - the same escape hatch as withdrawing a lot that already has bids.
+            if (part.structure.plots.auction.AuctionRegistry.TryGetRunningFor(plotHere, out var bidLot)
+                && bidLot.HasBid)
+            {
+                return TextCommandResult.Error("claims:plot_auction_has_bids");
+            }
             if (plotHere.extraBought)
             {
                 city.Extrachunksbought--;

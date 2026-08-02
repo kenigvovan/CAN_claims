@@ -71,7 +71,10 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:not_your_city");
             }
-            if (!plot.IsForSaleForCity) return TextCommandResult.Error("claims:plot_trade_not_listed");
+            if (!PlotMarketHelper.TryGetFixedPriceLot(plot, out _))
+            {
+                return TextCommandResult.Error("claims:plot_trade_not_listed");
+            }
 
             PlotMarketHelper.Unlist(plot);
             UsefullPacketsSend.SendCurrentPlotUpdate(player, plot);
@@ -110,7 +113,13 @@ namespace claims.src.commands
                 return TextCommandResult.Error(errorKey);
             }
 
-            if (!PlotMarketHelper.Buy(plot, playerInfo.City, out string buyError))
+            // The price the buyer was looking at when they confirmed. Sent by the GUI; a player
+            // typing the command by hand omits it and buys at whatever the offer says now.
+            long expectedPrice = args.Parsers.Count > 2 && args.Parsers[2].GetValue() != null
+                ? System.Convert.ToInt64(args.Parsers[2].GetValue())
+                : -1;
+
+            if (!PlotMarketHelper.Buy(plot, playerInfo.City, expectedPrice, out string buyError))
             {
                 return TextCommandResult.Error(buyError);
             }
@@ -129,7 +138,7 @@ namespace claims.src.commands
         /// Rejects an unknown word rather than quietly listing to somebody. Omitting the word means
         /// allies only - the narrowest audience, so a forgotten argument cannot open the offer up.
         /// </summary>
-        private static bool TryParseAudience(string word, out EnumPlotSaleAudience audience)
+        public static bool TryParseAudience(string word, out EnumPlotSaleAudience audience)
         {
             switch ((word ?? "allies").ToLowerInvariant())
             {

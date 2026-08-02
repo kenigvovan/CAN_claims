@@ -102,7 +102,15 @@ namespace claims.src.timers
                 {
                     if (city.DebtBalance > claims.config.CITY_MAX_DEBT)
                     {
-                        toDeleteCities.Add((city, Lang.Get("claims:city_delete_reason_debt_is_too_high", city.DebtBalance)));
+                        // A fire sale takes precedence over the wrecking ball: while the city's land
+                        // is on the block it stays standing, and it is demolished only if the sale
+                        // brought nothing. Begin() answers false whenever bankruptcy sales are off -
+                        // by the mode, by the auction switch or by a stubbed economy - so the old
+                        // behaviour needs no separate check here.
+                        if (!part.structure.plots.auction.BankruptcyHelper.Begin(city))
+                        {
+                            toDeleteCities.Add((city, Lang.Get("claims:city_delete_reason_debt_is_too_high", city.DebtBalance)));
+                        }
                     }
                 }
                 claims.sapi.Event.RegisterCallback(_ =>

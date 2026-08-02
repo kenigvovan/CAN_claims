@@ -37,6 +37,7 @@ namespace claims.src.gui.playerGui.Pages
             Add(EnumSelectedTab.CityMap, new CityMapPage());
             Add(EnumSelectedTab.PlotMarket, new PlotMarketPage());
             Add(EnumSelectedTab.PlotMarketHistory, new PlotMarketHistoryPage());
+            Add(EnumSelectedTab.PlotAuction, new PlotAuctionPage());
         }
 
         /// <summary>

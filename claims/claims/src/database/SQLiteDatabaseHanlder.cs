@@ -12,6 +12,7 @@ using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
 using claims.src.part.structure.plots;
+using claims.src.part.structure.plots.auction;
 using claims.src.part.structure.union;
 using claims.src.part.structure.war;
 using Microsoft.Data.Sqlite;
@@ -143,6 +144,12 @@ namespace claims.src.database
                 command = new SqliteCommand(SQLiteTables.plotSalesTable, SqliteConnection);
                 command.ExecuteNonQuery();
 
+                //LAND AUCTION
+                command = new SqliteCommand(SQLiteTables.auctionsTable, SqliteConnection);
+                command.ExecuteNonQuery();
+                command = new SqliteCommand(SQLiteTables.auctionBidsTable, SqliteConnection);
+                command.ExecuteNonQuery();
+
                 // Column migrations run unconditionally, not gated by user_version. TryAlterTable is
                 // idempotent (it probes the column first), so re-running costs one cheap SELECT per
                 // column at startup, and it removes a whole class of bugs: a column appended to an
@@ -261,14 +268,6 @@ namespace claims.src.database
                     // Refounding cooldown after a village is gone (PLAYERS).
                     TryAlterTable("SELECT villagecooldown FROM PLAYERS LIMIT 1",
                         "ALTER TABLE PLAYERS ADD COLUMN villagecooldown INTEGER DEFAULT 0");
-                    // Inter-city plot market listing (PLOTS). -1 = not listed, so existing plots stay off it.
-                    TryAlterTable("SELECT priceforcitybuy FROM PLOTS LIMIT 1",
-                        "ALTER TABLE PLOTS ADD COLUMN priceforcitybuy INTEGER DEFAULT -1");
-                    // 2 = EnumPlotSaleAudience.ALLIES, the narrowest audience and the code's default.
-                    TryAlterTable("SELECT saleaudience FROM PLOTS LIMIT 1",
-                        "ALTER TABLE PLOTS ADD COLUMN saleaudience INTEGER DEFAULT 2");
-                    TryAlterTable("SELECT saletargetcity FROM PLOTS LIMIT 1",
-                        "ALTER TABLE PLOTS ADD COLUMN saletargetcity TEXT DEFAULT \"\"");
         }
 
         /// <summary>
@@ -859,10 +858,7 @@ namespace claims.src.database
                 { "@extraBought", plot.extraBought },
                 { "@wascaptured", plot.WasCaptured },
                 { "@timestampclaimed", plot.TimeStampClaimed },
-                { "@lastpaidprice", plot.lastPaidPrice },
-                { "@priceforcitybuy", plot.PriceForCityBuy },
-                { "@saleaudience", (int)plot.SaleAudience },
-                { "@saletargetcity", plot.SaleTargetCityGuid ?? "" }
+                { "@lastpaidprice", plot.lastPaidPrice }
             };
 
             queryQueue.Enqueue(new QuerryInfo("PLOTS", update ? QuerryType.UPDATE : QuerryType.INSERT, tmpDict));
@@ -924,18 +920,6 @@ namespace claims.src.database
             if (it.Table.Columns.Contains("lastpaidprice") && it["lastpaidprice"] != DBNull.Value)
             {
                 plot.lastPaidPrice = long.Parse(it["lastpaidprice"].ToString());
-            }
-            if (it.Table.Columns.Contains("priceforcitybuy") && it["priceforcitybuy"] != DBNull.Value)
-            {
-                plot.PriceForCityBuy = int.Parse(it["priceforcitybuy"].ToString());
-            }
-            if (it.Table.Columns.Contains("saleaudience") && it["saleaudience"] != DBNull.Value)
-            {
-                plot.SaleAudience = (EnumPlotSaleAudience)int.Parse(it["saleaudience"].ToString());
-            }
-            if (it.Table.Columns.Contains("saletargetcity") && it["saletargetcity"] != DBNull.Value)
-            {
-                plot.SaleTargetCityGuid = it["saletargetcity"].ToString();
             }
             return true;
         }
@@ -1659,6 +1643,122 @@ namespace claims.src.database
                     { "@buyername", record.BuyerName },
                     { "@price", record.Price },
                     { "@timestamp", record.TimeStamp }
+                }));
+            return true;
+        }
+
+        public override bool loadAuctions()
+        {
+            MessageHandler.sendDebugMsg("Load all AUCTIONS.");
+            if (this.SqliteConnection.State != System.Data.ConnectionState.Open)
+            {
+                SqliteConnection.Open();
+            }
+            try
+            {
+                Dictionary<string, PlotAuction> byGuid = new Dictionary<string, PlotAuction>();
+                DataTable dt = readFromDatabase("SELECT * FROM AUCTIONS ORDER BY startedat ASC", new Dictionary<string, object> { });
+                foreach (DataRow it in dt.Rows)
+                {
+                    string guid = it["guid"].ToString();
+                    PlotAuction auction = new PlotAuction(guid, guid)
+                    {
+                        Kind = (EnumAuctionKind)int.Parse(it["kind"].ToString()),
+                        PlotX = int.Parse(it["x"].ToString()),
+                        PlotZ = int.Parse(it["z"].ToString()),
+                        LotCityGuid = it["lotcity"].ToString(),
+                        SellerCityGuid = it["sellercity"].ToString(),
+                        StartPrice = long.Parse(it["startprice"].ToString()),
+                        MinIncrement = long.Parse(it["minincrement"].ToString()),
+                        BuyoutPrice = long.Parse(it["buyoutprice"].ToString()),
+                        CurrentBid = long.Parse(it["currentbid"].ToString()),
+                        CurrentBidderCityGuid = it["currentbidder"].ToString(),
+                        StartedAt = long.Parse(it["startedat"].ToString()),
+                        EndsAt = long.Parse(it["endsat"].ToString()),
+                        Audience = (EnumPlotSaleAudience)int.Parse(it["audience"].ToString()),
+                        TargetCityGuid = it["targetcity"].ToString(),
+                        Reason = (EnumAuctionReason)int.Parse(it["reason"].ToString()),
+                        State = (EnumAuctionState)int.Parse(it["state"].ToString())
+                    };
+                    byGuid[guid] = auction;
+                    claims.dataStorage.Auctions[guid] = auction;
+                }
+
+                // Bids are read back into their lot: a lot whose leader vanishes falls back to the
+                // bid below, so the log has to survive a restart just like the lot itself.
+                DataTable bids = readFromDatabase("SELECT * FROM AUCTIONBIDS ORDER BY timestamp ASC", new Dictionary<string, object> { });
+                foreach (DataRow it in bids.Rows)
+                {
+                    string auctionGuid = it["auctionguid"].ToString();
+                    if (!byGuid.TryGetValue(auctionGuid, out PlotAuction auction)) continue;
+                    auction.Bids.Add(new AuctionBidRecord
+                    {
+                        Guid = it["guid"].ToString(),
+                        AuctionGuid = auctionGuid,
+                        CityGuid = it["cityguid"].ToString(),
+                        CityName = it["cityname"].ToString(),
+                        Amount = long.Parse(it["amount"].ToString()),
+                        TimeStamp = long.Parse(it["timestamp"].ToString())
+                    });
+                }
+            }
+            catch (SqliteException e)
+            {
+                MessageHandler.sendErrorMsg("loadAuctions::error" + e.Message);
+                return false;
+            }
+            return true;
+        }
+
+        public override bool saveAuction(PlotAuction auction, bool update = true)
+        {
+            queryQueue.Enqueue(new QuerryInfo("AUCTIONS", update ? QuerryType.UPDATE : QuerryType.INSERT,
+                new Dictionary<string, object>
+                {
+                    { "@guid", auction.Guid },
+                    { "@kind", (int)auction.Kind },
+                    { "@x", auction.PlotX },
+                    { "@z", auction.PlotZ },
+                    { "@lotcity", auction.LotCityGuid },
+                    { "@sellercity", auction.SellerCityGuid },
+                    { "@startprice", auction.StartPrice },
+                    { "@minincrement", auction.MinIncrement },
+                    { "@buyoutprice", auction.BuyoutPrice },
+                    { "@currentbid", auction.CurrentBid },
+                    { "@currentbidder", auction.CurrentBidderCityGuid },
+                    { "@startedat", auction.StartedAt },
+                    { "@endsat", auction.EndsAt },
+                    { "@audience", (int)auction.Audience },
+                    { "@targetcity", auction.TargetCityGuid },
+                    { "@reason", (int)auction.Reason },
+                    { "@state", (int)auction.State }
+                }));
+            return true;
+        }
+
+        public override bool deleteAuction(PlotAuction auction)
+        {
+            queryQueue.Enqueue(new QuerryInfo("AUCTIONS", QuerryType.DELETE,
+                new Dictionary<string, object> { { "@guid", auction.Guid } }));
+            foreach (AuctionBidRecord bid in auction.Bids)
+            {
+                queryQueue.Enqueue(new QuerryInfo("AUCTIONBIDS", QuerryType.DELETE,
+                    new Dictionary<string, object> { { "@guid", bid.Guid } }));
+            }
+            return true;
+        }
+
+        public override bool saveAuctionBid(AuctionBidRecord bid, bool update = false)
+        {
+            queryQueue.Enqueue(new QuerryInfo("AUCTIONBIDS", update ? QuerryType.UPDATE : QuerryType.INSERT,
+                new Dictionary<string, object>
+                {
+                    { "@guid", bid.Guid },
+                    { "@auctionguid", bid.AuctionGuid },
+                    { "@cityguid", bid.CityGuid },
+                    { "@cityname", bid.CityName },
+                    { "@amount", bid.Amount },
+                    { "@timestamp", bid.TimeStamp }
                 }));
             return true;
         }

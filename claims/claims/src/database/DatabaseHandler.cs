@@ -3,6 +3,7 @@ using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
 using claims.src.part.structure.plots;
+using claims.src.part.structure.plots.auction;
 using claims.src.part.structure.union;
 
 namespace claims.src.database
@@ -84,6 +85,12 @@ namespace claims.src.database
         abstract public bool loadPlotSales();
         abstract public bool savePlotSale(PlotSaleRecord record, bool update = false);
 
+        //LAND AUCTION
+        abstract public bool loadAuctions();
+        abstract public bool saveAuction(PlotAuction auction, bool update = true);
+        abstract public bool deleteAuction(PlotAuction auction);
+        abstract public bool saveAuctionBid(AuctionBidRecord bid, bool update = false);
+
         //PENDING UNION LETTERS
         abstract public bool loadUnionLetters();
         abstract public bool saveUnionLetter(UnionLetter letter, bool update = true);
@@ -111,7 +118,9 @@ namespace claims.src.database
                && loadUnionLetters()
                && loadVillageRuins()
                // after cities: a sale record is matched back to the cities that made it
-               && loadPlotSales();
+               && loadPlotSales()
+               // after plots and cities: a lot points at both
+               && loadAuctions();
         }
         abstract public bool saveEveryThing();
 

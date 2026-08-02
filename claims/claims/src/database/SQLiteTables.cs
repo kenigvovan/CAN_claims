@@ -74,9 +74,8 @@
             "wascaptured INTEGER," +
             "timestampclaimed INTEGER DEFAULT 0," +
             "lastpaidprice INTEGER DEFAULT 0," +
-            "priceforcitybuy INTEGER DEFAULT -1," +
-            "saleaudience INTEGER DEFAULT 2," +   // 2 = ALLIES, same default as the code
-            "saletargetcity TEXT DEFAULT \"\"," +
+            // An offer to other cities is not stored here: a price tag and an auction are the same
+            // record, and both live in AUCTIONS.
             "PRIMARY KEY(x, z)" +
             ");";
 
@@ -92,6 +91,41 @@
             "buyerguid TEXT," +
             "buyername TEXT," +
             "price INTEGER DEFAULT 0," +
+            "timestamp INTEGER DEFAULT 0" +
+            ");";
+
+        // Open and closed land auction lots. Closed lots are kept: the market history and any dispute
+        // over a deal read from here.
+        public static string auctionsTable =
+            "CREATE TABLE IF NOT EXISTS AUCTIONS(" +
+            "guid TEXT PRIMARY KEY NOT NULL," +
+            "kind INTEGER DEFAULT 0," +
+            "x INTEGER DEFAULT 0," +
+            "z INTEGER DEFAULT 0," +
+            "lotcity TEXT," +
+            "sellercity TEXT," +
+            "startprice INTEGER DEFAULT 0," +
+            "minincrement INTEGER DEFAULT 1," +
+            "buyoutprice INTEGER DEFAULT -1," +
+            "currentbid INTEGER DEFAULT -1," +
+            "currentbidder TEXT," +
+            "startedat INTEGER DEFAULT 0," +
+            "endsat INTEGER DEFAULT 0," +
+            "audience INTEGER DEFAULT 2," +   // 2 = ALLIES, same default as the code
+            "targetcity TEXT," +
+            "reason INTEGER DEFAULT 0," +
+            "state INTEGER DEFAULT 0" +
+            ");";
+
+        // Every bid ever placed. Needed to hand the lot back to the previous leader when the leading
+        // city disappears, and to show a bid log in the browser.
+        public static string auctionBidsTable =
+            "CREATE TABLE IF NOT EXISTS AUCTIONBIDS(" +
+            "guid TEXT PRIMARY KEY NOT NULL," +
+            "auctionguid TEXT," +
+            "cityguid TEXT," +
+            "cityname TEXT," +
+            "amount INTEGER DEFAULT 0," +
             "timestamp INTEGER DEFAULT 0" +
             ");";
 

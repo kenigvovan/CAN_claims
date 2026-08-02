@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Globalization;
+using claims.src.auxialiry;
 using claims.src.rights;
 using claims.src.gui.playerGui.Widgets;
 using claims.src.part.structure;
@@ -98,12 +99,17 @@ namespace claims.src.gui.playerGui.Pages
             bool tradeOn = claims.config?.CITY_PLOT_TRADE_ENABLED == true;
             bool ourPlot = plot.CityName?.Length > 0 && plot.CityName == clientInfo.CityInfo?.Name;
             bool listedForCities = plot.PriceForCityBuy > -1;
+            bool auctionOn = tradeOn && claims.config?.CITY_PLOT_AUCTION_ENABLED == true;
+            bool onAuction = plot.AuctionEndsAt > 0;
 
-            if (tradeOn && (ourPlot || listedForCities))
+            if (tradeOn && (ourPlot || listedForCities || onAuction))
             {
-                var marketRows = new List<CardRow>
+                var marketRows = new List<CardRow>();
+                // While the plot is under the hammer the asking-price row would read "not for sale",
+                // which is the opposite of what is happening to it.
+                if (!onAuction)
                 {
-                    new CardRow
+                    marketRows.Add(new CardRow
                     {
                         Label = Lang.Get("claims:gui-plot-label-city-price"),
                         Value = listedForCities
@@ -111,8 +117,8 @@ namespace claims.src.gui.playerGui.Pages
                             : Lang.Get("claims:gui-not-for-sale"),
                         ValueColor = listedForCities ? ClaimsColors.Success : ClaimsColors.Label,
                         Key = "plotcityprice"
-                    }
-                };
+                    });
+                }
                 if (listedForCities)
                 {
                     marketRows.Add(new CardRow
@@ -125,6 +131,37 @@ namespace claims.src.gui.playerGui.Pages
                         Key = "plotcityaudience"
                     });
                 }
+                if (onAuction)
+                {
+                    long left = plot.AuctionEndsAt - TimeFunctions.getEpochSeconds();
+                    marketRows.Add(new CardRow
+                    {
+                        Label = Lang.Get("claims:gui-plot-label-auction-bid"),
+                        Value = plot.AuctionCurrentBid >= 0
+                            ? Number(plot.AuctionCurrentBid)
+                            : Lang.Get("claims:plot_auction_no_bids"),
+                        ValueColor = plot.AuctionCurrentBid >= 0 ? ClaimsColors.Success : ClaimsColors.Label,
+                        Key = "plotauctionbid"
+                    });
+                    marketRows.Add(new CardRow
+                    {
+                        Label = Lang.Get("claims:gui-auction-duration"),
+                        Value = left > 0
+                            ? Lang.Get("claims:gui-auction-time-left", left / 3600, (left % 3600) / 60)
+                            : Lang.Get("claims:gui-auction-closing"),
+                        Key = "plotauctionleft"
+                    });
+                    // Without this the buyer has to guess whether the lot can be taken outright.
+                    if (plot.AuctionBuyout >= 0)
+                    {
+                        marketRows.Add(new CardRow
+                        {
+                            Label = Lang.Get("claims:gui-auction-buyout-label"),
+                            Value = Number(plot.AuctionBuyout),
+                            Key = "plotauctionbuyout"
+                        });
+                    }
+                }
 
                 y = Card.RowsWithActions(compo, anchor, y, Lang.Get("claims:gui-plot-section-city-market"), marketRows, slot =>
                 {
@@ -132,9 +169,29 @@ namespace claims.src.gui.playerGui.Pages
 
                     if (ourPlot && perms.HasPermission(EnumPlayerPermissions.CITY_SELL_PLOT_TO_CITY))
                     {
-                        marketActions.Add("claims:price-tag", "setPlotCityPrice",
-                            on => Toggle(on, EnumUpperWindowSelectedState.PLOT_SET_CITY_PRICE_NEED_NUMBER),
-                            Lang.Get("claims:gui-plot-set-city-price-tooltip"), toggleable: true);
+                        // A plot is sold one way at a time, so the auction controls replace the
+                        // fixed-price ones while a lot is running, and vice versa.
+                        // Withdrawal is offered only while nobody has bid: after the first bid the
+                        // server refuses it, and a button that always answers "no" is worse than none.
+                        if (auctionOn && onAuction && plot.AuctionCurrentBid < 0)
+                        {
+                            marketActions.Add("claims:cancel", "cancelPlotAuction",
+                                on => { if (on) OpenDialog(EnumUpperWindowSelectedState.PLOT_AUCTION_CANCEL_CONFIRM); },
+                                Lang.Get("claims:gui-auction-cancel-tooltip"));
+                        }
+                        else if (auctionOn && !listedForCities)
+                        {
+                            marketActions.Add("claims:open-book", "startPlotAuction",
+                                on => Toggle(on, EnumUpperWindowSelectedState.PLOT_AUCTION_START),
+                                Lang.Get("claims:gui-auction-start-tooltip"), toggleable: true);
+                        }
+
+                        if (!onAuction)
+                        {
+                            marketActions.Add("claims:price-tag", "setPlotCityPrice",
+                                on => Toggle(on, EnumUpperWindowSelectedState.PLOT_SET_CITY_PRICE_NEED_NUMBER),
+                                Lang.Get("claims:gui-plot-set-city-price-tooltip"), toggleable: true);
+                        }
 
                         if (listedForCities)
                         {
@@ -162,6 +219,23 @@ namespace claims.src.gui.playerGui.Pages
                         marketActions.Add("claims:receive-money", "buyPlotAsCity",
                             on => { if (on) OpenDialog(EnumUpperWindowSelectedState.PLOT_CITY_BUY_CONFIRM); },
                             Lang.Get("claims:gui-plot-city-buy-tooltip"));
+                    }
+
+                    // Bidding on the plot underfoot needs no coordinates, so the dialog is opened
+                    // without them and the command reads the lot from where the player stands.
+                    if (plot.CanBidAsCity && perms.HasPermission(EnumPlayerPermissions.CITY_BUY_PLOT_FROM_CITY))
+                    {
+                        marketActions.Add("claims:price-tag", "bidOnPlotAuction", on =>
+                        {
+                            if (!on) return;
+                            // Pos is cleared explicitly: it may still hold the plot of a lot bid on
+                            // from the market tab, which would send the bid to the wrong lot.
+                            OpenDialog(EnumUpperWindowSelectedState.PLOT_AUCTION_BID, dialogArgs =>
+                            {
+                                dialogArgs.Pos = null;
+                                dialogArgs.Second = plot.AuctionMinNextBid.ToString();
+                            });
+                        }, Lang.Get("claims:gui-auction-bid-tooltip", plot.AuctionMinNextBid));
                     }
                 });
             }

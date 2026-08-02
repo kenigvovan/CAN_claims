@@ -1060,6 +1060,45 @@ namespace claims.src.commands.register
                     .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_BUY_PLOT_FROM_CITY))
                     .HandleWith(commands.PlotMarketCommand.BuyPlotAsCity)
                     .WithDesc("Buy a plot another city offers")
+                    .WithArgs(parsers.OptionalInt("plotX"), parsers.OptionalInt("plotZ"),
+                              parsers.OptionalInt("expectedPrice"))
+                .EndSub()
+                /////////
+                .BeginSub("auction")
+                    .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_SELL_PLOT_TO_CITY))
+                    .HandleWith(commands.PlotAuctionCommand.StartAuction)
+                    .WithDesc("Put this plot up for bids from other cities")
+                    .WithArgs(parsers.Int("startPrice"),
+                              parsers.Int("hours"),
+                              parsers.OptionalInt("increment"),
+                              parsers.OptionalInt("buyout"),
+                              parsers.OptionalWord("audience"),
+                              parsers.OptionalWord("cityName"))
+                .EndSub()
+                /////////
+                .BeginSub("auctioncancel")
+                    .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_SELL_PLOT_TO_CITY))
+                    .HandleWith(commands.PlotAuctionCommand.CancelAuction)
+                    .WithDesc("Withdraw this plot from the auction")
+                .EndSub()
+                /////////
+                .BeginSub("bid")
+                    .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_BUY_PLOT_FROM_CITY))
+                    .HandleWith(commands.PlotAuctionCommand.PlaceBid)
+                    .WithDesc("Bid on a plot another city put up for auction")
+                    .WithArgs(parsers.Int("amount"), parsers.OptionalInt("plotX"), parsers.OptionalInt("plotZ"))
+                .EndSub()
+                /////////
+                .BeginSub("bidcity")
+                    .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_BUY_PLOT_FROM_CITY))
+                    .HandleWith(commands.PlotAuctionCommand.BidOnCity)
+                    .WithDesc("Bid on a bankrupt city put up whole")
+                    .WithArgs(parsers.Word("cityName"), parsers.Int("amount"))
+                .EndSub()
+                /////////
+                .BeginSub("auctioninfo")
+                    .HandleWith(commands.PlotAuctionCommand.AuctionInfo)
+                    .WithDesc("Show the state of a lot")
                     .WithArgs(parsers.OptionalInt("plotX"), parsers.OptionalInt("plotZ"))
                 .EndSub()
                    ;

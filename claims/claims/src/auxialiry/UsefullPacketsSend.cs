@@ -12,6 +12,7 @@ using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
 using claims.src.part.structure.plots;
+using claims.src.part.structure.plots.auction;
 using claims.src.part.structure.war;
 using Newtonsoft.Json;
 using Vintagestory.API.Server;
@@ -119,7 +120,7 @@ namespace claims.src.auxialiry
                                            EnumPlayerRelatedInfo.CITY_PRISON_CELL_ALL, EnumPlayerRelatedInfo.CITY_SUMMON_POINT_ALL, EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_ALL,
                                            EnumPlayerRelatedInfo.CITY_LOG, EnumPlayerRelatedInfo.CITY_PLOTS_MAP,
                                            EnumPlayerRelatedInfo.CITY_EMBLEM, EnumPlayerRelatedInfo.ALLIANCE_EMBLEM,
-                                           EnumPlayerRelatedInfo.CITY_PLOT_MARKET, EnumPlayerRelatedInfo.CITY_PLOT_MARKET_HISTORY]);
+                                           EnumPlayerRelatedInfo.CITY_PLOT_AUCTIONS, EnumPlayerRelatedInfo.CITY_PLOT_MARKET_HISTORY]);
             }
             infoToUpdatePlayer.AddRange([EnumPlayerRelatedInfo.SHOW_PLOT_MOVEMENT, EnumPlayerRelatedInfo.FRIENDS, EnumPlayerRelatedInfo.TO_CITY_INVITES,
                                          EnumPlayerRelatedInfo.PLAYER_PREFIX, EnumPlayerRelatedInfo.PLAYER_AFTER_NAME, EnumPlayerRelatedInfo.PLAYER_CITY_TITLES,
@@ -182,7 +183,7 @@ namespace claims.src.auxialiry
                     // city happens to change a listing. Queued rather than inlined so the snapshot is
                     // built in the one place that knows how.
                     AddToQueueCityInfoUpdate(city.Guid,
-                        EnumPlayerRelatedInfo.CITY_PLOT_MARKET, EnumPlayerRelatedInfo.CITY_PLOT_MARKET_HISTORY);
+                        EnumPlayerRelatedInfo.CITY_PLOT_AUCTIONS, EnumPlayerRelatedInfo.CITY_PLOT_MARKET_HISTORY);
                 }
                 claims.serverChannel.SendPacket(
                     new SavedPlotsPacket()
@@ -519,19 +520,35 @@ namespace claims.src.auxialiry
             // sale: an offer addressed to one city is not something a passing enemy gets to price.
             City viewerCity = viewer != null && viewer.hasCity() ? viewer.City : null;
             bool ours = viewerCity != null && plot.hasCity() && plot.getCity().Equals(viewerCity);
-            if (plot.IsForSaleForCity && (ours || PlotMarketHelper.IsVisibleTo(plot, viewerCity)))
+
+            if (AuctionRegistry.TryGetRunningFor(plot, out PlotAuction lot)
+                && (ours || AuctionRules.IsVisibleTo(lot, viewerCity)))
             {
-                info.PriceForCityBuy = plot.PriceForCityBuy;
-                info.SaleAudience = plot.SaleAudience;
-                if (plot.SaleAudience == EnumPlotSaleAudience.SPECIFIC_CITY
-                    && claims.dataStorage.getCityByGUID(plot.SaleTargetCityGuid, out City target))
+                info.SaleAudience = lot.Audience;
+                if (lot.Audience == EnumPlotSaleAudience.SPECIFIC_CITY
+                    && claims.dataStorage.getCityByGUID(lot.TargetCityGuid, out City target))
                 {
                     info.SaleTargetCityName = target.GetPartName();
                 }
-            }
+                // A price tag fills the price; a lot with bids fills the auction fields instead, so
+                // the page can tell one offer from the other without knowing how lots work.
+                if (lot.IsFixedPrice)
+                {
+                    info.PriceForCityBuy = (int)lot.BuyoutPrice;
+                }
+                else
+                {
+                    info.AuctionEndsAt = lot.EndsAt;
+                    info.AuctionCurrentBid = lot.CurrentBid;
+                    info.AuctionMinNextBid = lot.MinNextBid;
+                    info.AuctionBuyout = lot.BuyoutPrice;
+                }
 
-            // The server's own verdict, so the page does not re-judge war, limits or money.
-            info.CanBuyAsCity = viewerCity != null && PlotMarketHelper.CanBuy(plot, viewerCity, out _);
+                // The server's own verdict, so the page does not re-judge war, limits or money.
+                bool canTake = viewerCity != null && AuctionRules.CanBid(lot, viewerCity, lot.MinNextBid, out _);
+                info.CanBuyAsCity = canTake && lot.IsFixedPrice;
+                info.CanBidAsCity = canTake && !lot.IsFixedPrice;
+            }
             return info;
         }
 
@@ -790,10 +807,15 @@ namespace claims.src.auxialiry
                         case EnumPlayerRelatedInfo.CITY_PLOTS_MAP:
                             result[pair.Key] = JsonConvert.SerializeObject(city.getCityPlots().Select(p => new CityPlotMiniInfo(p.plotPosition.X, p.plotPosition.Z, p.Type)).ToList());
                             break;
-                        case EnumPlayerRelatedInfo.CITY_PLOT_MARKET:
+                        case EnumPlayerRelatedInfo.CITY_PLOT_AUCTIONS:
                             result[pair.Key] = JsonConvert.SerializeObject(
-                                PlotMarketHelper.GetListingsFor(city)
-                                    .Select(p => new PlotMarketCellElement(p, PlotMarketHelper.CanBuy(p, city, out _)))
+                                AuctionRules.GetLotsFor(city)
+                                    .Select(a =>
+                                    {
+                                        a.TryGetPlot(out Plot lotPlot);
+                                        return new PlotAuctionCellElement(a, lotPlot, city,
+                                            AuctionRules.CanBid(a, city, a.MinNextBid, out _));
+                                    })
                                     .ToList());
                             break;
                         case EnumPlayerRelatedInfo.CITY_PLOT_MARKET_HISTORY:

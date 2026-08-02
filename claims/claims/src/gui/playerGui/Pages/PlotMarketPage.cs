@@ -35,10 +35,12 @@ namespace claims.src.gui.playerGui.Pages
             column.Alignment = EnumDialogArea.LeftTop;
             column.fixedWidth = ctx.Line.fixedWidth;
 
-            var listings = Player.CityInfo.PlotMarket ?? new List<PlotMarketCellElement>();
+            // Price tags only - the same list holds timed lots, which have their own tab.
+            var listings = (Player.CityInfo.PlotAuctions ?? new List<PlotAuctionCellElement>())
+                .Where(l => l.EndsAt <= 0);
 
             // Cheapest first: the market is browsed to find what our treasury can afford.
-            var sorted = listings.OrderBy(l => l.Price).ThenBy(l => l.SellerCityName).ToList();
+            var sorted = listings.OrderBy(l => l.MinNextBid).ThenBy(l => l.SellerCityName).ToList();
 
             var listOpts = new ScrollableListOptions { Key = "plot-market", TitleHeightShrink = 0 };
             listOpts.HeightReserve = ScrollableList.ReserveFor(Gui,
@@ -64,7 +66,7 @@ namespace claims.src.gui.playerGui.Pages
             var list = ScrollableList.Add(Gui, column,
                 Lang.Get("claims:gui-plot-market-title") + " (" + sorted.Count + ")",
                 sorted,
-                (PlotMarketCellElement cell, ElementBounds bounds) => new GuiElementPlotMarketCell(compo.Api, cell, bounds) { On = true },
+                (PlotAuctionCellElement cell, ElementBounds bounds) => new GuiElementPlotAuctionCell(compo.Api, cell, bounds) { On = true },
                 listOpts);
 
             BuildNav(ctx, column);
@@ -74,9 +76,18 @@ namespace claims.src.gui.playerGui.Pages
 
         private void BuildNav(PageBuildContext ctx, ElementBounds column)
         {
-            NavRow.Build(Gui, column, ctx.Line, 15,
+            var buttons = new List<NavButton>
+            {
                 new NavButton("claims:fast-backward-button", () => GoTo(EnumSelectedTab.City), Lang.Get("claims:gui-nav-back")),
-                new NavButton("claims:files", () => GoTo(EnumSelectedTab.PlotMarketHistory), Lang.Get("claims:gui-plot-market-history-title")));
+                new NavButton("claims:files", () => GoTo(EnumSelectedTab.PlotMarketHistory), Lang.Get("claims:gui-plot-market-history-title"))
+            };
+            // The bidding tab only exists when the host runs auctions at all.
+            if (claims.config?.CITY_PLOT_AUCTION_ENABLED == true)
+            {
+                buttons.Add(new NavButton("claims:receive-money", () => GoTo(EnumSelectedTab.PlotAuction),
+                    Lang.Get("claims:gui-plot-auction-title")));
+            }
+            NavRow.Build(Gui, column, ctx.Line, 15, buttons.ToArray());
         }
     }
 

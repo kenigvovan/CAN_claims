@@ -97,6 +97,11 @@
         CITY_RAID_WINDOW,
 
         // Inter-city plot market: the listings our city may act on, and the deals it took part in.
-        CITY_PLOT_MARKET, CITY_PLOT_MARKET_HISTORY
+        // Kept for its numeric slot: the market listing is now one shape of CITY_PLOT_AUCTIONS.
+        CITY_PLOT_MARKET_UNUSED, CITY_PLOT_MARKET_HISTORY,
+
+        // Land offered to other cities: price tags and running auctions alike, as the viewing city
+        // is allowed to see them.
+        CITY_PLOT_AUCTIONS
     }
 }

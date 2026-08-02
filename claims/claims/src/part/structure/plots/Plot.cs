@@ -25,13 +25,9 @@ namespace claims.src.part.structure
         public Prison Prison { get; set; }
         public int Price { get; set; } = -1;
         public bool IsForSale => Price != -1;
-        /// <summary>Price the owning city asks another city for this plot; -1 means not on the market.
-        /// Independent of Price, which is what a citizen of this city pays for it.</summary>
-        public int PriceForCityBuy { get; set; } = -1;
-        public bool IsForSaleForCity => PriceForCityBuy != -1;
-        public EnumPlotSaleAudience SaleAudience { get; set; } = EnumPlotSaleAudience.ALLIES;
-        /// <summary>Buyer this listing is addressed to; only read when SaleAudience is SPECIFIC_CITY.</summary>
-        public string SaleTargetCityGuid { get; set; } = "";
+        // An offer to other cities - a price tag or a running auction - is not stored on the plot:
+        // both are the same kind of record and live in AUCTIONS, keyed by the plot's coordinates.
+        // Ask AuctionRegistry.TryGetRunningFor when you need it.
         CityPlotsGroup plotGroup;
         PermsHandler permsHandler = new PermsHandler();
         public bool MarkedNoPvp { get; set; } = false;

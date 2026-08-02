@@ -21,5 +21,7 @@ namespace claims.src.citylog
         VillageUpgraded,
         PlotSoldToCity,
         PlotBoughtFromCity,
+        CityBankrupt,
+        CityAbsorbed,
     }
 }

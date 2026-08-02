@@ -233,6 +233,36 @@ namespace claims.src
         //deleted from the database.
         public int CITY_PLOT_TRADE_HISTORY_SHOWN = 50;
 
+        //LAND AUCTION - the same land market run as timed bidding instead of a fixed price. Needs
+        //CITY_PLOT_TRADE_ENABLED as well, and a real economy: with the no-op provider every city has
+        //an infinite balance, so escrow means nothing and any bid would win.
+        public bool CITY_PLOT_AUCTION_ENABLED = false;
+        //Bounds on how long a seller may run a lot.
+        public int AUCTION_MIN_HOURS = 1;
+        public int AUCTION_MAX_HOURS = 168;
+        //Duration the GUI opens a lot with - the dialog asks for a starting price, not for a schedule.
+        public int AUCTION_DEFAULT_HOURS = 24;
+        //Smallest step between two bids, used when the seller does not name one.
+        public int AUCTION_MIN_INCREMENT = 1;
+        //A bid placed within this many seconds of the end pushes the end back by the same amount.
+        //Without it the whole auction collapses into a single bid in the last second.
+        public int AUCTION_EXTEND_WINDOW_SECONDS = 300;
+        //Prefix of the per-lot escrow account, kept apart from the city prefix so a lot account can
+        //never collide with a city treasury.
+        public string AUCTION_ACCOUNT_STRING_PREFIX = "#auction_";
+
+        //BANKRUPTCY - what happens to a city whose debt passed CITY_MAX_DEBT.
+        //"off" keeps the old behaviour (the city is demolished outright); "plots" sells its land off
+        //lot by lot so neighbours can take it and the proceeds pay the debt; "whole_city" puts the
+        //whole settlement up as a single lot and the winner absorbs it.
+        //Auctions must be on for anything but "off" to have an effect.
+        public string CITY_BANKRUPTCY_MODE = "off";
+        //How long the fire sale runs before an unpaid city is demolished after all.
+        public int CITY_BANKRUPTCY_GRACE_DAYS = 3;
+        //Starting price of a forced lot, as a multiple of PLOT_CLAIM_PRICE. Below 1 it is a bargain
+        //that attracts bidders; the bidding decides the rest.
+        public double CITY_BANKRUPTCY_START_PRICE_FACTOR = 1.0;
+
         //VILLAGE - a cut-down settlement kept alive by supplies instead of money. No treasury,
         //alliances, wars, prisons, summons, outposts, plot groups or custom ranks.
         //Off by default: villages change how a server plays, so a host opts in deliberately.

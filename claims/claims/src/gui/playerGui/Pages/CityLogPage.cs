@@ -132,6 +132,7 @@ namespace claims.src.gui.playerGui.Pages
                 case EnumCityLogEvent.AllianceLeft:
                 case EnumCityLogEvent.UnionBreakAnnounced:
                 case EnumCityLogEvent.PlotSoldToCity:
+                case EnumCityLogEvent.CityBankrupt:
                     return ClaimsColors.Warning;
 
                 default:
@@ -166,6 +167,8 @@ namespace claims.src.gui.playerGui.Pages
                 case EnumCityLogEvent.VillageUpgraded: return Lang.Get("claims:log-village-upgraded", args0);
                 case EnumCityLogEvent.PlotSoldToCity: return Lang.Get("claims:log-plot-sold-to-city", args0, args1, args2);
                 case EnumCityLogEvent.PlotBoughtFromCity: return Lang.Get("claims:log-plot-bought-from-city", args0, args1, args2);
+                case EnumCityLogEvent.CityBankrupt: return Lang.Get("claims:log-city-bankrupt", args0);
+                case EnumCityLogEvent.CityAbsorbed: return Lang.Get("claims:log-city-absorbed", args0, args1);
                 default: return entry.EventType.ToString();
             }
         }

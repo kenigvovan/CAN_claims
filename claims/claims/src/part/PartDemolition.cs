@@ -10,6 +10,7 @@ using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
 using claims.src.part.structure.plots;
+using claims.src.part.structure.plots.auction;
 using claims.src.part.structure.war;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -36,6 +37,9 @@ namespace claims.src.part
                 // Runs before the citizens are detached below - they are the ones being penalised.
                 if (applyVillagePenalty) VillageCooldownHelper.RegisterFallenVillage(city);
             }
+            // Before anything else: the city's treasury must still exist to receive refunds, so its
+            // auction lots are settled while its account is alive.
+            AuctionHandler.OnCityRemoved(city);
             foreach(var plot in city.getCityPlots())
             {
                 claims.serverPlayerMovementListener.markPlotToWasRemoved(plot.getPos());
@@ -135,9 +139,9 @@ namespace claims.src.part
                 tree.SetString("name", city.GetPartName());
             claims.sapi.World.Api.Event.PushEvent("plotunclaimed", tree);
 
-            // A plot that was on the inter-city market is gone from it too - otherwise every other
-            // city keeps browsing an offer on ground that no longer exists.
-            if (plot.IsForSaleForCity) PlotMarketHelper.NotifyMarketChanged();
+            // An offer standing on this plot - a price tag or a running auction - is void: the ground
+            // it promised is gone, so it is withdrawn and any bids come back.
+            AuctionHandler.OnPlotLeftCity(plot);
         }
         /// <summary>
         /// Takes down the blocks a village put into the world: its anchor and its granary. Whatever

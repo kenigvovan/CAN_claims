@@ -29,6 +29,17 @@ namespace claims.src.gui.playerGui.structures
         /// </summary>
         public bool CanBuyAsCity { get; set; } = false;
 
+        /// <summary>Unix seconds when the auction on this plot closes; 0 when there is none.</summary>
+        public long AuctionEndsAt { get; set; } = 0;
+        /// <summary>Leading bid, -1 while nobody has bid.</summary>
+        public long AuctionCurrentBid { get; set; } = -1;
+        /// <summary>Smallest bid the server would take right now.</summary>
+        public long AuctionMinNextBid { get; set; } = 0;
+        /// <summary>Bid that ends the lot at once; -1 when the lot has no buyout.</summary>
+        public long AuctionBuyout { get; set; } = -1;
+        /// <summary>Whether the viewer's city may bid, decided by the server for the same reason as CanBuyAsCity.</summary>
+        public bool CanBidAsCity { get; set; } = false;
+
         public CurrentPlotInfo(string plotName, string ownerName, PlotType plotType, double customTax,
             double price, PermsHandler permsHandler, bool extraBoungt, Vec2i plotPosition)
         {

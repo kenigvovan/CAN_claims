@@ -459,6 +459,15 @@ namespace claims.src.commands
                 return tcr;
             }
 
+            // Folding the plot into a group would void an auction that already has bids - the same
+            // escape hatch as selling it to a citizen, and closed for the same reason.
+            if (part.structure.plots.auction.AuctionRegistry.TryGetRunningFor(plot, out var bidLot)
+                && bidLot.HasBid)
+            {
+                tcr.StatusMessage = "claims:plot_auction_has_bids";
+                return tcr;
+            }
+
             //DELETE OWNER, RECALCULATE HIS RIGHTS AND HIS COMRADES
             if (plot.hasPlotOwner())
             {
@@ -478,10 +487,10 @@ namespace claims.src.commands
 
             plot.setPlotGroup(searchedGroup);
             // A plot inside a group is not sellable, so a standing offer to other cities goes with it.
-            if (plot.IsForSaleForCity)
+            if (part.structure.plots.auction.AuctionRegistry.TryGetRunningFor(plot,
+                    out part.structure.plots.auction.PlotAuction lot))
             {
-                PlotTransferHelper.ClearListing(plot);
-                PlotMarketHelper.NotifyMarketChanged();
+                part.structure.plots.auction.AuctionHandler.CancelLot(lot, "claims:plot_auction_cancelled_lot_gone");
             }
             plot.saveToDatabase();
             tcr.Status = EnumCommandStatus.Success;

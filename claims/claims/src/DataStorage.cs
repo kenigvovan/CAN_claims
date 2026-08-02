@@ -12,6 +12,7 @@ using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
 using claims.src.part.structure.plots;
+using claims.src.part.structure.plots.auction;
 using claims.src.part.structure.war;
 using claims.src.playerMovements;
 using Vintagestory.API.Common;
@@ -63,6 +64,8 @@ namespace claims.src
         public Dictionary<Vec2i, long> VillageRuins { get; } = new Dictionary<Vec2i, long>();
         // Completed inter-city plot sales, oldest first. Persisted in PLOTSALES.
         public List<PlotSaleRecord> PlotSaleHistory { get; } = new List<PlotSaleRecord>();
+        // Land auction lots by guid, open and closed alike. Persisted in AUCTIONS/AUCTIONBIDS.
+        public Dictionary<string, PlotAuction> Auctions { get; } = new Dictionary<string, PlotAuction>();
 
         //zone pos and timestamp when we get info about it last time
         //will be used by client when it enters new zone and send to server this timestamps

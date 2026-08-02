@@ -142,6 +142,11 @@ namespace claims.src.events
                 CheckForWarToStart();
             }, 10 * 1000);
             claims.sapi.Event.Timer(CheckWarToEnd, claims.config.CHECK_FOR_WAR_TO_START_EVERY_N_SECONDS);
+            // Auction lots need no polling either: each one arms a callback for its own closing
+            // time. A lot that ran out while the server was down closes on the first pass.
+            part.structure.plots.auction.AuctionHandler.Init();
+            part.structure.plots.auction.BankruptcyHelper.Init();
+            part.structure.plots.auction.AuctionHandler.ScheduleAll();
             // Villages need no polling: each one arms a callback for the exact moment its daily
             // raid window opens or closes.
             part.structure.VillageRaidHelper.ScheduleAll();

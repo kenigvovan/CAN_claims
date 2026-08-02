@@ -64,6 +64,24 @@ namespace claims.src.config
             }
         }
 
+        /// <summary>One of a fixed set of words - for switches with more than two positions.</summary>
+        private sealed class WordSpec : Spec
+        {
+            private readonly string[] allowed;
+            private readonly Action<string> set;
+            public WordSpec(string[] allowed, Action<string> set) { this.allowed = allowed; this.set = set; }
+            public override bool TrySet(string raw, out string error)
+            {
+                string word = raw.ToLowerInvariant();
+                foreach (string it in allowed)
+                {
+                    if (it == word) { set(word); error = null; return true; }
+                }
+                error = "expected one of " + string.Join("/", allowed) + ", got '" + raw + "'";
+                return false;
+            }
+        }
+
         private sealed class BoolSpec : Spec
         {
             private readonly Action<bool> set;
@@ -188,6 +206,19 @@ namespace claims.src.config
             { "city_plot_trade_remote_buy", new BoolSpec(v => C.CITY_PLOT_TRADE_REMOTE_BUY = v) },
             { "city_plot_trade_require_adjacency", new BoolSpec(v => C.CITY_PLOT_TRADE_REQUIRE_ADJACENCY = v) },
             { "city_plot_trade_history_shown", new IntSpec(0, 1000, v => C.CITY_PLOT_TRADE_HISTORY_SHOWN = v) },
+
+            // land auction
+            { "city_plot_auction_enabled", new BoolSpec(v => C.CITY_PLOT_AUCTION_ENABLED = v) },
+            { "auction_min_hours", new IntSpec(1, 10000, v => C.AUCTION_MIN_HOURS = v) },
+            { "auction_max_hours", new IntSpec(1, 10000, v => C.AUCTION_MAX_HOURS = v) },
+            { "auction_default_hours", new IntSpec(1, 10000, v => C.AUCTION_DEFAULT_HOURS = v) },
+            { "auction_min_increment", new IntSpec(1, 1000000, v => C.AUCTION_MIN_INCREMENT = v) },
+            { "auction_extend_window_seconds", new IntSpec(0, 86400, v => C.AUCTION_EXTEND_WINDOW_SECONDS = v) },
+
+            // bankruptcy
+            { "city_bankruptcy_mode", new WordSpec(new[] { "off", "plots", "whole_city" }, v => C.CITY_BANKRUPTCY_MODE = v) },
+            { "city_bankruptcy_grace_days", new IntSpec(1, 365, v => C.CITY_BANKRUPTCY_GRACE_DAYS = v) },
+            { "city_bankruptcy_start_price_factor", new DoubleSpec(0, 100, v => C.CITY_BANKRUPTCY_START_PRICE_FACTOR = v) },
         };
 
         /// <summary>Known editable keys (for help/error messages).</summary>

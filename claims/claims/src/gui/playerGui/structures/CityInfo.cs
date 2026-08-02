@@ -55,8 +55,12 @@ namespace claims.src.gui.playerGui.structures
         public List<CityLogEntry> EventLog { get; set; } = new List<CityLogEntry>();
         public List<CityPlotMiniInfo> PlotsMap { get; set; } = new List<CityPlotMiniInfo>();
         /// <summary>Plots other cities offer to ours, and the deals our city already took part in.</summary>
-        public List<PlotMarketCellElement> PlotMarket { get; set; } = new List<PlotMarketCellElement>();
         public List<PlotSaleRecord> PlotMarketHistory { get; set; } = new List<PlotSaleRecord>();
+        /// <summary>
+        /// Land other cities offer ours, plus our own offers. Price tags and timed lots live in the
+        /// same list and are told apart by EndsAt - a price tag has none.
+        /// </summary>
+        public List<PlotAuctionCellElement> PlotAuctions { get; set; } = new List<PlotAuctionCellElement>();
         public CityInfo()
         {
             Name = "";
