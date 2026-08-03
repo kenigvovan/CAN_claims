@@ -85,9 +85,9 @@ namespace claims.src.commands
                 string newConflictGuid = ConflictLetter.GetUnusedGuid().ToString();
                 if (ConflictHandler.addConflictLetter(ConflictLetterFactory.Build(
                         ourCity, targetParty, LetterPurpose.START_CONFLICT, timestamp, newConflictGuid)))
-                    {
+                {
                     // The letter itself is mirrored to both sides by ConflictHandler.addConflictLetter
-                        foreach (var c in targetParty.GetCities())
+                    foreach (var c in targetParty.GetCities())
                         MessageHandler.sendMsgInCity(c, Lang.Get("claims:city_has_sent_conflict_letter", ourCity.getPartNameReplaceUnder()));
                     return TextCommandResult.Success(Lang.Get("claims:conflict_letter_sent"));
                 }
@@ -182,7 +182,6 @@ namespace claims.src.commands
             if (!playerInfo.hasCity() || playerInfo.HasAlliance() || !playerInfo.City.isMayor(playerInfo))
                 return TextCommandResult.Success(Lang.Get("claims:no_city"));
 
-            City ourCity = playerInfo.City;
             var (parsedName, targetType) = ParseWarTargetInput((string)args.Parsers[0].GetValue());
             if (!TryResolveWarTarget(Filter.filterName(parsedName), targetType, out IConflictParty targetParty, out string errorMsg))
                 return TextCommandResult.Success(errorMsg);
@@ -232,7 +231,7 @@ namespace claims.src.commands
                 // Plain "stop the war" offer = peace offer without terms
                 if (ConflictHandler.addConflictLetter(ConflictLetterFactory.Build(
                         ourCity, targetParty, LetterPurpose.END_CONFLICT, timestamp, conflict.Guid, new PeaceTerms())))
-                    {
+                {
                     foreach (var c in targetParty.GetCities())
                         MessageHandler.sendMsgInCity(c, Lang.Get("claims:city_has_sent_conflict_letter", ourCity.getPartNameReplaceUnder()));
                     return TextCommandResult.Success(Lang.Get("claims:conflict_letter_sent"));
@@ -281,12 +280,12 @@ namespace claims.src.commands
                 if (!claims.dataStorage.GetPlot(cpos, out Plot cplot) || !cplot.hasCity() || !targetParty.GetCities().Contains(cplot.getCity()))
                     return TextCommandResult.Success(Lang.Get("claims:cession_stand_on_enemy_plot"));
                 terms.CededPlot = cpos;
-        }
+            }
 
             long timestamp = TimeFunctions.getEpochSeconds() + claims.config.DELAY_FOR_CONFLICT_ACTIVATED;
             if (ConflictHandler.addConflictLetter(ConflictLetterFactory.Build(
                     ourCity, targetParty, LetterPurpose.END_CONFLICT, timestamp, conflict.Guid, terms)))
-        {
+            {
                 foreach (var c in targetParty.GetCities())
                     MessageHandler.sendMsgInCity(c, Lang.Get("claims:city_has_sent_conflict_letter", ourCity.getPartNameReplaceUnder()));
                 return TextCommandResult.Success(Lang.Get("claims:conflict_letter_sent"));
@@ -495,7 +494,7 @@ namespace claims.src.commands
         public static TextCommandResult UltimatumOffer(TextCommandCallingArgs args)
         {
             if (!claims.config.WAR_ULTIMATUM_ENABLED) return TextCommandResult.Success(Lang.Get("claims:ultimatum_disabled"));
-            if (!TryResolveMyParty(args, true, out var player, out _, out var ourParty, out var err)) return err;
+            if (!TryResolveMyParty(args, true, out var player, out var playerInfo, out var ourParty, out var err)) return err;
 
             City ourCity = playerInfo.City;
             var (parsedName, targetType) = ParseWarTargetInput((string)args.Parsers[0].GetValue());
