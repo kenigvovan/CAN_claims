@@ -63,6 +63,10 @@ namespace claims.src.rights
         // Inter-city plot market: listing one of our own plots, and buying a plot off another city.
         CITY_SELL_PLOT_TO_CITY, CITY_BUY_PLOT_FROM_CITY,
 
+        // What members of a plots group pay for it daily. Its own permission rather than
+        // CITY_PLOTSGROUP_SET: the flags that one covers cost nobody anything.
+        CITY_PLOTSGROUP_SET_FEE,
+
         ALLIANCE_ACCEPT_CONFLICT = 2048, ALLIANCE_REVOKE_CONFLICT, ALLIANCE_DECLARE_CONFLICT, ALLIANCE_DENY_CONFLICT,
         ALLIANCE_OFFER_STOP_CONFLICT, ALLIANCE_ACCEPT_STOP_CONFLICT, ALLIANCE_DENY_STOP_CONFLICT, ALLIANCE_WITHDRAW_MONEY,
         ALLIANCE_DECLARE_UNION, ALLIANCE_REVOKE_UNION, ALLIANCE_ACCEPT_UNION, ALLIANCE_DENY_UNION,

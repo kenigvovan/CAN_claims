@@ -211,10 +211,17 @@ namespace claims.src.part.structure.plots.auction
         /*==========================================================================================*/
 
         /// <summary>
-        /// Guids of lots with a callback pending. A lot whose end was pushed back by a late bid must
-        /// not end up with two.
+        /// Which callback each lot is currently waiting on. A lot whose end was pushed back by a late
+        /// bid must not end up with two.
+        ///
+        /// The number is there because a callback cannot be called off once armed: a lot that closes
+        /// and reopens - a failed payout does exactly that - leaves its old callback in flight, and
+        /// without a way to tell the two apart the stale one would arm a third. Each arming gets its
+        /// own number and a callback that no longer holds the current one simply goes away.
         /// </summary>
-        private static readonly HashSet<string> scheduled = new HashSet<string>();
+        private static readonly Dictionary<string, long> scheduled = new Dictionary<string, long>();
+
+        private static long scheduleCounter;
 
         /// <summary>
         /// Rebuilds the index and arms every open lot. Called once after the world has loaded: a lot
@@ -224,8 +231,10 @@ namespace claims.src.part.structure.plots.auction
         {
             AuctionRegistry.Rebuild();
             // Static state outlives the world: another world's guids would make Schedule refuse to
-            // arm callbacks for lots it thinks are already waiting.
+            // arm callbacks for lots it thinks are already waiting, and would carry failed-payout
+            // counts over to lots that never failed here.
             scheduled.Clear();
+            payoutAttempts.Clear();
 
             // A lot whose plot or seller is gone would sit in the index forever, blocking every future
             // offer on that ground - and an open-ended one has no callback to notice. The hooks
@@ -266,19 +275,27 @@ namespace claims.src.part.structure.plots.auction
             if (auction == null || !auction.IsRunning) return;
             // A price tag has no closing time: it ends when somebody buys it or the seller withdraws.
             if (auction.IsOpenEnded) return;
-            if (!scheduled.Add(auction.Guid)) return;
+            if (scheduled.ContainsKey(auction.Guid)) return;
+
+            long ticket = ++scheduleCounter;
+            scheduled[auction.Guid] = ticket;
 
             // Capped at an hour: a week-long lot in milliseconds overflows an int. Waking early costs
             // nothing - the lot is simply not over yet and the next callback is armed again.
             long left = auction.SecondsLeft(TimeFunctions.getEpochSeconds());
             int delaySeconds = (int)Math.Min(left, 3600L);
             string guid = auction.Guid;
-            claims.sapi.Event.RegisterCallback(_ => OnLotDue(guid), delaySeconds * 1000);
+            claims.sapi.Event.RegisterCallback(_ => OnLotDue(guid, ticket), delaySeconds * 1000);
         }
 
-        private static void OnLotDue(string auctionGuid)
+        private static void OnLotDue(string auctionGuid, long ticket)
         {
+            // A callback the lot has stopped waiting on - it was closed, or closed and armed anew.
+            // Leaving the current ticket alone matters: removing it would let the live callback pass
+            // for a stale one and the lot would never be woken again.
+            if (!scheduled.TryGetValue(auctionGuid, out long current) || current != ticket) return;
             scheduled.Remove(auctionGuid);
+
             // The lot may have been bought out or cancelled while the callback was pending.
             if (!AuctionRegistry.TryGet(auctionGuid, out PlotAuction auction) || !auction.IsRunning) return;
 
@@ -439,14 +456,12 @@ namespace claims.src.part.structure.plots.auction
                 payoutAttempts.Remove(auction.Guid);
                 MessageHandler.sendErrorMsg("AuctionHandler: lot " + auction.Guid + " could not be paid out "
                     + MaxPayoutAttempts + " times, cancelling it");
-                auction.State = EnumAuctionState.RUNNING;
-                AuctionRegistry.Index(auction);
+                SetRunning(auction);
                 CancelLot(auction, "claims:plot_auction_cancelled_lot_gone");
                 return;
             }
 
-            auction.State = EnumAuctionState.RUNNING;
-            AuctionRegistry.Index(auction);
+            SetRunning(auction);
             if (!auction.IsOpenEnded)
             {
                 auction.EndsAt = TimeFunctions.getEpochSeconds() + 60;
@@ -566,6 +581,16 @@ namespace claims.src.part.structure.plots.auction
             // so clearing the count here would make the retry limit unreachable. It is cleared where
             // the money actually moves - and where the lot is called off.
             auction.saveToDatabase();
+        }
+
+        /// <summary>
+        /// Puts a closed lot back on the market - the mirror of <see cref="SetClosed"/>, so state and
+        /// index move together here too. The caller writes the row: it is still changing the lot.
+        /// </summary>
+        private static void SetRunning(PlotAuction auction)
+        {
+            auction.State = EnumAuctionState.RUNNING;
+            AuctionRegistry.Index(auction);
         }
 
         /// <summary>

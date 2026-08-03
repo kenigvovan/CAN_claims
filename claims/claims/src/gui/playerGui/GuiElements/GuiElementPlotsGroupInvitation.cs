@@ -54,7 +54,14 @@ namespace claims.src.gui.playerGui.GuiElements
             textUtil.AutobreakAndDrawMultilineTextAt(ctx, Font, cellName,
                 Bounds.absPaddingX, Bounds.absPaddingY + GuiElement.scaled(10), extents.Width + 1.0, EnumTextOrientation.Left);
 
+            // What accepting costs, next to how long the offer stands. Joining starts the daily
+            // charge, and the group's card only becomes visible once the player is already in it.
             string expDate = TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(cell.TimeoutStamp, true).ToString();
+            if (cell.Fee > 0)
+            {
+                expDate += "   " + Lang.Get("claims:gui-plotsgroup-invite-fee",
+                    cell.Fee.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture));
+            }
             extents = Font.GetTextExtents(expDate);
             textUtil.AutobreakAndDrawMultilineTextAt(ctx, CairoFont.WhiteDetailText(), expDate,
                 Bounds.absPaddingX, Bounds.absPaddingY + GuiElement.scaled(36), extents.Width + 1.0, EnumTextOrientation.Left);

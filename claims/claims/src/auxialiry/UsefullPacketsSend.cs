@@ -865,9 +865,8 @@ namespace claims.src.auxialiry
                                 foreach (var it in city.getCityPlotsGroups())
                                 {
                                     plotsgroupCellElements.Add(
-                                        new PlotsGroupCellElement(it.Guid, it.GetPartName(), it.City.GetPartName(),
-                                                                  it.PlayersList.Select(pl => pl.GetPartName()).ToList(),
-                                                                  it.PermsHandler, it.PlotsGroupFee));
+                                        cityplotsgroups.PlotsGroupFeeHelper.ToCell(it,
+                                            it.PlayersList.Select(pl => pl.GetPartName()).ToList()));
                                 }
                                 result[pair.Key] = JsonConvert.SerializeObject(plotsgroupCellElements);
                             }

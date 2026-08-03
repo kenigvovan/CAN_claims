@@ -219,6 +219,11 @@ namespace claims.src.config
             { "city_bankruptcy_mode", new WordSpec(new[] { "off", "plots", "whole_city" }, v => C.CITY_BANKRUPTCY_MODE = v) },
             { "city_bankruptcy_grace_days", new IntSpec(1, 365, v => C.CITY_BANKRUPTCY_GRACE_DAYS = v) },
             { "city_bankruptcy_start_price_factor", new DoubleSpec(0, 100, v => C.CITY_BANKRUPTCY_START_PRICE_FACTOR = v) },
+
+            // plots group fees
+            { "max_plotsgroup_fee", new DoubleSpec(0, 100000, v => C.MAX_PLOTSGROUP_FEE = v) },
+            // 0 lets a raise apply at once, which takes the members' say out of it
+            { "plotsgroup_fee_raise_delay_hours", new IntSpec(0, 8760, v => C.PLOTSGROUP_FEE_RAISE_DELAY_HOURS = v) },
         };
 
         /// <summary>Known editable keys (for help/error messages).</summary>

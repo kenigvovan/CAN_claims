@@ -240,6 +240,16 @@ namespace claims.src.gui.playerGui.Dialogs
                     textArgs: args => new object[] { SelectedGroupName() }));
             Add(CITY_PLOTSGROUP_PERMISSIONS, new PermissionsDialog("claims:gui-plotsgroup-permissions-title",
                     PermissionsScopes.PlotsGroup(SelectedGroupName, () => SelectedGroup()?.PermsHandler)));
+            // The prompt names the current fee: a mayor typing a new one is deciding against it, and
+            // a raise costs them a day of waiting, so they should not have to guess what it is now.
+            Add(CITY_PLOTSGROUP_SET_FEE, new NeedNameDialog("claims:gui-enter-plotsgroup-fee", null,
+                    "claims:gui-set-button",
+                    commandBuilder: args => string.Format("/c plotsgroup set fee {0} {1}", SelectedGroupName(), args.Text),
+                    inputKind: EnumDialogInput.Integer,
+                    textArgs: args => new object[] { SelectedGroup()?.PlotsGroupFee ?? 0 }));
+            Add(CITY_PLOTSGROUP_ACCEPT_FEE, new YesNoDialog("claims:gui-plotsgroup-accept-fee-confirm",
+                    args => string.Format("/c plotsgroup acceptfee {0}", SelectedGroupName()),
+                    textArgs: args => new object[] { SelectedGroupName(), SelectedGroup()?.PendingFee ?? 0 }));
 
             // ---- alliance ----
             Add(NEW_ALLIANCE_NEED_NAME, new NeedNameDialog("claims:gui-enter-alliance-name", "/a create ", "claims:gui-create-button"));

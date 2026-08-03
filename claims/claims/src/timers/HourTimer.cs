@@ -17,6 +17,9 @@ namespace claims.src.timers
             InvitationHandler.findAndDeleteOverdueInvitations();
             CityPlotsGroupInvitationsHandler.updateCityPlotsGroupInvitations();
 
+            //announced plots group fee raises whose waiting period is over
+            PlotsGroupFeeHelper.SettleDueRaises();
+
             //villages live off their granary, not off money, so their upkeep is hourly
             part.structure.VillageSupplyHelper.ProcessVillages();
             part.structure.VillageCooldownHelper.PurgeExpired();

@@ -160,7 +160,12 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     else
                         cancelTooltip = Lang.Get("claims:gui-conflict-denystop-button");
 
-                    if (IconButton("cancel", "peace-dove", 32, cancelTooltip))
+                    // Not the dove on a peace-ish letter: its accept button already wears one.
+                    bool peaceful = letter.Purpose == LetterPurpose.NON_AGGRESSION
+                                 || letter.Purpose == LetterPurpose.ULTIMATUM
+                                 || letter.Purpose == LetterPurpose.CESSION_CONFIRM
+                                 || letter.Purpose == LetterPurpose.END_CONFLICT;
+                    if (IconButton("cancel", peaceful ? "cancel" : "peace-dove", 32, cancelTooltip))
                     {
                         string cmd = CmdPrefix;
                         string macro;

@@ -268,6 +268,25 @@ namespace claims.src.database
                     // Refounding cooldown after a village is gone (PLAYERS).
                     TryAlterTable("SELECT villagecooldown FROM PLAYERS LIMIT 1",
                         "ALTER TABLE PLAYERS ADD COLUMN villagecooldown INTEGER DEFAULT 0");
+                    // An announced plots group fee raise, waiting for the members to accept it.
+                    TryAlterTable("SELECT pendingfee FROM CITYPLOTSGROUP LIMIT 1",
+                        "ALTER TABLE CITYPLOTSGROUP ADD COLUMN pendingfee INTEGER DEFAULT -1");
+                    TryAlterTable("SELECT pendingfeeat FROM CITYPLOTSGROUP LIMIT 1",
+                        "ALTER TABLE CITYPLOTSGROUP ADD COLUMN pendingfeeat INTEGER DEFAULT 0");
+                    TryAlterTable("SELECT pendingfeeaccepted FROM CITYPLOTSGROUP LIMIT 1",
+                        "ALTER TABLE CITYPLOTSGROUP ADD COLUMN pendingfeeaccepted TEXT DEFAULT \"\"");
+        }
+
+        /// <summary>
+        /// Reads a fee column. Missing column - a database from before the migration - or anything
+        /// unparsable falls back to <paramref name="fallback"/> rather than throwing: a bad cell here
+        /// would cost the server the entire plots group.
+        /// </summary>
+        private static double ReadFee(DataRow row, string column, double fallback)
+        {
+            if (!row.Table.Columns.Contains(column)) return fallback;
+            return double.TryParse(row[column].ToString(), NumberStyles.Float,
+                                   CultureInfo.InvariantCulture, out double value) ? value : fallback;
         }
 
         /// <summary>
@@ -1149,6 +1168,9 @@ namespace claims.src.database
                 { "@perms", plotgroup.PermsHandler.ToString() },
                 { "@players", JsonConvert.SerializeObject(plotgroup.PlayersList.Select(pl => pl.Guid)) },
                 { "@plotsgroupfee", plotgroup.PlotsGroupFee },
+                { "@pendingfee", plotgroup.PendingFee },
+                { "@pendingfeeat", plotgroup.PendingFeeAt },
+                { "@pendingfeeaccepted", JsonConvert.SerializeObject(plotgroup.PendingFeeAccepted) },
                 { "@city", plotgroup.City.Guid}
             };
 
@@ -1196,7 +1218,38 @@ namespace claims.src.database
                 cityPlotsGroup.PlayersList.Add(plTmp);
             }
 
-            cityPlotsGroup.PlotsGroupFee = int.Parse(it["plotsgroupfee"].ToString(), CultureInfo.InvariantCulture);
+            // Read as a double although the column is INTEGER and the commands only set whole
+            // numbers: a value edited into the database by hand would otherwise throw here and take
+            // the whole group down with it.
+            cityPlotsGroup.PlotsGroupFee = ReadFee(it, "plotsgroupfee", 0);
+            cityPlotsGroup.PendingFee = ReadFee(it, "pendingfee", -1);
+            if (it.Table.Columns.Contains("pendingfeeat"))
+            {
+                long.TryParse(it["pendingfeeat"].ToString(), NumberStyles.Integer,
+                    CultureInfo.InvariantCulture, out long pendingAt);
+                cityPlotsGroup.PendingFeeAt = pendingAt;
+            }
+            if (it.Table.Columns.Contains("pendingfeeaccepted"))
+            {
+                string accepted = it["pendingfeeaccepted"].ToString();
+                if (accepted.Length > 0)
+                {
+                    try
+                    {
+                        foreach (string guid in JsonConvert.DeserializeObject<List<string>>(accepted) ?? new List<string>())
+                        {
+                            cityPlotsGroup.PendingFeeAccepted.Add(guid);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Losing the acceptances only means the raise has to be accepted again;
+                        // losing the group over a malformed cell would cost the city its land rules.
+                        MessageHandler.sendErrorMsg("loadCityPlotGroup: bad pendingfeeaccepted for '"
+                            + cityPlotsGroup.Guid + "': " + ex.Message);
+                    }
+                }
+            }
             return true;
         }
 

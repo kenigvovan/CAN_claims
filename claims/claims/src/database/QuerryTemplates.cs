@@ -27,8 +27,8 @@ namespace claims.src.database
 
         //PLOTGROUP
         public static readonly string DELETE_CITYPLOTGROUP = "DELETE FROM CITYPLOTSGROUP WHERE guid=@guid";
-        public static readonly string INSERT_CITYPLOTGROUP = "INSERT INTO CITYPLOTSGROUP (name, guid, perms, players, plotsgroupfee, city) VALUES (@name, @guid, @perms,@players, @plotsgroupfee, @city)";
-        public static readonly string UPDATE_CITYPLOTGROUP = "UPDATE CITYPLOTSGROUP SET name=@name, guid=@guid, perms=@perms, players=@players, plotsgroupfee=@plotsgroupfee, city=@city where guid=@guid";
+        public static readonly string INSERT_CITYPLOTGROUP = "INSERT INTO CITYPLOTSGROUP (name, guid, perms, players, plotsgroupfee, pendingfee, pendingfeeat, pendingfeeaccepted, city) VALUES (@name, @guid, @perms,@players, @plotsgroupfee, @pendingfee, @pendingfeeat, @pendingfeeaccepted, @city)";
+        public static readonly string UPDATE_CITYPLOTGROUP = "UPDATE CITYPLOTSGROUP SET name=@name, guid=@guid, perms=@perms, players=@players, plotsgroupfee=@plotsgroupfee, pendingfee=@pendingfee, pendingfeeat=@pendingfeeat, pendingfeeaccepted=@pendingfeeaccepted, city=@city where guid=@guid";
 
         //PRISON
         public static readonly string DELETE_PRISON = "DELETE FROM PRISONS WHERE guid=@guid";

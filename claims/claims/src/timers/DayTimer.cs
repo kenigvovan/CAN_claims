@@ -166,8 +166,17 @@ namespace claims.src.timers
         public static void processCityFee(City city)
         {
             citiesPlots.TryGetValue(city, out List<Plot> cityPlotsList);
+            // Groups that actually hold land in this city, gathered while the plots are walked
+            // anyway - a group is charged once, below, however many plots it turns out to have.
+            HashSet<CityPlotsGroup> groupsWithPlots = new HashSet<CityPlotsGroup>();
             foreach(Plot plot in cityPlotsList)
-            {          
+            {
+                // Before the owner branch below, which skips the rest of the loop for a mayor's plot:
+                // whose plot it is has no bearing on whether the group holds land.
+                if (plot.hasCityPlotsGroup())
+                {
+                    groupsWithPlots.Add(plot.getPlotGroup());
+                }
                 if(plot.hasPlotOwner())
                 {
                     if(plot.getPlotOwner().hasCity() && plot.getPlotOwner().City.isMayor(plot.getPlotOwner()))
@@ -201,25 +210,25 @@ namespace claims.src.timers
                         }
                     }*/
                 }
-                else if (plot.hasCityPlotsGroup())
+            }
+
+            // Membership is charged once a day, not once per plot: a group of six used to cost its
+            // members six times what the mayor typed, so a fee anyone would call reasonable ruined
+            // the very people it was meant to keep. A group holding no land is charged nothing -
+            // there is nothing to be a member of yet.
+            foreach (CityPlotsGroup group in groupsWithPlots)
+            {
+                if (!group.HasFee()) continue;
+                foreach (PlayerInfo player in group.PlayersList)
                 {
-                    if (plot.getPlotGroup().HasFee())
+                    if (city.isMayor(player)) continue;
+                    if (playerSumFee.TryGetValue(player, out decimal val))
                     {
-                        foreach(PlayerInfo player in plot.getPlotGroup().PlayersList)
-                        {
-                            if (plot.getCity().isMayor(player))
-                            {
-                                continue;
-                            }
-                            if (playerSumFee.TryGetValue(player, out decimal val))
-                            {
-                                playerSumFee[player] += (decimal)plot.getPlotGroup().PlotsGroupFee;
-                            }
-                            else
-                            {
-                                playerSumFee[player] = (decimal)plot.getPlotGroup().PlotsGroupFee;
-                            }
-                        }                       
+                        playerSumFee[player] = val + (decimal)group.PlotsGroupFee;
+                    }
+                    else
+                    {
+                        playerSumFee[player] = (decimal)group.PlotsGroupFee;
                     }
                 }
             }
@@ -251,6 +260,7 @@ namespace claims.src.timers
                     if (claims.economyProvider.GetBalance(it.MoneyAccountName) < toPay)
                     {
                         //WE DELETE PLAYER FROM EVERY PLOTGROUP IN THIS CITY
+                        List<CityPlotsGroup> droppedFrom = new List<CityPlotsGroup>();
                         foreach(CityPlotsGroup cpg in city.getCityPlotsGroups())
                         {
                             foreach(PlayerInfo playerInfoHere in cpg.PlayersList.ToArray())
@@ -258,8 +268,36 @@ namespace claims.src.timers
                                 if (playerInfoHere.Equals(it))
                                 {
                                     cpg.PlayersList.Remove(playerInfoHere);
+                                    cityplotsgroups.PlotsGroupFeeHelper.OnMemberLeft(cpg, it);
+                                    cpg.saveToDatabase();
+                                    droppedFrom.Add(cpg);
                                 }
                             }
+                        }
+                        // Being thrown out of every group at once used to happen in complete silence:
+                        // the player found out by walking onto ground they could no longer build on.
+                        if (droppedFrom.Count > 0)
+                        {
+                            MessageHandler.sendMsgToPlayerInfo(it, Lang.Get("claims:plotsgroup_left_no_money",
+                                StringFunctions.concatGroupsNames(droppedFrom, ','),
+                                city.getPartNameReplaceUnder()));
+                            // Their rights came from the groups and are cached per player and per
+                            // plot; without this they keep building on that land until something
+                            // else happens to evict the cache.
+                            it.PlayerCache?.Reset();
+                            foreach (CityPlotsGroup cpg in droppedFrom)
+                            {
+                                cityplotsgroups.PlotsGroupFeeHelper.SendGroupUpdate(cpg);
+                            }
+                            foreach (Plot groupPlot in cityPlotsList ?? new List<Plot>())
+                            {
+                                if (groupPlot.hasPlotGroup() && droppedFrom.Contains(groupPlot.getPlotGroup()))
+                                {
+                                    claims.serverPlayerMovementListener.markPlotToWasReUpdated(groupPlot.getPos());
+                                }
+                            }
+                            UsefullPacketsSend.AddToQueuePlayerInfoUpdate(it.Guid,
+                                gui.playerGui.structures.EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT);
                         }
                         if (claims.config.DELETE_CITIZEN_FROM_CITY_IF_DOESN_PAY_FEE)
                         {

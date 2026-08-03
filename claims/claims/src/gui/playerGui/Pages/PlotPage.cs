@@ -242,9 +242,15 @@ namespace claims.src.gui.playerGui.Pages
                                 on => Toggle(on, EnumUpperWindowSelectedState.PLOT_SET_CITY_AUDIENCE),
                                 Lang.Get("claims:gui-plot-set-city-audience-tooltip"), toggleable: true);
 
-                            marketActions.Add("claims:village", "setPlotCityTarget",
-                                on => Toggle(on, EnumUpperWindowSelectedState.PLOT_SET_CITY_TARGET),
-                                Lang.Get("claims:gui-plot-set-city-target-tooltip"), toggleable: true);
+                            // Naming the buyer belongs to a listing addressed to one city and to no
+                            // other kind: under "allies" or "everyone" the button asked a question
+                            // whose answer the offer would not use.
+                            if (plot.SaleAudience == part.structure.plots.EnumPlotSaleAudience.SPECIFIC_CITY)
+                            {
+                                marketActions.Add("claims:village", "setPlotCityTarget",
+                                    on => Toggle(on, EnumUpperWindowSelectedState.PLOT_SET_CITY_TARGET),
+                                    Lang.Get("claims:gui-plot-set-city-target-tooltip"), toggleable: true);
+                            }
 
                             marketActions.Add("claims:cancel", "setPlotCityNfs", on =>
                             {

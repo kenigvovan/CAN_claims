@@ -40,10 +40,15 @@ namespace claims.src.gui.playerGui.Dialogs
 
         // ---- building blocks ----
 
-        /// <summary>Writes into the row the cursor is on, without advancing it.</summary>
+        /// <summary>
+        /// Writes into the row the cursor is on, without advancing it. The row grows to fit a prompt
+        /// that wraps, so what comes next starts below the text rather than across it.
+        /// </summary>
         protected static void Text(DialogLayout l, string text)
         {
-            l.Compo.AddStaticText(text, CairoFont.WhiteDetailText(), l.Row);
+            CairoFont font = CairoFont.WhiteDetailText();
+            l.FitRowToText(text, font);
+            l.Compo.AddStaticText(text, font, l.Row);
         }
 
         /// <summary>
@@ -52,7 +57,10 @@ namespace claims.src.gui.playerGui.Dialogs
         /// </summary>
         protected static void TextRow(DialogLayout l, string text)
         {
-            l.Compo.AddStaticText(text, CairoFont.WhiteDetailText(), l.NextRow());
+            CairoFont font = CairoFont.WhiteDetailText();
+            ElementBounds bounds = l.NextRow();
+            l.FitRowToText(text, font);
+            l.Compo.AddStaticText(text, font, bounds);
         }
 
         protected static void TextInput(DialogLayout l, string key, Action<string> onChange, string initial = null)

@@ -206,6 +206,28 @@ namespace claims.src.part
             {
                 payments.Add("plots", (int)plotsPayment);
             }
+
+            // Plots groups charge their members too, and used to be missing here entirely - the
+            // player was shown less than what was taken off them the same evening. Counted once per
+            // group, which is how the group is charged and what /citizen fee reports.
+            double groupsPayment = 0;
+            foreach (CityPlotsGroup group in claims.dataStorage.getCityPlotsGroupsDict().Values)
+            {
+                if (!group.HasFee() || !group.PlayersList.Contains(this)) continue;
+                // The mayor of the city owning the group pays nothing to it.
+                if (group.City?.isMayor(this) ?? false) continue;
+                // A group holding no land is not charged - the same condition DayTimer applies, so
+                // the figure shown here matches what is taken.
+                if (!(group.City?.getCityPlots().Any(p => p.hasPlotGroup() && group.Equals(p.getPlotGroup())) ?? false))
+                {
+                    continue;
+                }
+                groupsPayment += group.PlotsGroupFee;
+            }
+            if (groupsPayment != 0)
+            {
+                payments.Add("plotsgroups", (int)groupsPayment);
+            }
             return payments;
         }
         /*********************************************************/

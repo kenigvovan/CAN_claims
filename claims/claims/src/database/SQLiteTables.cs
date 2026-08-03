@@ -146,6 +146,9 @@
             "perms TEXT," +
             "players TEXT," +
             "plotsgroupfee INTEGER," +
+            "pendingfee INTEGER DEFAULT -1," +
+            "pendingfeeat INTEGER DEFAULT 0," +
+            "pendingfeeaccepted TEXT DEFAULT \"\"," +
             "city TEXT" +
             ");";
 

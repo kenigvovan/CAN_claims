@@ -75,6 +75,9 @@ namespace claims.src.gui.playerGui.Pages
                 {
                     Label = Lang.Get("claims:gui-player-label-next-payment"),
                     Value = Player.PlayerNextPayments.Values.Sum().ToString(),
+                    // One number tells the player what leaves their pocket but not why; the parts
+                    // are what they can act on - leave a group, drop a plot.
+                    Tooltip = PaymentBreakdown(),
                     Key = "playerNextPayment"
                 });
             }
@@ -150,5 +153,28 @@ namespace claims.src.gui.playerGui.Pages
 
         /// <summary>Balances are doubles; whole values should not read "1500.0".</summary>
         private static string Number(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+
+        /// <summary>
+        /// What the daily payment is made of, a line per source. The keys are the ones the server
+        /// puts in the payments dictionary; an unknown one is printed as it comes rather than
+        /// dropped, so a source added later is visible before anyone writes a label for it.
+        /// </summary>
+        private string PaymentBreakdown()
+        {
+            var lines = new List<string>();
+            foreach (var pair in Player.PlayerNextPayments)
+            {
+                string label;
+                switch (pair.Key)
+                {
+                    case "city": label = Lang.Get("claims:gui-player-payment-city"); break;
+                    case "plots": label = Lang.Get("claims:gui-player-payment-plots"); break;
+                    case "plotsgroups": label = Lang.Get("claims:gui-player-payment-plotsgroups"); break;
+                    default: label = pair.Key; break;
+                }
+                lines.Add(label + ": " + pair.Value);
+            }
+            return string.Join("\n", lines);
+        }
     }
 }

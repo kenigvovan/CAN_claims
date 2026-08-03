@@ -195,7 +195,7 @@ namespace claims.src.gui.playerGui.GuiElements
             if (!recipientOnly || isRecipient)
             {
                 var denyBounds = ElementBounds.Fixed(x, buttonY, ButtonSize, ButtonSize).WithParent(Bounds);
-                children.Add(new GuiElementToggleButton(capi, "claims:peace-dove", "", font, (bool t) =>
+                children.Add(new GuiElementToggleButton(capi, DenyIcon(), "", font, (bool t) =>
                 {
                     if (t) Answer(DenyCommand(isSender));
                 }, denyBounds));
@@ -213,6 +213,24 @@ namespace claims.src.gui.playerGui.GuiElements
                     return "claims:peace-dove";
                 default:
                     return "claims:sword-brandish";
+            }
+        }
+
+        /// <summary>
+        /// The refusal never wears the icon its accept button wears: on a peace offer both would
+        /// be the dove, leaving the two buttons indistinguishable.
+        /// </summary>
+        private string DenyIcon()
+        {
+            switch (cell.Purpose)
+            {
+                case LetterPurpose.NON_AGGRESSION:
+                case LetterPurpose.ULTIMATUM:
+                case LetterPurpose.CESSION_CONFIRM:
+                case LetterPurpose.END_CONFLICT:
+                    return "claims:cancel";
+                default:
+                    return "claims:peace-dove";
             }
         }
 

@@ -14,6 +14,23 @@ namespace claims.src.gui.playerGui.Dialogs
         public ElementBounds Bg;
         public ElementBounds Row;
 
+        /// <summary>
+        /// Grows the current row to hold <paramref name="text"/> in full.
+        ///
+        /// A row is 30 tall, which is one line: a prompt that wraps to three drew over whatever came
+        /// next, because the following row is measured from this one's height. Only ever grows - a
+        /// short prompt keeps the row height the rest of the layout is spaced by.
+        /// </summary>
+        public void FitRowToText(string text, CairoFont font)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            double width = Row.fixedWidth > 0 ? Row.fixedWidth : 180;
+            // The engine measures in rendered pixels; rows are in unscaled ones, as AutoHeight does.
+            double height = claims.capi.Gui.Text.GetMultilineTextHeight(font, text, width)
+                            / RuntimeEnv.GUIScale;
+            if (height > Row.fixedHeight) Row.fixedHeight = height;
+        }
+
         /// <summary>Next row down, already registered as a child of the background.</summary>
         public ElementBounds NextRow(double gap = 15, double? width = null, double? height = null)
         {

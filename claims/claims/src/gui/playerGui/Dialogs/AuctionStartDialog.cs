@@ -91,10 +91,16 @@ namespace claims.src.gui.playerGui.Dialogs
             Args.First = audience;
 
             TextRow(l, Lang.Get("claims:gui-plot-label-city-audience"));
-            DropDown(l, audienceWords.ToArray(), audienceNames.ToArray(),
-                picked => Args.First = picked, audience);
+            // Picking the audience rebuilds the window: naming a buyer only belongs to a lot
+            // addressed to one city, and the list was sitting there under every other choice
+            // looking like something the seller had to answer.
+            DropDown(l, audienceWords.ToArray(), audienceNames.ToArray(), picked =>
+            {
+                Args.First = picked;
+                Gui.BuildUpperWindow();
+            }, audience);
 
-            if (canAddress)
+            if (canAddress && audience == "city")
             {
                 // Nothing is preselected here - see the button below - but a buyer already picked
                 // must survive a rebuild. Selected is shared with other forms, so anything that is

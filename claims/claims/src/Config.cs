@@ -24,6 +24,16 @@ namespace claims.src
 
         public double PLOT_CLAIM_PRICE = 5;
         public double MAX_CITY_FEE = 50;
+
+        /// <summary>Ceiling for what a plots group may charge its members daily.</summary>
+        public double MAX_PLOTSGROUP_FEE = 50;
+
+        /// <summary>
+        /// How long a raised plots group fee waits before it takes effect. Members keep paying the
+        /// old rate throughout and have to accept the new one; whoever does not, leaves the group
+        /// when the wait is over. Set to 0 to let raises apply at once.
+        /// </summary>
+        public int PLOTSGROUP_FEE_RAISE_DELAY_HOURS = 24;
         public double SUMMON_PAYMENT = 5;
         public double NEW_ALLIANCE_COST { get; set; } = 300;
         public double ALLIANCE_RENAME_COST { get; set; } = 50;
@@ -511,6 +521,7 @@ namespace claims.src
             EnumPlayerPermissions.CITY_PLOTSGROUP_SET_PVP,
             EnumPlayerPermissions.CITY_PLOTSGROUP_SET_FIRE,
             EnumPlayerPermissions.CITY_PLOTSGROUP_SET_BLAST,
+            EnumPlayerPermissions.CITY_PLOTSGROUP_SET_FEE,
 
             EnumPlayerPermissions.CITY_SET_PLOTS_COLOR,
 

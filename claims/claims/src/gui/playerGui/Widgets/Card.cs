@@ -70,7 +70,7 @@ namespace claims.src.gui.playerGui.Widgets
             {
                 var header = inner.FlatCopy().WithFixedHeight(HeaderTextHeight);
                 compo.AddStaticText(title, CairoFont.WhiteSmallishText().WithColor(ClaimsColors.Section),
-                    header, "sec-" + title);
+                    header, HeaderKey(compo, title));
 
                 var rule = header.BelowCopy(0, HeaderRuleGap).WithFixedHeight(2);
                 compo.AddInset(rule);
@@ -80,6 +80,20 @@ namespace claims.src.gui.playerGui.Widgets
             }
 
             return inner;
+        }
+
+        /// <summary>
+        /// A key no element on this composer holds yet. Two cards on one page may legitimately carry
+        /// the same heading, and a repeated key makes the composer throw.
+        /// </summary>
+        private static string HeaderKey(GuiComposer compo, string title)
+        {
+            string key = "sec-" + title;
+            for (int i = 2; compo.GetElement(key) != null; i++)
+            {
+                key = "sec-" + title + "-" + i;
+            }
+            return key;
         }
 
         /// <summary>
