@@ -16,6 +16,8 @@ namespace claims.src.gui.playerGui.structures.cellElements
         public int X { get; set; }
         public int Z { get; set; }
         public string SellerCityName { get; set; } = "";
+        /// <summary>Guid of the seller, only so the row can look its arms up in the emblem cache.</summary>
+        public string SellerCityGuid { get; set; } = "";
         public string PlotName { get; set; } = "";
         public long CurrentBid { get; set; } = -1;
         public string LeaderCityName { get; set; } = "";
@@ -33,6 +35,7 @@ namespace claims.src.gui.playerGui.structures.cellElements
         /// </summary>
         public bool IsWholeCity { get; set; }
         public string LotCityName { get; set; } = "";
+        public string LotCityGuid { get; set; } = "";
         /// <summary>Whether our city may bid right now, decided by the server.</summary>
         public bool CanBid { get; set; }
 
@@ -44,6 +47,8 @@ namespace claims.src.gui.playerGui.structures.cellElements
             X = auction.PlotX;
             Z = auction.PlotZ;
             SellerCityName = auction.TryGetSeller(out City seller) ? seller.GetPartName() : "";
+            SellerCityGuid = auction.SellerCityGuid;
+            LotCityGuid = auction.LotCityGuid;
             PlotName = plot?.GetPartName() ?? "";
             CurrentBid = auction.CurrentBid;
             LeaderCityName = auction.TryGetLeader(out City leader) ? leader.GetPartName() : "";

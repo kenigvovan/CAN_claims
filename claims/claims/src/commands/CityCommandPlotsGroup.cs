@@ -431,7 +431,7 @@ namespace claims.src.commands
                 return tcr;
             }
 
-            claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(player.Entity.ServerPos), out Plot plot);
+            claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(player.Entity.Pos), out Plot plot);
             //NO CLAIMED PLOT HERE || VILLAGE HERE || PLOT NOT OURS
             if (plot == null || !plot.getCity().Equals(playerInfo.City))
             {
@@ -509,7 +509,7 @@ namespace claims.src.commands
                 return tcr;
             }
 
-            claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(player.Entity.ServerPos), out Plot plot);
+            claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(player.Entity.Pos), out Plot plot);
             //NO CLAIMED PLOT HERE || VILLAGE HERE || PLOT NOT OURS
             if (plot == null || !plot.hasCity() || !plot.getCity().Equals(playerInfo.City) || !plot.hasCityPlotsGroup())
             {

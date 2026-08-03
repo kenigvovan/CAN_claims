@@ -59,7 +59,13 @@ namespace claims.src.gui.playerGui.Dialogs
 
             // Preselected on purpose, unlike the dialogs that kick people: every option here is
             // harmless, and a lot without a length cannot be opened at all.
-            string preselected = values[DefaultIndex(hours)];
+            //
+            // A pick already made wins over the default: the whole window - this form included - is
+            // rebuilt on every packet from the server, and rebuilding it with the default would
+            // quietly put the length back to a day under a seller who had chosen a week.
+            string preselected = System.Array.IndexOf(values, Args.Second) >= 0
+                ? Args.Second
+                : values[DefaultIndex(hours)];
             Args.Second = preselected;
 
             TextRow(l, Lang.Get("claims:gui-auction-duration"));
@@ -80,17 +86,24 @@ namespace claims.src.gui.playerGui.Dialogs
                 audienceWords.Add("city");
                 audienceNames.Add(Lang.Get("claims:plot_trade_audience_city"));
             }
-            Args.First = audienceWords[0];
+            // Survives a rebuild for the same reason the duration does.
+            string audience = audienceWords.Contains(Args.First) ? Args.First : audienceWords[0];
+            Args.First = audience;
 
             TextRow(l, Lang.Get("claims:gui-plot-label-city-audience"));
             DropDown(l, audienceWords.ToArray(), audienceNames.ToArray(),
-                picked => Args.First = picked, audienceWords[0]);
+                picked => Args.First = picked, audience);
 
             if (canAddress)
             {
-                Args.Selected = "";
+                // Nothing is preselected here - see the button below - but a buyer already picked
+                // must survive a rebuild. Selected is shared with other forms, so anything that is
+                // not one of these city names is somebody else's leftover.
+                if (System.Array.IndexOf(otherCities, Args.Selected) < 0) Args.Selected = "";
+
                 TextRow(l, Lang.Get("claims:gui-select-plot-city-target"));
-                DropDown(l, otherCities, otherCities, picked => Args.Selected = picked);
+                DropDown(l, otherCities, otherCities, picked => Args.Selected = picked,
+                    Args.Selected.Length > 0 ? Args.Selected : null);
             }
 
             Button(l, Lang.Get("claims:gui-auction-start-button"), () =>

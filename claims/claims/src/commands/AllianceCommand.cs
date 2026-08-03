@@ -736,7 +736,7 @@ namespace claims.src.commands
             // Optional peace terms (offerstop [term] [amount]): none / reparations / vassalage.
             PeaceTerms terms = PeaceTerms.Parse(
                 args.Parsers.Count > 1 ? (string)args.Parsers[1].GetValue() : null,
-                args.Parsers.Count > 2 && args.Parsers[2].GetValue() != null ? System.Convert.ToInt64(args.Parsers[2].GetValue()) : 0);
+                ArgOrDefault(args, 2, 0));
             if (terms.Type != PeaceTermType.None && !claims.config.WAR_PEACE_TERMS_ENABLED)
             {
                 return TextCommandResult.Success(Lang.Get("claims:peace_terms_disabled"));

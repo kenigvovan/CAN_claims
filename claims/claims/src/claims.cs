@@ -274,6 +274,7 @@ namespace claims.src
 
             PermsHandler.initDicts();
             PlotInfo.initDicts();
+            FindAlwaysUseBlocks(api);
 
             //STORAGE WITH CITIES/PLAYERS/OTHER
             dataStorage = new DataStorage();
@@ -459,19 +460,28 @@ namespace claims.src
             {
                 string[] split = it.Split(':');
                 if (split.Length < 2) continue;
+                bool found = false;
                 foreach (var mod in api.ModLoader.Mods)
                 {
-                    if (mod.FileName.StartsWith(split[0]))
+                    // Match on the mod id first, the archive file name is only a fallback:
+                    // file names carry versions and arbitrary casing (VinConomy_1.4.0.zip).
+                    bool isTargetMod = string.Equals(mod.Info?.ModID, split[0], StringComparison.OrdinalIgnoreCase)
+                        || mod.FileName.StartsWith(split[0], StringComparison.OrdinalIgnoreCase);
+                    if (!isTargetMod) continue;
+                    if (mod is not Vintagestory.Common.ModContainer container || container.Assembly == null) continue;
+
+                    foreach (var ii in container.Assembly.GetTypes())
                     {
-                        Type[] allTypes = ((Vintagestory.Common.ModContainer)mod).Assembly.GetTypes();
-                        foreach (var ii in allTypes)
+                        if (ii.Name == split[1])
                         {
-                            if (ii.Name == split[1])
-                            {
-                                claims.config.blockTypesAccess.Add(ii);
-                            }
+                            claims.config.blockTypesAccess.Add(ii);
+                            found = true;
                         }
                     }
+                }
+                if (!found)
+                {
+                    api.Logger.Notification("[claims] ALWAYS_ACCESS_BLOCKS entry '" + it + "' resolved to no type (mod not installed?)");
                 }
             }
         }

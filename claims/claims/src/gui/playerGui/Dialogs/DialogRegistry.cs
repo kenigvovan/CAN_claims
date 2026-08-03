@@ -182,15 +182,19 @@ namespace claims.src.gui.playerGui.Dialogs
             Add(PLOT_AUCTION_CANCEL_CONFIRM, new YesNoDialog("claims:gui-auction-cancel-confirm", "/plot auctioncancel"));
             // Pos carries the lot's plot coordinates when the bid comes from the market tab; from the
             // plot page there are none and the lot is the one underfoot.
+            // Second carries the smallest bid the server would take, so the prompt can name it - the
+            // bidder should not have to close the form to find out what it costs.
             Add(PLOT_AUCTION_BID, new NeedNameDialog("claims:gui-enter-auction-bid", null,
                     "claims:gui-auction-bid-button", inputKind: EnumDialogInput.Integer,
                     commandBuilder: args => args.Pos != null
                         ? string.Format("/plot bid {0} {1} {2}", args.Text, args.Pos.X, args.Pos.Z)
-                        : "/plot bid " + args.Text));
+                        : "/plot bid " + args.Text,
+                    textArgs: args => new object[] { args.Second }));
             // A bankrupt settlement sold whole stands on no plot, so its lot is addressed by name.
             Add(PLOT_AUCTION_BID_CITY, new NeedNameDialog("claims:gui-enter-auction-bid", null,
                     "claims:gui-auction-bid-button", inputKind: EnumDialogInput.Integer,
-                    commandBuilder: args => string.Format("/plot bidcity {0} {1}", args.First, args.Text)));
+                    commandBuilder: args => string.Format("/plot bidcity {0} {1}", args.First, args.Text),
+                    textArgs: args => new object[] { args.Second }));
 
             // ---- ranks ----
             Add(CITY_RANK_CREATION_NEED_NAME, new NeedNameDialog("claims:gui-enter-rank-name", "/c rank create ", "claims:gui-add-button"));

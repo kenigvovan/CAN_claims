@@ -227,7 +227,7 @@ namespace claims.src.harmony
             Plot tmpPlot = null;
             if (player.Entity != null)
             {
-                claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(player.Entity.ServerPos), out tmpPlot);
+                claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(player.Entity.Pos), out tmpPlot);
             }
             if (playerInfo.isPrisoned() && tmpPlot != null && playerInfo.PrisonedIn?.Plot != null && playerInfo.PrisonedIn.Plot.Equals(tmpPlot))
             {
@@ -325,7 +325,7 @@ namespace claims.src.harmony
 
             if (___canFallSideways)
             {
-                claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(__instance.ServerPos), out Plot source);
+                claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(__instance.Pos), out Plot source);
                 for (int i = 0; i < 4; i++)
                 {
                     BlockFacing facing = BlockFacing.HORIZONTALS[i];

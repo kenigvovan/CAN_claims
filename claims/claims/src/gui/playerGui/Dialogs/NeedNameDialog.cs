@@ -26,6 +26,7 @@ namespace claims.src.gui.playerGui.Dialogs
         private readonly Action<string> onSubmitted;
         private readonly bool closeAfter;
         private readonly EnumDialogInput inputKind;
+        private readonly Func<DialogArgs, object[]> textArgs;
 
         /// <param name="commandBuilder">
         /// Overrides commandPrefix + typed text when the command needs more than the one value.
@@ -39,11 +40,16 @@ namespace claims.src.gui.playerGui.Dialogs
         /// Rejects anything that is not a number for the price / tax / amount prompts, which the
         /// ImGui side handled with dedicated int and double dialogs.
         /// </param>
+        /// <param name="textArgs">
+        /// Placeholder values for the prompt, as YesNoDialog takes them - so a form can say what it
+        /// expects ("at least 1200") instead of leaving the number to a tooltip somewhere else.
+        /// </param>
         public NeedNameDialog(string promptLangKey, string commandPrefix, string buttonLangKey,
                               Func<DialogArgs, string> commandBuilder = null,
                               Action<string> onSubmitted = null,
                               bool closeAfter = true,
-                              EnumDialogInput inputKind = EnumDialogInput.Text)
+                              EnumDialogInput inputKind = EnumDialogInput.Text,
+                              Func<DialogArgs, object[]> textArgs = null)
         {
             this.promptLangKey = promptLangKey;
             this.commandPrefix = commandPrefix;
@@ -52,11 +58,12 @@ namespace claims.src.gui.playerGui.Dialogs
             this.onSubmitted = onSubmitted;
             this.closeAfter = closeAfter;
             this.inputKind = inputKind;
+            this.textArgs = textArgs;
         }
 
         protected override void BuildContent(DialogLayout l)
         {
-            Text(l, Lang.Get(promptLangKey));
+            Text(l, textArgs == null ? Lang.Get(promptLangKey) : Lang.Get(promptLangKey, textArgs(Args)));
 
             TextInput(l, InputKey, value => Args.Text = value);
 

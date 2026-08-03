@@ -23,6 +23,9 @@ namespace claims.src.part.structure.plots
             {
                 errorKey = null;
                 if (!claims.config.CITY_PLOT_TRADE_ENABLED) { errorKey = "claims:plot_trade_disabled"; return false; }
+                // A price tag with money already held against it is a purchase waiting to settle,
+                // not an offer to edit.
+                if (existing.HasBid) { errorKey = "claims:plot_auction_has_bids"; return false; }
                 return PlotSaleRules.CanSellPlot(plot, seller, out errorKey);
             }
             return AuctionRules.CanCreateForPlot(plot, seller, timed: false, out errorKey);

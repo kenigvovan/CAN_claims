@@ -7,6 +7,11 @@ namespace claims.src.gui.playerGui.structures
 {
     public class CurrentPlotInfo
     {
+        /// <summary>
+        /// False when the player stands on unclaimed ground. Such a spot is still sent, so the page
+        /// stops describing the plot last walked on.
+        /// </summary>
+        public bool IsClaimed { get; set; } = true;
         public string PlotName { get; set; }
         public string OwnerName { get; set; }
         public PlotType PlotType { get; set; }
@@ -39,6 +44,11 @@ namespace claims.src.gui.playerGui.structures
         public long AuctionBuyout { get; set; } = -1;
         /// <summary>Whether the viewer's city may bid, decided by the server for the same reason as CanBuyAsCity.</summary>
         public bool CanBidAsCity { get; set; } = false;
+        /// <summary>
+        /// Lang key of why this city may not take the offer; empty when it may, or when the viewer is
+        /// the seller. Shown instead of a button that would otherwise just be missing.
+        /// </summary>
+        public string CityBuyBlockedReason { get; set; } = "";
 
         public CurrentPlotInfo(string plotName, string ownerName, PlotType plotType, double customTax,
             double price, PermsHandler permsHandler, bool extraBoungt, Vec2i plotPosition)

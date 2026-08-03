@@ -406,7 +406,7 @@ namespace claims.src.beb
             foreach (var p in this.Api.World.AllOnlinePlayers)
             {
                 if (p?.Entity == null) continue;
-                double dx = p.Entity.ServerPos.X - fx, dy = p.Entity.ServerPos.Y - fy, dz = p.Entity.ServerPos.Z - fz;
+                double dx = p.Entity.Pos.X - fx, dy = p.Entity.Pos.Y - fy, dz = p.Entity.Pos.Z - fz;
                 if (dx * dx + dy * dy + dz * dz > radiusSq) continue;
                 if (!claims.dataStorage.GetPlayerByUid(p.PlayerUID, out var pInfo) || !pInfo.hasCity()) continue;
 

@@ -39,14 +39,10 @@ namespace claims.src.commands
                     new object[] { claims.config.AUCTION_MIN_HOURS, claims.config.AUCTION_MAX_HOURS });
             }
 
-            int increment = args.Parsers.Count > 2 && args.Parsers[2].GetValue() != null
-                ? System.Convert.ToInt32(args.Parsers[2].GetValue())
-                : claims.config.AUCTION_MIN_INCREMENT;
+            int increment = (int)ArgOrDefault(args, 2, claims.config.AUCTION_MIN_INCREMENT);
             if (increment < claims.config.AUCTION_MIN_INCREMENT) increment = claims.config.AUCTION_MIN_INCREMENT;
 
-            int buyout = args.Parsers.Count > 3 && args.Parsers[3].GetValue() != null
-                ? System.Convert.ToInt32(args.Parsers[3].GetValue())
-                : -1;
+            int buyout = (int)ArgOrDefault(args, 3, -1);
             // A buyout below the starting price would end the lot on the first bid.
             if (buyout > 0 && buyout < startPrice) return TextCommandResult.Error("claims:plot_auction_bad_buyout");
 
@@ -106,8 +102,10 @@ namespace claims.src.commands
             if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
             if (!playerInfo.hasCity()) return TextCommandResult.Error("claims:you_dont_have_city");
 
+            // Zero is a real offer: a plot given away costs nothing, and refusing it here would make
+            // a free lot impossible to take by command while the GUI takes it fine.
             long amount = System.Convert.ToInt64(args.Parsers[0].GetValue());
-            if (amount <= 0) return TextCommandResult.Error("claims:try_pos");
+            if (amount < 0) return TextCommandResult.Error("claims:try_pos");
 
             if (!TryResolveLot(args, player, 1, out PlotAuction auction, out Plot plot, out TextCommandResult error))
             {
@@ -149,7 +147,7 @@ namespace claims.src.commands
             }
 
             long amount = System.Convert.ToInt64(args.Parsers[1].GetValue());
-            if (amount <= 0) return TextCommandResult.Error("claims:try_pos");
+            if (amount < 0) return TextCommandResult.Error("claims:try_pos");
 
             if (!AuctionHandler.PlaceBid(auction, playerInfo.City, amount, out string errorKey))
             {
@@ -215,9 +213,7 @@ namespace claims.src.commands
 
             PlotPosition here = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
             PlotPosition wanted = here;
-            if (args.Parsers.Count > firstCoordParser + 1
-                && args.Parsers[firstCoordParser].GetValue() != null
-                && args.Parsers[firstCoordParser + 1].GetValue() != null)
+            if (HasArg(args, firstCoordParser) && HasArg(args, firstCoordParser + 1))
             {
                 wanted = new PlotPosition(System.Convert.ToInt32(args.Parsers[firstCoordParser].GetValue()),
                                           System.Convert.ToInt32(args.Parsers[firstCoordParser + 1].GetValue()));

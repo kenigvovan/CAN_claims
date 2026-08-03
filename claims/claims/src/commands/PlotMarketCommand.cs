@@ -94,7 +94,7 @@ namespace claims.src.commands
             PlotPosition wanted = here;
 
             // Coordinates are plot coordinates, the same ones the market tab lists.
-            if (args.Parsers.Count > 1 && args.Parsers[0].GetValue() != null && args.Parsers[1].GetValue() != null)
+            if (HasArg(args, 0) && HasArg(args, 1))
             {
                 wanted = new PlotPosition(System.Convert.ToInt32(args.Parsers[0].GetValue()),
                                           System.Convert.ToInt32(args.Parsers[1].GetValue()));
@@ -115,9 +115,7 @@ namespace claims.src.commands
 
             // The price the buyer was looking at when they confirmed. Sent by the GUI; a player
             // typing the command by hand omits it and buys at whatever the offer says now.
-            long expectedPrice = args.Parsers.Count > 2 && args.Parsers[2].GetValue() != null
-                ? System.Convert.ToInt64(args.Parsers[2].GetValue())
-                : -1;
+            long expectedPrice = ArgOrDefault(args, 2, -1);
 
             if (!PlotMarketHelper.Buy(plot, playerInfo.City, expectedPrice, out string buyError))
             {

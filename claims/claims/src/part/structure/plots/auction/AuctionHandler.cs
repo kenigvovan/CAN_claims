@@ -69,6 +69,10 @@ namespace claims.src.part.structure.plots.auction
             EnumPlotSaleAudience audience, City targetCity)
         {
             if (auction == null || !auction.IsRunning || !auction.IsFixedPrice) return;
+            // A price tag normally closes on the bid that meets it, so it has no bids to speak of -
+            // except one whose payout failed and is waiting to be retried. Re-pricing that would
+            // change what the waiting buyer pays after their money is already held.
+            if (auction.HasBid) return;
 
             auction.StartPrice = Math.Max(0, price);
             auction.BuyoutPrice = auction.StartPrice;
@@ -244,6 +248,14 @@ namespace claims.src.part.structure.plots.auction
                     CancelLot(auction, "claims:plot_auction_cancelled_lot_gone");
                     continue;
                 }
+                // A price tag carrying a bid is a purchase whose payout failed mid-retry: the retry
+                // callback died with the old process, and nothing else ever wakes an open-ended lot.
+                // Left alone it would hold the buyer's money forever - so the settlement resumes here.
+                if (auction.IsOpenEnded && auction.HasBid)
+                {
+                    CloseLot(auction);
+                    continue;
+                }
                 Schedule(auction);
             }
         }
@@ -368,17 +380,25 @@ namespace claims.src.part.structure.plots.auction
                 || !AuctionRules.IsVisibleTo(auction, winner)
                 || !AuctionRules.CanOwnLand(winner, out _))
             {
+                // A leader who no longer qualifies gets their bid back first: ExpireLot sweeps the
+                // account to the holding pot, which is for money that could not be delivered, not for
+                // money nobody tried to deliver. Same order as the plot-lot path.
+                if (auction.HasBid && auction.TryGetLeader(out City disqualified))
+                {
+                    AuctionEscrow.Refund(auction, disqualified, auction.CurrentBid);
+                }
                 // Nobody took it: the caller's usual path - demolition - takes over from here.
                 ExpireLot(auction, seller, null);
                 return;
             }
 
             SetClosed(auction, EnumAuctionState.SOLD);
-            if (!AuctionEscrow.Release(auction, seller))
+            if (!AuctionEscrow.Release(auction, seller, auction.CurrentBid))
             {
                 ReopenAfterFailedPayout(auction);
                 return;
             }
+            payoutAttempts.Remove(auction.Guid);
 
             WholeCityLotWon?.Invoke(auction, bankrupt, winner);
             NotifyAuctionsChanged();
@@ -389,12 +409,13 @@ namespace claims.src.part.structure.plots.auction
             SetClosed(auction, EnumAuctionState.SOLD);
 
             // Pay the seller out of escrow before the plot moves: a failed payout must not leave the
-            // land already handed over.
-            if (!AuctionEscrow.Release(auction, seller))
+            // land already handed over. Only the winning bid is theirs - see AuctionEscrow.Release.
+            if (!AuctionEscrow.Release(auction, seller, price))
             {
                 ReopenAfterFailedPayout(auction);
                 return;
             }
+            payoutAttempts.Remove(auction.Guid);
 
             PlotDealCloser.Complete(plot, seller, winner, price);
             MessageHandler.sendMsgInCity(winner,
@@ -409,6 +430,21 @@ namespace claims.src.part.structure.plots.auction
         /// </summary>
         private static void ReopenAfterFailedPayout(PlotAuction auction)
         {
+            // Retrying forever would spend the log on a deal that is never going to settle. After a
+            // few attempts the lot is called off instead and the bid goes back to its city.
+            if (!payoutAttempts.TryGetValue(auction.Guid, out int attempts)) attempts = 0;
+            payoutAttempts[auction.Guid] = ++attempts;
+            if (attempts > MaxPayoutAttempts)
+            {
+                payoutAttempts.Remove(auction.Guid);
+                MessageHandler.sendErrorMsg("AuctionHandler: lot " + auction.Guid + " could not be paid out "
+                    + MaxPayoutAttempts + " times, cancelling it");
+                auction.State = EnumAuctionState.RUNNING;
+                AuctionRegistry.Index(auction);
+                CancelLot(auction, "claims:plot_auction_cancelled_lot_gone");
+                return;
+            }
+
             auction.State = EnumAuctionState.RUNNING;
             AuctionRegistry.Index(auction);
             if (!auction.IsOpenEnded)
@@ -429,10 +465,18 @@ namespace claims.src.part.structure.plots.auction
             }
         }
 
+        /// <summary>How many times a lot may fail to pay its seller before it is called off.</summary>
+        private const int MaxPayoutAttempts = 5;
+
+        /// <summary>Failed payouts per lot. In memory only: a restart is itself a fresh attempt.</summary>
+        private static readonly Dictionary<string, int> payoutAttempts = new Dictionary<string, int>();
+
         private static void ExpireLot(PlotAuction auction, City seller, Plot plot)
         {
             SetClosed(auction, EnumAuctionState.EXPIRED);
-            AuctionEscrow.Release(auction, seller);
+            // Nothing was sold, so the seller is owed nothing. Anything still on the account is a
+            // refund that never arrived, and it goes to the holding account rather than to them.
+            AuctionEscrow.Sweep(auction);
             if (plot != null) claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
             if (seller != null)
             {
@@ -449,16 +493,16 @@ namespace claims.src.part.structure.plots.auction
         {
             if (auction == null || !auction.IsRunning) return;
             SetClosed(auction, EnumAuctionState.CANCELLED);
+            payoutAttempts.Remove(auction.Guid);
 
-            bool refunded = true;
             if (auction.HasBid && auction.TryGetLeader(out City leader))
             {
-                refunded = AuctionEscrow.Refund(auction, leader, auction.CurrentBid);
+                AuctionEscrow.Refund(auction, leader, auction.CurrentBid);
                 MessageHandler.sendMsgInCity(leader, Lang.Get(reasonLangKey, LotName(auction)));
             }
-            // Sweep the account only once the money in it is back with its owner: closing it after a
-            // failed refund would destroy somebody's bid.
-            if (refunded) AuctionEscrow.Close(auction);
+            // Sweep rather than close: a refund that did not go through leaves money on the account,
+            // and closing it would destroy somebody's bid. Sweep parks it where it can be found.
+            AuctionEscrow.Sweep(auction);
 
             if (auction.TryGetSeller(out City seller))
             {
@@ -471,7 +515,16 @@ namespace claims.src.part.structure.plots.auction
             NotifyAuctionsChanged();
         }
 
-        /// <summary>Seller pulling their own lot. Only allowed while nobody has bid on it.</summary>
+        /// <summary>
+        /// Seller pulling their own lot. A lot with bids on it is not theirs to withdraw - cities
+        /// that bid are owed the contest they paid into.
+        ///
+        /// Unless the leader could no longer take the plot anyway: a bid, followed by anything that
+        /// disqualifies the bidder - declaring a war, filling their plot limit, leaving the alliance
+        /// an "allies only" lot was addressed to - would otherwise let anyone freeze a stranger's
+        /// plot for the whole run of the lot and get their money back at the end of it. The lot is
+        /// not decided in their favour either way, so nothing is taken from them by letting go.
+        /// </summary>
         public static bool CancelBySeller(PlotAuction auction, City seller, out string errorKey)
         {
             errorKey = null;
@@ -481,9 +534,23 @@ namespace claims.src.part.structure.plots.auction
                 errorKey = "claims:not_your_city";
                 return false;
             }
-            if (auction.HasBid) { errorKey = "claims:plot_auction_has_bids"; return false; }
+            if (auction.HasBid && LeaderStillQualifies(auction))
+            {
+                errorKey = "claims:plot_auction_has_bids";
+                return false;
+            }
             CancelLot(auction, "claims:plot_auction_cancelled_by_seller");
             return true;
+        }
+
+        /// <summary>Whether the leading city could still be handed the lot as things stand.</summary>
+        private static bool LeaderStillQualifies(PlotAuction auction)
+        {
+            if (!auction.TryGetLeader(out City leader)) return false;
+            if (!AuctionRules.IsVisibleTo(auction, leader)) return false;
+            if (!AuctionRules.CanOwnLand(leader, out _)) return false;
+            if (auction.Kind != EnumAuctionKind.PLOT) return true;
+            return auction.TryGetPlot(out Plot plot) && PlotSaleRules.CanTakePlot(plot, leader, out _);
         }
 
         /// <summary>
@@ -495,6 +562,9 @@ namespace claims.src.part.structure.plots.auction
             auction.State = state;
             AuctionRegistry.Unindex(auction);
             scheduled.Remove(auction.Guid);
+            // Not payoutAttempts: a lot that fails to pay out is closed and reopened on every try,
+            // so clearing the count here would make the retry limit unreachable. It is cleared where
+            // the money actually moves - and where the lot is called off.
             auction.saveToDatabase();
         }
 
@@ -506,6 +576,9 @@ namespace claims.src.part.structure.plots.auction
         {
             if (!auction.HasBid) return;
             AuctionEscrow.Refund(auction, leader, auction.CurrentBid);
+            // The bid that just left is the new floor. Without this the lot would fall back to its
+            // starting price and could be taken for less than cities had already offered for it.
+            auction.StartPrice = Math.Max(auction.StartPrice, auction.CurrentBid);
             auction.CurrentBid = -1;
             auction.saveToDatabase();
             NotifyAuctionsChanged(auction);

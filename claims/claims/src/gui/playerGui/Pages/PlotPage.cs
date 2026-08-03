@@ -36,6 +36,30 @@ namespace claims.src.gui.playerGui.Pages
                 return;
             }
 
+            // Unclaimed ground: there is nothing to describe and nothing to do to it, and the fields
+            // of a plot page would all read empty. Its position is still worth showing - it is what
+            // the claim commands take.
+            if (!plot.IsClaimed)
+            {
+                Card.Rows(compo, anchor, anchor.fixedY, Lang.Get("claims:gui-plot-section-plot"), new List<CardRow>
+                {
+                    new CardRow
+                    {
+                        Label = Lang.Get("claims:gui-plot-label-position"),
+                        Value = plot.PlotPosition.X + " / " + plot.PlotPosition.Y,
+                        Key = "plotpos"
+                    },
+                    new CardRow
+                    {
+                        Label = Lang.Get("claims:gui-plot-label-owner"),
+                        Value = Lang.Get("claims:plot_not_claimed"),
+                        ValueColor = ClaimsColors.Label,
+                        Key = "plotunclaimed"
+                    },
+                });
+                return;
+            }
+
             // Buttons the player has no right to press are left out: pressing them only ever earned
             // a refusal from the server.
             bool canEditPlot = perms.HasPermission(EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS)
@@ -162,6 +186,25 @@ namespace claims.src.gui.playerGui.Pages
                         });
                     }
                 }
+                // Why the buy/bid button is not there. The rule itself is the server's verdict;
+                // the one thing it cannot know is whether this particular player may press it.
+                string blockedReason = plot.CityBuyBlockedReason;
+                if (!(blockedReason?.Length > 0)
+                    && (plot.CanBuyAsCity || plot.CanBidAsCity)
+                    && !perms.HasPermission(EnumPlayerPermissions.CITY_BUY_PLOT_FROM_CITY))
+                {
+                    blockedReason = "claims:you_dont_have_right_for_that_command";
+                }
+                if (blockedReason?.Length > 0)
+                {
+                    marketRows.Add(new CardRow
+                    {
+                        Label = Lang.Get("claims:gui-plot-label-city-buy-blocked"),
+                        Value = Lang.Get(blockedReason),
+                        ValueColor = ClaimsColors.Warning,
+                        Key = "plotcityblocked"
+                    });
+                }
 
                 y = Card.RowsWithActions(compo, anchor, y, Lang.Get("claims:gui-plot-section-city-market"), marketRows, slot =>
                 {
@@ -259,7 +302,9 @@ namespace claims.src.gui.playerGui.Pages
                         Lang.Get("claims:gui-plot-set-type-tooltip"), toggleable: true);
                 }
 
-                if (forSale)
+                // A citizen buys a plot of their own city; an embassy is the one plot a stranger may
+                // take. Elsewhere the button only ever earned cannot_buy_plot_in_another_city.
+                if (forSale && (ourPlot || plot.PlotType == PlotType.EMBASSY))
                 {
                     actions.Add("claims:receive-money", "buyPlot",
                         on => { if (on) OpenDialog(EnumUpperWindowSelectedState.PLOT_CLAIM); },

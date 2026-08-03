@@ -42,12 +42,6 @@ namespace claims.src.gui.playerGui.Pages
             // Cheapest first: the market is browsed to find what our treasury can afford.
             var sorted = listings.OrderBy(l => l.MinNextBid).ThenBy(l => l.SellerCityName).ToList();
 
-            var listOpts = new ScrollableListOptions { Key = "plot-market", TitleHeightShrink = 0 };
-            listOpts.HeightReserve = ScrollableList.ReserveFor(Gui,
-                System.Math.Max(MinListHeight,
-                    Gui.mainBounds.fixedHeight * NavRow.LineHeightFraction
-                        - column.fixedY - Card.Gap - ScrollableList.Overhead(column, listOpts)));
-
             if (sorted.Count == 0)
             {
                 const double hintHeight = 40;
@@ -63,8 +57,22 @@ namespace claims.src.gui.playerGui.Pages
                 return;
             }
 
-            var list = ScrollableList.Add(Gui, column,
-                Lang.Get("claims:gui-plot-market-title") + " (" + sorted.Count + ")",
+            // A summary before the rows: how many offers stand, and what the cheapest of them costs -
+            // the two questions a mayor opens this tab with.
+            double y = Card.Rows(compo, column, column.fixedY, Lang.Get("claims:gui-plot-market-title"),
+                SummaryRows(sorted));
+
+            var listAnchor = column.FlatCopy();
+            listAnchor.fixedY = y;
+
+            var listOpts = new ScrollableListOptions { Key = "plot-market", TitleHeightShrink = 0 };
+            listOpts.HeightReserve = ScrollableList.ReserveFor(Gui,
+                System.Math.Max(MinListHeight,
+                    Gui.mainBounds.fixedHeight * NavRow.LineHeightFraction
+                        - listAnchor.fixedY - Card.Gap - ScrollableList.Overhead(listAnchor, listOpts)));
+
+            var list = ScrollableList.Add(Gui, listAnchor,
+                Lang.Get("claims:gui-plot-market-offers") + " (" + sorted.Count + ")",
                 sorted,
                 (PlotAuctionCellElement cell, ElementBounds bounds) => new GuiElementPlotAuctionCell(compo.Api, cell, bounds) { On = true },
                 listOpts);
@@ -72,6 +80,43 @@ namespace claims.src.gui.playerGui.Pages
             BuildNav(ctx, column);
 
             ctx.AfterCompose(() => list.ApplyScrollbarHeights(compo));
+        }
+
+        /// <summary>What the offers add up to: how many there are and what the cheapest one asks.</summary>
+        private List<CardRow> SummaryRows(List<PlotAuctionCellElement> listings)
+        {
+            long cheapest = listings.Min(l => l.MinNextBid);
+            int ours = listings.Count(l => l.IsOurs);
+
+            var rows = new List<CardRow>
+            {
+                new CardRow
+                {
+                    Label = Lang.Get("claims:gui-market-label-offers"),
+                    Value = listings.Count.ToString(),
+                    Key = "market-count"
+                },
+                new CardRow
+                {
+                    Label = Lang.Get("claims:gui-market-label-cheapest"),
+                    Value = cheapest.ToString(),
+                    ValueColor = ClaimsColors.Success,
+                    Key = "market-cheapest"
+                }
+            };
+
+            // Only when there is something to say - a row reading "0" every visit is noise.
+            if (ours > 0)
+            {
+                rows.Add(new CardRow
+                {
+                    Label = Lang.Get("claims:gui-auction-label-ours"),
+                    Value = ours.ToString(),
+                    ValueColor = ClaimsColors.Label,
+                    Key = "market-ours"
+                });
+            }
+            return rows;
         }
 
         private void BuildNav(PageBuildContext ctx, ElementBounds column)

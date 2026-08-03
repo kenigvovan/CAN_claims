@@ -561,6 +561,7 @@ namespace claims.src
                 if (claims.config != null)
                 {
                     ValidatePlotSize(api);
+                    ValidateAuctionSettings(api);
                     FillEmptyVillageLists();
                     api.StoreModConfig<Config>(claims.config, "claims.json");
                     return;
@@ -600,6 +601,29 @@ namespace claims.src
                 claims.config.VILLAGE_FUEL_ITEMS = fresh.VILLAGE_FUEL_ITEMS;
             if (claims.config.VILLAGE_ALLOWED_PLOT_TYPES == null || claims.config.VILLAGE_ALLOWED_PLOT_TYPES.Count == 0)
                 claims.config.VILLAGE_ALLOWED_PLOT_TYPES = fresh.VILLAGE_ALLOWED_PLOT_TYPES;
+        }
+
+        /// <summary>
+        /// Keeps the auction bounds usable. Reversed or zeroed limits do not fail loudly - they just
+        /// make GameMath.Clamp hand back a duration outside the range the host thought they set.
+        /// </summary>
+        private static void ValidateAuctionSettings(ICoreAPI api)
+        {
+            if (claims.config.AUCTION_MIN_HOURS < 1)
+            {
+                api.Logger.Error("[claims] AUCTION_MIN_HOURS={0} is below 1, using 1.", claims.config.AUCTION_MIN_HOURS);
+                claims.config.AUCTION_MIN_HOURS = 1;
+            }
+            if (claims.config.AUCTION_MAX_HOURS < claims.config.AUCTION_MIN_HOURS)
+            {
+                api.Logger.Error("[claims] AUCTION_MAX_HOURS={0} is below AUCTION_MIN_HOURS={1}, using the minimum.",
+                    claims.config.AUCTION_MAX_HOURS, claims.config.AUCTION_MIN_HOURS);
+                claims.config.AUCTION_MAX_HOURS = claims.config.AUCTION_MIN_HOURS;
+            }
+            if (claims.config.AUCTION_MIN_INCREMENT < 1) claims.config.AUCTION_MIN_INCREMENT = 1;
+            if (claims.config.AUCTION_EXTEND_WINDOW_SECONDS < 0) claims.config.AUCTION_EXTEND_WINDOW_SECONDS = 0;
+            if (claims.config.CITY_BANKRUPTCY_GRACE_DAYS < 1) claims.config.CITY_BANKRUPTCY_GRACE_DAYS = 1;
+            if (claims.config.CITY_BANKRUPTCY_START_PRICE_FACTOR < 0) claims.config.CITY_BANKRUPTCY_START_PRICE_FACTOR = 0;
         }
 
         private static void ValidatePlotSize(ICoreAPI api)

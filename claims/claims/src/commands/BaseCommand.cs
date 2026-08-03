@@ -133,5 +133,23 @@ namespace claims.src.commands
                 StatusMessage = msg
             };
         }
+
+        /// <summary>
+        /// Whether an optional argument was actually typed.
+        ///
+        /// It cannot be told from the value: IntArgParser keeps a plain int and PreProcess fills it
+        /// with the parser's default, so GetValue() of an omitted OptionalInt is 0 rather than null -
+        /// an omitted plot coordinate reads as the plot at 0 0. Only IsMissing answers this.
+        /// </summary>
+        public static bool HasArg(TextCommandCallingArgs args, int index)
+        {
+            return args.Parsers.Count > index && !args.Parsers[index].IsMissing;
+        }
+
+        /// <summary>An optional whole number, or <paramref name="fallback"/> when it was not typed.</summary>
+        public static long ArgOrDefault(TextCommandCallingArgs args, int index, long fallback)
+        {
+            return HasArg(args, index) ? System.Convert.ToInt64(args.Parsers[index].GetValue()) : fallback;
+        }
     }
 }

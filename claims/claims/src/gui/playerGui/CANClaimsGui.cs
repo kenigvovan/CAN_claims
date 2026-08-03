@@ -200,6 +200,13 @@ namespace claims.src.gui.playerGui
         public void OpenDialog(EnumUpperWindowSelectedState dialog, Action<DialogArgs> fill = null)
         {
             State.Dialog = dialog;
+            // A form opens empty. The input buffers are shared between dialogs and only cleared on
+            // close, so switching straight from one form to another - typing a price into "sell to
+            // cities", then pressing "put up for bids" - handed the new form the old text while its
+            // own field showed nothing. Cleared before fill, which is how a caller prefills a form.
+            State.DialogArgs.Text = "";
+            State.DialogArgs.First = "";
+            State.DialogArgs.Second = "";
             fill?.Invoke(State.DialogArgs);
             BuildUpperWindow();
         }

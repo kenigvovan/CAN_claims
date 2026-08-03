@@ -64,23 +64,31 @@ namespace claims.src.network.handlers
                 else if(packet.type == PacketsContentEnum.CURRENT_PLOT_CLIENT_REQUEST)
                 {
                     var currentPos = player.Entity.Pos;
-                    if(claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(currentPos), out Plot plot))
+                    PlotPosition here = PlotPosition.fromEntityyPos(currentPos);
+                    CurrentPlotInfo cpi;
+                    if(claims.dataStorage.GetPlot(here, out Plot plot))
                     {
                         claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo plotViewer);
-                        CurrentPlotInfo cpi = UsefullPacketsSend.BuildCurrentPlotInfo(plot, plotViewer);
-                        string serializedZones = JsonConvert.SerializeObject(cpi);
-                        
-                        claims.serverChannel.SendPacket(new SavedPlotsPacket()
-                        {
-                            type = PacketsContentEnum.CURRENT_PLOT_INFO,
-                            data = serializedZones
+                        cpi = UsefullPacketsSend.BuildCurrentPlotInfo(plot, plotViewer);
+                    }
+                    else
+                    {
+                        // Unclaimed ground still gets an answer: staying silent leaves the plot page
+                        // describing whichever plot the player walked off, which reads as a page that
+                        // never updates.
+                        cpi = new CurrentPlotInfo { PlotPosition = here.getPos(), IsClaimed = false };
+                    }
 
-                        }, player);
-                        if (ServerMain.FrameProfiler.Enabled)
-                        {
-                            ServerMain.FrameProfiler.Mark("can-claims-packet-current-plot-info");
-                        }
-                    }                                      
+                    claims.serverChannel.SendPacket(new SavedPlotsPacket()
+                    {
+                        type = PacketsContentEnum.CURRENT_PLOT_INFO,
+                        data = JsonConvert.SerializeObject(cpi)
+
+                    }, player);
+                    if (ServerMain.FrameProfiler.Enabled)
+                    {
+                        ServerMain.FrameProfiler.Mark("can-claims-packet-current-plot-info");
+                    }
                 }
                 else if (packet.type == PacketsContentEnum.ADMIN_REQUEST_CITY_FLAGS)
                 {

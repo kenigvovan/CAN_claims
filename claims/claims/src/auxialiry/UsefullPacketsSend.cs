@@ -544,10 +544,15 @@ namespace claims.src.auxialiry
                     info.AuctionBuyout = lot.BuyoutPrice;
                 }
 
-                // The server's own verdict, so the page does not re-judge war, limits or money.
-                bool canTake = viewerCity != null && AuctionRules.CanBid(lot, viewerCity, lot.MinNextBid, out _);
+                // The server's own verdict, so the page does not re-judge war, limits or money. The
+                // refusal travels with it: a button that quietly disappears leaves the mayor guessing
+                // which of a dozen rules stopped them.
+                string blocked = null;
+                bool canTake = viewerCity != null && AuctionRules.CanBid(lot, viewerCity, lot.MinNextBid, out blocked);
                 info.CanBuyAsCity = canTake && lot.IsFixedPrice;
                 info.CanBidAsCity = canTake && !lot.IsFixedPrice;
+                // Not shown to the seller: "you cannot bid on your own lot" is not news to them.
+                if (!canTake && !ours) info.CityBuyBlockedReason = blocked ?? "";
             }
             return info;
         }

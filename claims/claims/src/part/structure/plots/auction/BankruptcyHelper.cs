@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using claims.src.auxialiry;
 using claims.src.citylog;
+using claims.src.economy;
 using claims.src.messages;
 using Vintagestory.API.Config;
 
@@ -49,6 +51,11 @@ namespace claims.src.part.structure.plots.auction
             // anyway, since its plots are not market goods.
             if (city.IsVillage() || city.isTechnicalCity()) return false;
 
+            // Land cannot change hands while its city is at war - PlotSaleRules says so, and every
+            // lot would be refused when it closed. Tearing the city down instead would decide a
+            // siege by bookkeeping, so the debt waits for the peace.
+            if (PlotSaleRules.IsAtWar(city)) return true;
+
             List<PlotAuction> running = GetForcedLots(city);
             if (running.Count > 0)
             {
@@ -63,14 +70,18 @@ namespace claims.src.part.structure.plots.auction
                 return false;
             }
 
-            int opened = Mode == ModeWholeCity ? OpenWholeCityLot(city) : OpenPlotLots(city);
+            bool wholeCity = Mode == ModeWholeCity;
+            int opened = wholeCity ? OpenWholeCityLot(city) : OpenPlotLots(city);
             if (opened == 0) return false;
 
             city.AddLogEntry(EnumCityLogEvent.CityBankrupt, city.DebtBalance.ToString("0"));
             UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
                 gui.playerGui.structures.EnumPlayerRelatedInfo.CITY_LOG);
-            MessageHandler.sendGlobalMsg(Lang.Get("claims:bankruptcy_started",
-                city.getPartNameReplaceUnder(), opened));
+            // Announced differently: "1 plots go under the hammer" is not what happens when the whole
+            // settlement is the lot.
+            MessageHandler.sendGlobalMsg(wholeCity
+                ? Lang.Get("claims:bankruptcy_started_whole", city.getPartNameReplaceUnder())
+                : Lang.Get("claims:bankruptcy_started", city.getPartNameReplaceUnder(), opened));
             return true;
         }
 
@@ -93,8 +104,10 @@ namespace claims.src.part.structure.plots.auction
         /// </summary>
         private static bool HasRecentSale(City city)
         {
+            // Counted in the mod's own days, the ones the fee is charged in - a host who made a day
+            // an hour long would otherwise get a window of a hundred and sixty-eight billing days.
             long since = TimeFunctions.getEpochSeconds()
-                - (claims.config.CITY_BANKRUPTCY_GRACE_DAYS * 2L + 1L) * 24L * 3600L;
+                - (claims.config.CITY_BANKRUPTCY_GRACE_DAYS * 2L + 1L) * claims.config.MOD_DAY_DURATION_IN_SECONDS;
             foreach (PlotAuction it in AuctionRegistry.All)
             {
                 if (it.Reason != EnumAuctionReason.BANKRUPTCY) continue;
@@ -118,9 +131,23 @@ namespace claims.src.part.structure.plots.auction
             foreach (Plot plot in city.getCityPlots().ToArray())
             {
                 if (!PlotSaleRules.CanSellPlot(plot, city, out _)) continue;
-                // A plot the city already put up - at a price or for bids - is on the block anyway;
-                // replacing that offer would throw away bids already made on it.
-                if (AuctionRegistry.HasRunningFor(plot)) continue;
+
+                if (AuctionRegistry.TryGetRunningFor(plot, out PlotAuction standing))
+                {
+                    // Bids are already riding on a timed lot, so it is left alone - but it now counts
+                    // as part of the fire sale, or a city that had put its whole land up voluntarily
+                    // would look like it had nothing to sell and go straight to the wrecking ball.
+                    if (!standing.IsFixedPrice)
+                    {
+                        standing.Reason = EnumAuctionReason.BANKRUPTCY;
+                        standing.saveToDatabase();
+                        opened++;
+                        continue;
+                    }
+                    // A price tag never closes on its own, so counting it would postpone demolition
+                    // forever. It is withdrawn and the plot goes under the hammer with the rest.
+                    AuctionHandler.CancelLot(standing, "claims:plot_auction_cancelled_lot_gone");
+                }
 
                 // The reason is part of the lot from the first row on: the sale finds its own lots by
                 // it, and a lot written as NORMAL would be invisible to the bankruptcy that made it.
@@ -182,15 +209,86 @@ namespace claims.src.part.structure.plots.auction
                 winner.getPartNameReplaceUnder(), bankrupt.getPartNameReplaceUnder(), auction.CurrentBid));
 
             winner.FirePlotsMapChanged(EnumPlotsMapChangeReason.Claimed);
+            // Before the shell goes down with its treasury: what the winner paid is sitting on the
+            // bankrupt account, and demolition deletes that account.
+            PayOutToCitizens(bankrupt);
             // The shell goes last: demolishing it first would take the plots with it.
             PartDemolition.demolishCity(bankrupt, Lang.Get("claims:bankruptcy_absorbed_reason",
                 winner.getPartNameReplaceUnder()));
         }
 
-        /// <summary>How long a forced lot runs - the grace period, within the auction's own bounds.</summary>
+        /// <summary>
+        /// Hands what is left of the bankrupt treasury to the people who just lost their city, split
+        /// evenly, the remainder to the mayor. The debt that started all this is written off the top:
+        /// the sale was held to cover it.
+        ///
+        /// Without this the winner's money would sit on the bankrupt account for the one moment
+        /// between the sale and the demolition that deletes it - paid by somebody, received by
+        /// nobody. Needs real wallets; with a stubbed economy there is nowhere to pay it.
+        /// </summary>
+        private static void PayOutToCitizens(City bankrupt)
+        {
+            if (!claims.economyProvider.SupportsPlayerWallet) return;
+
+            // The debt is settled first, the same way the daily fee settles it: withdrawn from the
+            // treasury into nothing, since it is owed to no one in particular. Only what the sale
+            // fetched on top of it belongs to the citizens.
+            decimal balance = claims.economyProvider.GetBalance(bankrupt.MoneyAccountName);
+            decimal debt = (decimal)Math.Max(0, bankrupt.DebtBalance);
+            if (debt > 0)
+            {
+                decimal repaid = Math.Min(balance, debt);
+                if (claims.economyProvider.Withdraw(bankrupt.MoneyAccountName, repaid) == MoneyOperationResult.Success)
+                {
+                    bankrupt.DebtBalance -= (double)repaid;
+                }
+            }
+
+            decimal left = claims.economyProvider.GetBalance(bankrupt.MoneyAccountName);
+            if (left <= 0) return;
+
+            PlayerInfo[] citizens = bankrupt.getCityCitizens().ToArray();
+            if (citizens.Length == 0) return;
+
+            long share = (long)(left / citizens.Length);
+            long paid = 0;
+            if (share > 0)
+            {
+                foreach (PlayerInfo citizen in citizens)
+                {
+                    if (claims.economyProvider.Transfer(bankrupt.MoneyAccountName,
+                            citizen.MoneyAccountName, share) != MoneyOperationResult.Success)
+                    {
+                        continue;
+                    }
+                    paid += share;
+                    MessageHandler.sendMsgToPlayerInfo(citizen, Lang.Get("claims:bankruptcy_payout", share));
+                }
+            }
+
+            // Whatever the split could not divide - or could not deliver - goes to the mayor rather
+            // than down with the city.
+            decimal rest = left - paid;
+            PlayerInfo mayor = bankrupt.getMayor();
+            if (rest > 0 && mayor != null)
+            {
+                if (claims.economyProvider.Transfer(bankrupt.MoneyAccountName,
+                        mayor.MoneyAccountName, rest) == MoneyOperationResult.Success)
+                {
+                    MessageHandler.sendMsgToPlayerInfo(mayor, Lang.Get("claims:bankruptcy_payout", rest));
+                }
+            }
+        }
+
+        /// <summary>
+        /// How long a forced lot runs - the grace period, within the auction's own bounds. Measured
+        /// in the mod's days rather than real ones: the debt that started this grows once per those,
+        /// so a sale lasting "three days" must not outlive three billing rounds.
+        /// </summary>
         private static int LotHours()
         {
-            int hours = claims.config.CITY_BANKRUPTCY_GRACE_DAYS * 24;
+            long graceSeconds = claims.config.CITY_BANKRUPTCY_GRACE_DAYS * claims.config.MOD_DAY_DURATION_IN_SECONDS;
+            int hours = (int)Math.Max(1, graceSeconds / 3600);
             if (hours < claims.config.AUCTION_MIN_HOURS) hours = claims.config.AUCTION_MIN_HOURS;
             if (hours > claims.config.AUCTION_MAX_HOURS) hours = claims.config.AUCTION_MAX_HOURS;
             return hours;

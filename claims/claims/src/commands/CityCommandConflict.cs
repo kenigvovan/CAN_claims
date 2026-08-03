@@ -270,8 +270,7 @@ namespace claims.src.commands
             if (ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.END_CONFLICT, out _))
                 return TextCommandResult.Success(Lang.Get("claims:end_conflict_letter_exist"));
 
-            PeaceTerms terms = PeaceTerms.Parse((string)args.Parsers[1].GetValue(),
-                args.Parsers.Count > 2 && args.Parsers[2].GetValue() != null ? System.Convert.ToInt64(args.Parsers[2].GetValue()) : 0);
+            PeaceTerms terms = PeaceTerms.Parse((string)args.Parsers[1].GetValue(), ArgOrDefault(args, 2, 0));
             if (terms.Type != PeaceTermType.None && !claims.config.WAR_PEACE_TERMS_ENABLED)
                 return TextCommandResult.Success(Lang.Get("claims:peace_terms_disabled"));
             if (terms.Type == PeaceTermType.Cession)
@@ -414,7 +413,7 @@ namespace claims.src.commands
             if (ConflictHandler.TryGetConflictLetter(ourParty, targetParty, LetterPurpose.NON_AGGRESSION, out _))
                 return TextCommandResult.Success(Lang.Get("claims:conflict_letter_is_duplicate"));
 
-            int days = args.Parsers.Count > 1 && args.Parsers[1].GetValue() != null ? System.Convert.ToInt32(args.Parsers[1].GetValue()) : claims.config.WAR_NAP_DEFAULT_DAYS;
+            int days = (int)ArgOrDefault(args, 1, claims.config.WAR_NAP_DEFAULT_DAYS);
             if (days < 1) days = 1;
             if (days > claims.config.WAR_NAP_MAX_DAYS) days = claims.config.WAR_NAP_MAX_DAYS;
             int daysCaptured = days;
@@ -513,7 +512,7 @@ namespace claims.src.commands
             string demandLabel;
             if (type == "money")
             {
-                long amount = args.Parsers.Count > 2 && args.Parsers[2].GetValue() != null ? System.Convert.ToInt64(args.Parsers[2].GetValue()) : 0;
+                long amount = ArgOrDefault(args, 2, 0);
                 if (amount <= 0) return TextCommandResult.Success(Lang.Get("claims:ultimatum_needs_amount"));
                 terms = new PeaceTerms(PeaceTermType.Reparations, amount);
                 demandLabel = Lang.Get("claims:ultimatum_demand_money", amount);

@@ -134,7 +134,7 @@ namespace claims.src.auxialiry
             }
             if(toPlot == null)
             {
-                claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(player.Entity.ServerPos), out toPlot);
+                claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(player.Entity.Pos), out toPlot);
             }
             //NO CITY, no plot
             if(toPlot == null || !toPlot.hasCity() || !playerInfo.hasCity())

@@ -61,14 +61,24 @@ namespace claims.src.part.structure.plots.auction
             return true;
         }
 
-        /// <summary>Pays whatever is left in escrow to the seller and drops the account.</summary>
-        public static bool Release(PlotAuction auction, City toCity)
+        /// <summary>
+        /// Pays the deal out to the seller and drops the account.
+        /// </summary>
+        /// <param name="amount">
+        /// What the seller is owed - the winning bid. Anything else on the account is not theirs: a
+        /// refund that could not be delivered ends up here, and handing it over would pay the seller
+        /// for land they did not sell. Pass -1 to release the whole balance, which is what a lot with
+        /// nothing but its own bid on it needs.
+        /// </param>
+        public static bool Release(PlotAuction auction, City toCity, long amount = -1)
         {
             decimal left = claims.economyProvider.GetBalance(auction.EscrowAccountName);
-            if (toCity != null && left > 0)
+            decimal payout = amount < 0 ? left : System.Math.Min(left, amount);
+
+            if (toCity != null && payout > 0)
             {
                 MoneyOperationResult result = claims.economyProvider.Transfer(
-                    auction.EscrowAccountName, toCity.MoneyAccountName, left);
+                    auction.EscrowAccountName, toCity.MoneyAccountName, payout);
                 if (result != MoneyOperationResult.Success)
                 {
                     // Leave the account alone: deleting it now would destroy money that belongs to
@@ -78,9 +88,43 @@ namespace claims.src.part.structure.plots.auction
                     return false;
                 }
             }
-            Close(auction);
+            Sweep(auction);
             return true;
         }
+
+        /// <summary>
+        /// Empties the lot's account and drops it. Whatever is still on it belongs to somebody who
+        /// could not be paid - an outbid city demolished before its refund went through - so it is
+        /// moved to the holding account rather than deleted along with the lot. Nothing pays out of
+        /// that account on its own; it exists so the money can be found and returned by hand.
+        /// </summary>
+        public static void Sweep(PlotAuction auction)
+        {
+            decimal left = claims.economyProvider.GetBalance(auction.EscrowAccountName);
+            if (left > 0)
+            {
+                string holding = HoldingAccountName;
+                if (!claims.economyProvider.AccountExists(holding))
+                {
+                    claims.economyProvider.NewAccount(holding);
+                }
+                MoneyOperationResult result = claims.economyProvider.Transfer(
+                    auction.EscrowAccountName, holding, left);
+                if (result != MoneyOperationResult.Success)
+                {
+                    // Could not even park it - keep the account rather than delete the money with it.
+                    MessageHandler.sendErrorMsg("AuctionEscrow::Sweep failed for lot " + auction.Guid
+                        + " (" + left + " left): " + result);
+                    return;
+                }
+                MessageHandler.sendErrorMsg("AuctionEscrow: " + left + " from lot " + auction.Guid
+                    + " could not be paid to anyone and was moved to " + holding);
+            }
+            Close(auction);
+        }
+
+        /// <summary>Where unpayable escrow ends up. One account for the whole server.</summary>
+        public static string HoldingAccountName => claims.config.AUCTION_ACCOUNT_STRING_PREFIX + "unclaimed";
 
         /// <summary>Drops the lot's account. Only safe once the balance has been paid out.</summary>
         public static void Close(PlotAuction auction)
