@@ -122,6 +122,8 @@ namespace claims.src
 
             CheckAdminRole();
 
+            CheckAdminRole();
+
             if(!this.prettyGuiState.IsOpen)
             {
                 return CallbackGUIStatus.Closed;

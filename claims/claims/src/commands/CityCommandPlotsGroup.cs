@@ -381,8 +381,8 @@ namespace claims.src.commands
             if (found == null)
             {
                 tcr.StatusMessage = "claims:no_such_plotsgroup_invite";
-                return tcr;
-            }
+            return tcr;
+        }
 
             // Withdrawn, not refused: the reject callback tells the city somebody said no, and
             // taking an offer back is not that.
@@ -831,6 +831,7 @@ namespace claims.src.commands
                 new Dictionary<string, object> { { "value", PlotsGroupFeeHelper.ToCell(group,
                     group.PlayersList.Select(ele => ele.GetPartName()).ToList()) } },
                 EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_UPDATE);
+            return tcr;
         }
 
         public static bool HelperFunctionSetFlag(IServerPlayer player, out CityPlotsGroup searchedGroup, out City city, string groupName, TextCommandResult tcr)
