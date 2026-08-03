@@ -260,7 +260,7 @@ namespace claims.src.timers
                             foreach (Plot plot in it.PlayerPlots.ToArray())
                             {
                                 //BUT NOT AT OTHER CITIES, THAT WILL BE TAKEN CARE IN DIFFERENT ITERATION FOR ANOTHER CITY
-                                if (!plot.getCity().Equals(city))
+                                if (!plot.hasCity() || !plot.getCity().Equals(city))
                                 {
                                     continue;
                                 }

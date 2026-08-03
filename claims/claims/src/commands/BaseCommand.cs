@@ -43,6 +43,24 @@ namespace claims.src.commands
             return TextCommandResult.Error("");
         }
 
+        public static bool TryResolveCaller(TextCommandCallingArgs args, out IServerPlayer player, out PlayerInfo playerInfo, out TextCommandResult err)
+        {
+            player = args.Caller.Player as IServerPlayer;
+            if (player == null)
+            {
+                playerInfo = null;
+                err = TextCommandResult.Error("");
+                return false;
+            }
+            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out playerInfo))
+            {
+                err = TextCommandResult.Error(Lang.Get("claims:no_such_player_info"));
+                return false;
+            }
+            err = null;
+            return true;
+        }
+
         public static bool getBoolFromString(string str)
         {
             if (str.Equals("on"))

@@ -18,10 +18,6 @@ namespace claims.src.harmony
         public static void ApplyClientPatches(Harmony harmonyInstance, string harmonyID)
         {
             harmonyInstance = new Harmony(harmonyID);
-            //harmonyInstance.Patch(typeof(Vintagestory.Common.WorldMap).GetMethod("TryAccess"), prefix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Prefix_tryAccess")));
-            //harmonyInstance.Patch(typeof(Vintagestory.Common.WorldMap).GetMethod("TryAccess"), postfix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Postfix_tryAccess")));
-            //harmonyInstance.Patch(typeof(WorldMap).GetMethod("testBlockAccessInternal", BindingFlags.NonPublic | BindingFlags.Instance), prefix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Prefix_testBlockAccessInternal")));
-
             harmonyInstance.Patch(
                 typeof(Vintagestory.Common.PlayerInventoryManager).GetMethod("DropMouseSlotItems"),
                 prefix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Prefix_DropMouseSlotItems")));
@@ -32,21 +28,28 @@ namespace claims.src.harmony
             //Falling block patch
             if (claims.config.FALLING_BLOCKS_TO_CITY_PLOTS_PATCH)
             {
-                harmonyInstance.Patch(typeof(Vintagestory.GameContent.EntityBlockFalling).GetMethod("OnFallToGround"), prefix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Prefix_OnFallToGround")));
+                if (harmonyPatches.EntityBlockFallingUpdateBlock == null || harmonyPatches.EntityBlockFallingDropItems == null)
+                    claims.sapi.Logger.Warning("[claims] FALLING_BLOCKS patch skipped: EntityBlockFalling.UpdateBlock or DropItems not found (VS update?)");
+                else
+                    harmonyInstance.Patch(typeof(Vintagestory.GameContent.EntityBlockFalling).GetMethod("OnFallToGround"), prefix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Prefix_OnFallToGround")));
             }
 
             if (claims.config.WATER_FLOW_CITY_PLOTS_PATCH)
             {
-                harmonyInstance.Patch(typeof(Vintagestory.GameContent.BlockBehaviorFiniteSpreadingLiquid).GetMethod("TrySpreadHorizontal",
-                    BindingFlags.NonPublic | BindingFlags.Instance), prefix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Prefix_TrySpreadHorizontal")));
-                harmonyInstance.Patch(typeof(Vintagestory.GameContent.BlockBehaviorFiniteSpreadingLiquid).GetMethod("FindDownwardPaths"), postfix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Postfix_FindDownwardPaths")));
+                if (harmonyPatches.TrySpreadIntoBlock == null)
+                    claims.sapi.Logger.Warning("[claims] WATER_FLOW patch skipped: BlockBehaviorFiniteSpreadingLiquid.TrySpreadIntoBlock not found (VS update?)");
+                else
+                {
+                    harmonyInstance.Patch(typeof(Vintagestory.GameContent.BlockBehaviorFiniteSpreadingLiquid).GetMethod("TrySpreadHorizontal",
+                        BindingFlags.NonPublic | BindingFlags.Instance), prefix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Prefix_TrySpreadHorizontal")));
+                    harmonyInstance.Patch(typeof(Vintagestory.GameContent.BlockBehaviorFiniteSpreadingLiquid).GetMethod("FindDownwardPaths"), postfix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Postfix_FindDownwardPaths")));
+                }
             }
 
             harmonyInstance.Patch(typeof(Vintagestory.API.Common.EntityAgent).GetMethod("ShouldReceiveDamage"), prefix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Prefix_On_ReceiveDamage")));
 
             harmonyInstance.Patch(typeof(Vintagestory.GameContent.BEBehaviorBurning).GetMethod("TrySpreadTo"), prefix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Prefix_On_TrySpreadFireAllDirs")));
 
-            //harmonyInstance.Patch(typeof(Vintagestory.GameContent.BlockEntityBomb).GetMethod("nearToClaimedLand"), prefix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Prefix_nearToClaimedLand")));
             harmonyInstance.Patch(typeof(Vintagestory.GameContent.BlockEntityBomb).GetMethod("HasPermissionToUse"), prefix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Prefix_HasPermissionToUse")));
 
             harmonyInstance.Patch(typeof(Vintagestory.Common.ChatCommandApi).GetMethod("Execute", new[] { typeof(string), typeof(IServerPlayer), typeof(int), typeof(string), typeof(Action<TextCommandResult>) }), prefix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Prefix_HandleCommand")));
@@ -56,10 +59,7 @@ namespace claims.src.harmony
             harmonyInstance.Patch(typeof(Vintagestory.GameContent.BlockEntityBarrel).GetMethod("OnReceivedClientPacket"), prefix: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Prefix_BlockEntityBarrel_OnReceivedClientPacket")));
 
             harmonyInstance.Patch(typeof(ServerSystemEntitySimulation).GetMethod("OnPlayerRespawn", BindingFlags.NonPublic | BindingFlags.Instance), transpiler: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Transpiler_ComposeSlotOverlays_Add_Socket_Overlays_Not_Draw_ItemDamage")));
-            
-            /*harmonyInstance.Patch(typeof(ServerSystemBlockSimulation).GetMethod("HandleBlockPlaceOrBreak", BindingFlags.NonPublic | BindingFlags.Instance), transpiler: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Transpiler_ServerSystemBlockSimulation_HandleBlockPlaceOrBreak")));
-            harmonyInstance.Patch(typeof(ServerSystemBlockSimulation).GetMethod("HandleBlockInteract", BindingFlags.NonPublic | BindingFlags.Instance), transpiler: new HarmonyMethod(typeof(harmonyPatches).GetMethod("Transpiler_ServerSystemBlockSimulation_HandleBlockInteract")));*/
-            
+
         }
     }
 }

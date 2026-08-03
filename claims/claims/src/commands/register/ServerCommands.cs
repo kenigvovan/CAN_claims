@@ -42,6 +42,10 @@ namespace claims.src.commands.register
               .RequiresPlayer().RequiresPrivilege(Privilege.chat)
               .WithArgs(parsers.Word("cityName"), parsers.Word("groupName"));
 
+            sapi.ChatCommands.Create("plotsgroupdeny").HandleWith(commands.AcceptCommand.onDenyPlotGroup)
+              .RequiresPlayer().RequiresPrivilege(Privilege.chat)
+              .WithArgs(parsers.Word("cityName"), parsers.Word("groupName"));
+
             sapi.ChatCommands.Create("plotsgroupleave").HandleWith(commands.AcceptCommand.onLeavePlotGroup)
               .RequiresPlayer().RequiresPrivilege(Privilege.chat)
               .WithArgs(parsers.Word("cityName"), parsers.Word("groupName"));
@@ -859,8 +863,8 @@ namespace claims.src.commands.register
                        .BeginSub("permissions")
                              .WithAlias("p")
                                .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
+                             .WithArgs(parsers.Word("group"), parsers.Word("permType"), parsers.WordRange("state", "on", "off"))
                              .HandleWith(commands.CAdminCommand.plotPermissions)
-                             .IgnoreAdditionalArgs()
                         .EndSub()
                         .BeginSub("pvp")
                              .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
@@ -1025,6 +1029,11 @@ namespace claims.src.commands.register
                     .WithArgs(parsers.Word("firstParty"), parsers.Word("secondParty"), parsers.OptionalInt("minutesUntilStart"), parsers.OptionalInt("battleDurationMinutes"))
                     .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
                     .HandleWith(commands.CAdminCommand.SetBattleDate)
+                .EndSub()
+                .BeginSub("endwar")
+                    .WithArgs(parsers.Word("firstParty"), parsers.Word("secondParty"))
+                    .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequireAdminRole(args))
+                    .HandleWith(commands.CAdminCommand.EndWar)
                 .EndSub()
                 ;
         }            

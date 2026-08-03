@@ -215,13 +215,15 @@ namespace claims.src
 
             PlotPosition to = new PlotPosition(tov);
             IServerPlayer pl = claims.sapi.World.PlayerByUid(playerInfo.Guid) as IServerPlayer;
-            
+            if (pl == null) return;
+
             if (playerInfo.PlayerCache.LastChunk == null)
             {
-                events.OnBlockAction.InitPlayerCache((IServerPlayer)pl);
+                events.OnBlockAction.InitPlayerCache(pl);
             }
             else
             {
+                if (pl.Entity == null) return;
                 playerInfo.PlayerCache.setPlotPosition(PlotPosition.fromXZ((int)pl.Entity.Pos.X, (int)pl.Entity.Pos.Z));
                 playerInfo.PlayerCache.Reset();
             }
@@ -273,6 +275,7 @@ namespace claims.src
                 //If we have last player pos saved
                 if (claims.dataStorage.getLastPlayerPos(it.PlayerUID, out Vec3i lastPlayerPos))
                 {
+                    if (it.Entity == null) continue;
                     Vec3i playerCurrentPos = it.Entity.Pos.XYZInt;
                     if ((lastPlayerPos.X != playerCurrentPos.X || lastPlayerPos.Z != playerCurrentPos.Z))
                     {
@@ -320,6 +323,7 @@ namespace claims.src
                     {
                         continue;
                     }
+                    if (it.Entity == null) continue;
                     Vec3i playerCurrentPos = it.Entity.Pos.XYZInt;
                     claims.dataStorage.setLastPlayerPos(it.PlayerUID, playerCurrentPos.Clone());
 

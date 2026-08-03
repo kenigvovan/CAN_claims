@@ -191,22 +191,29 @@ namespace claims.src.claimsext.map
         }
         public async void generateFromZoneSavedPlotsOnMap(Vec2i zoneCord)
         {
-            //for selected zone we go through all saved plots
-            //and generate map plot picture
-            await Task.Factory.StartNew(async () =>
+            try
             {
-                if(claims.clientDataStorage.getClientSavedZone(zoneCord, out ClientSavedZone clientSavedZone))
+                if (claims.clientDataStorage.getClientSavedZone(zoneCord, out ClientSavedZone clientSavedZone))
                 {
-                    foreach(var it in clientSavedZone.savedPlots)
-                    {
-                        OnResChunkPixels(it.Key, it.Value.cityName);
-                    }
+                    var tasks = new System.Collections.Generic.List<Task>();
+                    foreach (var it in clientSavedZone.savedPlots)
+                        tasks.Add(OnResChunkPixelsAsync(it.Key, it.Value.cityName));
+                    await Task.WhenAll(tasks);
                 }
-            });
+            }
+            catch (Exception ex)
+            {
+                api.Logger.Error("[claims] generateFromZoneSavedPlotsOnMap error: " + ex);
+            }
         }
         public async void OnResChunkPixels(Vec2i cord, string cityName)
         {
-            await Task.Factory.StartNew(async () =>
+            try { await OnResChunkPixelsAsync(cord, cityName); }
+            catch (Exception ex) { api.Logger.Error("[claims] OnResChunkPixels error: " + ex); }
+        }
+        private async Task OnResChunkPixelsAsync(Vec2i cord, string cityName)
+        {
+            await Task.Run(async () =>
             {
                 //System.Threading.Thread.Sleep(1000);
                 int color = 0;

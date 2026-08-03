@@ -21,18 +21,15 @@ namespace claims.src.gui.prettyGui.GuiTabs
         {
             var clientInfo = claims.clientDataStorage.clientPlayerInfo;
             if (clientInfo?.CurrentPlotInfo == null) return;
-            Vector4 labelColor = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
-            Vector4 valueColor = new Vector4(1.0f, 0.85f, 0.3f, 1.0f);
-            Vector4 sectionColor = new Vector4(0.4f, 0.7f, 1.0f, 1.0f);
 
             // --- Header: position + refresh ---
-            ImGui.PushStyleColor(ImGuiCol.Text, valueColor);
+            ImGui.PushStyleColor(ImGuiCol.Text, ColValue);
             ImGui.SetWindowFontScale(1.15f);
             ImGui.Text($"[{clientInfo.CurrentPlotInfo.PlotPosition.X} / {clientInfo.CurrentPlotInfo.PlotPosition.Y}]");
             ImGui.SetWindowFontScale(1.0f);
             ImGui.PopStyleColor();
             ImGui.SameLine();
-            if (ImGui.ImageButton("plotinfoget", this.iconHandler.GetOrLoadIcon("info"), new Vector2(15)))
+            if (IconButton("plotinfoget", "info", 15))
             {
                 claims.clientChannel.SendPacket(new SavedPlotsPacket()
                 {
@@ -49,63 +46,29 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 || perms.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_ALL_OWN_PLOT);
 
             // --- Plot name ---
-            ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-            ImGui.Text(Lang.Get("claims:gui-plot-name", ""));
-            ImGui.PopStyleColor();
-            ImGui.SameLine(0, 0);
-            ImGui.Text(clientInfo.CurrentPlotInfo.PlotName ?? "");
+            LabelValue(Lang.Get("claims:gui-plot-name", ""), clientInfo.CurrentPlotInfo.PlotName ?? "");
             if (canEditPlot || perms.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_NAME))
             {
                 ImGui.SameLine();
-                if (ImGui.ImageButton("setplotname", this.iconHandler.GetOrLoadIcon("info"), new Vector2(15)))
-                {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.PLOT_SET_NAME;
-                }
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(Lang.Get("claims:gui-plot-set-name-tooltip"));
-                }
+                if (IconButton("setplotname", "info", 15, Lang.Get("claims:gui-plot-set-name-tooltip")))
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.PLOT_SET_NAME;
             }
 
             // --- Owner ---
-            ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-            ImGui.Text(Lang.Get("claims:gui-owner-name", ""));
-            ImGui.PopStyleColor();
-            ImGui.SameLine(0, 0);
-            ImGui.Text(clientInfo.CurrentPlotInfo.OwnerName ?? "");
+            LabelValue(Lang.Get("claims:gui-owner-name", ""), clientInfo.CurrentPlotInfo.OwnerName ?? "");
 
             if (clientInfo.CurrentPlotInfo.Price > -1)
             {
                 ImGui.SameLine();
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.55f, 0.3f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.65f, 0.4f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.25f, 1.0f));
-                if (ImGui.ImageButton("plotclaim", this.iconHandler.GetOrLoadIcon("id-card"), new Vector2(15)))
-                {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.PLOT_CLAIM;
-                }
-                ImGui.PopStyleColor(3);
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(Lang.Get("claims:gui-plot-buy-tooltip"));
-                }
+                if (GreenIconButton("plotclaim", "id-card", 15, Lang.Get("claims:gui-plot-buy-tooltip")))
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.PLOT_CLAIM;
             }
 
             if (clientInfo.CurrentPlotInfo.OwnerName?.Length > 0)
             {
                 ImGui.SameLine();
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.7f, 0.25f, 0.2f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.35f, 0.3f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.6f, 0.2f, 0.15f, 1.0f));
-                if (ImGui.ImageButton("plotunclaim", this.iconHandler.GetOrLoadIcon("id-card"), new Vector2(15)))
-                {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.PLOT_UNCLAIM;
-                }
-                ImGui.PopStyleColor(3);
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(Lang.Get("claims:gui-plot-unclaim-tooltip"));
-                }
+                if (RedIconButton("plotunclaim", "id-card", 15, Lang.Get("claims:gui-plot-unclaim-tooltip")))
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.PLOT_UNCLAIM;
             }
 
             ImGui.Spacing();
@@ -113,48 +76,31 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.Spacing();
 
             // --- Plot type ---
-            ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-            ImGui.Text(Lang.Get("claims:gui-plot-type", ""));
-            ImGui.PopStyleColor();
-            ImGui.SameLine(0, 0);
-            ImGui.Text(PlotInfo.dictPlotTypes.TryGetValue(clientInfo.CurrentPlotInfo.PlotType, out PlotInfo plotInfo) ? plotInfo.getFullName() : "-");
+            LabelValue(Lang.Get("claims:gui-plot-type", ""),
+                PlotInfo.dictPlotTypes.TryGetValue(clientInfo.CurrentPlotInfo.PlotType, out PlotInfo plotInfo) ? plotInfo.getFullName() : "-");
             if (canEditPlot || perms.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_TYPE))
             {
                 ImGui.SameLine();
-                if (ImGui.ImageButton("plotsettype", this.iconHandler.GetOrLoadIcon("files"), new Vector2(15)))
-                {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.PLOT_SET_TYPE;
-                }
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(Lang.Get("claims:gui-plot-set-type-tooltip"));
-                }
+                if (IconButton("plotsettype", "files", 15, Lang.Get("claims:gui-plot-set-type-tooltip")))
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.PLOT_SET_TYPE;
             }
 
             if (clientInfo.CurrentPlotInfo.PlotType == PlotType.PRISON && perms.HasPermission(rights.EnumPlayerPermissions.CITY_PRISON_ADD_CELL))
             {
                 ImGui.SameLine();
-                if (ImGui.ImageButton("addprisoncell", this.iconHandler.GetOrLoadIcon("pencil"), new Vector2(15)))
+                if (IconButton("addprisoncell", "pencil", 15, Lang.Get("claims:gui-plot-add-prison-cell-tooltip")))
                 {
                     ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                     clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/c prison addcell", EnumChatType.Macro, "");
-                }
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(Lang.Get("claims:gui-plot-add-prison-cell-tooltip"));
                 }
             }
             else if (clientInfo.CurrentPlotInfo.PlotType == PlotType.SUMMON && perms.HasPermission(rights.EnumPlayerPermissions.CITY_SET_SUMMON))
             {
                 ImGui.SameLine();
-                if (ImGui.ImageButton("setsummonpoint", this.iconHandler.GetOrLoadIcon("pencil"), new Vector2(15)))
+                if (IconButton("setsummonpoint", "pencil", 15, Lang.Get("claims:gui-plot-set-summon-tooltip")))
                 {
                     ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                     clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/c summon set point", EnumChatType.Macro, "");
-                }
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(Lang.Get("claims:gui-plot-set-summon-tooltip"));
                 }
             }
 
@@ -163,65 +109,33 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.Spacing();
 
             // --- Tax ---
-            ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-            ImGui.Text(Lang.Get("claims:gui-plot-custom-tax", ""));
-            ImGui.PopStyleColor();
-            ImGui.SameLine(0, 0);
-            ImGui.Text(clientInfo.CurrentPlotInfo.CustomTax.ToString());
+            LabelValue(Lang.Get("claims:gui-plot-custom-tax", ""), clientInfo.CurrentPlotInfo.CustomTax.ToString());
             if (canEditPlot || perms.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_FEE))
             {
                 ImGui.SameLine();
-                if (ImGui.ImageButton("settax", this.iconHandler.GetOrLoadIcon("medal"), new Vector2(15)))
-                {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.PLOT_SET_TAX;
-                }
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(Lang.Get("claims:gui-plot-set-tax-tooltip"));
-                }
+                if (IconButton("settax", "medal", 15, Lang.Get("claims:gui-plot-set-tax-tooltip")))
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.PLOT_SET_TAX;
             }
 
             // --- Price ---
-            ImGui.PushStyleColor(ImGuiCol.Text, labelColor);
-            ImGui.Text(Lang.Get("claims:gui-plot-price", ""));
-            ImGui.PopStyleColor();
-            ImGui.SameLine(0, 0);
-            ImGui.Text(clientInfo.CurrentPlotInfo.Price > -1
+            LabelValue(Lang.Get("claims:gui-plot-price", ""), clientInfo.CurrentPlotInfo.Price > -1
                 ? clientInfo.CurrentPlotInfo.Price.ToString()
                 : Lang.Get("claims:gui-not-for-sale"));
             if (canEditPlot || perms.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_FS))
             {
                 ImGui.SameLine();
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.55f, 0.3f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.65f, 0.4f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.25f, 1.0f));
-                if (ImGui.ImageButton("setplotprice", this.iconHandler.GetOrLoadIcon("medal"), new Vector2(15)))
-                {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.PLOT_SET_PRICE_NEED_NUMBER;
-                }
-                ImGui.PopStyleColor(3);
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(Lang.Get("claims:gui-plot-set-price-tooltip"));
-                }
+                if (GreenIconButton("setplotprice", "medal", 15, Lang.Get("claims:gui-plot-set-price-tooltip")))
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.PLOT_SET_PRICE_NEED_NUMBER;
             }
             if (canEditPlot || perms.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_NFS))
             {
                 ImGui.SameLine();
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.7f, 0.25f, 0.2f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.35f, 0.3f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.6f, 0.2f, 0.15f, 1.0f));
-                if (ImGui.ImageButton("plotnfs", this.iconHandler.GetOrLoadIcon("contract"), new Vector2(15)))
+                if (RedIconButton("plotnfs", "contract", 15, Lang.Get("claims:gui-plot-not-for-sale-tooltip")))
                 {
                     ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                     clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/plot nfs", EnumChatType.Macro, "");
                     // Optimistic local update
                     clientInfo.CurrentPlotInfo.Price = -1;
-                }
-                ImGui.PopStyleColor(3);
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(Lang.Get("claims:gui-plot-not-for-sale-tooltip"));
                 }
             }
 
@@ -234,45 +148,23 @@ namespace claims.src.gui.prettyGui.GuiTabs
             {
                 ImGui.Text(Lang.Get("claims:gui-plot-permissions"));
                 ImGui.SameLine();
-                if (ImGui.ImageButton("plotpermissions", this.iconHandler.GetOrLoadIcon("medal"), new Vector2(15)))
-                {
-                    capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.PLOT_PERMISSIONS;
-                }
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(Lang.Get("claims:gui-plot-set-permissions-tooltip"));
-                }
+                if (IconButton("plotpermissions", "medal", 15, Lang.Get("claims:gui-plot-set-permissions-tooltip")))
+                    GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.PLOT_PERMISSIONS;
             }
 
             // --- Borders ---
             ImGui.Text(Lang.Get("claims:gui-plot-borders"));
             ImGui.SameLine();
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.55f, 0.3f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.65f, 0.4f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.45f, 0.25f, 1.0f));
-            if (ImGui.ImageButton("showplotborders", this.iconHandler.GetOrLoadIcon("medal"), new Vector2(15)))
+            if (GreenIconButton("showplotborders", "medal", 15, Lang.Get("claims:gui-plot-show-borders-tooltip")))
             {
                 ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                 clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/plot borders on", EnumChatType.Macro, "");
             }
-            ImGui.PopStyleColor(3);
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip(Lang.Get("claims:gui-plot-show-borders-tooltip"));
-            }
             ImGui.SameLine();
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.7f, 0.25f, 0.2f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.35f, 0.3f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.6f, 0.2f, 0.15f, 1.0f));
-            if (ImGui.ImageButton("hideplotborders", this.iconHandler.GetOrLoadIcon("medal"), new Vector2(15)))
+            if (RedIconButton("hideplotborders", "medal", 15, Lang.Get("claims:gui-plot-hide-borders-tooltip")))
             {
                 ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                 clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/plot borders off", EnumChatType.Macro, "");
-            }
-            ImGui.PopStyleColor(3);
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip(Lang.Get("claims:gui-plot-hide-borders-tooltip"));
             }
         }
     }

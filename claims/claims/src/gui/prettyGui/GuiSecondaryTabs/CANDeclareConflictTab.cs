@@ -20,28 +20,28 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
         public override void DrawTab()
         {
             ImGui.SetNextWindowPos(
-                new Vector2(capi.ModLoader.GetModSystem<claimsGui>().mainWindowPos.X + capi.ModLoader.GetModSystem<claimsGui>().mainWindowSize.X, capi.ModLoader.GetModSystem<claimsGui>().mainWindowPos.Y)
+                new Vector2(GuiSys.mainWindowPos.X + GuiSys.mainWindowSize.X, GuiSys.mainWindowPos.Y)
             );
 
             ImGuiWindowFlags flags1 =
                  ImGuiWindowFlags.NoScrollWithMouse;
-            ImGui.Begin("ClaimsDetails", p_open: ref capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowOpen, flags1);
+            ImGui.Begin("ClaimsDetails", p_open: ref GuiSys.secondaryWindowOpen, flags1);
             ImGui.Text(Lang.Get("claims:name_of_target_to_send_conflict_letter"));
 
             ImGui.RadioButton(Lang.Get("claims:conflict_target_city"), ref selectedTargetType, 0);
             ImGui.SameLine();
             ImGui.RadioButton(Lang.Get("claims:conflict_target_alliance"), ref selectedTargetType, 1);
 
-            ImGui.InputText("", ref capi.ModLoader.GetModSystem<claimsGui>().textInput, 256);
+            ImGui.InputText("", ref GuiSys.textInput, 256);
 
             if (ImGui.Button(Lang.Get("claims:gui-confirm-button")))
             {
                 string prefix = selectedTargetType == 0 ? "city:" : "alliance:";
-                string command = baseCommand + prefix + capi.ModLoader.GetModSystem<claimsGui>().textInput;
+                string command = baseCommand + prefix + GuiSys.textInput;
                 ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                 clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, command, EnumChatType.Macro, "");
-                capi.ModLoader.GetModSystem<claimsGui>().textInput = "";
-                capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = EnumSecondaryWindowTab.NONE;
+                GuiSys.textInput = "";
+                GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.NONE;
             }
             ImGui.End();
         }

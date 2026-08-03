@@ -1,6 +1,7 @@
 ﻿using claims.src.auxialiry;
 using claims.src.gui.playerGui.GuiElements;
 using claims.src.gui.playerGui.structures.cellElements;
+using claims.src.rights;
 using Vintagestory.API.Client;
 using Vintagestory.API.Config;
 using static claims.src.gui.playerGui.CANClaimsGui;
@@ -35,23 +36,35 @@ namespace claims.src.gui.playerGui.GuiPages
             ElementBounds addCriminalBounds = currentBounds.RightCopy();
             addCriminalBounds.WithFixedWidth(25).WithFixedHeight(25);
             ElementBounds removeFriendBounds = addCriminalBounds.RightCopy();
-           /* compo.AddIconButton("plus", (bool t) =>
+            var perms = clientInfo.PlayerPermissions;
+            if (perms.HasPermission(EnumPlayerPermissions.CITY_ADD_CRIMINAL))
             {
-                if (t)
+                compo.AddInset(addCriminalBounds);
+                compo.AddIconButton("plus", (bool t) =>
                 {
-                    gui.CreateNewCityState = EnumUpperWindowSelectedState.ADD_CRIMINAL_NEED_NAME;
-                    gui.BuildUpperWindow();
-                }
-            }, addCriminalBounds);
-
-            compo.AddIconButton("line", (bool t) =>
+                    if (t)
+                    {
+                        gui.CreateNewCityState = EnumUpperWindowSelectedState.ADD_CRIMINAL_NEED_NAME;
+                        gui.BuildUpperWindow();
+                    }
+                }, addCriminalBounds);
+                compo.AddHoverText(Lang.Get("claims:gui-prison-add-criminal-tooltip"),
+                    CairoFont.SmallButtonText(), (int)currentBounds.fixedWidth / 2, addCriminalBounds);
+            }
+            if (perms.HasPermission(EnumPlayerPermissions.CITY_REMOVE_CRIMINAL))
             {
-                if (t)
+                compo.AddInset(removeFriendBounds);
+                compo.AddIconButton("line", (bool t) =>
                 {
-                    gui.CreateNewCityState = EnumUpperWindowSelectedState.REMOVE_CRIMINAL;
-                    gui.BuildUpperWindow();
-                }
-            }, removeFriendBounds);*/
+                    if (t)
+                    {
+                        gui.CreateNewCityState = EnumUpperWindowSelectedState.REMOVE_CRIMINAL;
+                        gui.BuildUpperWindow();
+                    }
+                }, removeFriendBounds);
+                compo.AddHoverText(Lang.Get("claims:gui-prison-remove-criminal-tooltip"),
+                    CairoFont.SmallButtonText(), (int)currentBounds.fixedWidth / 2, removeFriendBounds);
+            }
 
             currentBounds.fixedWidth = lineBounds.fixedWidth;
 
@@ -71,7 +84,7 @@ namespace claims.src.gui.playerGui.GuiPages
 
             ElementBounds scrollbarBounds = insetBounds.CopyOffsetedSibling(logtextBounds.fixedWidth + 7).WithFixedWidth(20);
 
-            compo.AddStaticText("Prison cells",
+            compo.AddStaticText(Lang.Get("claims:gui-prison-cells-title"),
                 CairoFont.WhiteMediumText().WithOrientation(EnumTextOrientation.Center),
                 invitationTextBounds);
 

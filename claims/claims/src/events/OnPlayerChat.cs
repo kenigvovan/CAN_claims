@@ -17,6 +17,7 @@ namespace claims.src.events
             claims.dataStorage.getPlayerChatDict().TryGetValue(player.PlayerUID, out chat);
             if (chat == ClaimsChatType.LOCAL)
             {
+                if (player.Entity == null) return;
                 MessageHandler.sendLocalMsg(player.Entity.Pos.XYZ, message);
                 consumed.value = true;
                 return;
@@ -88,11 +89,13 @@ namespace claims.src.events
 
             if (chat == ClaimsChatType.CITY)
             {
+                if (playerInfo == null || !playerInfo.hasCity()) { consumed.value = true; return; }
                 MessageHandler.sendMsgInCity(playerInfo.City, message, false);
                 consumed.value = true;
             }
             else if (chat == ClaimsChatType.ALLIANCE)
             {
+                if (playerInfo == null || !playerInfo.HasAlliance()) { consumed.value = true; return; }
                 MessageHandler.SendMsgInAlliance(playerInfo.Alliance, message);
                 consumed.value = true;
             }

@@ -2,6 +2,7 @@
 using claims.src.delayed.cooldowns;
 using claims.src.delayed.teleportation;
 using claims.src.part.structure.conflict;
+using claims.src.part.structure.union;
 using Vintagestory.API.Server;
 
 namespace claims.src.timers
@@ -57,6 +58,7 @@ namespace claims.src.timers
             claims.sapi.Event.Timer((() =>
             {
                 ConflictHandler.updateConflictLetters();
+                UnionHander.updateUnionLetters();
             }
             ), 300);
         }

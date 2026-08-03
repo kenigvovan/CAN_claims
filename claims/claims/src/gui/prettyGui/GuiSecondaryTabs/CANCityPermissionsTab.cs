@@ -90,19 +90,19 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
         public override void DrawTab()
         {
             ImGui.SetNextWindowPos(
-                new Vector2(capi.ModLoader.GetModSystem<claimsGui>().mainWindowPos.X + capi.ModLoader.GetModSystem<claimsGui>().mainWindowSize.X, capi.ModLoader.GetModSystem<claimsGui>().mainWindowPos.Y)
+                new Vector2(GuiSys.mainWindowPos.X + GuiSys.mainWindowSize.X, GuiSys.mainWindowPos.Y)
             );
 
 
             ImGuiWindowFlags flags1 =
                  ImGuiWindowFlags.NoScrollWithMouse;
-            ImGui.Begin("ClaimsDetails", p_open: ref capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowOpen, flags1);
+            ImGui.Begin("ClaimsDetails", p_open: ref GuiSys.secondaryWindowOpen, flags1);
             
-            ImGui.Text(Lang.Get(TitleString, capi.ModLoader.GetModSystem<claimsGui>().textInput2, capi.ModLoader.GetModSystem<claimsGui>().textInput));
+            ImGui.Text(Lang.Get(TitleString, GuiSys.textInput2, GuiSys.textInput));
             var permsHandler = claims.clientDataStorage.clientPlayerInfo.CityInfo.PermsHandler;
             ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
             bool pvp = permsHandler.pvpFlag;
-            if (ImGui.Checkbox("PVP##city", ref pvp))
+            if (ImGui.Checkbox(Lang.Get("claims:gui-admin-flag-pvp") + "##city", ref pvp))
             {
                 clientEventManager.TriggerNewClientChatLine(
                     GlobalConstants.CurrentChatGroup,
@@ -115,7 +115,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
 
             // ===== FIRE =====
             bool fire = permsHandler.fireFlag;
-            if (ImGui.Checkbox("Fire", ref fire))
+            if (ImGui.Checkbox(Lang.Get("claims:gui-admin-flag-fire") + "##city", ref fire))
             {
                 clientEventManager.TriggerNewClientChatLine(
                     GlobalConstants.CurrentChatGroup,
@@ -127,7 +127,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             }
 
             bool blast = !permsHandler.blastFlag;
-            if (ImGui.Checkbox("Blast", ref blast))
+            if (ImGui.Checkbox(Lang.Get("claims:gui-admin-flag-blast") + "##city", ref blast))
             {
                 clientEventManager.TriggerNewClientChatLine(
                     GlobalConstants.CurrentChatGroup,
@@ -142,12 +142,12 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
 
             ImGui.Text(Lang.Get("claims:gui-build-title"));
             DrawPermTriple(
-                "Friend##build",
-                "Citizen##build",
-                "Stranger##build",
-                "Ally##build",
+                Lang.Get("claims:gui-admin-group-friend")  + "##build",
+                Lang.Get("claims:gui-admin-group-citizen") + "##build",
+                Lang.Get("claims:gui-admin-group-stranger")+ "##build",
+                Lang.Get("claims:gui-admin-group-ally")    + "##build",
                 perms.type.PermType.BUILD_AND_DESTROY_PERM,
-            "build",
+                "build",
                 permsHandler,
                 clientEventManager
             );
@@ -157,30 +157,28 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             ImGui.Text(Lang.Get("claims:gui-use-title"));
 
             DrawPermTriple(
-                "Friend##use",
-                "Citizen##use",
-                "Stranger##use",
-                 "Ally##use",
+                Lang.Get("claims:gui-admin-group-friend")  + "##use",
+                Lang.Get("claims:gui-admin-group-citizen") + "##use",
+                Lang.Get("claims:gui-admin-group-stranger")+ "##use",
+                Lang.Get("claims:gui-admin-group-ally")    + "##use",
                 perms.type.PermType.USE_PERM,
                 "use",
                 permsHandler,
-                                clientEventManager
-
+                clientEventManager
             );
 
             ImGui.Separator();
             ImGui.Text(Lang.Get("claims:gui-attack-animals-title"));
 
             DrawPermTriple(
-                "Friend##attack",
-                "Citizen##attack",
-                "Stranger##attack",
-                 "Ally##attack",
+                Lang.Get("claims:gui-admin-group-friend")  + "##attack",
+                Lang.Get("claims:gui-admin-group-citizen") + "##attack",
+                Lang.Get("claims:gui-admin-group-stranger")+ "##attack",
+                Lang.Get("claims:gui-admin-group-ally")    + "##attack",
                 perms.type.PermType.ATTACK_ANIMALS_PERM,
                 "attack",
                 permsHandler,
                 clientEventManager
-
             );
 
             ImGui.End();

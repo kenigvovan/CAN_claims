@@ -58,6 +58,13 @@ namespace claims.src.part
                     DemolishConflict(conflict, EnumConflictEndReason.CityDestroyed);
                 }
             }
+            // Remove this city from other cities' reverse comrade references, otherwise they keep
+            // a dangling pointer and persist a stale guid that fails to resolve on next load.
+            foreach (City comrade in city.ComradeCities.ToArray())
+            {
+                comrade.ComradeCities.Remove(city);
+                comrade.saveToDatabase();
+            }
             Dictionary<string, ClientCityInfoCellElement> CityStatsCashe =
                 ObjectCacheUtil.GetOrCreate<Dictionary<string, ClientCityInfoCellElement>>(claims.sapi,
                 "claims:cityinfocache", () => new Dictionary<string, ClientCityInfoCellElement>());
@@ -89,10 +96,7 @@ namespace claims.src.part
             {
                 city.getCityPlots().Remove(plot);
             }
-            if(plot.Type == PlotType.PRISON || plot.Type == PlotType.SUMMON)
-            {
-                plot.CleanUpCurrentPlotTypeData();
-            }
+            plot.PlotDesc?.OnDeactivated(plot);
             //DataStorage.claimedPlots.TryRemove(plot.chunkLocation, out _);
             claims.getModInstance().getDatabaseHandler().deleteFromDatabasePlot(plot);
             claims.dataStorage.removeClaimedPlot(plot.plotPosition);

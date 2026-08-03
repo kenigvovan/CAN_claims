@@ -23,28 +23,28 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
         public override void DrawTab()
         {
             ImGui.SetNextWindowPos(
-                new Vector2(capi.ModLoader.GetModSystem<claimsGui>().mainWindowPos.X + capi.ModLoader.GetModSystem<claimsGui>().mainWindowSize.X, capi.ModLoader.GetModSystem<claimsGui>().mainWindowPos.Y)
+                new Vector2(GuiSys.mainWindowPos.X + GuiSys.mainWindowSize.X, GuiSys.mainWindowPos.Y)
             );
 
             ImGuiWindowFlags flags1 =
                  ImGuiWindowFlags.NoScrollWithMouse;
-            ImGui.Begin("ClaimsDetails", p_open: ref capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowOpen, flags1);
+            ImGui.Begin("ClaimsDetails", p_open: ref GuiSys.secondaryWindowOpen, flags1);
             
             ImGui.Text(Lang.Get(TitleString));
-            ImGui.InputInt("", ref capi.ModLoader.GetModSystem<claimsGui>().doubleInput);
+            ImGui.InputInt("", ref GuiSys.doubleInput);
             
             if(ImGui.Button((Lang.Get(ButtonString))))
             {
                 ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, CommandCallOnClick + capi.ModLoader.GetModSystem<claimsGui>().doubleInput.ToString(), EnumChatType.Macro, "");
+                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, CommandCallOnClick + GuiSys.doubleInput.ToString(), EnumChatType.Macro, "");
                 // Optimistic local update for plot tax
                 if (CommandCallOnClick.StartsWith("/plot set fee ")
                     && (claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_FEE)
                         || claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS)))
                 {
-                    claims.clientDataStorage.clientPlayerInfo.CurrentPlotInfo.CustomTax = capi.ModLoader.GetModSystem<claimsGui>().doubleInput;
+                    claims.clientDataStorage.clientPlayerInfo.CurrentPlotInfo.CustomTax = GuiSys.doubleInput;
                 }
-                capi.ModLoader.GetModSystem<claimsGui>().textInput = "";
+                GuiSys.textInput = "";
             }
             ImGui.End();
         }

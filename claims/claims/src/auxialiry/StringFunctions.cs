@@ -295,7 +295,7 @@ namespace claims.src.auxialiry
             }
             for(int i = 0; i < pageSize; i++)
             {
-                if (i >= li.Count)
+                if (i + pageSize * (pageNumber - 1) >= li.Count)
                     break;
                 resultString.Append(string.Join("", li[i + pageSize * (pageNumber - 1)].getStatus()));
             }

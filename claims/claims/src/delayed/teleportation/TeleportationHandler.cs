@@ -1,4 +1,3 @@
-﻿using System.Collections.Generic;
 using claims.src.auxialiry;
 using claims.src.delayed.cooldowns;
 using claims.src.part;
@@ -8,68 +7,57 @@ namespace claims.src.delayed.teleportation
 {
     public class TeleportationHandler
     {
-        public static List<TeleportationInfo> teleportationsList = new List<TeleportationInfo>();
+        static ExpiringList<TeleportationInfo> teleportations = new();
 
-        public static bool addTeleportation(TeleportationInfo teleportationInfo)
+        public static bool addTeleportation(TeleportationInfo info)
         {
-            foreach (var it in teleportationsList)
+            foreach (var it in teleportations.Snapshot())
             {
-                if (it.getTargetPlayer().Guid.Equals(teleportationInfo.getTargetPlayer().Guid))
+                if (it.getTargetPlayer().Guid.Equals(info.getTargetPlayer().Guid))
                 {
-                    teleportationsList.Remove(it);
+                    teleportations.Remove(it);
                     break;
                 }
             }
-            teleportationInfo.getTargetPlayer().AwaitForTeleporation = true;
-            teleportationsList.Add(teleportationInfo);
+            info.getTargetPlayer().AwaitForTeleporation = true;
+            teleportations.Add(info);
             return true;
         }
+
         public static bool removeTeleportation(PlayerInfo playerInfo)
         {
-            foreach (var it in teleportationsList)
+            foreach (var it in teleportations.Snapshot())
             {
                 if (it.getTargetPlayer().Guid.Equals(playerInfo.Guid))
                 {
                     it.getTargetPlayer().AwaitForTeleporation = false;
-                    teleportationsList.Remove(it);
+                    teleportations.Remove(it);
                     return true;
                 }
             }
             return false;
         }
+
         public static bool hasTeleportation(PlayerInfo playerInfo)
         {
-            foreach (var it in teleportationsList)
+            foreach (var it in teleportations.Snapshot())
             {
                 if (it.getTargetPlayer().Guid.Equals(playerInfo.Guid))
-                {
                     return true;
-                }
             }
             return false;
         }
+
         public static void UpdateTeleportations()
         {
-            if (teleportationsList == null || teleportationsList.Count == 0)
+            teleportations.ExpireOverdue(it => it.getTimeStamp(), it =>
             {
-                return;
-            }
-            long timeNow = TimeFunctions.getEpochSeconds();
-            foreach (var it in teleportationsList.ToArray())
-            {
-                if (it.getTimeStamp() < timeNow)
-                {
-                    IServerPlayer player = claims.sapi.World.PlayerByUid(it.getTargetPlayer().Guid) as IServerPlayer;
-                    if (player != null)
-                    {
-                        player.Entity.TeleportToDouble(it.getTargetPoint().X + 0.5f, it.getTargetPoint().Y, it.getTargetPoint().Z + 0.5f);
-                    }
-                    CooldownHandler.addCooldown(it.getTargetPlayer(), new CooldownInfo(TimeFunctions.getEpochSeconds() + claims.config.SECONDS_SUMMON_COOLDOWN, CooldownType.SUMMON));
-
-                    it.getTargetPlayer().AwaitForTeleporation = false;
-                    teleportationsList.Remove(it);
-                }
-            }
+                IServerPlayer player = claims.sapi.World.PlayerByUid(it.getTargetPlayer().Guid) as IServerPlayer;
+                if (player != null)
+                    player.Entity.TeleportToDouble(it.getTargetPoint().X + 0.5f, it.getTargetPoint().Y, it.getTargetPoint().Z + 0.5f);
+                CooldownHandler.addCooldown(it.getTargetPlayer(), new CooldownInfo(TimeFunctions.getEpochSeconds() + claims.config.SECONDS_SUMMON_COOLDOWN, CooldownType.SUMMON));
+                it.getTargetPlayer().AwaitForTeleporation = false;
+            });
         }
     }
 }
