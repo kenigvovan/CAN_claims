@@ -223,13 +223,18 @@ namespace claims.src.commands
                 futurePayment += plot.getCustomTax();
             }
 
+            // Same conditions the day timer charges by, so the answer here is what will be taken:
+            // once per group, nothing from the mayor, nothing for a group holding no land.
             double plotsGroupFee = 0;
             foreach(CityPlotsGroup group in claims.dataStorage.getCityPlotsGroupsDict().Values)
             {
-                if(group.getPlayerInfos().Contains(playerInfo))
+                if (!group.HasFee() || !group.PlayersList.Contains(playerInfo)) continue;
+                if (group.City?.isMayor(playerInfo) ?? false) continue;
+                if (!(group.City?.getCityPlots().Any(p => p.hasPlotGroup() && group.Equals(p.getPlotGroup())) ?? false))
                 {
-                    plotsGroupFee += group.getPlotsGroupFee();
+                    continue;
                 }
+                plotsGroupFee += group.PlotsGroupFee;
             }
 
             tcr.StatusMessage = "claims:fees_city_for_player";

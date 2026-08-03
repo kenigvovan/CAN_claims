@@ -35,8 +35,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             
             if(ImGui.Button((Lang.Get(ButtonString))))
             {
-                ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, CommandCallOnClick + GuiSys.doubleInput.ToString(), EnumChatType.Macro, "");
+                SendCommand(CommandCallOnClick + GuiSys.doubleInput.ToString());
                 // Optimistic local update for plot tax
                 if (CommandCallOnClick.StartsWith("/plot set fee ")
                     && (claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_FEE)

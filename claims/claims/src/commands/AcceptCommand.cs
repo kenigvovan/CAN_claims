@@ -159,7 +159,11 @@ namespace claims.src.commands
                 return TextCommandResult.Success("claims:you_are_not_in_the_group");
             }
             searchedGroup.PlayersList.Remove(playerInfo);
+            cityplotsgroups.PlotsGroupFeeHelper.OnMemberLeft(searchedGroup, playerInfo);
             searchedGroup.saveToDatabase();
+            cityplotsgroups.PlotsGroupFeeHelper.SendGroupUpdate(searchedGroup);
+            UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid,
+                gui.playerGui.structures.EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT);
             return SuccessWithParams("claims:you_left_plotsgroup", new object[] { searchedGroup.GetPartName() });
         }
         public static TextCommandResult AcceptToAllianceInvitation(TextCommandCallingArgs args)
@@ -180,6 +184,12 @@ namespace claims.src.commands
             if (playerInfo.HasAlliance())
             {
                 tcr.StatusMessage = "claims:has_alliance_already";
+                return tcr;
+            }
+            // The invitation may predate a downgrade, so re-check on accept, not only on invite.
+            if (playerInfo.City.IsVillage())
+            {
+                tcr.StatusMessage = "claims:village_cannot_join_alliance";
                 return tcr;
             }
 

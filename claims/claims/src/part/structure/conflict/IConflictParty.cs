@@ -6,6 +6,7 @@ namespace claims.src.part.structure.conflict
     public interface IConflictParty
     {
         string Guid { get; }
+        string MoneyAccountName { get; }
         string GetPartName();
         HashSet<Conflict> RunningConflicts { get; }
         bool Neutral { get; set; }

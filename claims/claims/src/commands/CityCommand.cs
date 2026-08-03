@@ -47,7 +47,9 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:no_city_here");
             }
-            return TextCommandResult.Success(string.Join("", plotHere.getCity().getStatus()));
+            // Passing the caller matters for villages: their raid window is only shown to their own.
+            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo callerInfo);
+            return TextCommandResult.Success(string.Join("", plotHere.getCity().getStatus(callerInfo)));
         }
         public static TextCommandResult ProcessListCities(TextCommandCallingArgs args)
         {
@@ -79,47 +81,24 @@ namespace claims.src.commands
         public static TextCommandResult CreateNewCity(TextCommandCallingArgs args)
         {
             if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
-            if (playerInfo.hasCity())
-            {
-                return TextCommandResult.Error("claims:you_already_have_city");
-            }
             PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
-            claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere);
-            if (plotHere != null)
+            // Shared with villages, including the rule that the ruins of a fallen one block a city
+            // too - otherwise the penalty is sidestepped by founding a city on the same spot.
+            if (!SettlementFounding.TryValidate(playerInfo, currentPlotPosition,
+                    claims.config.MIN_DISTANCE_FROM_OTHER_CITY_NEW_CITY, (string)args.LastArg,
+                    out string newCityName, out TextCommandResult foundingError))
             {
-                return TextCommandResult.Error("claims:plot_already_claimed");
-            }
-            if (!claims.dataStorage.CheckClaimLimiters(playerInfo, currentPlotPosition))
-            {
-                return TextCommandResult.Error("claims:too_close_to_forbidden_area");
-            }
-            string newCityName = Filter.filterName((string)args.LastArg);
-            if (claims.dataStorage.cityExistsByName(newCityName))
-            {
-                return TextCommandResult.Error("claims:city_name_is_already_taken");
-            }
-
-            if (newCityName.Length == 0 || !Filter.checkForBlockedNames(newCityName))
-            {
-                return TextCommandResult.Error("claims:invalid_new_city_name");
-            }
-            if (newCityName.Length > claims.config.MAX_LENGTH_CITY_NAME)
-            {
-                return TextCommandResult.Error("claims:city_name_is_too_long");
+                return foundingError;
             }
             if (claims.economyProvider.GetBalance(playerInfo.Guid) < (decimal)claims.config.NEW_CITY_COST)
             {
                 return TextCommandResult.Error("claims:not_enough_for_new_city");
             }
-            if (!claims.dataStorage.plotHasDistantEnoughFromOtherForNewCity(new Vec2i((int)player.Entity.Pos.X / PlotPosition.plotSize, (int)player.Entity.Pos.Z / PlotPosition.plotSize)))
-            {
-                return TextCommandResult.Error("claims:too_close_to_another_city_new_city");
-            }
 
             AgreementHandler.addNewAgreementOrReplace(new Agreement(
                 () =>
                 {
-                    claims.dataStorage.GetPlot(currentPlotPosition, out plotHere);
+                    claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere);
                     if (playerInfo.hasCity() || plotHere != null)
                     {
                         return;
@@ -235,6 +214,12 @@ namespace claims.src.commands
                 tcr.StatusMessage = "claims:you_dont_have_city";
                 return false;
             }
+            // Ranks are a city feature; the rank commands do not check mayorship, so gate here.
+            if (city.IsVillage())
+            {
+                tcr.StatusMessage = "claims:village_feature_locked";
+                return false;
+            }
             string targetPlayerName = Filter.filterName(playerName);
             if (targetPlayerName.Length == 0 || !Filter.checkForBlockedNames(targetPlayerName))
             {
@@ -335,6 +320,12 @@ namespace claims.src.commands
                     errorMsg = Lang.Get("claims:city_in_alliance_attack_alliance", prefixedCity.Alliance.getPartNameReplaceUnder());
                     return false;
                 }
+                if (prefixedCity.IsVillage())
+                {
+                    targetParty = null;
+                    errorMsg = Lang.Get("claims:village_cannot_be_attacked");
+                    return false;
+                }
                 targetParty = prefixedCity;
                 errorMsg = null;
                 return true;
@@ -361,6 +352,12 @@ namespace claims.src.commands
                     errorMsg = Lang.Get("claims:city_in_alliance_attack_alliance", targetCity.Alliance.getPartNameReplaceUnder());
                     return false;
                 }
+                if (targetCity.IsVillage())
+                {
+                    targetParty = null;
+                    errorMsg = Lang.Get("claims:village_cannot_be_attacked");
+                    return false;
+                }
                 targetParty = targetCity;
                 errorMsg = null;
                 return true;
@@ -374,6 +371,46 @@ namespace claims.src.commands
             targetParty = null;
             errorMsg = Lang.Get("claims:no_such_city_or_alliance");
             return false;
+        }
+
+        // Resolves the caller's OWN conflict party (alliance if they're in one, else their city).
+        // requireAuthority=true additionally requires alliance leadership / city mayorship.
+        internal static bool TryResolveMyParty(TextCommandCallingArgs args, bool requireAuthority,
+            out IServerPlayer player, out PlayerInfo playerInfo, out IConflictParty ourParty, out TextCommandResult err)
+        {
+            ourParty = null;
+            if (!TryResolveCaller(args, out player, out playerInfo, out err)) return false;
+            if (!playerInfo.hasCity())
+            {
+                err = TextCommandResult.Success(Lang.Get("claims:no_city"));
+                return false;
+            }
+            // One gate for every war command: a village is never a party to a conflict.
+            if (playerInfo.City.IsVillage())
+            {
+                err = TextCommandResult.Success(Lang.Get("claims:village_feature_locked"));
+                return false;
+            }
+            if (playerInfo.HasAlliance())
+            {
+                if (requireAuthority && !playerInfo.Alliance.IsLeader(playerInfo))
+                {
+                    err = TextCommandResult.Success(Lang.Get("claims:you_dont_have_right_for_that_command"));
+                    return false;
+                }
+                ourParty = playerInfo.Alliance;
+            }
+            else
+            {
+                if (requireAuthority && !playerInfo.City.isMayor(playerInfo))
+                {
+                    err = TextCommandResult.Success(Lang.Get("claims:you_are_not_mayor"));
+                    return false;
+                }
+                ourParty = playerInfo.City;
+            }
+            err = null;
+            return true;
         }
     }
 }

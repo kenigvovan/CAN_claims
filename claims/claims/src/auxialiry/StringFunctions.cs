@@ -8,6 +8,7 @@ using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.plots;
 using SkiaSharp;
+using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 
 namespace claims.src.auxialiry
@@ -333,6 +334,17 @@ namespace claims.src.auxialiry
             {
                 return false;
             }
+        }
+        /// <summary>Human-readable "time left" for a span given in seconds (days+hours, hours+minutes, or minutes).</summary>
+        public static string FormatDuration(long seconds)
+        {
+            if (seconds < 0) seconds = 0;
+            long days = seconds / 86400;
+            long hours = (seconds % 86400) / 3600;
+            long minutes = (seconds % 3600) / 60;
+            if (days > 0) return Lang.Get("claims:duration_days_hours", days, hours);
+            if (hours > 0) return Lang.Get("claims:duration_hours_minutes", hours, minutes);
+            return Lang.Get("claims:duration_minutes", minutes);
         }
     }
 }

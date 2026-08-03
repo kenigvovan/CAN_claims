@@ -1,308 +1,124 @@
-﻿using System;
 using System.Collections.Generic;
 using Cairo;
+using claims.src.auxialiry;
 using claims.src.gui.playerGui.structures.cellElements;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
-using Vintagestory.API.MathTools;
-using static claims.src.gui.playerGui.CANClaimsGui;
+using Vintagestory.API.Config;
 
 namespace claims.src.gui.playerGui.GuiElements
 {
-    public class GuiElementCityPlotsGroupCell : GuiElementTextBase, IGuiElementCell, IDisposable
+    /// <summary>
+    /// A plots group of the player's city: what it holds, who is in it and what it costs them.
+    /// Clicking anywhere opens the group's info page - the whole cell is one zone.
+    /// </summary>
+    public class GuiElementCityPlotsGroupCell : CANGuiElementCellBase
     {
-        private List<GuiElementButtonWithAdditionalText> buttons = new List<GuiElementButtonWithAdditionalText>();
-        private List<GuiElementRichtext> texts;
-        public GuiElementRichtext richTextElem;
-        public enum HighlightedTexture
+        private readonly PlotsGroupCellElement plotsGroupCell;
+
+        protected override int ClickZones => 1;
+
+        private const double TopPadding = 8;
+        private const double TitleHeight = 24;
+        private const double RowHeight = 19;
+        private const double LabelWidth = 96;
+
+        /// <summary>One caption/value line of the row.</summary>
+        private struct Line
         {
-            FIRST, SECOND, THIRD
+            public string Label;
+            public string Value;
+            public double[] Color;
         }
-        public static double unscaledRightBoxWidth = 40.0;
 
-        private PlotsGroupCellElement plotsGroupCell;
-
-        private bool showModifyIcons = true;
-
-        public bool On;
-
-        internal int leftHighlightTextureId;
-
-        internal int switchOnTextureId;
-
-        internal double unscaledSwitchPadding = 4.0;
-
-        internal double unscaledSwitchSize = 25.0;
-
-        private LoadedTexture modcellTexture;
-
-        private ICoreClientAPI capi;
-
-        public Action<int> OnMouseDownOnCellLeft;
-        public Action<int> OnMouseDownOnCellMiddle;
-        public Action<int> OnMouseDownOnCellRight;
-
-
-        ElementBounds IGuiElementCell.Bounds => Bounds;
-
-
-        public override void ComposeElements(Context ctx, ImageSurface surface)
-        {
-            base.ComposeElements(ctx, surface);
-        }
         public GuiElementCityPlotsGroupCell(ICoreClientAPI capi, PlotsGroupCellElement plotsGroupCell, ElementBounds bounds)
-            : base(capi, "", null, bounds)
+            : base(capi, bounds)
         {
             this.plotsGroupCell = plotsGroupCell;
-            this.Font = CairoFont.WhiteSmallishText();
-            modcellTexture = new LoadedTexture(capi);           
-            this.capi = capi;
 
-            TextExtents textExtents = CairoFont.WhiteMediumText().GetTextExtents(plotsGroupCell.CityName + ": " + plotsGroupCell.Name);
-            var font = CairoFont.WhiteDetailText();
-            texts = new(); double offsetY = 45;
-            double offsetX = 15;
-            ElementBounds bu = ElementBounds.Fixed(10, 10, textExtents.Width + 40, 25).WithParent(Bounds);
-            texts.Add(new GuiElementRichtext(capi, VtmlUtil.Richtextify(capi, plotsGroupCell.CityName + ": " + plotsGroupCell.Name, CairoFont.WhiteMediumText().WithFontSize(25)), bu));
+            OnMouseDownOnCellLeft = _ =>
+            {
+                claims.CANCityGui.State.DialogArgs.Selected = this.plotsGroupCell.Guid;
+                claims.CANCityGui.State.SelectedTab = EnumSelectedTab.PlotsGroupInfoPage;
+                claims.CANCityGui.BuildMainWindow();
+            };
+            // One tooltip for the whole cell: what clicking does, and who is in the group - a group
+            // can hold more members than the cell has room to print.
+            string hint = Lang.Get("claims:gui-plotsgroup-open-info");
             if (plotsGroupCell.PlayersNames.Count > 0)
             {
-                foreach (var it in plotsGroupCell.PlayersNames)
+                hint += "\n" + StringFunctions.concatStringsWithDelim(plotsGroupCell.PlayersNames, ',');
+            }
+            AddZoneTooltip(HighlightZone.Left, hint);
+
+            List<Line> lines = BuildLines();
+            double cellHeight = TopPadding * 2 + TitleHeight + 4 + lines.Count * RowHeight;
+
+            // Same shape as a card row: heading, then caption/value lines. The city name is not among
+            // them - every group in this list belongs to the same city, the player's own.
+            double textWidth = bounds.fixedWidth - UnscaledRightBoxWidth - 20;
+
+            ElementBounds row = ElementBounds.Fixed(12, TopPadding, textWidth, TitleHeight).WithParent(Bounds);
+            AddTitle(plotsGroupCell.Name, row);
+
+            row = row.BelowCopy(0, 4).WithFixedHeight(RowHeight);
+            foreach (Line line in lines)
+            {
+                AddLabelValue(line.Label, line.Value, row, LabelWidth, line.Color);
+                row = row.BelowCopy();
+            }
+
+            Bounds.fixedHeight = cellHeight;
+        }
+
+        /// <summary>
+        /// What the row says about the group. The announced raise is a line of its own and only when
+        /// there is one, so a group nobody is changing stays three quiet lines.
+        /// </summary>
+        private List<Line> BuildLines()
+        {
+            var lines = new List<Line>
+            {
+                new Line
                 {
-                    textExtents = Font.GetTextExtents(it);
-                    if ((textExtents.Width + 40 + offsetX + 20) > bounds.fixedWidth + this.Bounds.fixedX)
-                    {
-                        offsetX = 0;
-                        offsetY += 30;
-                    }
-                    var tmpEB = ElementBounds.Fixed(offsetX, offsetY, textExtents.Width + 40, 25).WithParent(Bounds);
-                    texts.Add(new GuiElementRichtext(capi,
-                        VtmlUtil.Richtextify(capi, it, CairoFont.WhiteMediumText().WithFontSize(20)), tmpEB));
-                    offsetX += textExtents.Width + 45 + 20;
-                }
-            }
-
-            if (offsetY > 30)
-            {
-                Bounds.fixedHeight = offsetY + 60;
-            }
-
-
-
-            if (offsetY > 30)
-            {
-                Bounds.fixedHeight = offsetY + 60;
-            }
-        }
-        private void Compose()
-        {
-            ComposeHover(HighlightedTexture.FIRST, ref leftHighlightTextureId);
-            genOnTexture();
-            ImageSurface imageSurface = new ImageSurface(Format.Argb32, Bounds.OuterWidthInt, Bounds.OuterHeightInt);
-            Context context = new Context(imageSurface);
-            double num = GuiElement.scaled(unscaledRightBoxWidth);
-            Bounds.CalcWorldBounds();
-
-            //make border as button
-            EmbossRoundRectangleElement(context, 0.0, 0.0, Bounds.OuterWidth, Bounds.OuterHeight, inverse: false, (int)GuiElement.scaled(4.0), 0);
-
-            double num5 = GuiElement.scaled(unscaledSwitchSize);
-            double num6 = GuiElement.scaled(unscaledSwitchPadding);
-
-
-            if (buttons != null)
-            {
-                foreach (var it in buttons)
+                    Label = Lang.Get("claims:gui-plotsgroup-label-plots"),
+                    Value = plotsGroupCell.PlotsCount.ToString()
+                },
+                new Line
                 {
-                    it.ComposeElements(context, imageSurface);
-                }
-            }
-            if (texts != null)
-            {
-                foreach (var it in texts)
+                    Label = Lang.Get("claims:gui-plotsgroup-label-members"),
+                    Value = plotsGroupCell.PlayersNames.Count.ToString()
+                },
+                new Line
                 {
-                    it.BeforeCalcBounds();
-                    it.Compose();
+                    Label = Lang.Get("claims:gui-plotsgroup-label-fee"),
+                    Value = Number(plotsGroupCell.PlotsGroupFee),
+                    // A group that costs nothing says so in the muted colour rather than shouting a
+                    // zero in the same weight as a real price.
+                    Color = plotsGroupCell.PlotsGroupFee > 0 ? null : Widgets.ClaimsColors.Label
                 }
-            }
-            generateTexture(imageSurface, ref modcellTexture);
-            ComposeElements(context, imageSurface);
-            context.Dispose();
-            imageSurface.Dispose();
-        }
+            };
 
-        private void genOnTexture()
-        {
-            double num = GuiElement.scaled(unscaledSwitchSize - 2.0 * unscaledSwitchPadding);
-            ImageSurface imageSurface = new ImageSurface(Format.Argb32, (int)num, (int)num);
-            Context context = genContext(imageSurface);
-            GuiElement.RoundRectangle(context, 0.0, 0.0, num, num, 2.0);
-            GuiElement.fillWithPattern(api, context, GuiElement.waterTextureName);
-            generateTexture(imageSurface, ref switchOnTextureId);
-            context.Dispose();
-            imageSurface.Dispose();
-        }
-
-        private void ComposeHover(HighlightedTexture highlightedTexutre, ref int textureId)
-        {
-            ImageSurface imageSurface = new ImageSurface(Format.Argb32, (int)Bounds.OuterWidth, (int)Bounds.OuterHeight);
-            Context context = genContext(imageSurface);
-            double num = GuiElement.scaled(unscaledRightBoxWidth);
-            if (highlightedTexutre == HighlightedTexture.FIRST)
+            if (plotsGroupCell.HasPendingFee)
             {
-                context.NewPath();
-                context.LineTo(0.0, 0.0);
-                context.LineTo(Bounds.InnerWidth - num * 2, 0.0);
-                context.LineTo(Bounds.InnerWidth - num * 2, Bounds.OuterHeight);
-                context.LineTo(0.0, Bounds.OuterHeight);
-                context.ClosePath();
-            }
-            else if (highlightedTexutre == HighlightedTexture.SECOND)
-            {
-                /*context.NewPath();
-                context.LineTo(Bounds.InnerWidth - num * 2, 0);
-                context.LineTo(Bounds.InnerWidth - num, 0);
-                context.LineTo(Bounds.InnerWidth - num, Bounds.OuterHeight);
-                context.LineTo(Bounds.InnerWidth - num * 2, Bounds.OuterHeight);
-                context.ClosePath();*/
-            }
-            else
-            {
-                /*context.NewPath();
-                context.LineTo(Bounds.InnerWidth - num, 0.0);
-                context.LineTo(Bounds.OuterWidth, 0.0);
-                context.LineTo(Bounds.OuterWidth, Bounds.OuterHeight);
-                context.LineTo(Bounds.InnerWidth - num, Bounds.OuterHeight);
-                context.ClosePath();*/
-            }
-
-            context.SetSourceRGBA(0.0, 0.0, 0.0, 0.15);
-            context.Fill();
-            generateTexture(imageSurface, ref textureId);
-            context.Dispose();
-            imageSurface.Dispose();
-        }
-
-        public void UpdateCellHeight()
-        {
-            Bounds.CalcWorldBounds();
-            if (showModifyIcons && Bounds.fixedHeight < 73.0)
-            {
-                Bounds.fixedHeight = 73;
-            }
-        }
-        public override void RenderInteractiveElements(float deltaTime)
-        {
-            base.RenderInteractiveElements(deltaTime);
-            if (buttons != null)
-            {
-                foreach (var it in buttons)
+                bool accepted = plotsGroupCell.AcceptedBy(claims.capi?.World?.Player?.PlayerUID ?? "");
+                lines.Add(new Line
                 {
-                    it.RenderInteractiveElements(deltaTime);
-                }
+                    Label = Lang.Get("claims:gui-plotsgroup-label-fee-pending"),
+                    Value = Number(plotsGroupCell.PendingFee),
+                    Color = accepted ? Widgets.ClaimsColors.Success : Widgets.ClaimsColors.Warning
+                });
             }
-            foreach (var it in texts)
-            {
-                it.RenderInteractiveElements(deltaTime);
-            }
-        }
-        public void OnRenderInteractiveElements(ICoreClientAPI api, float deltaTime)
-        {
-            if (modcellTexture.TextureId == 0)
-            {
-                Compose();
-            }
-
-            api.Render.Render2DTexturePremultipliedAlpha(modcellTexture.TextureId, (int)Bounds.absX, (int)Bounds.absY, Bounds.OuterWidthInt, Bounds.OuterHeightInt);
-            int mouseX = api.Input.MouseX;
-            int mouseY = api.Input.MouseY;
-            Vec2d vec2d = Bounds.PositionInside(mouseX, mouseY);
-            if (vec2d != null)
-            {
-                /* if (this.button.Bounds.PointInside(mouseX, mouseY))
-                 {
-                     this.button.SetActive(true);
-                 }
-                 else
-                 {
-                     this.button.SetActive(false);
-                 }*/
-
-            }
-            else
-            {
-                //this.button.SetActive(false);
-            }
-            if (buttons != null)
-            {
-                foreach (var it in buttons)
-                {
-                    it.RenderInteractiveElements(deltaTime);
-                }
-            }
-            foreach (var it in texts)
-            {
-                it.RenderInteractiveElements(deltaTime);
-            }
+            return lines;
         }
 
-        public override void Dispose()
+        /// <summary>Fees are doubles; whole values should not read "5.0".</summary>
+        private static string Number(double value) =>
+            value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+        /// <summary>Everything visible is drawn by the base from richTexts.</summary>
+        protected override void ComposeContent(Context ctx, ImageSurface surface)
         {
-            base.Dispose();
-            foreach (var it in buttons)
-            {
-                it.Dispose();
-            }
-            foreach(var it in texts)
-            {
-                it.Dispose();
-            }
-            modcellTexture?.Dispose();
-            api.Render.GLDeleteTexture(leftHighlightTextureId);
-            api.Render.GLDeleteTexture(switchOnTextureId);
-        }
-
-        public void OnMouseUpOnElement(MouseEvent args, int elementIndex)
-        {
-            if (buttons == null) return;
-
-            int x = api.Input.MouseX;
-            int y = api.Input.MouseY;
-
-            foreach (var it in buttons)
-            {
-                it.OnMouseUpOnElement(api, args);
-            }
-
-            int mouseX = api.Input.MouseX;
-            int mouseY = api.Input.MouseY;
-            claims.CANCityGui.SelectedTab = EnumSelectedTab.PlotsGroupInfoPage;
-            claims.CANCityGui.selectedString = this.plotsGroupCell.Guid;
-            claims.CANCityGui.BuildMainWindow();
-            api.Gui.PlaySound("menubutton_press");           
-        }
-
-        public void OnMouseMoveOnElement(MouseEvent args, int elementIndex)
-        {
-            if (buttons == null) return;
-            foreach (var it in buttons)
-            {
-                it.OnMouseMove(api, args);
-            }
-        }
-
-        public void OnMouseDownOnElement(MouseEvent args, int elementIndex)
-        {
-            if (this.buttons == null) return;
-
-            int x = api.Input.MouseX;
-            int y = api.Input.MouseY;
-            foreach (var it in buttons)
-            {
-                if (it.Bounds.PointInside(x, y))
-                {
-                    it.OnMouseDownOnElement(api, args);
-                }
-            }
         }
     }
 }

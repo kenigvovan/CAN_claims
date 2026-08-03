@@ -1,4 +1,6 @@
 using claims.src.auxialiry;
+using claims.src.network.packets;
+using claims.src.part;
 using ImGuiNET;
 using System.Linq;
 using System.Numerics;
@@ -73,6 +75,45 @@ namespace claims.src.gui.prettyGui.GuiTabs
             if (clientInfo.PlayerNextPayments.Count > 0)
             {
                 Label(Lang.Get("claims:player-next-payment", clientInfo.PlayerNextPayments.Values.Sum().ToString()));
+            }
+
+            // --- Respawn ---
+            if (clientInfo.CityInfo != null)
+            {
+                ImGui.Spacing();
+                SectionTitle(Lang.Get("claims:gui-respawn-title"));
+
+                int selectedRespawn = (int)RespawnPreference.Read(capi.World.Player);
+                string[] respawnNames = new string[]
+                {
+                    Lang.Get("claims:respawn_pref_nearest"),
+                    Lang.Get("claims:respawn_pref_home"),
+                    Lang.Get("claims:respawn_pref_camp")
+                };
+                if (ImGui.Combo(Lang.Get("claims:gui-respawn-combo"), ref selectedRespawn, respawnNames, respawnNames.Length))
+                {
+                    // Write locally right away so the combo keeps the picked entry; the server
+                    // stores the authoritative value in the player's watched attributes.
+                    RespawnPreference.Write(capi.World.Player, (EnumRespawnPreference)selectedRespawn);
+                    claims.clientChannel.SendPacket(new SavedPlotsPacket()
+                    {
+                        type = PacketsContentEnum.CLIENT_SET_RESPAWN_PREFERENCE,
+                        data = selectedRespawn.ToString()
+                    });
+                }
+
+                if (claims.config.WAR_CAMP_ENABLED && claims.config.WAR_CAMP_TP_ENABLED)
+                {
+                    if (GreenButton(Lang.Get("claims:gui-camp-teleport")))
+                    {
+                        claims.clientChannel.SendPacket(new SavedPlotsPacket()
+                        {
+                            type = PacketsContentEnum.CLIENT_CAMP_TELEPORT
+                        });
+                    }
+                    if (ImGui.IsItemHovered())
+                        ImGui.SetTooltip(Lang.Get("claims:gui-camp-teleport-tooltip", claims.config.WAR_CAMP_TP_CAST_SECONDS));
+                }
             }
 
             // --- Bottom navigation ---

@@ -11,6 +11,8 @@ using claims.src.messages;
 using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
+using claims.src.part.structure.plots;
+using claims.src.part.structure.plots.auction;
 using claims.src.part.structure.war;
 using claims.src.playerMovements;
 using Vintagestory.API.Common;
@@ -57,6 +59,13 @@ namespace claims.src
         public ClientPlayerInfo clientPlayerInfo { get; set; }
         public List<Conflict> conflicts { get; } = new List<Conflict>();
         public Dictionary<string, WarTime> WarsTimes { get; } = new Dictionary<string, WarTime>();
+        // Plot positions where a village fell -> unix seconds until anything may be founded there
+        // again. Persisted in VILLAGERUINS.
+        public Dictionary<Vec2i, long> VillageRuins { get; } = new Dictionary<Vec2i, long>();
+        // Completed inter-city plot sales, oldest first. Persisted in PLOTSALES.
+        public List<PlotSaleRecord> PlotSaleHistory { get; } = new List<PlotSaleRecord>();
+        // Land auction lots by guid, open and closed alike. Persisted in AUCTIONS/AUCTIONBIDS.
+        public Dictionary<string, PlotAuction> Auctions { get; } = new Dictionary<string, PlotAuction>();
 
         //zone pos and timestamp when we get info about it last time
         //will be used by client when it enters new zone and send to server this timestamps
@@ -140,9 +149,13 @@ namespace claims.src
         }
         public bool addPlayer(PlayerInfo player)
         {
+            // uid is the dedupe guard (one instance per player); name is just an
+            // index. Use indexer assignment so the name index always reflects the
+            // current player instead of silently dropping it on a name collision.
             if (uidToPlayerDict.TryAdd(player.Guid, player))
             {
-                return nameToPlayerDict.TryAdd(player.GetPartName(), player);
+                nameToPlayerDict[player.GetPartName()] = player;
+                return true;
             }
             return false;
         }
@@ -152,12 +165,27 @@ namespace claims.src
             {
                 return true;
             }
+            // Fallback: name index may be stale/out of sync with the uid index.
+            // Scan by uid so an existing player is never invisible by name (this
+            // is what otherwise lets mayor-by-name resolution return the wrong
+            // player or null). Self-heal the name index when found.
+            foreach (var kv in uidToPlayerDict)
+            {
+                if (kv.Value.GetPartName() == name)
+                {
+                    playerInfo = kv.Value;
+                    nameToPlayerDict[name] = kv.Value;
+                    return true;
+                }
+            }
+            playerInfo = null;
             return false;
         }
         public bool changePlayerName(PlayerInfo player, string newName)
         {
             nameToPlayerDict.TryRemove(player.GetPartName(), out _);
-            return nameToPlayerDict.TryAdd(newName, player);
+            nameToPlayerDict[newName] = player;
+            return true;
         }
         public ConcurrentDictionary<string, PlayerInfo> getPlayersDict()
         {
@@ -356,6 +384,28 @@ namespace claims.src
         {
             partToColor = val;
             return true;
+        }
+
+        /// <summary>Party guid (city or alliance) -> coat of arms, for everyone who has one. Client side only.</summary>
+        private Dictionary<string, string> cityEmblems = new Dictionary<string, string>();
+
+        /// <summary>Replaces the known emblems and reports whether anything changed, so callers can
+        /// keep their caches when a broadcast carried no news.</summary>
+        public bool ClientSetCityEmblems(Dictionary<string, string> val)
+        {
+            var incoming = val ?? new Dictionary<string, string>();
+            bool changed = incoming.Count != cityEmblems.Count
+                || incoming.Any(pair => !cityEmblems.TryGetValue(pair.Key, out string old) || old != pair.Value);
+
+            cityEmblems = incoming;
+            return changed;
+        }
+
+        /// <summary>Arms of a city or an alliance by guid; empty when it has none or none arrived yet.</summary>
+        public string ClientGetEmblem(string partyGuid)
+        {
+            if (partyGuid != null && cityEmblems.TryGetValue(partyGuid, out string emblem)) return emblem;
+            return "";
         }
 
         /*==============================================================================================*/
@@ -671,14 +721,38 @@ namespace claims.src
             }
             return true;
         }       
+        /// <summary>
+        /// Plots that must not push other claims away. War camps are placed anywhere on free land
+        /// and disappear with the war, so treating them as regular city territory would let a city
+        /// block off normal claims (and even new cities) just by camping there.
+        /// </summary>
+        private static bool IgnoredForClaimDistance(Plot plot)
+        {
+            if (plot == null) return true;
+            if (!claims.config.WAR_CAMP_PLOTS_BLOCK_CLAIMS && plot.Type == PlotType.CAMP) return true;
+            if (claims.config.CAPTURED_PLOTS_DO_NOT_BLOCK_CLAIMS && plot.WasCaptured) return true;
+            return false;
+        }
         public bool plotHasDistantEnoughFromOtherForNewCity(Vec2i pos)
         {
+            return plotHasDistantEnoughFromOtherForNewCity(pos, claims.config.MIN_DISTANCE_FROM_OTHER_CITY_NEW_CITY);
+        }
+        /// <summary>Same check with an explicit distance - villages settle by a rule of their own.</summary>
+        public bool plotHasDistantEnoughFromOtherForNewCity(Vec2i pos, int minDistance)
+        {
+            if (minDistance <= 0)
+            {
+                return true;
+            }
             foreach (City city in getCitiesList())
             {
                 foreach (Plot plot in city.getCityPlots())
                 {
-                    //var o = MathClaims.distanceBetween(plot.getPos(), pos);
-                    if (MathClaims.distanceBetween(plot.getPos(), pos) < claims.config.MIN_DISTANCE_FROM_OTHER_CITY_NEW_CITY)
+                    if (IgnoredForClaimDistance(plot))
+                    {
+                        continue;
+                    }
+                    if (MathClaims.distanceBetween(plot.getPos(), pos) < minDistance)
                     {
                         return false;
                     }
@@ -688,6 +762,14 @@ namespace claims.src
         }
         public bool plotHasDistantEnoughFromOtherCities(Plot plot)
         {
+            return plotHasDistantEnoughFromOtherCities(plot, claims.config.MIN_DISTANCE_FROM_OTHER_CITY_NEW_CITY);
+        }
+        public bool plotHasDistantEnoughFromOtherCities(Plot plot, int minDistance)
+        {
+            if (minDistance <= 0)
+            {
+                return true;
+            }
             foreach (City city in getCitiesList())
             {
                 if (plot.hasCity() && city.Equals(plot.getCity()))
@@ -697,11 +779,11 @@ namespace claims.src
 
                 foreach (Plot plotInner in city.getCityPlots())
                 {
-                    if (claims.config.CAPTURED_PLOTS_DO_NOT_BLOCK_CLAIMS && plotInner.WasCaptured)
+                    if (IgnoredForClaimDistance(plotInner))
                     {
                         continue;
                     }
-                    if (MathClaims.distanceBetween(plotInner.getPos(), plot.getPos()) < claims.config.MIN_DISTANCE_FROM_OTHER_CITY_NEW_CITY)
+                    if (MathClaims.distanceBetween(plotInner.getPos(), plot.getPos()) < minDistance)
                     {
                         return false;
                     }
@@ -713,7 +795,7 @@ namespace claims.src
         {
             foreach (Plot plotInner in plot.getCity().getCityPlots())
             {
-                if (claims.config.CAPTURED_PLOTS_DO_NOT_BLOCK_CLAIMS && plotInner.WasCaptured)
+                if (IgnoredForClaimDistance(plotInner))
                 {
                     continue;
                 }

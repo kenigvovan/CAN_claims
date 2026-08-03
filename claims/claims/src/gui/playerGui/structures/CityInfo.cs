@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using claims.src.citylog;
 using claims.src.gui.playerGui.structures.cellElements;
 using claims.src.part.structure;
+using claims.src.part.structure.plots;
 using claims.src.perms;
 
 namespace claims.src.gui.playerGui.structures
@@ -11,6 +12,15 @@ namespace claims.src.gui.playerGui.structures
     {
         public string Name { get; set; }
         public string Guid { get; set; }
+        /// <summary>Village or full city. CityTier.CITY is the default, so a settlement whose tier
+        /// never arrived behaves exactly as before villages existed.</summary>
+        public CityTier Tier { get; set; } = CityTier.CITY;
+        public bool IsVillage => Tier == CityTier.VILLAGE;
+        /// <summary>Unix seconds when this village's raid window next opens (or opened, while it
+        /// is running). 0 means "not a village" or "raids are off".</summary>
+        public long RaidWindowStart { get; set; } = 0;
+        /// <summary>How long that window lasts, in minutes.</summary>
+        public int RaidWindowMinutes { get; set; } = 0;
         public string MayorName { get; set; }
         public long TimeStampCreated { get; set; }
         public List<string> PlayersNames;
@@ -23,6 +33,8 @@ namespace claims.src.gui.playerGui.structures
         //public List<RankCellElement> CitizensRanks { get; set; } = new();
         //public HashSet<string> PossibleCityRanks { get; set; }
         public int PlotsColor;
+        /// <summary>Coat of arms as an EmblemHandler layer string; empty when the city has none.</summary>
+        public string Emblem { get; set; } = "";
         public double CityBalance { get; set; }
         public double CityDebt { get; set; }
         public double CityDayPayment { get; set; }
@@ -38,8 +50,17 @@ namespace claims.src.gui.playerGui.structures
         public List<ClientWarRangeCellElement> ClientWarRangeCellElements { get; set; } = new();
         public List<ClientTwoWarRangesCellElement> ClientTwoWarRangesCellElement { get; set; } = new();
         public List<ClientUnionLetterCellElement> ClientUnionLetterCellElements { get; set; } = new();
+        /// <summary>Casus belli our party holds; a full snapshot pushed by the server.</summary>
+        public List<ClientCasusBelliCellElement> ClientCasusBelliCellElements { get; set; } = new();
         public List<CityLogEntry> EventLog { get; set; } = new List<CityLogEntry>();
         public List<CityPlotMiniInfo> PlotsMap { get; set; } = new List<CityPlotMiniInfo>();
+        /// <summary>Plots other cities offer to ours, and the deals our city already took part in.</summary>
+        public List<PlotSaleRecord> PlotMarketHistory { get; set; } = new List<PlotSaleRecord>();
+        /// <summary>
+        /// Land other cities offer ours, plus our own offers. Price tags and timed lots live in the
+        /// same list and are told apart by EndsAt - a price tag has none.
+        /// </summary>
+        public List<PlotAuctionCellElement> PlotAuctions { get; set; } = new List<PlotAuctionCellElement>();
         public CityInfo()
         {
             Name = "";

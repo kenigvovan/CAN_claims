@@ -25,6 +25,9 @@ namespace claims.src.part.structure
         public Prison Prison { get; set; }
         public int Price { get; set; } = -1;
         public bool IsForSale => Price != -1;
+        // An offer to other cities - a price tag or a running auction - is not stored on the plot:
+        // both are the same kind of record and live in AUCTIONS, keyed by the plot's coordinates.
+        // Ask AuctionRegistry.TryGetRunningFor when you need it.
         CityPlotsGroup plotGroup;
         PermsHandler permsHandler = new PermsHandler();
         public bool MarkedNoPvp { get; set; } = false;
@@ -112,7 +115,7 @@ namespace claims.src.part.structure
         /// <param name="newPlotType"></param>
         /// <param name="player"></param>
         /// <returns>If type was changed successfully.</returns>
-        public bool setNewType(TextCommandResult tcr, string newPlotType, IServerPlayer player)
+        public bool setNewType(TextCommandResult tcr, string newPlotType, IServerPlayer player, bool bypassDisabled = false)
         {
             if (!PlotInfo.nameToPlotType.TryGetValue(newPlotType, out PlotType plotType))
             {
@@ -126,9 +129,36 @@ namespace claims.src.part.structure
                 return false;
             }
 
+            // Host can forbid plot types via config; admins (bypassDisabled) and system
+            // calls are exempt. Authoritative gate for both the command and the GUI.
+            if (!bypassDisabled && claims.config.DISABLED_PLOT_TYPES.Contains(newPlotType))
+            {
+                tcr.StatusMessage = "claims:plot_type_disabled";
+                return false;
+            }
+
             if (plotType == PlotType.CAMP || plotType == PlotType.TOURNAMENT)
             {
                 tcr.StatusMessage = "claims:use_other_command_for_that";
+                return false;
+            }
+
+            // A war camp is not retyped by hand: doing so unregisters it from the city while its
+            // anchor block stays in the world, which is a way to dismantle a camp the enemy is
+            // supposed to have to break. System calls (bypassDisabled) - capture, cession, sale,
+            // demolition - still retype it.
+            if (!bypassDisabled && this.Type == PlotType.CAMP)
+            {
+                tcr.StatusMessage = "claims:use_other_command_for_that";
+                return false;
+            }
+
+            // A village only runs the plain plot types; temples, taverns, prisons and the like
+            // belong to a city. Admin calls (bypassDisabled) stay exempt, as with DISABLED_PLOT_TYPES.
+            if (!bypassDisabled && hasCity() && getCity().IsVillage()
+                && !claims.config.VILLAGE_ALLOWED_PLOT_TYPES.Contains(newPlotType))
+            {
+                tcr.StatusMessage = "claims:village_plot_type_locked";
                 return false;
             }
 

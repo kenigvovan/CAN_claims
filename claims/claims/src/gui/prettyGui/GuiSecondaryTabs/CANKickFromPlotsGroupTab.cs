@@ -6,7 +6,6 @@ using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.Client.NoObf;
-using static claims.src.gui.playerGui.CANClaimsGui;
 
 namespace claims.src.gui.prettyGui.GuiSecondaryTabs
 {

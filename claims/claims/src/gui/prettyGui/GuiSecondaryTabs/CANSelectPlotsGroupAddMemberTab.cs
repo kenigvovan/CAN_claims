@@ -40,10 +40,8 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             {
                 if (ImGui.Button(Lang.Get(ButtonString)))
                 {
-                    ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                     string memberToAdd = GuiSys.textInput2;
-                    clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup,
-                        string.Format("/c plotsgroup add {0} {1}", cell.Name, memberToAdd), EnumChatType.Macro, "");
+                    SendCommand(string.Format("/c plotsgroup add {0} {1}", cell.Name, memberToAdd));
                     // Optimistic local update
                     if (claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.CITY_PLOTSGROUP_ADD_PLAYER)
                         && !cell.PlayersNames.Contains(memberToAdd))

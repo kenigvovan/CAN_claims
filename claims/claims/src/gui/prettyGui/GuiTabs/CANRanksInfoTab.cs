@@ -98,7 +98,6 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.SameLine();
             if (GreenButton(Lang.Get("claims:gui-rankinfo-add-button")))
             {
-                ClientEventManager clientEventManager = (capi.World as ClientMain).eventManager;
                 List<string> fullList = new List<string>();
                 for (int i = 0; i < gui.multiSelectItems.Length; i++)
                 {
@@ -108,8 +107,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     }
                 }
                 string allPerms = string.Join(' ', fullList);
-                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup,
-                    string.Format("/c rank addperm {0} {1}", gui.textInput, allPerms), EnumChatType.Macro, "");
+                SendCommand(string.Format("/c rank addperm {0} {1}", gui.textInput, allPerms));
 
                 // Optimistic local update
                 if (claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.CITY_ADD_PERMISSION_TO_RANK))
@@ -168,7 +166,6 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.SameLine();
             if (RedButton(Lang.Get("claims:gui-rankinfo-remove-button")))
             {
-                ClientEventManager clientEventManager = (capi.World as ClientMain).eventManager;
                 List<string> fullList = new List<string>();
                 for (int i = 0; i < gui.multiSelectItems2.Length; i++)
                 {
@@ -178,8 +175,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     }
                 }
                 string allPerms = string.Join(' ', fullList);
-                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup,
-                    string.Format("/c rank removeperm {0} {1}", gui.textInput, allPerms), EnumChatType.Macro, "");
+                SendCommand(string.Format("/c rank removeperm {0} {1}", gui.textInput, allPerms));
 
                 // Optimistic local update
                 if (claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.CITY_REMOVE_PERMISSION_FROM_RANK))

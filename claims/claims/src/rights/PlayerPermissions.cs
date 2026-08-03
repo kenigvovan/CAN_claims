@@ -56,9 +56,22 @@ namespace claims.src.rights
         CITY_WITHDRAW_MONEY, CITY_CREATE_CITY_RANK, CITY_DELETE_CITY_RANK, CITY_SEE_CITY_RANKS, CITY_ADD_PERMISSION_TO_RANK,
         CITY_REMOVE_PERMISSION_FROM_RANK,
 
+        // Appended at the end of the city block on purpose: inserting anywhere above would renumber
+        // every permission after it, and ranks store these values.
+        CITY_SET_EMBLEM,
+
+        // Inter-city plot market: listing one of our own plots, and buying a plot off another city.
+        CITY_SELL_PLOT_TO_CITY, CITY_BUY_PLOT_FROM_CITY,
+
+        // What members of a plots group pay for it daily. Its own permission rather than
+        // CITY_PLOTSGROUP_SET: the flags that one covers cost nobody anything.
+        CITY_PLOTSGROUP_SET_FEE,
+
         ALLIANCE_ACCEPT_CONFLICT = 2048, ALLIANCE_REVOKE_CONFLICT, ALLIANCE_DECLARE_CONFLICT, ALLIANCE_DENY_CONFLICT,
         ALLIANCE_OFFER_STOP_CONFLICT, ALLIANCE_ACCEPT_STOP_CONFLICT, ALLIANCE_DENY_STOP_CONFLICT, ALLIANCE_WITHDRAW_MONEY,
-        ALLIANCE_DECLARE_UNION, ALLIANCE_REVOKE_UNION, ALLIANCE_ACCEPT_UNION, ALLIANCE_DENY_UNION
+        ALLIANCE_DECLARE_UNION, ALLIANCE_REVOKE_UNION, ALLIANCE_ACCEPT_UNION, ALLIANCE_DENY_UNION,
+
+        ALLIANCE_SET_EMBLEM
     }
 
     public class PlayerPermissions
@@ -79,6 +92,10 @@ namespace claims.src.rights
         public void AddPermissions(HashSet<EnumPlayerPermissions> newPermissions)
         {
             permissions.UnionWith(newPermissions);
+        }
+        public void RemovePermissions(HashSet<EnumPlayerPermissions> unwantedPermissions)
+        {
+            permissions.ExceptWith(unwantedPermissions);
         }
         public void ClearPermissions() 
         {

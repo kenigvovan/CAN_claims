@@ -34,11 +34,18 @@ namespace claims.src.cityplotsgroups
             onAccept?.Invoke();
         }
 
+        /// <summary>
+        /// Two invitations are the same one only if they are into the same group as well. Without
+        /// the group in here a city inviting somebody into two of its groups produced invitations
+        /// that compared equal, so accepting one removed whichever of them the player's list held
+        /// first - and withdrawing one could take back the other.
+        /// </summary>
         public override bool Equals(object obj)
         {
             if (obj == this) return true;
             if (obj is not CityPlotsGroupInvitation other) return false;
-            return Receiver == other.Receiver && Sender == other.Sender;
+            return Receiver == other.Receiver && Sender == other.Sender
+                && string.Equals(GroupName, other.GroupName);
         }
 
         public override int GetHashCode()
@@ -46,6 +53,7 @@ namespace claims.src.cityplotsgroups
             int hash = 13;
             hash = (hash * 7) + Receiver.GetHashCode();
             hash = (hash * 7) + Sender.GetHashCode();
+            hash = (hash * 7) + (GroupName?.GetHashCode() ?? 0);
             return hash;
         }
     }

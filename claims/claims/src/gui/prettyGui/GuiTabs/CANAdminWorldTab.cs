@@ -24,7 +24,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 Lang.Get("claims:gui-admin-world-subtitle")
             );
 
-            var w = GuiSys.AdminWorldState;
+            var w = network.packets.AdminClientState.World;
 
             if (w == null)
             {
@@ -78,21 +78,21 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
             if (ImGui.Button(Lang.Get("claims:gui-admin-force-nday")))
             {
-                SendCmd("/cadmin nday");
+                SendCommand("/cadmin nday");
             }
             if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-admin-nday-world-tooltip"));
             ImGui.SameLine();
 
             if (ImGui.Button(Lang.Get("claims:gui-admin-force-nhour")))
             {
-                SendCmd("/cadmin nhour");
+                SendCommand("/cadmin nhour");
             }
             if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-admin-nhour-world-tooltip"));
             ImGui.SameLine();
 
             if (ImGui.Button(Lang.Get("claims:gui-admin-force-backup")))
             {
-                SendCmd("/cadmin backup");
+                SendCommand("/cadmin backup");
             }
             if (ImGui.IsItemHovered()) ImGui.SetTooltip(Lang.Get("claims:gui-admin-backup-world-tooltip"));
         }
@@ -124,11 +124,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             if (valA) ImGui.EndDisabled();
         }
 
-        private void Send(string key, bool on) =>
-            SendCmd("/cadmin world set " + key + (on ? " on" : " off"));
-
-        private void SendCmd(string cmd) =>
-            ((claims.capi.World as ClientMain).eventManager)
-                .TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, cmd, EnumChatType.Macro, "");
+        private static void Send(string key, bool on) =>
+            SendCommand("/cadmin world set " + key + (on ? " on" : " off"));
     }
 }

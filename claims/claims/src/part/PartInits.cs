@@ -8,6 +8,7 @@ using claims.src.network.packets;
 using claims.src.part.structure;
 using claims.src.part.structure.plots;
 using Newtonsoft.Json;
+using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
@@ -17,7 +18,8 @@ namespace claims.src.part
 {
     public class PartInits
     {
-        public static void initNewCity(PlayerInfo creator, PlotPosition pos, string cityName)
+        public static void initNewCity(PlayerInfo creator, PlotPosition pos, string cityName,
+            CityTier tier = CityTier.CITY)
         {
             string guid;
 
@@ -27,7 +29,7 @@ namespace claims.src.part
                 if (claims.dataStorage.checkGuidForCityVillage(guid))
                     break;
             }
-            City city = new City(cityName, guid);
+            City city = new City(cityName, guid) { Tier = tier };
             claims.dataStorage.addCity(city);
             // DataStorage.nameToCityDict.TryAdd(cityName, city);
 
@@ -47,7 +49,11 @@ namespace claims.src.part
             Plot newPlot = new Plot(pos);
             newPlot.Price = -1;
             newPlot.setCity(city);
-            newPlot.Type = PlotType.MAIN_CITY_PLOT;
+            newPlot.Type = tier == CityTier.VILLAGE ? PlotType.VILLAGE_MAIN : PlotType.MAIN_CITY_PLOT;
+            if (tier == CityTier.VILLAGE)
+            {
+                PlaceVillageAnchor(city, newPlot);
+            }
             claims.dataStorage.addClaimedPlot(newPlot.plotPosition, newPlot);
             city.getCityPlots().Add(newPlot);
             if (creator != null)
@@ -60,14 +66,16 @@ namespace claims.src.part
             perms.CitizenPerms[1] = true;
             perms.CitizenPerms[2] = true;
 
-            city.AddLogEntry(EnumCityLogEvent.CityCreated, creator?.GetPartName() ?? "");
+            city.AddLogEntry(tier == CityTier.VILLAGE ? EnumCityLogEvent.VillageFounded : EnumCityLogEvent.CityCreated,
+                creator?.GetPartName() ?? "");
             City.FireCityCreated(city);
             city.saveToDatabase();
             newPlot.saveToDatabase();
             claims.dataStorage.ClearCacheForPlayersInPlot(newPlot);
             claims.serverPlayerMovementListener.markPlotToWasReUpdated(newPlot.getPos());
 
-            MessageHandler.sendGlobalMsg(Lang.Get("claims:new_city_created", StringFunctions.replaceUnderscore(cityName), creator != null ? creator.GetPartName() : ""));
+            MessageHandler.sendGlobalMsg(Lang.Get(tier == CityTier.VILLAGE ? "claims:new_village_created" : "claims:new_city_created",
+                StringFunctions.replaceUnderscore(cityName), creator != null ? creator.GetPartName() : ""));
             TreeAttribute tree = new TreeAttribute();
             tree.SetInt("chX", newPlot.getPos().X);
             tree.SetInt("chZ", newPlot.getPos().Y);
@@ -90,6 +98,7 @@ namespace claims.src.part
                 {
                     collector.Add(EnumPlayerRelatedInfo.MAYOR_NAME, city.getMayor().GetPartName());
                 }
+                collector.Add(EnumPlayerRelatedInfo.CITY_TIER, ((int)city.Tier).ToString());
                 collector.Add(EnumPlayerRelatedInfo.CITY_CREATED_TIMESTAMP, city.TimeStampCreated.ToString());
                 collector.Add(EnumPlayerRelatedInfo.CITY_MEMBERS, JsonConvert.SerializeObject(StringFunctions.getNamesOfCitizens(city)));
                 collector.Add(EnumPlayerRelatedInfo.MAX_COUNT_PLOTS, JsonConvert.SerializeObject(Settings.getPossibleAmountOfPlotsDictForCity(city)));
@@ -105,10 +114,81 @@ namespace claims.src.part
                     data = JsonConvert.SerializeObject(collector)
 
                 }, player as IServerPlayer);
+
+                // The founder's CityInfo is built fresh by this packet, and the land market is not
+                // part of it - without this their market tab stays empty until some other city
+                // changes a listing.
+                UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
+                    EnumPlayerRelatedInfo.CITY_PLOT_AUCTIONS, EnumPlayerRelatedInfo.CITY_PLOT_MARKET_HISTORY);
             }
             claims.economyProvider.NewAccount(city.MoneyAccountName, new Dictionary<string, object> { { "lastknownname", city.GetPartName() } });
             return;
         }
+        /// <summary>
+        /// Puts the village anchor in the middle of the main plot, on the surface, and registers it
+        /// as a respawn point of the settlement - that way the vanilla respawn patch picks villages
+        /// up without knowing anything about them.
+        /// </summary>
+        /// <summary>
+        /// Gives a village an anchor when it has none - the case after an admin downgrades a city
+        /// with /cadmin city set tier. Without it the settlement would be immortal (the supply timer
+        /// skips it) and yet permanently exposed, because the raid window is computed from the
+        /// founding time alone.
+        /// </summary>
+        public static bool EnsureVillageAnchor(City village)
+        {
+            if (village == null || !village.IsVillage()) return false;
+            if (village.TryGetVillageMain(out _, out _)) return true;
+
+            Plot mainPlot = null;
+            foreach (Plot plot in village.getCityPlots())
+            {
+                if (plot.Type == PlotType.MAIN_CITY_PLOT) { mainPlot = plot; break; }
+                mainPlot ??= plot;
+            }
+            if (mainPlot == null) return false;
+
+            mainPlot.Type = PlotType.VILLAGE_MAIN;
+            PlaceVillageAnchor(village, mainPlot);
+            mainPlot.saveToDatabase();
+            village.saveToDatabase();
+            return true;
+        }
+
+        private static void PlaceVillageAnchor(City village, Plot mainPlot)
+        {
+            int plotSize = claims.config.PLOT_SIZE;
+            int ax = mainPlot.getPos().X * plotSize + plotSize / 2;
+            int az = mainPlot.getPos().Y * plotSize + plotSize / 2;
+            int ay = claims.sapi.World.BlockAccessor.GetTerrainMapheightAt(new BlockPos(ax, 0, az)) + 1;
+            Vec3i anchor = new Vec3i(ax, ay, az);
+            // Granary right next to the anchor, on its own surface height - the ground next to the
+            // anchor is not necessarily flat.
+            int gx = ax + 1;
+            int gy = claims.sapi.World.BlockAccessor.GetTerrainMapheightAt(new BlockPos(gx, 0, az)) + 1;
+            Vec3i granary = new Vec3i(gx, gy, az);
+
+            PlotDescVillage desc = new PlotDescVillage(anchor, granary);
+            // Founded with a full stock, so a new village is not starving from its first hour.
+            desc.SupplyHours = claims.config.VILLAGE_SUPPLY_HOURS_PER_ITEM;
+            mainPlot.PlotDesc = desc;
+
+            PlaceBlock(VillageBlocks.Anchor, anchor);
+            PlaceBlock(VillageBlocks.Granary, granary);
+
+            village.AddTempleRespawnPoint(mainPlot.getPos(), anchor);
+            VillageSupplyHelper.SyncBlockEntities(desc);
+            // Arms the callback for this village's first raid window, a week from now.
+            VillageRaidHelper.Schedule(village);
+        }
+
+        private static void PlaceBlock(AssetLocation blockCode, Vec3i pos)
+        {
+            Block block = claims.sapi.World.GetBlock(blockCode);
+            if (block == null) return;
+            claims.sapi.World.BlockAccessor.SetBlock(block.Id, new BlockPos(pos.X, pos.Y, pos.Z));
+        }
+
         public static void initPrison(Plot plot, City city, IServerPlayer creator)
         {
             Guid guid;
@@ -178,21 +258,22 @@ namespace claims.src.part
         {
             first.ComradAlliancies.Add(second);
             second.ComradAlliancies.Add(first);
+            // Save once per city, not once per added link (mirrors PartDemolition.DemolishUnion).
             foreach (var city in first.Cities)
             {
                 foreach(var sCity in second.Cities)
                 {
                     city.ComradeCities.Add(sCity);
-                    city.saveToDatabase();
                 }
+                city.saveToDatabase();
             }
             foreach (var city in second.Cities)
             {
                 foreach(var sCity in first.Cities)
                 {
                     city.ComradeCities.Add(sCity);
-                    city.saveToDatabase();
                 }
+                city.saveToDatabase();
             }
             first.saveToDatabase();
             second.saveToDatabase();

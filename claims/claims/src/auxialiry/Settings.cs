@@ -57,9 +57,9 @@ namespace claims.src.auxialiry
                 {
                     json = r.ReadToEnd();
                 }
-                Dictionary<int, Dictionary<String, Object>> levelsDict = JsonConvert.DeserializeObject<Dictionary<int, Dictionary<String, Object>>>(json);
                 try
                 {
+                    Dictionary<int, Dictionary<String, Object>> levelsDict = JsonConvert.DeserializeObject<Dictionary<int, Dictionary<String, Object>>>(json);
                     foreach (var it in levelsDict)
                     {
                         cityLevelsDict.Add(it.Key, new CityLevelInfo(int.Parse(it.Value["AmountOfPlots"].ToString()),
@@ -74,14 +74,12 @@ namespace claims.src.auxialiry
                     createDefaultCityLevels(filePath);
                 }
             }
-            if (json == "")
+            // Dict is still empty if the file was missing, empty or corrupted
+            // (the catch above may have already filled it with defaults)
+            if (cityLevelsDict.Count == 0)
             {
                 createDefaultCityLevels(filePath);
-                using (StreamReader r = new(filePath))
-                {
-                    json = r.ReadToEnd();
-                }
-            }       
+            }
             return true;
         }
         public static bool LoadAllianceLevelsInfo()
@@ -99,9 +97,9 @@ namespace claims.src.auxialiry
                 {
                     json = r.ReadToEnd();
                 }
-                Dictionary<int, Dictionary<String, Object>> levelsDict = JsonConvert.DeserializeObject<Dictionary<int, Dictionary<String, Object>>>(json);
                 try
                 {
+                    Dictionary<int, Dictionary<String, Object>> levelsDict = JsonConvert.DeserializeObject<Dictionary<int, Dictionary<String, Object>>>(json);
                     foreach (var it in levelsDict)
                     {
                         AllianceLevelsDict.Add(it.Key, new AllianceLevelInfo(int.Parse(it.Value["AdditionalAmountOfPlots"].ToString()),
@@ -116,13 +114,11 @@ namespace claims.src.auxialiry
                     CreateDefaultAllianceLevels(filePath);
                 }
             }
-            if (json == "")
+            // Dict is still empty if the file was missing, empty or corrupted
+            // (the catch above may have already filled it with defaults)
+            if (AllianceLevelsDict.Count == 0)
             {
                 CreateDefaultAllianceLevels(filePath);
-                using (StreamReader r = new(filePath))
-                {
-                    json = r.ReadToEnd();
-                }
             }
             return true;
         }
@@ -135,7 +131,8 @@ namespace claims.src.auxialiry
                     return cityLevelsDict[level];
                 }
             }
-            return cityLevelsDict[1];
+            // Custom configs may not define level 1 — fall back to the lowest defined level
+            return cityLevelsDict.Values.First();
         }
         public static AllianceLevelInfo GetAllianceLevelInfo(int count)
         {
@@ -146,7 +143,8 @@ namespace claims.src.auxialiry
                     return AllianceLevelsDict[level];
                 }
             }
-            return AllianceLevelsDict[1];
+            // Custom configs may not define level 1 — fall back to the lowest defined level
+            return AllianceLevelsDict.Values.First();
         }
         public static void createDefaultCityLevels(string path)
         {
@@ -234,25 +232,46 @@ namespace claims.src.auxialiry
         }
         public static bool isPvpTime()
         {
-            float hoursNow = claims.sapi.World.Calendar.HourOfDay;
-            if(claims.config.PVP_TIME_START < hoursNow && hoursNow < claims.config.PVP_TIME_END)
-            {
-                return true;
-            }
-            return false;
+            return IsWithinDailyWindow(claims.sapi.World.Calendar.HourOfDay,
+                claims.config.PVP_TIME_START, claims.config.PVP_TIME_END);
+        }
+
+        /// <summary>
+        /// Whether <paramref name="hour"/> falls into the daily [start, end) window.
+        /// A window whose start is past its end wraps around midnight - 19 -> 6 is the night,
+        /// which is what the default PVP_TIME_START/END mean.
+        /// </summary>
+        public static bool IsWithinDailyWindow(float hour, float start, float end)
+        {
+            if (start == end) return false;
+            if (start < end) return hour >= start && hour < end;
+            return hour >= start || hour < end;
         }
         public static int getMaxNumberOfPlotForCity(City city)
         {
+            // A village has a flat limit instead of the citizen-count levels; the bonus plots an
+            // admin granted still apply, alliance bonuses cannot (villages have no alliance).
+            if (city.IsVillage())
+            {
+                return city.getBonusPlots() + claims.config.VILLAGE_MAX_PLOTS;
+            }
             CityLevelInfo cityLevel = getCityLevelInfo(city.getCityCitizens().Count);
-            return city.getBonusPlots() + cityLevel.AmountOfPlots + 
-                                                                    (city.HasAlliance() 
+            return city.getBonusPlots() + cityLevel.AmountOfPlots +
+                                                                    (city.HasAlliance()
                                                                         ? GetAllianceLevelInfo(city.Alliance.Cities.Count).AdditionalAmountOfPlots
                                                                         : 0);
         }
         public static Dictionary<string, int> getPossibleAmountOfPlotsDictForCity(City city)
         {
-            CityLevelInfo cityLevel = getCityLevelInfo(city.getCityCitizens().Count);
             Dictionary<string, int> res = new Dictionary<string, int>();
+            if (city.IsVillage())
+            {
+                res["base"] = claims.config.VILLAGE_MAX_PLOTS;
+                res["bonus"] = city.getBonusPlots();
+                res["alliance"] = 0;
+                return res;
+            }
+            CityLevelInfo cityLevel = getCityLevelInfo(city.getCityCitizens().Count);
             res["base"] = cityLevel.AmountOfPlots;
             res["bonus"] = city.getBonusPlots();
             res["alliance"] = city.HasAlliance() ? GetAllianceLevelInfo(city.Alliance.Cities.Count).AdditionalAmountOfPlots : 0;
@@ -260,8 +279,16 @@ namespace claims.src.auxialiry
         }
         public static int getMaxNumberOfExtraChunksBought(City city)
         {
+            // Villages cannot buy extra plots at all.
+            if (city.IsVillage()) return 0;
             CityLevelInfo cityLevel = getCityLevelInfo(city.getCityCitizens().Count);
             return cityLevel.Maxextrachunksbought;
+        }
+        /// <summary>Whether the settlement may still take in another citizen.</summary>
+        public static bool CanAcceptMoreCitizens(City city)
+        {
+            if (!city.IsVillage()) return true;
+            return city.getCityCitizens().Count < claims.config.VILLAGE_MAX_CITIZENS;
         }
 
         public static void InitColors()

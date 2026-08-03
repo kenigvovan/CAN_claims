@@ -1,4 +1,5 @@
 ﻿using claims.src.auxialiry;
+using claims.src.citylog;
 using claims.src.events;
 using claims.src.gui.playerGui.structures;
 using claims.src.messages;
@@ -207,7 +208,7 @@ namespace claims.src.commands
             }
             if (PlotInfo.nameToPlotType.ContainsKey((string)args.LastArg))
             {
-                plotHere.setNewType(tcr, (string)args.LastArg, player);
+                plotHere.setNewType(tcr, (string)args.LastArg, player, true);
                 return tcr;
             }
             else
@@ -522,6 +523,14 @@ namespace claims.src.commands
                 tcr.StatusMessage = "claims:invalid_player_name";
                 return tcr;
             }
+            // Adding a player who already has a city would overwrite their City via setCity and,
+            // if they are a mayor, leave their old city's mayor pointer dangling (same as
+            // cadmin setmayor / CityJoin, both of which guard this).
+            if (targetPlayer.hasCity())
+            {
+                tcr.StatusMessage = "claims:player_has_city";
+                return tcr;
+            }
             city.getCityCitizens().Add(targetPlayer);
             targetPlayer.setCity(city);
             city.saveToDatabase();
@@ -642,6 +651,60 @@ namespace claims.src.commands
             city.saveToDatabase();
             return tcr;
         }
+        /// <summary>
+        /// Moves a settlement between the two tiers by hand. Upgrading goes through the normal
+        /// upgrade path (anchor and granary taken down); downgrading only flips the flag, so an
+        /// admin-made village has no anchor until one is placed for it.
+        /// </summary>
+        public static TextCommandResult citySetTier(TextCommandCallingArgs args)
+        {
+            TextCommandResult tcr = new TextCommandResult();
+            tcr.Status = EnumCommandStatus.Success;
+
+            string filteredName = Filter.filterName((string)args.Parsers[0].GetValue());
+            if (filteredName.Length == 0 || !Filter.checkForBlockedNames(filteredName))
+            {
+                tcr.StatusMessage = "claims:invalid_name";
+                return tcr;
+            }
+            claims.dataStorage.GetCityByName(filteredName, out City city);
+            if (city == null)
+            {
+                tcr.StatusMessage = "claims:no_such_city";
+                return tcr;
+            }
+
+            string tier = ((string)args.Parsers[1].GetValue()).ToLowerInvariant();
+            if (tier == "city")
+            {
+                if (city.IsVillage()) VillageUpgradeHelper.UpgradeToCity(city);
+            }
+            else if (tier == "village")
+            {
+                city.Tier = CityTier.VILLAGE;
+                city.saveToDatabase();
+                // A city has no anchor of its own; a village without one never starves and is
+                // exposed every day with nothing to break.
+                PartInits.EnsureVillageAnchor(city);
+                foreach (PlayerInfo citizen in city.getCityCitizens())
+                {
+                    RightsHandler.reapplyRights(citizen);
+                }
+                UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_TIER,
+                    EnumPlayerRelatedInfo.MAX_COUNT_PLOTS);
+                VillageRaidHelper.Schedule(city);
+            }
+            else
+            {
+                tcr.Status = EnumCommandStatus.Error;
+                return tcr;
+            }
+
+            tcr.StatusMessage = "claims:city_tier_set";
+            tcr.MessageParams = new object[] { city.getPartNameReplaceUnder(), tier };
+            return tcr;
+        }
+
         public static TextCommandResult citySetTechnical(TextCommandCallingArgs args)
         {
             IServerPlayer player = args.Caller.Player as IServerPlayer;
@@ -736,28 +799,69 @@ namespace claims.src.commands
 
             if (playerInfo == null)
             {
+                tcr.Status = EnumCommandStatus.Error;
                 tcr.StatusMessage = "claims:no_such_player";
                 return tcr;
             }
-            if (playerInfo.hasCity())
+
+            // Promoting a citizen of this very city is the common case - only a member of a
+            // DIFFERENT city has to leave that one first.
+            bool alreadyCitizen = playerInfo.hasCity() && playerInfo.City.Equals(city);
+            if (playerInfo.hasCity() && !alreadyCitizen)
             {
+                tcr.Status = EnumCommandStatus.Error;
                 tcr.StatusMessage = "claims:player_has_city";
                 return tcr;
             }
-            city.getPlayerInfos().Add(playerInfo);
-            playerInfo.setCity(city);
-            if (city.HasMayor())
+
+            if (city.isMayor(playerInfo))
             {
-                PlayerInfo tmpPlayer = city.getMayor();
-                city.getMayor().clearCity();
-                city.getPlayerInfos().Remove(tmpPlayer);
-                RightsHandler.reapplyRights(tmpPlayer);
+                tcr.StatusMessage = "claims:player_is_mayor_already";
+                return tcr;
             }
+
+            city.AddLogEntry(EnumCityLogEvent.MayorChanged, playerInfo.GetPartName());
+            city.FireMayorChanged(playerInfo);
+
+            PlayerInfo oldMayor = city.HasMayor() ? city.getMayor() : null;
+            if (oldMayor != null)
+            {
+                // Stepping down from mayor does not kick the player out of the city
+                city.setMayor(null);
+                RightsHandler.reapplyRights(oldMayor);
+            }
+
+            if (!alreadyCitizen)
+            {
+                city.getPlayerInfos().Add(playerInfo);
+                playerInfo.setCity(city);
+            }
+
             city.setMayor(playerInfo);
             RightsHandler.reapplyRights(playerInfo);
+
+            playerInfo.saveToDatabase();
+            oldMayor?.saveToDatabase();
             city.saveToDatabase();
-            UsefullPacketsSend.SendPlayerRelatedInfoOnCityJoined(playerInfo);
-            return tcr;
+
+            if (alreadyCitizen)
+            {
+                UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, EnumPlayerRelatedInfo.PLAYER_PERMISSIONS);
+            }
+            else
+            {
+                UsefullPacketsSend.SendPlayerRelatedInfoOnCityJoined(playerInfo);
+            }
+            if (oldMayor != null)
+            {
+                UsefullPacketsSend.AddToQueuePlayerInfoUpdate(oldMayor.Guid, EnumPlayerRelatedInfo.PLAYER_PERMISSIONS);
+            }
+            // Every citizen has to see the new mayor name, not just the two players involved
+            UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.MAYOR_NAME,
+                EnumPlayerRelatedInfo.CITY_MEMBERS, EnumPlayerRelatedInfo.CITY_LOG);
+
+            MessageHandler.sendMsgInCity(city, Lang.Get("claims:player_now_is_a_mayor", playerInfo.GetPartName()));
+            return SuccessWithParams("claims:player_now_is_a_mayor", new object[] { playerInfo.GetPartName() });
         }
         public static TextCommandResult citySetBonusPlots(TextCommandCallingArgs args)
         {
@@ -853,6 +957,36 @@ namespace claims.src.commands
 
             wi.saveToDatabase();
             tcr.StatusMessage = string.Join("", wi.getStatus());
+            return tcr;
+        }
+        public static TextCommandResult setCfg(TextCommandCallingArgs args)
+        {
+            TextCommandResult tcr = new TextCommandResult();
+            tcr.Status = EnumCommandStatus.Success;
+
+            string key = ((string)args.Parsers[0].GetValue());
+            string value = ((string)args.Parsers[1].GetValue());
+
+            if (!config.WarConfigEditor.TrySet(key, value, out string error))
+            {
+                tcr.Status = EnumCommandStatus.Error;
+                tcr.StatusMessage = "setcfg failed: " + error;
+                return tcr;
+            }
+
+            // Persist so the edit survives a restart (StoreModConfig is otherwise only
+            // called on load), then push the new values to every online client so the
+            // change applies without a reconnect.
+            claims.sapi.StoreModConfig<Config>(claims.config, "claims.json");
+            foreach (var p in claims.sapi.World.AllOnlinePlayers)
+            {
+                if (p is IServerPlayer sp)
+                {
+                    UsefullPacketsSend.SendUpdatedConfigValues(sp);
+                }
+            }
+
+            tcr.StatusMessage = "set " + key + " = " + value;
             return tcr;
         }
         public static TextCommandResult processBackup(TextCommandCallingArgs args)
@@ -1068,7 +1202,7 @@ namespace claims.src.commands
             }
             if (PlotInfo.nameToPlotType.ContainsKey((string)args.LastArg))
             {
-                plotHere.setNewType(tcr, (string)args.LastArg, player);
+                plotHere.setNewType(tcr, (string)args.LastArg, player, true);
                 return tcr;
             }
             else

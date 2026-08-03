@@ -86,6 +86,12 @@ namespace claims.src.messages
             {
                 receiver.SendMessage(claims.dataStorage.getModChatGroup().Uid, msg, EnumChatType.Notification);
             }
+            else
+            {
+                // Without this fallback every personal mod message is silently dropped when the
+                // dedicated chat window is disabled, unlike sendMsgInCity / SendMsgInAlliance.
+                receiver.SendMessage(GlobalConstants.GeneralChatGroup, msg, EnumChatType.Notification);
+            }
         }
         public static void sendDebugMsg(string msg)
         {

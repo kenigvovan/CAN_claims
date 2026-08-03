@@ -206,8 +206,6 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SetTooltip(tooltip);
         }
 
-        private void Send(string cmd) =>
-            ((claims.capi.World as ClientMain).eventManager)
-                .TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, cmd, EnumChatType.Macro, "");
+        private static void Send(string cmd) => SendCommand(cmd);
     }
 }

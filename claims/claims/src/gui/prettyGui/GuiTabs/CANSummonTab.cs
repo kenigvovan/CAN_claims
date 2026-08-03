@@ -53,8 +53,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
                 if (IconButton("usesummon", "dodging", 16, Lang.Get("claims:gui-summon-use-tooltip")))
                 {
-                    ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                    clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/c summon use " + summonCell.Name, EnumChatType.Macro, "");
+                    SendCommand("/c summon use " + summonCell.Name);
                 }
 
                 if (clientInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.CITY_SET_SUMMON))

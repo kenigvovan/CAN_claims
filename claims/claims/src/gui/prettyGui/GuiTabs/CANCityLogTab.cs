@@ -68,6 +68,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
         {
             string args0 = entry.Args.Count > 0 ? entry.Args[0] : "";
             string args1 = entry.Args.Count > 1 ? entry.Args[1] : "";
+            string args2 = entry.Args.Count > 2 ? entry.Args[2] : "";
+            string args3 = entry.Args.Count > 3 ? entry.Args[3] : "";
 
             return entry.EventType switch
             {
@@ -80,6 +82,11 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 EnumCityLogEvent.FlagCaptured     => Lang.Get("claims:log-flag-captured", args0, args1),
                 EnumCityLogEvent.AllianceJoined   => Lang.Get("claims:log-alliance-joined", args0),
                 EnumCityLogEvent.AllianceLeft     => Lang.Get("claims:log-alliance-left", args0),
+                EnumCityLogEvent.TreasuryPillaged => Lang.Get("claims:log-treasury-pillaged", args0, args1),
+                EnumCityLogEvent.WarEnded         => Lang.Get("claims:log-war-ended", args0, args1, args2, args3),
+                EnumCityLogEvent.UnionFormed      => Lang.Get("claims:log-union-formed", args0),
+                EnumCityLogEvent.UnionBreakAnnounced => Lang.Get("claims:log-union-break-announced", args0, args1),
+                EnumCityLogEvent.UnionBroken      => Lang.Get("claims:log-union-broken", args0),
                 _                                 => entry.EventType.ToString()
             };
         }
@@ -106,6 +113,11 @@ namespace claims.src.gui.prettyGui.GuiTabs
             EnumCityLogEvent.FlagCaptured     => ColEventFlagCaptured,
             EnumCityLogEvent.AllianceJoined   => ColEventAllianceJoin,
             EnumCityLogEvent.AllianceLeft     => ColEventAllianceLeft,
+            EnumCityLogEvent.TreasuryPillaged => ColEventConflict,
+            EnumCityLogEvent.WarEnded         => ColEventConflict,
+            EnumCityLogEvent.UnionFormed      => ColEventAllianceJoin,
+            EnumCityLogEvent.UnionBreakAnnounced => ColEventKicked,
+            EnumCityLogEvent.UnionBroken      => ColEventAllianceLeft,
             _                                 => ColEventDefault
         };
     }

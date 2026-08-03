@@ -84,8 +84,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     ImGui.SameLine();
                     if (GreenIconButton("joincity", "stairs-goal", 14, Lang.Get("claims:gui_citylist_join_city_hover")))
                     {
-                        ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                        clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/c join " + city.Name, EnumChatType.Macro, "");
+                        SendCommand("/c join " + city.Name);
                     }
                 }
 

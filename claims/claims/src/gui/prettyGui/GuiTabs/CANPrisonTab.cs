@@ -71,8 +71,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SameLine();
                 if (GreenIconButton("addprisoncell", "expander", 16, Lang.Get("claims:gui-prison-add-cell-tooltip")))
                 {
-                    ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                    clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/c prison addcell", EnumChatType.Macro, "");
+                    SendCommand("/c prison addcell");
                 }
             }
 

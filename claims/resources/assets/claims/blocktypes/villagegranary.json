@@ -1,0 +1,33 @@
+{
+    "code": "villagegranary",
+    "class": "CANVillageGranaryBlock",
+    "entityClass": "VillageGranary",
+    "attributes": {
+        "canChisel": false,
+        "reinforcable": false
+    },
+    "shape": { "base": "game:block/clay/storagevessel" },
+    "textures": {
+        "ceramic": { "base": "game:block/clay/hardened/brown" },
+        "top": { "base": "game:block/clay/hardened/brown", "overlays": [ "game:block/clay/overlay/vessel-top" ] },
+        "sides": { "base": "game:block/clay/hardened/brown", "overlays": [ "game:block/clay/overlay/vessel-sides" ] },
+        "inside": { "base": "game:block/clay/hardened/brown", "overlays": [ "game:block/clay/overlay/vessel-inside" ] }
+    },
+    "creativeinventory": {
+        "general": [ "" ],
+        "Claims": [ "*" ]
+    },
+    "maxstacksize": 1,
+    "blockmaterial": "Ceramic",
+    "resistance": 4,
+    "lightAbsorption": 0,
+    "sideopaque": { "all": false },
+    "sidesolid": { "all": false },
+    "collisionSelectionBox": { "x1": 0.125, "y1": 0, "z1": 0.125, "x2": 0.875, "y2": 1, "z2": 0.875 },
+    "sounds": {
+        "walk": "walk/stone",
+        "break": "block/ceramicplace",
+        "hit": "block/ceramichit",
+        "place": "block/ceramicplace"
+    }
+}

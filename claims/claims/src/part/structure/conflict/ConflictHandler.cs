@@ -13,9 +13,40 @@ namespace claims.src.part.structure.conflict
         static LetterRegistry<ConflictLetter> registry = new();
 
         public static void clearAll() => registry.Clear();
-        public static bool addConflictLetter(ConflictLetter letter) => registry.Add(letter);
-        public static bool removeConflictLetter(ConflictLetter letter) => registry.Remove(letter);
-        public static void updateConflictLetters() => registry.ExpireOverdue();
+        /// <summary>
+        /// Adds a letter. Persisted ones survive a server restart; pass persist:false when the
+        /// letter is being restored from the database (it is already stored there).
+        /// </summary>
+        public static bool addConflictLetter(ConflictLetter letter, bool persist = true)
+        {
+            if (letter == null || !registry.Add(letter)) return false;
+            if (persist)
+            {
+                if (ConflictLetterFactory.IsPersistable(letter.Purpose))
+                    claims.getModInstance()?.getDatabaseHandler()?.saveConflictLetter(letter, update: false);
+                // Mirror to both sides' conflict-letter GUI. Done centrally so no sender can forget it.
+                ConflictLetterFactory.MirrorToClients(letter);
+            }
+            return true;
+        }
+        public static bool removeConflictLetter(ConflictLetter letter)
+        {
+            if (!registry.Remove(letter)) return false;
+            claims.getModInstance()?.getDatabaseHandler()?.deleteFromDatabaseConflictLetter(letter);
+            return true;
+        }
+        public static void updateConflictLetters()
+        {
+            // ExpireOverdue drops the letter from the registry itself, so the row has to be deleted
+            // here - the OnExpire handler would no longer find it to clean up.
+            long now = TimeFunctions.getEpochSeconds();
+            foreach (var it in registry.Snapshot())
+            {
+                if (it.TimeStampExpire < now)
+                    claims.getModInstance()?.getDatabaseHandler()?.deleteFromDatabaseConflictLetter(it);
+            }
+            registry.ExpireOverdue();
+        }
         public static bool GuidIsFree(Guid guid) => registry.GuidIsFree(guid.ToString());
 
         public static bool removeConflictLetter(IConflictParty from, IConflictParty to, LetterPurpose purpose)
@@ -25,8 +56,7 @@ namespace claims.src.part.structure.conflict
                 if ((it.From.Equals(from) && it.To.Equals(to) && it.Purpose.Equals(purpose)) ||
                     (it.From.Equals(to) && it.To.Equals(from) && it.Purpose.Equals(purpose)))
                 {
-                    registry.Remove(it);
-                    return true;
+                    return removeConflictLetter(it);
                 }
             }
             return false;

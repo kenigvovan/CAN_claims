@@ -30,8 +30,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             string allyLable,
             perms.type.PermType permType,
             string commandSuffix,
-            PermsHandler permsHandler,
-            ClientEventManager cem
+            PermsHandler permsHandler
         )
         {
             bool friend = permsHandler.getPerm(perms.PermGroup.COMRADE, permType);
@@ -41,36 +40,21 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
 
             if (ImGui.Checkbox(friendLabel, ref friend))
             {
-                cem.TriggerNewClientChatLine(
-                    GlobalConstants.CurrentChatGroup,
-                    $"/city set p friend {commandSuffix} {(friend ? "on" : "off")}",
-                    EnumChatType.Macro,
-                    ""
-                );
+                SendCommand($"/city set p friend {commandSuffix} {(friend ? "on" : "off")}");
                 permsHandler.setPerm(perms.PermGroup.COMRADE, permType, friend);
             }
             ImGui.SameLine();
 
             if (ImGui.Checkbox(citizenLabel, ref citizen))
             {
-                cem.TriggerNewClientChatLine(
-                    GlobalConstants.CurrentChatGroup,
-                    $"/city set p citizen {commandSuffix} {(citizen ? "on" : "off")}",
-                    EnumChatType.Macro,
-                    ""
-                );
+                SendCommand($"/city set p citizen {commandSuffix} {(citizen ? "on" : "off")}");
                 permsHandler.setPerm(perms.PermGroup.CITIZEN, permType, citizen);
             }
             ImGui.SameLine();
 
             if (ImGui.Checkbox(strangerLabel, ref stranger))
             {
-                cem.TriggerNewClientChatLine(
-                    GlobalConstants.CurrentChatGroup,
-                    $"/city set p stranger {commandSuffix} {(stranger ? "on" : "off")}",
-                    EnumChatType.Macro,
-                    ""
-                );
+                SendCommand($"/city set p stranger {commandSuffix} {(stranger ? "on" : "off")}");
                 permsHandler.setPerm(perms.PermGroup.STRANGER, permType, stranger);
             }
 
@@ -78,12 +62,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
 
             if (ImGui.Checkbox(allyLable, ref alliance))
             {
-                cem.TriggerNewClientChatLine(
-                    GlobalConstants.CurrentChatGroup,
-                    $"/city set p ally {commandSuffix} {(alliance ? "on" : "off")}",
-                    EnumChatType.Macro,
-                    ""
-                );
+                SendCommand($"/city set p ally {commandSuffix} {(alliance ? "on" : "off")}");
                 permsHandler.setPerm(perms.PermGroup.ALLY, permType, alliance);
             }
         }
@@ -100,16 +79,10 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             
             ImGui.Text(Lang.Get(TitleString, GuiSys.textInput2, GuiSys.textInput));
             var permsHandler = claims.clientDataStorage.clientPlayerInfo.CityInfo.PermsHandler;
-            ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
             bool pvp = permsHandler.pvpFlag;
             if (ImGui.Checkbox(Lang.Get("claims:gui-admin-flag-pvp") + "##city", ref pvp))
             {
-                clientEventManager.TriggerNewClientChatLine(
-                    GlobalConstants.CurrentChatGroup,
-                    "/city set pvp " + (pvp ? "on" : "off"),
-                    EnumChatType.Macro,
-                    ""
-                );
+                SendCommand("/city set pvp " + (pvp ? "on" : "off"));
                 permsHandler.pvpFlag = pvp;
             }
 
@@ -117,24 +90,14 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             bool fire = permsHandler.fireFlag;
             if (ImGui.Checkbox(Lang.Get("claims:gui-admin-flag-fire") + "##city", ref fire))
             {
-                clientEventManager.TriggerNewClientChatLine(
-                    GlobalConstants.CurrentChatGroup,
-                    "/city set fire " + (fire ? "on" : "off"),
-                    EnumChatType.Macro,
-                    ""
-                );
+                SendCommand("/city set fire " + (fire ? "on" : "off"));
                 permsHandler.fireFlag = fire;
             }
 
             bool blast = !permsHandler.blastFlag;
             if (ImGui.Checkbox(Lang.Get("claims:gui-admin-flag-blast") + "##city", ref blast))
             {
-                clientEventManager.TriggerNewClientChatLine(
-                    GlobalConstants.CurrentChatGroup,
-                    "/city set blast " + (!blast ? "on" : "off"),
-                    EnumChatType.Macro,
-                    ""
-                );
+                SendCommand("/city set blast " + (!blast ? "on" : "off"));
                 permsHandler.blastFlag = !blast;
             }
 
@@ -148,8 +111,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                 Lang.Get("claims:gui-admin-group-ally")    + "##build",
                 perms.type.PermType.BUILD_AND_DESTROY_PERM,
                 "build",
-                permsHandler,
-                clientEventManager
+                permsHandler
             );
 
             ImGui.Separator();
@@ -163,8 +125,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                 Lang.Get("claims:gui-admin-group-ally")    + "##use",
                 perms.type.PermType.USE_PERM,
                 "use",
-                permsHandler,
-                clientEventManager
+                permsHandler
             );
 
             ImGui.Separator();
@@ -177,8 +138,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                 Lang.Get("claims:gui-admin-group-ally")    + "##attack",
                 perms.type.PermType.ATTACK_ANIMALS_PERM,
                 "attack",
-                permsHandler,
-                clientEventManager
+                permsHandler
             );
 
             ImGui.End();

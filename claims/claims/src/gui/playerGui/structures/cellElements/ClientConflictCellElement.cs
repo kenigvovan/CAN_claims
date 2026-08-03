@@ -26,9 +26,11 @@ namespace claims.src.gui.playerGui.structures.cellElements
         public List<SelectedWarRange> SecondWarRanges { get; set; } = new List<SelectedWarRange>();
         public long TimeStampCreated { get; set; }
         public bool ActiveWarTime { get; set; }
+        public int FirstScore { get; set; }
+        public int SecondScore { get; set; }
         public static ClientConflictCellElement FromConflict(Conflict conflict)
         {
-            return new ClientConflictCellElement(conflict.GetPartName(),
+            var el = new ClientConflictCellElement(conflict.GetPartName(),
                 conflict.First.GetPartName(), conflict.First.Guid, WarTargetTypeHelper.FromConflictParty(conflict.First),
                 conflict.Second.GetPartName(), conflict.Second.Guid, WarTargetTypeHelper.FromConflictParty(conflict.Second),
                 conflict.StartedBy?.GetPartName() ?? conflict.First.GetPartName(),
@@ -36,6 +38,9 @@ namespace claims.src.gui.playerGui.structures.cellElements
                 conflict.MinimumDaysBetweenBattles, conflict.LastBattleDateStart, conflict.LastBattleDateEnd,
                 conflict.NextBattleDateStart, conflict.NextBattleDateEnd, conflict.WarRanges, conflict.FirstWarRanges,
                 conflict.SecondWarRanges, conflict.TimeStampStarted, conflict.ActiveWarTime);
+            el.FirstScore = conflict.FirstScore;
+            el.SecondScore = conflict.SecondScore;
+            return el;
         }
         public ClientConflictCellElement(string name, string firstAllianceName, string firstPartyGuid, WarTargetType firstPartyType,
                                          string secondAllianceName, string secondPartyGuid, WarTargetType secondPartyType,

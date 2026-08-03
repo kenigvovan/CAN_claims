@@ -11,5 +11,17 @@ namespace claims.src.citylog
         FlagCaptured,
         AllianceJoined,
         AllianceLeft,
+        TreasuryPillaged,
+        WarEnded,
+        UnionFormed,
+        UnionBreakAnnounced,
+        UnionBroken,
+        // Append only: entries are persisted by their numeric value.
+        VillageFounded,
+        VillageUpgraded,
+        PlotSoldToCity,
+        PlotBoughtFromCity,
+        CityBankrupt,
+        CityAbsorbed,
     }
 }

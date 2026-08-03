@@ -1,322 +1,122 @@
-﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Cairo;
+using claims.src.auxialiry;
 using claims.src.gui.playerGui.structures.cellElements;
+using claims.src.gui.playerGui.Widgets;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
-using Vintagestory.API.MathTools;
-using static claims.src.gui.playerGui.CANClaimsGui;
 
 namespace claims.src.gui.playerGui.GuiElements
 {
-    public class GuiElementCityPrisonCell: GuiElementTextBase, IGuiElementCell, IDisposable
+    /// <summary>A prison cell: which one it is, where it stands, and who is being held in it.</summary>
+    public class GuiElementCityPrisonCell : CANGuiElementCellBase
     {
-        private List<GuiElementButtonWithAdditionalText> buttons = new List<GuiElementButtonWithAdditionalText>();
-        private List<GuiElementStaticText> texts = new List<GuiElementStaticText>();
-        private GuiElementToggleButton addRankButton;
-        public GuiElementRichtext richTextElem;
-        public enum HighlightedTexture
-        {
-            FIRST, SECOND, THIRD
-        }
-        public static double unscaledRightBoxWidth = 40.0;
+        /// <summary>How many inmates are named in the row before the rest become "and N more".</summary>
+        private const int NamesShown = 2;
 
-        private PrisonCellElement prisonCell;
+        /// <summary>Width of the occupancy stripe down the left edge.</summary>
+        private const double MarkerWidth = 4.0;
 
-        private bool showModifyIcons = true;
+        private readonly PrisonCellElement prisonCell;
+        private readonly bool occupied;
 
-        public bool On;
+        /// <summary>
+        /// The cell's only action is its own remove button, so the row has nothing to click. Without
+        /// this the base lit the three vanilla columns down the right edge, which read as if the
+        /// plate were split into three parts.
+        /// </summary>
+        protected override bool UseHoverHighlights => false;
 
-        internal int leftHighlightTextureId;
-
-        internal int middleHighlightTextureId;
-
-        internal int rightHighlightTextureId;
-
-        internal int switchOnTextureId;
-
-        internal double unscaledSwitchPadding = 4.0;
-
-        internal double unscaledSwitchSize = 25.0;
-
-        private LoadedTexture modcellTexture;
-
-        private ICoreClientAPI capi;
-
-        public Action<int> OnMouseDownOnCellLeft;
-        public Action<int> OnMouseDownOnCellMiddle;
-        public Action<int> OnMouseDownOnCellRight;
-
-
-        ElementBounds IGuiElementCell.Bounds => Bounds;
-
-
-        public override void ComposeElements(Context ctx, ImageSurface surface)
-        {
-            base.ComposeElements(ctx, surface);
-        }
-        public GuiElementCityPrisonCell(ICoreClientAPI capi, PrisonCellElement prisonCell, ElementBounds bounds)
-            : base(capi, "", null, bounds)
+        /// <param name="number">Position in the city's cell list, so a cell can be named rather than
+        /// identified only by its coordinates.</param>
+        public GuiElementCityPrisonCell(ICoreClientAPI capi, PrisonCellElement prisonCell, ElementBounds bounds, int number)
+            : base(capi, bounds)
         {
             this.prisonCell = prisonCell;
-            this.Font = CairoFont.WhiteSmallishText();
-            modcellTexture = new LoadedTexture(capi);
+            this.occupied = prisonCell.Players.Count > 0;
 
-            this.capi = capi;
+            // Coordinates are shown relative to world spawn, which is what players read off the map.
             this.text = Lang.Get("claims:gui-prison-cell-coords",
-                                    (prisonCell.SpawnPosition.X - capi.World.DefaultSpawnPosition.AsBlockPos.X).ToString(),
-                                    (prisonCell.SpawnPosition.Y - capi.World.DefaultSpawnPosition.AsBlockPos.Y).ToString(),
-                                    (prisonCell.SpawnPosition.Z - capi.World.DefaultSpawnPosition.AsBlockPos.Z).ToString());
-            double unScaledButtonCellHeight = 35.0;
-            var height = unScaledButtonCellHeight;
+                (prisonCell.SpawnPosition.X - capi.World.DefaultSpawnPosition.AsBlockPos.X).ToString(),
+                (prisonCell.SpawnPosition.Y - capi.World.DefaultSpawnPosition.AsBlockPos.Y).ToString(),
+                (prisonCell.SpawnPosition.Z - capi.World.DefaultSpawnPosition.AsBlockPos.Z).ToString());
+
             var font = CairoFont.WhiteDetailText();
-            var offY = (height - font.UnscaledFontsize) / 2.0;
-            TextExtents textExtents = CairoFont.WhiteMediumText().GetTextExtents(this.text);
-            var labelTextBounds = ElementBounds.Fixed(0.0, 0.0, textExtents.Width, height).WithParent(Bounds);
-            this.richTextElem = new GuiElementRichtext(capi, VtmlUtil.Richtextify(capi, this.text, CairoFont.WhiteMediumText()), labelTextBounds);
-            var addRankBounds = labelTextBounds.RightCopy().WithFixedSize(25, 25);
-            addRankBounds.fixedY += 5;
-            /*addRankButton = new GuiElementToggleButton(capi, "wpX", "", font, (bool t) =>
-            {
-                if (t)
-                {
-                    claims.CANCityGui.CreateNewCityState = EnumUpperWindowSelectedState.CITY_PRISON_REMOVE_CELL_CONFIRM;
-                    claims.CANCityGui.selectedPos = this.prisonCell.SpawnPosition;
-                    claims.CANCityGui.BuildUpperWindow();
-                }
-            }, addRankBounds);*/
+            double textWidth = Bounds.fixedWidth - 60;
+            if (textWidth < 60) textWidth = 60;
 
-            double offsetY = 35;
-            double offsetX = 0;
-            if (prisonCell.Players.Count > 0)
+            // The cell's number heads the row: coordinates identify it to the server, but a player
+            // reading the list wants to tell one cell from another at a glance. They follow, muted.
+            var titleBounds = ElementBounds.Fixed(16, 4, textWidth, 22).WithParent(Bounds);
+            AddTitle(Lang.Get("claims:gui-prison-cell-number", number), titleBounds);
+
+            var coordsBounds = ElementBounds.Fixed(16, 26, textWidth, 18).WithParent(Bounds);
+            AddSubtitle(this.text, coordsBounds, 14);
+
+            // Removing a cell is a permission, and it needs the cell's position to know which one.
+            var perms = claims.clientDataStorage.clientPlayerInfo.PlayerPermissions;
+            if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_PRISON_REMOVE_CELL)
+             || perms.HasPermission(rights.EnumPlayerPermissions.CITY_PRISON_ALL))
             {
-                foreach (var it in prisonCell.Players)
+                double cellWidth = Bounds.fixedWidth > 0 ? Bounds.fixedWidth : 430;
+                var removeBounds = ElementBounds.Fixed(cellWidth - 44, 20, 32, 32).WithParent(Bounds);
+                children.Add(new GuiElementToggleButton(capi, "claims:cancel", "", font, (bool t) =>
                 {
-                    textExtents = Font.GetTextExtents(it);
-                    if ((textExtents.Width + 40 + offsetX + 20) > bounds.fixedWidth + this.Bounds.fixedX)
+                    if (t)
                     {
-                        offsetX = 0;
-                        offsetY += 30;
+                        claims.CANCityGui.OpenDialog(EnumUpperWindowSelectedState.CITY_PRISON_REMOVE_CELL_CONFIRM,
+                            args => args.Pos = this.prisonCell.SpawnPosition);
                     }
-                    var bu = ElementBounds.Fixed(offsetX, offsetY, textExtents.Width + 40, 25).WithParent(Bounds);
-                    texts.Add(new GuiElementStaticText(capi, it, EnumTextOrientation.Left, bu, font));
-                    offsetX += textExtents.Width + 45 + 20;
-                }
+                }, removeBounds));
+                AddTooltip(removeBounds, Lang.Get("claims:gui-prison-remove-cell-tooltip"));
             }
 
-            if (offsetY > 30)
+            // Who is inside, by name. A bare count meant hovering every row to find a given player;
+            // the names are what the list is consulted for. Laid out one box per prisoner, they used
+            // to stretch the cell to whatever height the list happened to need.
+            var occupantsBounds = ElementBounds.Fixed(16, 46, textWidth, 20).WithParent(Bounds);
+
+            if (!occupied)
             {
-                Bounds.fixedHeight = offsetY + 60;
-            }
-        }
-        private void Compose()
-        {
-            ComposeHover(HighlightedTexture.FIRST, ref leftHighlightTextureId);
-            ComposeHover(HighlightedTexture.SECOND, ref middleHighlightTextureId);
-            ComposeHover(HighlightedTexture.THIRD, ref rightHighlightTextureId);
-            genOnTexture();
-            ImageSurface imageSurface = new ImageSurface(Format.Argb32, Bounds.OuterWidthInt, Bounds.OuterHeightInt);
-            Context context = new Context(imageSurface);
-            double num = GuiElement.scaled(unscaledRightBoxWidth);
-            Bounds.CalcWorldBounds();
-
-            //make border as button
-            EmbossRoundRectangleElement(context, 0.0, 0.0, Bounds.OuterWidth, Bounds.OuterHeight, inverse: false, (int)GuiElement.scaled(4.0), 0);
-
-            double num5 = GuiElement.scaled(unscaledSwitchSize);
-            double num6 = GuiElement.scaled(unscaledSwitchPadding);
-
-
-            if (buttons != null)
-            {
-                foreach (var it in buttons)
-                {
-                    it.ComposeElements(context, imageSurface);
-                }
-            }
-            if(texts != null)
-            {
-                foreach (var it in texts)
-                {
-                    it.ComposeElements(context, imageSurface);
-                }
-            }
-            richTextElem.Compose();
-            //addRankButton.ComposeElements(context, imageSurface);
-            generateTexture(imageSurface, ref modcellTexture);
-            ComposeElements(context, imageSurface);
-            context.Dispose();
-            imageSurface.Dispose();
-        }
-
-        private void genOnTexture()
-        {
-            double num = GuiElement.scaled(unscaledSwitchSize - 2.0 * unscaledSwitchPadding);
-            ImageSurface imageSurface = new ImageSurface(Format.Argb32, (int)num, (int)num);
-            Context context = genContext(imageSurface);
-            GuiElement.RoundRectangle(context, 0.0, 0.0, num, num, 2.0);
-            GuiElement.fillWithPattern(api, context, GuiElement.waterTextureName);
-            generateTexture(imageSurface, ref switchOnTextureId);
-            context.Dispose();
-            imageSurface.Dispose();
-        }
-
-        private void ComposeHover(HighlightedTexture highlightedTexutre, ref int textureId)
-        {
-            ImageSurface imageSurface = new ImageSurface(Format.Argb32, (int)Bounds.OuterWidth, (int)Bounds.OuterHeight);
-            Context context = genContext(imageSurface);
-            double num = GuiElement.scaled(unscaledRightBoxWidth);
-            if (highlightedTexutre == HighlightedTexture.FIRST)
-            {
-                context.NewPath();
-                context.LineTo(0.0, 0.0);
-                context.LineTo(Bounds.InnerWidth - num * 2, 0.0);
-                context.LineTo(Bounds.InnerWidth - num * 2, Bounds.OuterHeight);
-                context.LineTo(0.0, Bounds.OuterHeight);
-                context.ClosePath();
-            }
-            else if (highlightedTexutre == HighlightedTexture.SECOND)
-            {
-                context.NewPath();
-                context.LineTo(Bounds.InnerWidth - num * 2, 0);
-                context.LineTo(Bounds.InnerWidth - num, 0);
-                context.LineTo(Bounds.InnerWidth - num, Bounds.OuterHeight);
-                context.LineTo(Bounds.InnerWidth - num * 2, Bounds.OuterHeight);
-                context.ClosePath();
+                AddLabelValue(Lang.Get("claims:gui-prison-cell-occupants"),
+                    Lang.Get("claims:gui-prison-cell-empty"), occupantsBounds, 110, ClaimsColors.Label);
             }
             else
             {
-                context.NewPath();
-                context.LineTo(Bounds.InnerWidth - num, 0.0);
-                context.LineTo(Bounds.OuterWidth, 0.0);
-                context.LineTo(Bounds.OuterWidth, Bounds.OuterHeight);
-                context.LineTo(Bounds.InnerWidth - num, Bounds.OuterHeight);
-                context.ClosePath();
+                AddLabelValue(Lang.Get("claims:gui-prison-cell-occupants"),
+                    NameList(prisonCell.Players), occupantsBounds, 110, ClaimsColors.Danger);
+
+                // The full roster stays on hover, for when the row only had room for the first few.
+                AddTooltip(ElementBounds.Fixed(0, 0, textWidth, MinCellHeight).WithParent(Bounds),
+                    StringFunctions.concatStringsWithDelim(prisonCell.Players, ','));
             }
 
-            context.SetSourceRGBA(0.0, 0.0, 0.0, 0.15);
-            context.Fill();
-            generateTexture(imageSurface, ref textureId);
-            context.Dispose();
-            imageSurface.Dispose();
+            Bounds.fixedHeight = MinCellHeight;
         }
 
-        public void UpdateCellHeight()
+        /// <summary>The first few inmates by name, with a count standing in for the rest.</summary>
+        private static string NameList(ICollection<string> players)
         {
-            Bounds.CalcWorldBounds();
-            richTextElem.BeforeCalcBounds();
-            if (showModifyIcons && Bounds.fixedHeight < 73.0)
-            {
-                Bounds.fixedHeight = 73;
-            }
-        }
-        public override void RenderInteractiveElements(float deltaTime)
-        {
-            base.RenderInteractiveElements(deltaTime);
-            if (buttons != null)
-            {
-                foreach (var it in buttons)
-                {
-                    it.RenderInteractiveElements(deltaTime);
-                }
-            }
-        }
-        public void OnRenderInteractiveElements(ICoreClientAPI api, float deltaTime)
-        {
-            if (modcellTexture.TextureId == 0)
-            {
-                Compose();
-            }
+            string names = string.Join(", ", players.Take(NamesShown).Select(StringFunctions.replaceUnderscore));
 
-            api.Render.Render2DTexturePremultipliedAlpha(modcellTexture.TextureId, (int)Bounds.absX, (int)Bounds.absY, Bounds.OuterWidthInt, Bounds.OuterHeightInt);
-            int mouseX = api.Input.MouseX;
-            int mouseY = api.Input.MouseY;
-            if (buttons != null)
-            {
-                foreach (var it in buttons)
-                {
-                    it.RenderInteractiveElements(deltaTime);
-                }
-            }
-            richTextElem.RenderInteractiveElements(deltaTime);
-            //addRankButton.RenderInteractiveElements(deltaTime);
+            int rest = players.Count - NamesShown;
+            return rest > 0 ? names + " " + Lang.Get("claims:gui-prison-cell-more", rest) : names;
         }
 
-        public override void Dispose()
+        /// <summary>
+        /// Occupancy as a stripe down the left edge - the one thing worth spotting without reading
+        /// the row. Everything else is drawn by the base from richTexts and children.
+        /// </summary>
+        protected override void ComposeContent(Context ctx, ImageSurface surface)
         {
-            base.Dispose();
-            foreach(var it in buttons)
-            {
-                it.Dispose();
-            }
-            addRankButton?.Dispose();
-            modcellTexture?.Dispose();
-            api.Render.GLDeleteTexture(leftHighlightTextureId);
-            api.Render.GLDeleteTexture(middleHighlightTextureId);
-            api.Render.GLDeleteTexture(rightHighlightTextureId);
-            api.Render.GLDeleteTexture(switchOnTextureId);
-        }
+            double[] color = occupied ? ClaimsColors.Danger : ClaimsColors.Label;
 
-        public void OnMouseUpOnElement(MouseEvent args, int elementIndex)
-        {
-            if (buttons == null) return;
-
-            int x = api.Input.MouseX;
-            int y = api.Input.MouseY;
-
-            foreach (var it in buttons)
-            {
-                it.OnMouseUpOnElement(api, args);
-            }
-            addRankButton?.OnMouseUpOnElement(api, args);
-
-            int mouseX = api.Input.MouseX;
-            int mouseY = api.Input.MouseY;
-            Vec2d vec2d = Bounds.PositionInside(mouseX, mouseY);
-            api.Gui.PlaySound("menubutton_press");
-            if (vec2d.X > Bounds.InnerWidth - GuiElement.scaled(GuiElementMainMenuCell.unscaledRightBoxWidth) * 2 &&
-                    vec2d.X < Bounds.InnerWidth - GuiElement.scaled(GuiElementMainMenuCell.unscaledRightBoxWidth))
-            {
-                OnMouseDownOnCellMiddle?.Invoke(elementIndex);
-                args.Handled = true;
-            }
-            else if (vec2d.X > Bounds.InnerWidth - GuiElement.scaled(GuiElementMainMenuCell.unscaledRightBoxWidth))
-            {
-                OnMouseDownOnCellRight?.Invoke(elementIndex);
-                args.Handled = true;
-            }
-            else
-            {
-                OnMouseDownOnCellLeft?.Invoke(elementIndex);
-                args.Handled = true;
-            }
-        }
-
-        public void OnMouseMoveOnElement(MouseEvent args, int elementIndex)
-        {
-            if (buttons == null) return;
-            foreach (var it in buttons)
-            {
-                it.OnMouseMove(api, args);
-            }
-            addRankButton?.OnMouseMove(api, args);
-        }
-
-        public void OnMouseDownOnElement(MouseEvent args, int elementIndex)
-        {
-            if (this.buttons == null) return;
-
-            int x = api.Input.MouseX;
-            int y = api.Input.MouseY;
-            foreach (var it in buttons)
-            {
-                if (it.Bounds.PointInside(x, y))
-                {
-                    it.OnMouseDownOnElement(api, args);
-                }
-            }
-            addRankButton?.OnMouseDownOnElement(api, args);
+            ctx.SetSourceRGBA(color[0], color[1], color[2], occupied ? 0.9 : 0.35);
+            GuiElement.RoundRectangle(ctx, GuiElement.scaled(3.0), GuiElement.scaled(6.0),
+                GuiElement.scaled(MarkerWidth), Bounds.OuterHeight - GuiElement.scaled(12.0), 1.0);
+            ctx.Fill();
         }
     }
 }

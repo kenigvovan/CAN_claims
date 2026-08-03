@@ -6,13 +6,17 @@ using claims.src.clientMapHandling;
 using claims.src.events;
 using claims.src.gui.playerGui.structures;
 using claims.src.gui.playerGui.structures.cellElements;
+using claims.src.messages;
 using claims.src.network.packets;
 using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
 using Newtonsoft.Json;
 using Vintagestory.API.Common;
+using Vintagestory.API.Common.Entities;
+using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
 using Vintagestory.Server;
 
 namespace claims.src.network.handlers
@@ -60,23 +64,31 @@ namespace claims.src.network.handlers
                 else if(packet.type == PacketsContentEnum.CURRENT_PLOT_CLIENT_REQUEST)
                 {
                     var currentPos = player.Entity.Pos;
-                    if(claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(currentPos), out Plot plot))
+                    PlotPosition here = PlotPosition.fromEntityyPos(currentPos);
+                    CurrentPlotInfo cpi;
+                    if(claims.dataStorage.GetPlot(here, out Plot plot))
                     {
-                        CurrentPlotInfo cpi = new CurrentPlotInfo(plot.GetPartName(), plot.getPlotOwner()?.GetPartName() ?? "",
-                            plot.Type, plot.getCustomTax(), plot.Price, plot.getPermsHandler(), plot.extraBought, plot.getPos());
-                        string serializedZones = JsonConvert.SerializeObject(cpi);
-                        
-                        claims.serverChannel.SendPacket(new SavedPlotsPacket()
-                        {
-                            type = PacketsContentEnum.CURRENT_PLOT_INFO,
-                            data = serializedZones
+                        claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo plotViewer);
+                        cpi = UsefullPacketsSend.BuildCurrentPlotInfo(plot, plotViewer);
+                    }
+                    else
+                    {
+                        // Unclaimed ground still gets an answer: staying silent leaves the plot page
+                        // describing whichever plot the player walked off, which reads as a page that
+                        // never updates.
+                        cpi = new CurrentPlotInfo { PlotPosition = here.getPos(), IsClaimed = false };
+                    }
 
-                        }, player);
-                        if (ServerMain.FrameProfiler.Enabled)
-                        {
-                            ServerMain.FrameProfiler.Mark("can-claims-packet-current-plot-info");
-                        }
-                    }                                      
+                    claims.serverChannel.SendPacket(new SavedPlotsPacket()
+                    {
+                        type = PacketsContentEnum.CURRENT_PLOT_INFO,
+                        data = JsonConvert.SerializeObject(cpi)
+
+                    }, player);
+                    if (ServerMain.FrameProfiler.Enabled)
+                    {
+                        ServerMain.FrameProfiler.Mark("can-claims-packet-current-plot-info");
+                    }
                 }
                 else if (packet.type == PacketsContentEnum.ADMIN_REQUEST_CITY_FLAGS)
                 {
@@ -124,6 +136,36 @@ namespace claims.src.network.handlers
                     if (rankRequester == null || !rankRequester.hasCity()) return;
                     UsefullPacketsSend.AddToQueuePlayerInfoUpdate(player.PlayerUID, EnumPlayerRelatedInfo.CITY_CITIZENS_RANKS);
                 }
+                else if (packet.type == PacketsContentEnum.CLIENT_SET_RESPAWN_PREFERENCE)
+                {
+                    if (!int.TryParse(packet.data, out int prefValue)) return;
+                    if (!System.Enum.IsDefined(typeof(EnumRespawnPreference), prefValue)) return;
+
+                    EnumRespawnPreference preference = (EnumRespawnPreference)prefValue;
+                    RespawnPreference.Write(player, preference);
+                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:respawn_pref_set",
+                        Lang.Get(RespawnPreference.LangKeyOf(preference))));
+                }
+                else if (packet.type == PacketsContentEnum.CLIENT_SET_BOAT_SHARE)
+                {
+                    HandleSetBoatShare(player, packet.data);
+                }
+                else if (packet.type == PacketsContentEnum.CLIENT_CAMP_TELEPORT)
+                {
+                    claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo tpRequester);
+                    if (tpRequester == null) return;
+
+                    string langKey = commands.CityCommand.TryStartCampTeleport(player, tpRequester, out object[] msgParams);
+                    MessageHandler.sendMsgToPlayer(player, msgParams == null
+                        ? Lang.Get(langKey)
+                        : Lang.Get(langKey, msgParams));
+                }
+                else if (packet.type == PacketsContentEnum.CLIENT_REQUEST_CASUS_BELLI)
+                {
+                    claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo cbRequester);
+                    if (cbRequester == null || !cbRequester.hasCity()) return;
+                    UsefullPacketsSend.AddToQueuePlayerInfoUpdate(cbRequester.Guid, EnumPlayerRelatedInfo.CITY_CASUS_BELLI_ALL);
+                }
             });
             claims.serverChannel.SetMessageHandler<PlayerGuiRelatedInfoPacket>((player, packet) =>
             {
@@ -142,6 +184,10 @@ namespace claims.src.network.handlers
                 else if (playerInfo.hasCity())
                 {
                     if (!playerInfo.City.isMayor(playerInfo))
+                        return;
+                    // The GUI reaches war ranges without going through the commands, so the
+                    // village gate in TryResolveMyParty does not cover this path.
+                    if (playerInfo.City.IsVillage())
                         return;
                     ourParty = playerInfo.City;
                 }
@@ -167,6 +213,10 @@ namespace claims.src.network.handlers
                 }
 
                 if (conflict.ActiveWarTime)
+                    return;
+
+                // Only a side of the conflict may edit its war ranges
+                if (!conflict.First.Equals(ourParty) && !conflict.Second.Equals(ourParty))
                     return;
 
                 bool getFirst = true;
@@ -271,6 +321,39 @@ namespace claims.src.network.handlers
             }
             return common;
         }
+        /// <summary>
+        /// Applies the sharing mode picked in the dialog. Re-checks everything the client claims:
+        /// that the entity is ownable, that the caller owns it, and that they are standing at it.
+        /// </summary>
+        private static void HandleSetBoatShare(IServerPlayer player, string data)
+        {
+            if (!claims.config.BOAT_SHARE_WITH_CITY) return;
+
+            string[] parts = (data ?? "").Split(';');
+            if (parts.Length != 2) return;
+            if (!long.TryParse(parts[0], out long entityId)) return;
+            if (!int.TryParse(parts[1], out int rawMode)) return;
+            if (!Enum.IsDefined(typeof(BoatShareMode), rawMode)) return;
+
+            var mode = (BoatShareMode)rawMode;
+            if (mode == BoatShareMode.ALLIANCE && !claims.config.BOAT_SHARE_WITH_ALLIANCE) return;
+
+            Entity boat = claims.sapi.World.GetEntityById(entityId);
+            if (boat?.GetBehavior<Vintagestory.GameContent.EntityBehaviorOwnable>() == null) return;
+
+            var ownedby = boat.WatchedAttributes.GetTreeAttribute("ownedby");
+            if (ownedby == null || ownedby.GetString("uid", "") != player.PlayerUID) return;
+
+            if (player.Entity == null || player.Entity.Pos.DistanceTo(boat.Pos.XYZ) > BoatShareReach) return;
+
+            BoatShareModeHelper.Set(boat, mode);
+            MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:boat-share-set",
+                Lang.Get(BoatShareModeHelper.LangKeyOf(mode))));
+        }
+
+        /// <summary>How far from a boat its sharing may still be changed, in blocks.</summary>
+        private const double BoatShareReach = 12;
+
         public static int GetMinutes(DayOfWeek day, TimeSpan time)
         {
             return (int)day * 24 * 60 + (int)time.TotalMinutes;

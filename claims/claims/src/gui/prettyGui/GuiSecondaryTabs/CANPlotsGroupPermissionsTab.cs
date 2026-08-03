@@ -32,7 +32,6 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             perms.type.PermType permType,
             string commandSuffix,
             PermsHandler permsHandler,
-            ClientEventManager cem,
             PlotsGroupCellElement pgce
         )
         {
@@ -40,12 +39,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
 
             if (ImGui.Checkbox(citizenLabel, ref citizen))
             {
-                cem.TriggerNewClientChatLine(
-                    GlobalConstants.CurrentChatGroup,
-                    $"/c plotsgroup set p {pgce.Name} citizen {commandSuffix} {(citizen ? "on" : "off")}",
-                    EnumChatType.Macro,
-                    ""
-                );
+                SendCommand($"/c plotsgroup set p {pgce.Name} citizen {commandSuffix} {(citizen ? "on" : "off")}");
                 permsHandler.setPerm(perms.PermGroup.CITIZEN, permType, citizen);
             }
         }
@@ -63,16 +57,10 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             ImGui.Text(Lang.Get(TitleString, GuiSys.textInput2, GuiSys.textInput));
             var cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.PlotsGroupCells.FirstOrDefault(gr => gr.Guid.Equals(GuiSys.textInput), null);
             var permsHandler = cell.PermsHandler;
-            ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
             bool pvp = permsHandler.pvpFlag;
             if (ImGui.Checkbox(Lang.Get("claims:gui-admin-flag-pvp") + "##pg", ref pvp))
             {
-                clientEventManager.TriggerNewClientChatLine(
-                    GlobalConstants.CurrentChatGroup,
-                    $"/c plotsgroup set pvp {cell.Name} " + (pvp ? "on" : "off"),
-                    EnumChatType.Macro,
-                    ""
-                );
+                SendCommand($"/c plotsgroup set pvp {cell.Name} " + (pvp ? "on" : "off"));
                 permsHandler.pvpFlag = pvp;
             }
 
@@ -80,24 +68,14 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             bool fire = permsHandler.fireFlag;
             if (ImGui.Checkbox(Lang.Get("claims:gui-admin-flag-fire") + "##pg", ref fire))
             {
-                clientEventManager.TriggerNewClientChatLine(
-                    GlobalConstants.CurrentChatGroup,
-                    $"/c plotsgroup set fire {cell.Name} " + (fire ? "on" : "off"),
-                    EnumChatType.Macro,
-                    ""
-                );
+                SendCommand($"/c plotsgroup set fire {cell.Name} " + (fire ? "on" : "off"));
                 permsHandler.fireFlag = fire;
             }
 
             bool blast = !permsHandler.blastFlag;
             if (ImGui.Checkbox(Lang.Get("claims:gui-admin-flag-blast") + "##pg", ref blast))
             {
-                clientEventManager.TriggerNewClientChatLine(
-                    GlobalConstants.CurrentChatGroup,
-                    $"/c plotsgroup set blast {cell.Name} " + (!blast ? "on" : "off"),
-                    EnumChatType.Macro,
-                    ""
-                );
+                SendCommand($"/c plotsgroup set blast {cell.Name} " + (!blast ? "on" : "off"));
                 permsHandler.blastFlag = !blast;
             }
 
@@ -111,7 +89,6 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                 perms.type.PermType.BUILD_AND_DESTROY_PERM,
                 "build",
                 permsHandler,
-                clientEventManager,
                 cell
             );
 
@@ -126,7 +103,6 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                 perms.type.PermType.USE_PERM,
                 "use",
                 permsHandler,
-                clientEventManager,
                 cell
             );
 
@@ -140,7 +116,6 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                 perms.type.PermType.ATTACK_ANIMALS_PERM,
                 "attack",
                 permsHandler,
-                clientEventManager,
                 cell
             );
 

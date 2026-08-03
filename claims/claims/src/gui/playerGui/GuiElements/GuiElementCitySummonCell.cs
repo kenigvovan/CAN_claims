@@ -1,249 +1,96 @@
-﻿using System;
-using System.Collections.Generic;
 using Cairo;
 using claims.src.gui.playerGui.structures.cellElements;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
-using Vintagestory.Client.NoObf;
-using static claims.src.gui.playerGui.CANClaimsGui;
 
 namespace claims.src.gui.playerGui.GuiElements
 {
-    public class GuiElementCitySummonCell : GuiElementTextBase, IGuiElementCell, IDisposable
+    /// <summary>
+    /// A summon point: its name, its coordinates, and buttons to teleport to it or rename it.
+    /// </summary>
+    public class GuiElementCitySummonCell : CANGuiElementCellBase
     {
-        private List<GuiElementButtonWithAdditionalText> buttons = new List<GuiElementButtonWithAdditionalText>();
-        private List<GuiElementRichtext> texts;
-        private GuiElementToggleButton addRankButton;
-        private GuiElementToggleButton setPointName;
-        public enum HighlightedTexture
-        {
-            FIRST, SECOND, THIRD
-        }
-        public static double unscaledRightBoxWidth = 40.0;
+        private const double ButtonSize = 32;
+        private const double EdgePadding = 12;
 
-        private SummonCellElement summonCell;
+        private readonly SummonCellElement summonCell;
 
-        private bool showModifyIcons = true;
+        protected override double MinCellHeight => 74.0;
 
-        public bool On;
+        /// <summary>
+        /// Nothing happens when the row itself is clicked - everything is on the two buttons - so
+        /// the three lit columns only promised interaction the cell does not have.
+        /// </summary>
+        protected override bool UseHoverHighlights => false;
 
-        internal double unscaledSwitchPadding = 4.0;
-
-        internal double unscaledSwitchSize = 25.0;
-
-        private LoadedTexture modcellTexture;
-
-        private ICoreClientAPI capi;
-
-        ElementBounds IGuiElementCell.Bounds => Bounds;
-        public override void ComposeElements(Context ctx, ImageSurface surface)
-        {
-            base.ComposeElements(ctx, surface);
-        }
         public GuiElementCitySummonCell(ICoreClientAPI capi, SummonCellElement summonCell, ElementBounds bounds)
-            : base(capi, "", null, bounds)
+            : base(capi, bounds)
         {
             this.summonCell = summonCell;
-            this.Font = CairoFont.WhiteSmallishText();
-            modcellTexture = new LoadedTexture(capi);
-            this.capi = capi;
 
-            TextExtents textExtents = CairoFont.WhiteMediumText().GetTextExtents(summonCell.Name);
             var font = CairoFont.WhiteDetailText();
-            ElementBounds bu = ElementBounds.Fixed(10, 10, textExtents.Width + 40, 25).WithParent(Bounds);
-            texts = new List<GuiElementRichtext>();
-            if (summonCell.Name.Length > 0)
-            {                
-                texts.Add(new GuiElementRichtext(capi, VtmlUtil.Richtextify(capi, summonCell.Name, CairoFont.WhiteMediumText().WithFontSize(25)), bu));
-            }
-            
+
+            // Buttons sit against the right edge rather than after the name, so they line up down
+            // the list instead of shifting with the length of each point's name.
+            bool canRename = claims.clientDataStorage.clientPlayerInfo.PlayerPermissions
+                    .HasPermission(rights.EnumPlayerPermissions.CITY_SET_SUMMON);
+
+            double buttonsWidth = canRename ? ButtonSize * 2 + 8 : ButtonSize;
+            double textWidth = Bounds.fixedWidth - buttonsWidth - EdgePadding * 2 - 10;
+            if (textWidth < 60) textWidth = 60;
+
+            ElementBounds nameBounds = ElementBounds.Fixed(EdgePadding, 9, textWidth, 26).WithParent(Bounds);
+            AddTitle(summonCell.Name.Length > 0 ? summonCell.Name : Lang.Get("claims:gui-summon-unnamed"), nameBounds);
+
+            // Coordinates relative to world spawn, same as the prison cells show.
             this.text = Lang.Get("claims:gui-prison-cell-coords",
-                                    (summonCell.SpawnPosition.X - capi.World.DefaultSpawnPosition.AsBlockPos.X).ToString(),
-                                    (summonCell.SpawnPosition.Y - capi.World.DefaultSpawnPosition.AsBlockPos.Y).ToString(),
-                                    (summonCell.SpawnPosition.Z - capi.World.DefaultSpawnPosition.AsBlockPos.Z).ToString());
-            textExtents = CairoFont.WhiteMediumText().GetTextExtents(this.text);
-            double unScaledButtonCellHeight = 35.0;
-            var height = unScaledButtonCellHeight;
+                (summonCell.SpawnPosition.X - capi.World.DefaultSpawnPosition.AsBlockPos.X).ToString(),
+                (summonCell.SpawnPosition.Y - capi.World.DefaultSpawnPosition.AsBlockPos.Y).ToString(),
+                (summonCell.SpawnPosition.Z - capi.World.DefaultSpawnPosition.AsBlockPos.Z).ToString());
 
-            var offY = (height - font.UnscaledFontsize) / 2.0;
-            double offsetY = 45;
-            double offsetX = 15;
-            var labelTextBounds = ElementBounds.Fixed(offsetX, offsetY, textExtents.Width, height).WithParent(Bounds);
-            texts.Add(new GuiElementRichtext(capi, VtmlUtil.Richtextify(capi, this.text, CairoFont.WhiteMediumText().WithFontSize(15)), labelTextBounds));
-            var addRankBounds = bu.RightCopy(65).WithFixedSize(35, 35);
-            addRankBounds.fixedY += 5;
-            addRankButton = new GuiElementToggleButton(capi, "claims:dodging", "", font, (bool t) =>
+            var coordsBounds = ElementBounds.Fixed(EdgePadding + 2, 38, textWidth, 24).WithParent(Bounds);
+            AddSubtitle(this.text, coordsBounds);
+
+            // Placed by an explicit X off the cell width: EnumDialogArea alignment is resolved at
+            // CalcWorldBounds against the parent, which is not what the cell draws its children
+            // against, so the button would land outside the composed surface.
+            double cellWidth = Bounds.fixedWidth > 0 ? Bounds.fixedWidth : 430;
+            double rightOffset = cellWidth - EdgePadding - ButtonSize;
+
+            if (canRename)
             {
-                if (t)
+                var renameBounds = ElementBounds
+                    .Fixed(rightOffset, 21, ButtonSize, ButtonSize)
+                    .WithParent(Bounds);
+                children.Add(new GuiElementToggleButton(capi, "claims:pencil", "", font, (bool t) =>
                 {
-                    ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                    clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/c summon use " + this.summonCell.Name, EnumChatType.Macro, "");
-                }
-            }, addRankBounds);
-            var setNameBounds = addRankBounds.RightCopy().WithFixedSize(35, 35);
-            setPointName = new GuiElementToggleButton(capi, "claims:highlighter", "", font, (bool t) =>
-            {
-                if (t)
-                {
-                    claims.CANCityGui.CreateNewCityState = EnumUpperWindowSelectedState.CITY_SUMMON_NEED_NAME;
-                    claims.CANCityGui.selectedPos = this.summonCell.SpawnPosition;
-                    claims.CANCityGui.BuildUpperWindow();                    
-                }
-            }, setNameBounds);
+                    if (t)
+                    {
+                        claims.CANCityGui.OpenDialog(EnumUpperWindowSelectedState.CITY_SUMMON_NEED_NAME,
+                            args => args.Pos = this.summonCell.SpawnPosition);
+                    }
+                }, renameBounds));
+                AddTooltip(renameBounds, Lang.Get("claims:gui-summon-rename-tooltip"));
 
-            
-
-            if (offsetY > 30)
-            {
-                Bounds.fixedHeight = offsetY + 60;
-            }
-        }
-        private void Compose()
-        {
-            ImageSurface imageSurface = new ImageSurface(Format.Argb32, Bounds.OuterWidthInt, Bounds.OuterHeightInt);
-            Context context = new Context(imageSurface);
-            double num = GuiElement.scaled(unscaledRightBoxWidth);
-            Bounds.CalcWorldBounds();
-
-            //make border as button
-            EmbossRoundRectangleElement(context, 0.0, 0.0, Bounds.OuterWidth, Bounds.OuterHeight, inverse: false, (int)GuiElement.scaled(4.0), 0);
-
-            double num5 = GuiElement.scaled(unscaledSwitchSize);
-            double num6 = GuiElement.scaled(unscaledSwitchPadding);
-
-
-            if (buttons != null)
-            {
-                foreach (var it in buttons)
-                {
-                    it.ComposeElements(context, imageSurface);
-                }
-            }
-            if (texts != null)
-            {
-                foreach (var it in texts)
-                {
-                    it.Compose();
-                }
-            }
-            addRankButton.ComposeElements(context, imageSurface);
-            setPointName.ComposeElements(context, imageSurface);
-            generateTexture(imageSurface, ref modcellTexture);
-            ComposeElements(context, imageSurface);
-            context.Dispose();
-            imageSurface.Dispose();
-        }  
-        public void UpdateCellHeight()
-        {
-            Bounds.CalcWorldBounds();
-            foreach (var it in texts)
-            {
-                it.BeforeCalcBounds();
-            }
-            if (showModifyIcons && Bounds.fixedHeight < 73.0)
-            {
-                Bounds.fixedHeight = 73;
-            }
-        }
-        public override void RenderInteractiveElements(float deltaTime)
-        {
-            base.RenderInteractiveElements(deltaTime);
-            if (buttons != null)
-            {
-                foreach (var it in buttons)
-                {
-                    it.RenderInteractiveElements(deltaTime);
-                }
-            }
-        }
-        public void OnRenderInteractiveElements(ICoreClientAPI api, float deltaTime)
-        {
-            if (modcellTexture.TextureId == 0)
-            {
-                Compose();
+                rightOffset -= ButtonSize + 8;
             }
 
-            api.Render.Render2DTexturePremultipliedAlpha(modcellTexture.TextureId, (int)Bounds.absX, (int)Bounds.absY, Bounds.OuterWidthInt, Bounds.OuterHeightInt);
-            int mouseX = api.Input.MouseX;
-            int mouseY = api.Input.MouseY;
-            if (buttons != null)
+            var useBounds = ElementBounds
+                .Fixed(rightOffset, 21, ButtonSize, ButtonSize)
+                .WithParent(Bounds);
+            children.Add(new GuiElementToggleButton(capi, "claims:magic-portal", "", font, (bool t) =>
             {
-                foreach (var it in buttons)
-                {
-                    it.RenderInteractiveElements(deltaTime);
-                }
-            }
-            addRankButton.RenderInteractiveElements(deltaTime);
-            setPointName.RenderInteractiveElements(deltaTime);
-            foreach(var it in texts)
-            {
-                it.RenderInteractiveElements(deltaTime);
-            }
-        }
-        public override void Dispose()
-        {
-            base.Dispose();
-            foreach (var it in buttons)
-            {
-                it.Dispose();
-            }
-            foreach (var it in texts)
-            {
-                it.Dispose();
-            }
-            addRankButton.Dispose();
-            setPointName.Dispose();
-            modcellTexture?.Dispose();   
+                if (t) ClientChat.Send("/c summon use " + this.summonCell.Name);
+            }, useBounds));
+            AddTooltip(useBounds, Lang.Get("claims:gui-summon-use-tooltip"));
+
+            Bounds.fixedHeight = MinCellHeight;
         }
 
-        public void OnMouseUpOnElement(MouseEvent args, int elementIndex)
+        /// <summary>Everything visible is drawn by the base from richTexts and children.</summary>
+        protected override void ComposeContent(Context ctx, ImageSurface surface)
         {
-            if (buttons == null) return;
-
-            int x = api.Input.MouseX;
-            int y = api.Input.MouseY;
-
-            foreach (var it in buttons)
-            {
-                it.OnMouseUpOnElement(api, args);
-            }
-            addRankButton.OnMouseUpOnElement(api, args);
-            setPointName.OnMouseUpOnElement(api, args);
-        }
-
-        public void OnMouseMoveOnElement(MouseEvent args, int elementIndex)
-        {
-            if (buttons == null) return;
-            foreach (var it in buttons)
-            {
-                it.OnMouseMove(api, args);
-            }
-            addRankButton.OnMouseMove(api, args);
-            setPointName.OnMouseMove(api, args);
-        }
-
-        public void OnMouseDownOnElement(MouseEvent args, int elementIndex)
-        {
-            if (this.buttons == null) return;
-
-            int x = api.Input.MouseX;
-            int y = api.Input.MouseY;
-            foreach (var it in buttons)
-            {
-                if (it.Bounds.PointInside(x, y))
-                {
-                    it.OnMouseDownOnElement(api, args);
-                }
-            }
-            if (addRankButton.Bounds.PointInside(x, y))
-            {
-                addRankButton.OnMouseDownOnElement(api, args);
-            }
-            if (setPointName.Bounds.PointInside(x, y))
-            {
-                setPointName.OnMouseDownOnElement(api, args);
-            }
         }
     }
 }

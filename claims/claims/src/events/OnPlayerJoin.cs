@@ -7,6 +7,7 @@ using claims.src.messages;
 using claims.src.part;
 using claims.src.part.structure.conflict;
 using claims.src.part.structure.union;
+using claims.src.part.structure.war;
 using Vintagestory.API.Common;
 using Vintagestory.API.Server;
 using Vintagestory.API.Util;
@@ -21,7 +22,7 @@ namespace claims.src.events
             PlayerGroup modChatGroup = claims.sapi.Groups.GetPlayerGroupByName(claims.config.CHAT_WINDOW_NAME);
             if (modChatGroup == null) return;
             PlayerGroupMembership playerClaimsGroup = player.GetGroup(modChatGroup.Uid);
-            if (playerClaimsGroup == null)
+            if (claims.config.USE_MOD_CHAT_WINDOW && playerClaimsGroup == null)
             {
                 PlayerGroupMembership newChatGroup = new PlayerGroupMembership()
                 {
@@ -54,8 +55,10 @@ namespace claims.src.events
             playerInfo.saveToDatabase();
 
             UsefullPacketsSend.sendAllCitiesColorsToPlayer(player);
+            UsefullPacketsSend.sendAllCityEmblemsToPlayer(player);
             UsefullPacketsSend.SendPlayerCityRelatedInfo(player);
             UsefullPacketsSend.SendUpdatedConfigValues(player);
+            BountyHelper.BroadcastBoard();
             if(playerInfo.HasAlliance())
             {
                 UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, new Dictionary<string, object> { { "value", playerInfo.Alliance.Guid } }, EnumPlayerRelatedInfo.NEW_ALLIANCE_ALL);
@@ -67,7 +70,7 @@ namespace claims.src.events
                         WarTargetTypeHelper.FromConflictParty(it.From),
                         it.To.GetPartName(), it.To.Guid,
                         WarTargetTypeHelper.FromConflictParty(it.To),
-                        it.Purpose, it.TimeStampExpire, it.Guid));
+                        it.Purpose, it.TimeStampExpire, it.Guid).WithTerms(it.Terms).WithNapDays(it.NapDays));
                 }
                 if (li.Count > 0)
                 {
@@ -88,7 +91,7 @@ namespace claims.src.events
                 foreach (var it in UnionHander.GetAllLettersForAlliance(playerInfo.Alliance))
                 {
                     unionList.Add(new ClientUnionLetterCellElement(it.From.GetPartName(), it.From.Guid, it.To.GetPartName(), it.To.Guid,
-                        it.TimeStampExpire, it.Guid));
+                        it.TimeStampExpire, it.Guid, it.Purpose));
                 }
                 if (unionList.Count > 0)
                 {
@@ -104,7 +107,7 @@ namespace claims.src.events
                         WarTargetTypeHelper.FromConflictParty(it.From),
                         it.To.GetPartName(), it.To.Guid,
                         WarTargetTypeHelper.FromConflictParty(it.To),
-                        it.Purpose, it.TimeStampExpire, it.Guid));
+                        it.Purpose, it.TimeStampExpire, it.Guid).WithTerms(it.Terms).WithNapDays(it.NapDays));
                 }
                 if (li.Count > 0)
                 {
@@ -120,6 +123,15 @@ namespace claims.src.events
                 {
                     UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, new Dictionary<string, object> { { "value", lic } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ALL);
                 }
+            }
+
+            if (playerInfo.hasCity())
+            {
+                UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, EnumPlayerRelatedInfo.CITY_CASUS_BELLI_ALL);
+            }
+            if (playerInfo.HasAlliance())
+            {
+                UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, EnumPlayerRelatedInfo.ALLIANCE_UNION_BREAKS_ALL);
             }
 
             Dictionary<string, ClientCityInfoCellElement> CityStatsCashe =

@@ -12,6 +12,8 @@ using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
 using claims.src.part.structure.plots;
+using claims.src.part.structure.plots.auction;
+using claims.src.part.structure.war;
 using Newtonsoft.Json;
 using Vintagestory.API.Server;
 using Vintagestory.API.Util;
@@ -42,6 +44,49 @@ namespace claims.src.auxialiry
                 data = serializedPlots
             }, player);
         }       
+        /// <summary>Sends the coat of arms of every city and alliance, keyed by guid - what the
+        /// drawers hold, and unlike a name it does not change.</summary>
+        public static void sendAllCityEmblemsToPlayer(IServerPlayer player)
+        {
+            claims.serverChannel.SendPacket(new SavedPlotsPacket()
+            {
+                type = PacketsContentEnum.ALL_CITY_EMBLEMS,
+                data = JsonConvert.SerializeObject(BuildEmblemDict())
+            }, player);
+        }
+
+        /// <summary>Pushes the emblems to everyone. Sent whole, not as a delta - a few hundred short
+        /// strings at most, and a missed update would otherwise persist until reconnect.</summary>
+        public static void BroadcastCityEmblems()
+        {
+            string data = JsonConvert.SerializeObject(BuildEmblemDict());
+            foreach (var p in claims.sapi.World.AllOnlinePlayers)
+            {
+                if (p is not IServerPlayer sp) continue;
+                claims.serverChannel.SendPacket(new SavedPlotsPacket()
+                {
+                    type = PacketsContentEnum.ALL_CITY_EMBLEMS,
+                    data = data
+                }, sp);
+            }
+        }
+
+        private static Dictionary<string, string> BuildEmblemDict()
+        {
+            var emblems = new Dictionary<string, string>();
+            foreach (City cityItem in claims.dataStorage.getCitiesList())
+            {
+                if (string.IsNullOrEmpty(cityItem.Emblem)) continue;
+                emblems[cityItem.Guid] = cityItem.Emblem;
+            }
+            foreach (Alliance alliance in claims.dataStorage.getAllAlliances())
+            {
+                if (string.IsNullOrEmpty(alliance.Emblem)) continue;
+                emblems[alliance.Guid] = alliance.Emblem;
+            }
+            return emblems;
+        }
+
         public static void SendPlayerCityRelatedInfo(IServerPlayer player)
         {
             Dictionary<EnumPlayerRelatedInfo, string> collector = new Dictionary<EnumPlayerRelatedInfo, string>();
@@ -67,12 +112,15 @@ namespace claims.src.auxialiry
                     }
                 }
 
-                infoToUpdateCity.AddRange([EnumPlayerRelatedInfo.CITY_GUID, EnumPlayerRelatedInfo.CITY_CREATED_TIMESTAMP, EnumPlayerRelatedInfo.CITY_MEMBERS,
+                infoToUpdateCity.AddRange([EnumPlayerRelatedInfo.CITY_GUID, EnumPlayerRelatedInfo.CITY_TIER, EnumPlayerRelatedInfo.CITY_RAID_WINDOW,
+                                           EnumPlayerRelatedInfo.CITY_CREATED_TIMESTAMP, EnumPlayerRelatedInfo.CITY_MEMBERS,
                                            EnumPlayerRelatedInfo.MAX_COUNT_PLOTS, EnumPlayerRelatedInfo.CLAIMED_PLOTS,
                                            EnumPlayerRelatedInfo.CITY_PLOTS_COLOR, EnumPlayerRelatedInfo.CITY_DEBT, EnumPlayerRelatedInfo.CITY_DAY_PAYMENT,
                                            EnumPlayerRelatedInfo.CITY_PERMISSIONS_UPDATED, EnumPlayerRelatedInfo.CITY_BALANCE, EnumPlayerRelatedInfo.CITY_FEE, EnumPlayerRelatedInfo.CITY_CRIMINALS_LIST,
                                            EnumPlayerRelatedInfo.CITY_PRISON_CELL_ALL, EnumPlayerRelatedInfo.CITY_SUMMON_POINT_ALL, EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_ALL,
-                                           EnumPlayerRelatedInfo.CITY_LOG, EnumPlayerRelatedInfo.CITY_PLOTS_MAP]);
+                                           EnumPlayerRelatedInfo.CITY_LOG, EnumPlayerRelatedInfo.CITY_PLOTS_MAP,
+                                           EnumPlayerRelatedInfo.CITY_EMBLEM, EnumPlayerRelatedInfo.ALLIANCE_EMBLEM,
+                                           EnumPlayerRelatedInfo.CITY_PLOT_AUCTIONS, EnumPlayerRelatedInfo.CITY_PLOT_MARKET_HISTORY]);
             }
             infoToUpdatePlayer.AddRange([EnumPlayerRelatedInfo.SHOW_PLOT_MOVEMENT, EnumPlayerRelatedInfo.FRIENDS, EnumPlayerRelatedInfo.TO_CITY_INVITES,
                                          EnumPlayerRelatedInfo.PLAYER_PREFIX, EnumPlayerRelatedInfo.PLAYER_AFTER_NAME, EnumPlayerRelatedInfo.PLAYER_CITY_TITLES,
@@ -121,6 +169,7 @@ namespace claims.src.auxialiry
                     {
                         collector.Add(EnumPlayerRelatedInfo.MAYOR_NAME, city.getMayor().GetPartName());
                     }
+                    collector.Add(EnumPlayerRelatedInfo.CITY_TIER, ((int)city.Tier).ToString());
                     collector.Add(EnumPlayerRelatedInfo.CITY_CREATED_TIMESTAMP, city.TimeStampCreated.ToString());
                     collector.Add(EnumPlayerRelatedInfo.CITY_MEMBERS, JsonConvert.SerializeObject(StringFunctions.getNamesOfCitizens(city)));
                     collector.Add(EnumPlayerRelatedInfo.MAX_COUNT_PLOTS, JsonConvert.SerializeObject(Settings.getPossibleAmountOfPlotsDictForCity(city)));
@@ -129,6 +178,12 @@ namespace claims.src.auxialiry
                     collector.Add(EnumPlayerRelatedInfo.PLAYER_AFTER_NAME, playerInfo.AfterName);
                     collector.Add(EnumPlayerRelatedInfo.PLAYER_CITY_TITLES, JsonConvert.SerializeObject(playerInfo.getCityTitles()));
                     collector.Add(EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT, JsonConvert.SerializeObject(playerInfo.GetNextPaymentsDict()));
+                    // The land market is not part of this packet, and the joiner's CityInfo was just
+                    // rebuilt empty - without this their market tab stays blank until some other
+                    // city happens to change a listing. Queued rather than inlined so the snapshot is
+                    // built in the one place that knows how.
+                    AddToQueueCityInfoUpdate(city.Guid,
+                        EnumPlayerRelatedInfo.CITY_PLOT_AUCTIONS, EnumPlayerRelatedInfo.CITY_PLOT_MARKET_HISTORY);
                 }
                 claims.serverChannel.SendPacket(
                     new SavedPlotsPacket()
@@ -170,6 +225,7 @@ namespace claims.src.auxialiry
                        SummonPayment = claims.config.SUMMON_PAYMENT,
                        ALWAYS_ACCESS_BLOCKS = claims.config.ALWAYS_ACCESS_BLOCKS,
                        AVAILABLE_CITY_PERMISSIONS = claims.config.AVAILABLE_CITY_PERMISSIONS,
+                       DISABLED_PLOT_TYPES = claims.config.DISABLED_PLOT_TYPES,
                        SELECTED_ECONOMY_HANDLER = claims.config.SELECTED_ECONOMY_HANDLER,
                        GUI_SHOW_DEBT = claims.config.GUI_SHOW_DEBT,
                        CITY_AREA_VISIBILITY_STATE = claims.config.CITY_AREA_VISIBILITY_STATE,
@@ -204,103 +260,144 @@ namespace claims.src.auxialiry
                        MAX_CITY_FEE = claims.config.MAX_CITY_FEE,
                        CITY_MAX_DEBT = claims.config.CITY_MAX_DEBT,
 
-                       MIN_RANGE_CELL_DURATION_MINUTES = claims.config.MIN_RANGE_CELL_DURATION_MINUTES
+                       MIN_RANGE_CELL_DURATION_MINUTES = claims.config.MIN_RANGE_CELL_DURATION_MINUTES,
+
+                       PLOT_SIZE = claims.config.PLOT_SIZE,
+                       ZONE_PLOTS_LENGTH = claims.config.ZONE_PLOTS_LENGTH,
+
+                       WAR_FLAG_DEFENDER_INTERRUPT_ENABLED = claims.config.WAR_FLAG_DEFENDER_INTERRUPT_ENABLED,
+                       WAR_FLAG_DEFENDER_RADIUS = claims.config.WAR_FLAG_DEFENDER_RADIUS,
+                       WAR_FLAG_REGRESS_MULTIPLIER = claims.config.WAR_FLAG_REGRESS_MULTIPLIER,
+
+                       WAR_SCORE_ENABLED = claims.config.WAR_SCORE_ENABLED,
+                       WAR_SCORE_TO_WIN = claims.config.WAR_SCORE_TO_WIN,
+                       WAR_SCORE_PER_PLOT_CAPTURE = claims.config.WAR_SCORE_PER_PLOT_CAPTURE,
+                       WAR_SCORE_PER_KILL = claims.config.WAR_SCORE_PER_KILL,
+                       WAR_SCORE_PER_HOLD_TICK = claims.config.WAR_SCORE_PER_HOLD_TICK,
+                       WAR_SCORE_HOLD_TICK_SECONDS = claims.config.WAR_SCORE_HOLD_TICK_SECONDS,
+
+                       WAR_PILLAGE_ENABLED = claims.config.WAR_PILLAGE_ENABLED,
+                       WAR_PILLAGE_PERCENT = claims.config.WAR_PILLAGE_PERCENT,
+
+                       WAR_CAMP_ENABLED = claims.config.WAR_CAMP_ENABLED,
+                       WAR_MAX_CAMPS_PER_CONFLICT = claims.config.WAR_MAX_CAMPS_PER_CONFLICT,
+                       WAR_CAMP_MIN_DISTANCE_FROM_OTHER_CITY = claims.config.WAR_CAMP_MIN_DISTANCE_FROM_OTHER_CITY,
+                       WAR_CAMP_ANCHOR_BREAKS = claims.config.WAR_CAMP_ANCHOR_BREAKS,
+                       WAR_NAP_ENABLED = claims.config.WAR_NAP_ENABLED,
+                       WAR_NAP_DEFAULT_DAYS = claims.config.WAR_NAP_DEFAULT_DAYS,
+                       WAR_NAP_MAX_DAYS = claims.config.WAR_NAP_MAX_DAYS,
+                       WAR_NAP_BREAK_PENALTY = claims.config.WAR_NAP_BREAK_PENALTY,
+                       WAR_BATTLE_WARN_MINUTES = claims.config.WAR_BATTLE_WARN_MINUTES,
+                       WAR_ULTIMATUM_ENABLED = claims.config.WAR_ULTIMATUM_ENABLED,
+                       WAR_ULTIMATUM_EXPIRE_HOURS = claims.config.WAR_ULTIMATUM_EXPIRE_HOURS,
+                       VILLAGE_ENABLED = claims.config.VILLAGE_ENABLED,
+                       VILLAGE_FOOD_ITEMS = claims.config.VILLAGE_FOOD_ITEMS,
+                       VILLAGE_FUEL_ITEMS = claims.config.VILLAGE_FUEL_ITEMS,
+                       VILLAGE_SUPPLY_HOURS_PER_ITEM = claims.config.VILLAGE_SUPPLY_HOURS_PER_ITEM,
+
+                       CITY_PLOT_TRADE_ENABLED = claims.config.CITY_PLOT_TRADE_ENABLED,
+                       CITY_PLOT_TRADE_GUI = claims.config.CITY_PLOT_TRADE_GUI,
+                       CITY_PLOT_TRADE_REMOTE_BUY = claims.config.CITY_PLOT_TRADE_REMOTE_BUY,
+
+                       WAR_RESPAWN_SAFEZONE_ENABLED = claims.config.WAR_RESPAWN_SAFEZONE_ENABLED,
+                       WAR_RESPAWN_SAFEZONE_RADIUS = claims.config.WAR_RESPAWN_SAFEZONE_RADIUS,
+                       WAR_RESPAWN_SAFEZONE_SECONDS = claims.config.WAR_RESPAWN_SAFEZONE_SECONDS,
+
+                       WAR_SIEGE_ENABLED = claims.config.WAR_SIEGE_ENABLED,
+                       WAR_SIEGE_RAM_TICK_SECONDS = claims.config.WAR_SIEGE_RAM_TICK_SECONDS,
+                       WAR_SIEGE_RAM_RANGE = claims.config.WAR_SIEGE_RAM_RANGE,
+                       WAR_SIEGE_RAM_COST = claims.config.WAR_SIEGE_RAM_COST,
+
+                       FLAG_CAPTURE_DURATION_SECONDS = claims.config.FLAG_CAPTURE_DURATION_SECONDS,
+                       MAX_AMOUNT_OF_CAPTURE_FLAGS_ACTIVE = claims.config.MAX_AMOUNT_OF_CAPTURE_FLAGS_ACTIVE,
+                       FLAG_REINFORCEMENT_AMOUNT = claims.config.FLAG_REINFORCEMENT_AMOUNT,
+                       MINIMUM_DAYS_BETWEEN_BATTLES = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES,
+
+                       WAR_DECLARATION_COST = claims.config.WAR_DECLARATION_COST,
+                       WAR_REDECLARE_COOLDOWN_DAYS = claims.config.WAR_REDECLARE_COOLDOWN_DAYS,
+                       WAR_REQUIRE_CASUS_BELLI = claims.config.WAR_REQUIRE_CASUS_BELLI,
+                       WAR_CASUS_BELLI_GRACE_DAYS = claims.config.WAR_CASUS_BELLI_GRACE_DAYS,
+
+                       WAR_PEACE_TERMS_ENABLED = claims.config.WAR_PEACE_TERMS_ENABLED,
+                       WAR_VASSAL_TRIBUTE = claims.config.WAR_VASSAL_TRIBUTE,
+                       WAR_VASSAL_DURATION_DAYS = claims.config.WAR_VASSAL_DURATION_DAYS,
+
+                       WAR_BOUNTY_ENABLED = claims.config.WAR_BOUNTY_ENABLED,
+                       WAR_BOUNTY_MIN = claims.config.WAR_BOUNTY_MIN,
+                       WAR_PLUNDER_ON_KILL_ENABLED = claims.config.WAR_PLUNDER_ON_KILL_ENABLED,
+                       WAR_PLUNDER_ON_KILL_PERCENT = claims.config.WAR_PLUNDER_ON_KILL_PERCENT,
+
+                       WAR_REPORT_ENABLED = claims.config.WAR_REPORT_ENABLED,
+                       WAR_HUD_ENABLED = claims.config.WAR_HUD_ENABLED
                    }
                    , player);
         }
+        /// <summary>
+        /// Merges a payload into one of the delayed-info collectors. The city and the player queue used
+        /// to carry two hand-copied versions of this; they differ only in whether a list value is stored
+        /// as one entry or unpacked into entries.
+        /// </summary>
+        private static void EnqueueInfo(
+            ConcurrentDictionary<string, Dictionary<EnumPlayerRelatedInfo, Dictionary<string, List<object>>>> collector,
+            string key, Dictionary<string, object> additionalInfo, EnumPlayerRelatedInfo toUpdate, bool unpackLists)
+        {
+            // field name -> the values collected for it since the last send
+            Dictionary<string, List<object>> build(Dictionary<string, object> info) => info.ToDictionary(
+                k => k.Key,
+                k => unpackLists && k.Value is System.Collections.IList list
+                        ? list.Cast<object>().ToList()
+                        : new List<object> { k.Value });
+
+            if (collector.TryGetValue(key, out var byEnum))
+            {
+                // Such enum was queued before - just add the new values to it.
+                if (byEnum.TryGetValue(toUpdate, out var storedValues) && storedValues != null)
+                {
+                    foreach (var pair in additionalInfo)
+                    {
+                        if (!storedValues.TryGetValue(pair.Key, out var values)) continue;
+                        if (unpackLists && pair.Value is List<object> listValue) values.AddRange(listValue);
+                        else values.Add(pair.Value);
+                    }
+                }
+                else
+                {
+                    byEnum[toUpdate] = build(additionalInfo);
+                }
+            }
+            else
+            {
+                collector.TryAdd(key,
+                    new Dictionary<EnumPlayerRelatedInfo, Dictionary<string, List<object>>> { { toUpdate, build(additionalInfo) } });
+            }
+        }
+
+        /// <summary>Queues enums with no payload: the sender rebuilds their value at send time.</summary>
+        private static void EnqueueInfo(
+            ConcurrentDictionary<string, Dictionary<EnumPlayerRelatedInfo, Dictionary<string, List<object>>>> collector,
+            string key, EnumPlayerRelatedInfo[] toUpdate)
+        {
+            if (collector.TryGetValue(key, out var byEnum))
+            {
+                foreach (var it in toUpdate) byEnum.TryAdd(it, null);
+            }
+            else
+            {
+                collector.TryAdd(key, toUpdate.ToDictionary(k => k, k => (Dictionary<string, List<object>>)null));
+            }
+        }
+
         public static void AddToQueueCityInfoUpdate(string cityName, Dictionary<string, object> additionalInfo, EnumPlayerRelatedInfo toUpdate)
-        {
-            if (cityDelayedInfoCollector.TryGetValue(cityName, out Dictionary<EnumPlayerRelatedInfo, Dictionary<string, List<object>>> cityHashSet))
-            {
-                //such enum was added before, just add new additional info to it
-                if (cityHashSet.TryGetValue(toUpdate, out var already_stored_dict))
-                {
-                    foreach (var value_pair in additionalInfo)
-                    {
-                        if (already_stored_dict.TryGetValue(value_pair.Key, out var inner_value))
-                        {
-                            inner_value.Add(value_pair.Value);
-                        }
-                    }
-                }
-                else
-                {
-                    cityHashSet.Add(toUpdate, additionalInfo.ToDictionary(k => k.Key, k => new List<object> { k.Value }));
-                }                
-            }
-            else
-            {               
-                    cityDelayedInfoCollector.TryAdd(cityName,
-                        new Dictionary<EnumPlayerRelatedInfo, Dictionary<string, List<object>>> { { toUpdate, additionalInfo.ToDictionary(k => k.Key, k => new List<object> { k.Value }) } });
-            }
-        }
+            => EnqueueInfo(cityDelayedInfoCollector, cityName, additionalInfo, toUpdate, unpackLists: false);
+
         public static void AddToQueueCityInfoUpdate(string cityName, params EnumPlayerRelatedInfo[] toUpdate)
-        {
-            if (cityDelayedInfoCollector.TryGetValue(cityName, out Dictionary<EnumPlayerRelatedInfo, Dictionary<string, List<object>>> cityHashSet))
-            {               
-                foreach (var it in toUpdate)
-                {
-                    cityHashSet.TryAdd(it, null);
-                }
-            }
-            else
-            {
-                cityDelayedInfoCollector.TryAdd(cityName, toUpdate.ToDictionary(k => k, k => (Dictionary<string, List<object>>)null));
-            }
-        }
+            => EnqueueInfo(cityDelayedInfoCollector, cityName, toUpdate);
+
         public static void AddToQueuePlayerInfoUpdate(string playerName, Dictionary<string, object> additionalInfo, EnumPlayerRelatedInfo toUpdate)
-        {
-            if (playerDelayedInfoCollector.TryGetValue(playerName, out Dictionary<EnumPlayerRelatedInfo, Dictionary<string, List<object>>> playerHashSet))
-            {
-                //such enum was added before, just add new additional info to it
-                if (playerHashSet.TryGetValue(toUpdate, out var already_stored_dict))
-                {
-                    foreach (var value_pair in additionalInfo)
-                    {
-                        if (already_stored_dict.TryGetValue(value_pair.Key, out var inner_value))
-                        {
-                            if(value_pair.Value is List<object> listValue)
-                            {
-                                inner_value.AddRange(listValue);
-                            }
-                            else
-                            {
-                                inner_value.Add(value_pair.Value);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    playerHashSet.Add(toUpdate, additionalInfo.ToDictionary(k => k.Key,
-                                                                            k => k.Value is System.Collections.IList list
-                                                                                    ? list.Cast<object>().ToList()
-                                                                                    : new List<object> { k.Value }));
-                }
-            }
-            else
-            {
-                playerDelayedInfoCollector.TryAdd(playerName,
-                    new Dictionary<EnumPlayerRelatedInfo, Dictionary<string, List<object>>> { { toUpdate, additionalInfo.ToDictionary(k => k.Key, k => new List<object> { k.Value }) } });
-            }
-        }
+            => EnqueueInfo(playerDelayedInfoCollector, playerName, additionalInfo, toUpdate, unpackLists: true);
+
         public static void AddToQueuePlayerInfoUpdate(string playerName, params EnumPlayerRelatedInfo[] toUpdate)
-        {
-            if (playerDelayedInfoCollector.TryGetValue(playerName, out Dictionary<EnumPlayerRelatedInfo, Dictionary<string, List<object>>> playerHashSet))
-            {
-                foreach (var it in toUpdate)
-                {
-                    if (!playerHashSet.ContainsKey(it))
-                    {
-                        playerHashSet.Add(it, null);
-                    }
-                }
-            }
-            else
-            {
-                playerDelayedInfoCollector.TryAdd(playerName, toUpdate.ToDictionary(k => k, k => (Dictionary<string, List<object>>)null));
-            }
-        }
+            => EnqueueInfo(playerDelayedInfoCollector, playerName, toUpdate);
         public static void AddToQueueAllPlayersInfoUpdate(Dictionary<string, object> additionalInfo, EnumPlayerRelatedInfo toUpdate)
         {
             foreach(var pl in claims.sapi.World.AllOnlinePlayers)
@@ -404,10 +501,66 @@ namespace claims.src.auxialiry
                 }                                  
             }
         }
+        /// <summary>
+        /// Builds what one player is told about one plot. Both the periodic update and the client's
+        /// explicit request go through here, so neither can be left behind when a field is added.
+        /// Lives on the sending side rather than on CurrentPlotInfo: that type is the wire contract
+        /// the client deserialises, and it has no business reaching into the data storage.
+        /// </summary>
+        public static CurrentPlotInfo BuildCurrentPlotInfo(Plot plot, PlayerInfo viewer)
+        {
+            var info = new CurrentPlotInfo(plot.GetPartName(), plot.getPlotOwner()?.GetPartName() ?? "",
+                plot.Type, plot.getCustomTax(), plot.Price, plot.getPermsHandler(), plot.extraBought, plot.getPos())
+            {
+                CityName = plot.hasCity() ? plot.getCity().GetPartName() : ""
+            };
+
+            // The listing is told to the selling city - that is how its own mayor sees what is on
+            // offer - and to whoever the offer is open to. To anyone else the plot reads as not for
+            // sale: an offer addressed to one city is not something a passing enemy gets to price.
+            City viewerCity = viewer != null && viewer.hasCity() ? viewer.City : null;
+            bool ours = viewerCity != null && plot.hasCity() && plot.getCity().Equals(viewerCity);
+
+            if (AuctionRegistry.TryGetRunningFor(plot, out PlotAuction lot)
+                && (ours || AuctionRules.IsVisibleTo(lot, viewerCity)))
+            {
+                info.SaleAudience = lot.Audience;
+                if (lot.Audience == EnumPlotSaleAudience.SPECIFIC_CITY
+                    && claims.dataStorage.getCityByGUID(lot.TargetCityGuid, out City target))
+                {
+                    info.SaleTargetCityName = target.GetPartName();
+                }
+                // A price tag fills the price; a lot with bids fills the auction fields instead, so
+                // the page can tell one offer from the other without knowing how lots work.
+                if (lot.IsFixedPrice)
+                {
+                    info.PriceForCityBuy = (int)lot.BuyoutPrice;
+                }
+                else
+                {
+                    info.AuctionEndsAt = lot.EndsAt;
+                    info.AuctionCurrentBid = lot.CurrentBid;
+                    info.AuctionMinNextBid = lot.MinNextBid;
+                    info.AuctionBuyout = lot.BuyoutPrice;
+                }
+
+                // The server's own verdict, so the page does not re-judge war, limits or money. The
+                // refusal travels with it: a button that quietly disappears leaves the mayor guessing
+                // which of a dozen rules stopped them.
+                string blocked = null;
+                bool canTake = viewerCity != null && AuctionRules.CanBid(lot, viewerCity, lot.MinNextBid, out blocked);
+                info.CanBuyAsCity = canTake && lot.IsFixedPrice;
+                info.CanBidAsCity = canTake && !lot.IsFixedPrice;
+                // Not shown to the seller: "you cannot bid on your own lot" is not news to them.
+                if (!canTake && !ours) info.CityBuyBlockedReason = blocked ?? "";
+            }
+            return info;
+        }
+
         public static void SendCurrentPlotUpdate(IServerPlayer player, Plot plot)
         {
-            CurrentPlotInfo cpi = new CurrentPlotInfo(plot.GetPartName(), plot.getPlotOwner()?.GetPartName() ?? "",
-                plot.Type, plot.getCustomTax(), plot.Price, plot.getPermsHandler(), plot.extraBought, plot.getPos());
+            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo plotViewer);
+            CurrentPlotInfo cpi = BuildCurrentPlotInfo(plot, plotViewer);
             string serializedZones = JsonConvert.SerializeObject(cpi);
 
             claims.serverChannel.SendPacket(new SavedPlotsPacket()
@@ -527,6 +680,19 @@ namespace claims.src.auxialiry
                 UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, new Dictionary<string, object> { { "value", elToSend } }, EnumPlayerRelatedInfo.CITY_LIST_UPDATE);
             }
         }     
+        /// <summary>Announced union breaks of the city's alliance, keyed by the ally's display name.</summary>
+        private static Dictionary<string, long> BuildPendingUnionBreaks(City city)
+        {
+            var result = new Dictionary<string, long>();
+            if (city == null || !city.HasAlliance()) return result;
+            foreach (var pair in city.Alliance.PendingUnionBreaks)
+            {
+                if (!claims.dataStorage.GetAllianceByGUID(pair.Key, out Alliance other)) continue;
+                result[other.GetPartName()] = pair.Value;
+            }
+            return result;
+        }
+
         private static string SerializeAllianceInfo(string guid)
         {
             if (claims.dataStorage.GetAllianceByGUID(guid, out var alliance))
@@ -540,7 +706,8 @@ namespace claims.src.auxialiry
                     (double)claims.economyProvider.GetBalance(alliance.MoneyAccountName),
                     alliance.Guid,
                     StringFunctions.GetPartsNames(alliance.ComradAlliancies)
-                ));
+                )
+                { Emblem = alliance.Emblem ?? "" });
             }
             return null;
         }
@@ -570,6 +737,15 @@ namespace claims.src.auxialiry
                         case EnumPlayerRelatedInfo.CITY_GUID:
                             result[pair.Key] = city.Guid;
                             break;
+                        case EnumPlayerRelatedInfo.CITY_TIER:
+                            result[pair.Key] = ((int)city.Tier).ToString();
+                            break;
+                        case EnumPlayerRelatedInfo.CITY_RAID_WINDOW:
+                            // Raw numbers, formatted client-side; empty for anything but a raidable village.
+                            result[pair.Key] = city.IsVillage() && claims.config.VILLAGE_RAIDABLE
+                                ? part.structure.VillageRaidHelper.NextWindowStart(city) + ";" + claims.config.VILLAGE_RAID_DURATION_SECONDS / 60
+                                : "0;0";
+                            break;
                         case EnumPlayerRelatedInfo.MAX_COUNT_PLOTS:
                             result[pair.Key] = JsonConvert.SerializeObject(Settings.getPossibleAmountOfPlotsDictForCity(city));
                             break;
@@ -588,8 +764,22 @@ namespace claims.src.auxialiry
                         case EnumPlayerRelatedInfo.CITY_PLOTS_COLOR:
                             result[pair.Key] = city.cityColor.ToString();
                             break;
+                        case EnumPlayerRelatedInfo.CITY_EMBLEM:
+                            result[pair.Key] = city.Emblem ?? "";
+                            break;
+                        case EnumPlayerRelatedInfo.ALLIANCE_EMBLEM:
+                            result[pair.Key] = city.HasAlliance() ? (city.Alliance.Emblem ?? "") : "";
+                            break;
                         case EnumPlayerRelatedInfo.CITY_CRIMINALS_LIST:
                             result[pair.Key] = JsonConvert.SerializeObject(StringFunctions.getNamesOfCriminals(city));
+                            break;
+                        // Built here rather than passed in: it's a full snapshot of the party's state,
+                        // so it must be current at send time, not at queue time.
+                        case EnumPlayerRelatedInfo.CITY_CASUS_BELLI_ALL:
+                            result[pair.Key] = JsonConvert.SerializeObject(CasusBelliHelper.BuildForCity(city));
+                            break;
+                        case EnumPlayerRelatedInfo.ALLIANCE_UNION_BREAKS_ALL:
+                            result[pair.Key] = JsonConvert.SerializeObject(BuildPendingUnionBreaks(city));
                             break;
                         case EnumPlayerRelatedInfo.OWN_ALLIANCE_REMOVE:
                             result[pair.Key] = null;
@@ -621,6 +811,26 @@ namespace claims.src.auxialiry
                             break;
                         case EnumPlayerRelatedInfo.CITY_PLOTS_MAP:
                             result[pair.Key] = JsonConvert.SerializeObject(city.getCityPlots().Select(p => new CityPlotMiniInfo(p.plotPosition.X, p.plotPosition.Z, p.Type)).ToList());
+                            break;
+                        case EnumPlayerRelatedInfo.CITY_PLOT_AUCTIONS:
+                            result[pair.Key] = JsonConvert.SerializeObject(
+                                AuctionRules.GetLotsFor(city)
+                                    .Select(a =>
+                                    {
+                                        a.TryGetPlot(out Plot lotPlot);
+                                        return new PlotAuctionCellElement(a, lotPlot, city,
+                                            AuctionRules.CanBid(a, city, a.MinNextBid, out _));
+                                    })
+                                    .ToList());
+                            break;
+                        case EnumPlayerRelatedInfo.CITY_PLOT_MARKET_HISTORY:
+                            // Newest first, capped by config - the table keeps every row regardless.
+                            result[pair.Key] = JsonConvert.SerializeObject(
+                                claims.dataStorage.PlotSaleHistory
+                                    .Where(r => r.Involves(city))
+                                    .Reverse()
+                                    .Take(claims.config.CITY_PLOT_TRADE_HISTORY_SHOWN)
+                                    .ToList());
                             break;
                         case EnumPlayerRelatedInfo.CITY_PRISON_CELL_ALL:
                             if (city.hasPrison())
@@ -655,9 +865,8 @@ namespace claims.src.auxialiry
                                 foreach (var it in city.getCityPlotsGroups())
                                 {
                                     plotsgroupCellElements.Add(
-                                        new PlotsGroupCellElement(it.Guid, it.GetPartName(), it.City.GetPartName(),
-                                                                  it.PlayersList.Select(pl => pl.GetPartName()).ToList(),
-                                                                  it.PermsHandler, it.PlotsGroupFee));
+                                        cityplotsgroups.PlotsGroupFeeHelper.ToCell(it,
+                                            it.PlayersList.Select(pl => pl.GetPartName()).ToList()));
                                 }
                                 result[pair.Key] = JsonConvert.SerializeObject(plotsgroupCellElements);
                             }
@@ -701,6 +910,15 @@ namespace claims.src.auxialiry
                             break;
                         case EnumPlayerRelatedInfo.PLAYER_CITY_TITLES:
                             result[pair.Key] = JsonConvert.SerializeObject(playerInfo.getCityTitles());
+                            break;
+                        // Same snapshot as the city queue builds, for pushes addressed to a single player.
+                        case EnumPlayerRelatedInfo.CITY_CASUS_BELLI_ALL:
+                            if (playerInfo.hasCity())
+                                result[pair.Key] = JsonConvert.SerializeObject(CasusBelliHelper.BuildForCity(playerInfo.City));
+                            break;
+                        case EnumPlayerRelatedInfo.ALLIANCE_UNION_BREAKS_ALL:
+                            if (playerInfo.hasCity())
+                                result[pair.Key] = JsonConvert.SerializeObject(BuildPendingUnionBreaks(playerInfo.City));
                             break;
                         case EnumPlayerRelatedInfo.FRIENDS:
                             result[pair.Key] = JsonConvert.SerializeObject(StringFunctions.getNamesOfFriends(playerInfo));

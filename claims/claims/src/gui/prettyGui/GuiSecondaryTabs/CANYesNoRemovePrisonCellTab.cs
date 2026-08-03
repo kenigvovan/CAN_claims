@@ -5,7 +5,6 @@ using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.Client.NoObf;
-using static claims.src.gui.playerGui.CANClaimsGui;
 
 namespace claims.src.gui.prettyGui.GuiSecondaryTabs
 {
@@ -39,9 +38,8 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
 
             if(ImGui.Button(Lang.Get(YesButtonString)))
             {
-                ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, this.CommandToCallOnYes + " " +
-                    GuiSys.selectedPos.X + " " + GuiSys.selectedPos.Y + " " + GuiSys.selectedPos.Z, EnumChatType.Macro, "");
+                SendCommand(this.CommandToCallOnYes + " " +
+                    GuiSys.selectedPos.X + " " + GuiSys.selectedPos.Y + " " + GuiSys.selectedPos.Z);
                 GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.NONE;
                 var cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.PrisonCells.FirstOrDefault(c => c.SpawnPosition == GuiSys.selectedPos);
                 if (cell != null)

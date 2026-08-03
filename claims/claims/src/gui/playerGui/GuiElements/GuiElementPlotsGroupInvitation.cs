@@ -1,4 +1,3 @@
-﻿using System;
 using System.Linq;
 using Cairo;
 using claims.src.auxialiry;
@@ -7,232 +6,78 @@ using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
-using Vintagestory.Client.NoObf;
 
 namespace claims.src.gui.playerGui.GuiElements
 {
-    public class GuiElementPlotsGroupInvitation : GuiElementTextBase, IGuiElementCell, IDisposable
+    /// <summary>An invitation into a city's plots group.</summary>
+    public class GuiElementPlotsGroupInvitation : CANGuiElementCellBase
     {
-        public enum HighlightedTexture
-        {
-            FIRST, SECOND, THIRD
-        }
-        public static double unscaledRightBoxWidth = 40.0;
-
         public ClientToPlotsGroupInvitation cell;
 
-        private bool showModifyIcons = true;
-
-        public bool On;
-
-        internal int leftHighlightTextureId;
-
-        internal int middleHighlightTextureId;
-
-        internal int rightHighlightTextureId;
-
-        internal int switchOnTextureId;
-
-        internal double unscaledSwitchPadding = 4.0;
-
-        internal double unscaledSwitchSize = 25.0;
-
-        private LoadedTexture modcellTexture;
-
-        private IAsset cancelIcon;
-        private IAsset approveIcon;
-
-        private ICoreClientAPI capi;
-
-        ElementBounds IGuiElementCell.Bounds => Bounds;
+        private readonly IAsset cancelIcon;
+        private readonly IAsset approveIcon;
 
         public GuiElementPlotsGroupInvitation(ICoreClientAPI capi, ClientToPlotsGroupInvitation cell, ElementBounds bounds)
-            : base(capi, "", null, bounds)
+            : base(capi, bounds)
         {
             this.cell = cell;
-            this.Font = CairoFont.WhiteSmallishText();
-            modcellTexture = new LoadedTexture(capi);
-
             this.cancelIcon = capi.Assets.Get(new AssetLocation("claims:textures/icons/cancel.svg"));
             this.approveIcon = capi.Assets.Get(new AssetLocation("claims:textures/icons/check-mark.svg"));
 
-            this.capi = capi;
+            // Both answers are wired here rather than by the page: only the middle column ever did
+            // anything, the handlers for the other two were commented out - so the drawn cancel icon
+            // was not a button at all.
+            OnMouseDownOnCellMiddle = _ => Answer("/plotsgroupaccept ");
+            OnMouseDownOnCellRight = _ => Answer("/plotsgroupdeny ");
+
+            AddZoneTooltip(HighlightZone.Middle, Lang.Get("claims:gui-plotsgroup-accept-tooltip"));
+            AddZoneTooltip(HighlightZone.Right, Lang.Get("claims:gui-plotsgroup-decline-tooltip"));
         }
 
-        private void Compose()
+        private void Answer(string command)
         {
-            ComposeHover(HighlightedTexture.FIRST, ref leftHighlightTextureId);
-            ComposeHover(HighlightedTexture.SECOND, ref middleHighlightTextureId);
-            ComposeHover(HighlightedTexture.THIRD, ref rightHighlightTextureId);
-            genOnTexture();
-            ImageSurface imageSurface = new ImageSurface(Format.Argb32, Bounds.OuterWidthInt, Bounds.OuterHeightInt);
-            Context context = new Context(imageSurface);
-            double num = GuiElement.scaled(unscaledRightBoxWidth);
-            Bounds.CalcWorldBounds();
+            ClientChat.Send(command + cell.CityName + " " + cell.PlotsGroupName);
 
+            var invite = claims.clientDataStorage.clientPlayerInfo.ReceivedPlotsGroupInvitations
+                .FirstOrDefault(c => c.CityName == cell.CityName && c.PlotsGroupName == cell.PlotsGroupName);
+            if (invite != null)
+            {
+                claims.clientDataStorage.clientPlayerInfo.ReceivedPlotsGroupInvitations.Remove(invite);
+                claims.CANCityGui.BuildMainWindow();
+            }
+        }
+
+        protected override void ComposeContent(Context ctx, ImageSurface surface)
+        {
             string cellName = cell.CityName + ": " + cell.PlotsGroupName;
-            TextExtents textExtents = Font.GetTextExtents(cellName);
-            textUtil.AutobreakAndDrawMultilineTextAt(context, Font, cellName, Bounds.absPaddingX, Bounds.absPaddingY + GuiElement.scaled(10), textExtents.Width + 1.0, EnumTextOrientation.Left);
+            TextExtents extents = Font.GetTextExtents(cellName);
+            textUtil.AutobreakAndDrawMultilineTextAt(ctx, Font, cellName,
+                Bounds.absPaddingX, Bounds.absPaddingY + GuiElement.scaled(10), extents.Width + 1.0, EnumTextOrientation.Left);
+
+            // What accepting costs, next to how long the offer stands. Joining starts the daily
+            // charge, and the group's card only becomes visible once the player is already in it.
             string expDate = TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(cell.TimeoutStamp, true).ToString();
-            textExtents = Font.GetTextExtents(expDate);
-            textUtil.AutobreakAndDrawMultilineTextAt(context, CairoFont.WhiteDetailText(), expDate, Bounds.absPaddingX, Bounds.absPaddingY + GuiElement.scaled(36), textExtents.Width + 1.0, EnumTextOrientation.Left);
-
-            //make border as button
-            EmbossRoundRectangleElement(context, 0.0, 0.0, Bounds.OuterWidth, Bounds.OuterHeight, inverse: false, (int)GuiElement.scaled(4.0), 0);
-
-            double num5 = GuiElement.scaled(unscaledSwitchSize);
-            double num6 = GuiElement.scaled(unscaledSwitchPadding);
-            double num7 = Bounds.absPaddingX + Bounds.InnerWidth - GuiElement.scaled(0.0) - num5 - num6;
-            double num8 = Bounds.absPaddingY + Bounds.absPaddingY;
-
-            capi.Gui.DrawSvg(cancelIcon, imageSurface, (int)(num7 - GuiElement.scaled(3.0)), (int)(num8 + GuiElement.scaled(15.0)), (int)GuiElement.scaled(30.0), (int)GuiElement.scaled(30.0), ColorUtil.ColorFromRgba(255, 128, 0, 255));
-            capi.Gui.DrawSvg(approveIcon, imageSurface, (int)(num7 - GuiElement.scaled(unscaledRightBoxWidth) - GuiElement.scaled(10.0)), (int)(num8 + GuiElement.scaled(15.0)), (int)GuiElement.scaled(30.0), (int)GuiElement.scaled(30.0), ColorUtil.ColorFromRgba(0, 153, 0, 255));
-
-            generateTexture(imageSurface, ref modcellTexture);
-            context.Dispose();
-            imageSurface.Dispose();
-        }
-
-        private void genOnTexture()
-        {
-            double num = GuiElement.scaled(unscaledSwitchSize - 2.0 * unscaledSwitchPadding);
-            ImageSurface imageSurface = new ImageSurface(Format.Argb32, (int)num, (int)num);
-            Context context = genContext(imageSurface);
-            GuiElement.RoundRectangle(context, 0.0, 0.0, num, num, 2.0);
-            GuiElement.fillWithPattern(api, context, GuiElement.waterTextureName);
-            generateTexture(imageSurface, ref switchOnTextureId);
-            context.Dispose();
-            imageSurface.Dispose();
-        }
-
-        private void ComposeHover(HighlightedTexture highlightedTexutre, ref int textureId)
-        {
-            ImageSurface imageSurface = new ImageSurface(Format.Argb32, (int)Bounds.OuterWidth, (int)Bounds.OuterHeight);
-            Context context = genContext(imageSurface);
-            double num = GuiElement.scaled(unscaledRightBoxWidth);
-            if (highlightedTexutre == HighlightedTexture.FIRST)
+            if (cell.Fee > 0)
             {
-                context.NewPath();
-                context.LineTo(0.0, 0.0);
-                context.LineTo(Bounds.InnerWidth - num * 2, 0.0);
-                context.LineTo(Bounds.InnerWidth - num * 2, Bounds.OuterHeight);
-                context.LineTo(0.0, Bounds.OuterHeight);
-                context.ClosePath();
+                expDate += "   " + Lang.Get("claims:gui-plotsgroup-invite-fee",
+                    cell.Fee.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture));
             }
-            else if (highlightedTexutre == HighlightedTexture.SECOND)
-            {
-                context.NewPath();
-                context.LineTo(Bounds.InnerWidth - num * 2, 0);
-                context.LineTo(Bounds.InnerWidth - num, 0);
-                context.LineTo(Bounds.InnerWidth - num, Bounds.OuterHeight);
-                context.LineTo(Bounds.InnerWidth - num * 2, Bounds.OuterHeight);
-                context.ClosePath();
-            }
-            else
-            {
-                context.NewPath();
-                context.LineTo(Bounds.InnerWidth - num, 0.0);
-                context.LineTo(Bounds.OuterWidth, 0.0);
-                context.LineTo(Bounds.OuterWidth, Bounds.OuterHeight);
-                context.LineTo(Bounds.InnerWidth - num, Bounds.OuterHeight);
-                context.ClosePath();
-            }
+            extents = Font.GetTextExtents(expDate);
+            textUtil.AutobreakAndDrawMultilineTextAt(ctx, CairoFont.WhiteDetailText(), expDate,
+                Bounds.absPaddingX, Bounds.absPaddingY + GuiElement.scaled(36), extents.Width + 1.0, EnumTextOrientation.Left);
 
-            context.SetSourceRGBA(0.0, 0.0, 0.0, 0.15);
-            context.Fill();
-            generateTexture(imageSurface, ref textureId);
-            context.Dispose();
-            imageSurface.Dispose();
-        }
+            double switchSize = GuiElement.scaled(UnscaledSwitchSize);
+            double switchPadding = GuiElement.scaled(UnscaledSwitchPadding);
+            double iconX = Bounds.absPaddingX + Bounds.InnerWidth - switchSize - switchPadding;
+            double iconY = Bounds.absPaddingY + Bounds.absPaddingY;
 
-        public void UpdateCellHeight()
-        {
-            Bounds.CalcWorldBounds();
-            if (showModifyIcons && Bounds.fixedHeight < 73.0)
-            {
-                Bounds.fixedHeight = 73.0;
-            }
-        }
+            capi.Gui.DrawSvg(cancelIcon, surface,
+                (int)(iconX - GuiElement.scaled(3.0)), (int)(iconY + GuiElement.scaled(15.0)),
+                (int)GuiElement.scaled(30.0), (int)GuiElement.scaled(30.0), ColorUtil.ColorFromRgba(255, 128, 0, 255));
 
-        public void OnRenderInteractiveElements(ICoreClientAPI api, float deltaTime)
-        {
-            if (modcellTexture.TextureId == 0)
-            {
-                Compose();
-            }
-
-            api.Render.Render2DTexturePremultipliedAlpha(modcellTexture.TextureId, (int)Bounds.absX, (int)Bounds.absY, Bounds.OuterWidthInt, Bounds.OuterHeightInt);
-            int mouseX = api.Input.MouseX;
-            int mouseY = api.Input.MouseY;
-            Vec2d vec2d = Bounds.PositionInside(mouseX, mouseY);
-            if (vec2d != null)
-            {
-                if (vec2d.X > (Bounds.InnerWidth - GuiElement.scaled(GuiElementMainMenuCell.unscaledRightBoxWidth) * 2)
-                    && vec2d.X < (Bounds.InnerWidth - GuiElement.scaled(GuiElementMainMenuCell.unscaledRightBoxWidth)))
-                {
-                    api.Render.Render2DTexturePremultipliedAlpha(middleHighlightTextureId, (int)Bounds.absX, (int)Bounds.absY, Bounds.OuterWidth, Bounds.OuterHeight);
-                }
-                else
-                if (vec2d.X > Bounds.InnerWidth - GuiElement.scaled(GuiElementMainMenuCell.unscaledRightBoxWidth))
-                {
-                    api.Render.Render2DTexturePremultipliedAlpha(rightHighlightTextureId, (int)Bounds.absX, (int)Bounds.absY, Bounds.OuterWidth, Bounds.OuterHeight);
-                }
-                else
-                {
-                    api.Render.Render2DTexturePremultipliedAlpha(leftHighlightTextureId, (int)Bounds.absX, (int)Bounds.absY, Bounds.OuterWidth, Bounds.OuterHeight);
-                }
-            }
-        }
-
-        public override void Dispose()
-        {
-            base.Dispose();
-            modcellTexture?.Dispose();
-            api.Render.GLDeleteTexture(leftHighlightTextureId);
-            api.Render.GLDeleteTexture(middleHighlightTextureId);
-            api.Render.GLDeleteTexture(rightHighlightTextureId);
-            api.Render.GLDeleteTexture(switchOnTextureId);
-        }
-
-        public void OnMouseUpOnElement(MouseEvent args, int elementIndex)
-        {
-            int mouseX = api.Input.MouseX;
-            int mouseY = api.Input.MouseY;
-            Vec2d vec2d = Bounds.PositionInside(mouseX, mouseY);
-            api.Gui.PlaySound("menubutton_press");
-            if (vec2d.X > Bounds.InnerWidth - GuiElement.scaled(GuiElementMainMenuCell.unscaledRightBoxWidth) * 2 &&
-                    vec2d.X < Bounds.InnerWidth - GuiElement.scaled(GuiElementMainMenuCell.unscaledRightBoxWidth))
-            {
-                ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/plotsgroupaccept "
-                    + this.cell.CityName + " " + this.cell.PlotsGroupName, EnumChatType.Macro, "");
-                var cell = claims.clientDataStorage.clientPlayerInfo.ReceivedPlotsGroupInvitations.FirstOrDefault(c => c.CityName == this.cell.CityName && c.PlotsGroupName == this.cell.PlotsGroupName);
-                if (cell != null)
-                {
-                    claims.clientDataStorage.clientPlayerInfo.ReceivedPlotsGroupInvitations.Remove(cell);
-                    claims.CANCityGui.BuildMainWindow();
-                }
-                //OnMouseDownOnCellMiddle?.Invoke(elementIndex);
-                args.Handled = true;
-            }
-            else if (vec2d.X > Bounds.InnerWidth - GuiElement.scaled(GuiElementMainMenuCell.unscaledRightBoxWidth))
-            {
-                //OnMouseDownOnCellRight?.Invoke(elementIndex);
-                args.Handled = true;
-            }
-            else
-            {
-                //OnMouseDownOnCellLeft?.Invoke(elementIndex);
-                args.Handled = true;
-            }
-        }
-
-        public void OnMouseMoveOnElement(MouseEvent args, int elementIndex)
-        {
-        }
-
-        public void OnMouseDownOnElement(MouseEvent args, int elementIndex)
-        {
+            capi.Gui.DrawSvg(approveIcon, surface,
+                (int)(iconX - GuiElement.scaled(UnscaledRightBoxWidth) - GuiElement.scaled(10.0)), (int)(iconY + GuiElement.scaled(15.0)),
+                (int)GuiElement.scaled(30.0), (int)GuiElement.scaled(30.0), ColorUtil.ColorFromRgba(0, 153, 0, 255));
         }
     }
 }

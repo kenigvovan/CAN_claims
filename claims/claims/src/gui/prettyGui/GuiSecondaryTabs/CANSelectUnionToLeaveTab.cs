@@ -37,10 +37,8 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
 
             if (ImGui.Button(Lang.Get(YesButtonString)))
             {
-                ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
                 GuiSys.textInput2 = claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Allies[GuiSys.selectedComboFirst];
-                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, this.CommandToCallOnYes + " "
-                    + GuiSys.textInput2, EnumChatType.Macro, "");
+                SendCommand(this.CommandToCallOnYes + " " + GuiSys.textInput2);
                 GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.NONE;
             }
             ImGui.SameLine();

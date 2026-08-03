@@ -56,6 +56,7 @@
 
         ALLIANCE_CONFLICT_ADD, ALLIANCE_CONFLICT_REMOVE, ALLIANCE_CONFLICT_ALL,
         ALLIANCE_CONFLICT_WARRANGES_UPDATED,
+        ALLIANCE_CONFLICT_SCORE_UPDATED,
         CLIENT_CONFLICT_SUGGESTED_WARRANGE,
 
         ALLIANCE_CONFLICT_WAR_TIME_MARK_START, ALLIANCE_CONFLICT_WAR_TIME_MARK_END,
@@ -76,6 +77,31 @@
 
         CITY_PLOTS_MAP,
 
-        PLAYER_BALANCE
+        // Full snapshot of the casus belli our party holds; the server builds it, the client replaces its list.
+        CITY_CASUS_BELLI_ALL,
+
+        // Full snapshot of the announced (not yet effective) union breaks of our alliance.
+        ALLIANCE_UNION_BREAKS_ALL,
+
+        PLAYER_BALANCE,
+
+        // Coat of arms of our own city / alliance, as an EmblemHandler layer string.
+        CITY_EMBLEM, ALLIANCE_EMBLEM,
+
+        // Settlement tier (CityTier) of our own city. Append-only enum: the values travel as
+        // numbers in PlayerGuiRelatedInfoPacket, so new members must stay at the end.
+        CITY_TIER,
+
+        // When our village is open to attack, as "unixStart;minutes". Only ever sent to its own
+        // citizens - an outsider has to come and find out on the spot.
+        CITY_RAID_WINDOW,
+
+        // Inter-city plot market: the listings our city may act on, and the deals it took part in.
+        // Kept for its numeric slot: the market listing is now one shape of CITY_PLOT_AUCTIONS.
+        CITY_PLOT_MARKET_UNUSED, CITY_PLOT_MARKET_HISTORY,
+
+        // Land offered to other cities: price tags and running auctions alike, as the viewing city
+        // is allowed to see them.
+        CITY_PLOT_AUCTIONS
     }
 }

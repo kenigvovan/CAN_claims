@@ -58,9 +58,23 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Success("claims:player_has_city_already");
             }
+            if (!Settings.CanAcceptMoreCitizens(city))
+            {
+                return TextCommandResult.Success("claims:village_is_full");
+            }
             if (InvitationHandler.addNewInvite(new Invitation(city, targetPlayer, TimeFunctions.getEpochSeconds() + claims.config.HOUR_TIMEOUT_INVITATION_CITY * 60 * 60,
                 () =>
                 {
+                    // The has-city check at invite time is not enough: the target can found
+                    // their own city (becoming its mayor) between invite and accept. Joining
+                    // here would overwrite their City via setCity and leave their old city's
+                    // mayor pointer dangling, desyncing MAYOR_NAME from their permissions.
+                    if (targetPlayer.hasCity())
+                    {
+                        MessageHandler.sendMsgToPlayerInfo(targetPlayer, Lang.Get("claims:you_already_have_city"));
+                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:player_has_city_already"));
+                        return;
+                    }
                     city.AddLogEntry(EnumCityLogEvent.CitizenJoined, targetPlayer.GetPartName());
                     city.FireCitizenJoined(targetPlayer);
                     city.getCityCitizens().Add(targetPlayer);
@@ -145,7 +159,7 @@ namespace claims.src.commands
             city.AddLogEntry(EnumCityLogEvent.CitizenKicked, targetPlayer.GetPartName());
             city.FireCitizenLeft(targetPlayer, EnumCityLeaveReason.Kicked);
             MessageHandler.sendMsgInCity(city, Lang.Get("claims:player_was_kicked", targetPlayer.GetPartName()));
-            MessageHandler.sendMsgToPlayerInfo(targetPlayer, Lang.Get("claims:you_were_kicked_from_city"));
+            MessageHandler.sendMsgToPlayerInfo(targetPlayer, Lang.Get("claims:you_were_kicked_from_city", city.getPartNameReplaceUnder()));
             targetPlayer.clearCity();
             TreeAttribute tree = new();
             tree.SetString("cityname", city.GetPartName());
@@ -265,6 +279,10 @@ namespace claims.src.commands
             if (!city.openCity)
             {
                 return TextCommandResult.Success("claims:not_open_city");
+            }
+            if (!Settings.CanAcceptMoreCitizens(city))
+            {
+                return TextCommandResult.Success("claims:village_is_full");
             }
             city.AddLogEntry(EnumCityLogEvent.CitizenJoined, playerInfo.GetPartName());
             city.FireCitizenJoined(playerInfo);

@@ -14,6 +14,7 @@ using claims.src.clextentions;
 using claims.src.clientMapHandling;
 using claims.src.database;
 using claims.src.events;
+using claims.src.gui.hud;
 using claims.src.gui.playerGui;
 using claims.src.gui.playerGui.structures;
 using claims.src.gui.plotMovementGui;
@@ -73,10 +74,16 @@ namespace claims.src
         public PlotsMapLayer plotsMapLayer;
         WorldMapManager mapmgr;
         public static CANClaimsGui CANCityGui { get; set; }
+
+        // Static because ShutDownClient, which tears them down, is static too.
+        private static BalanceHud balanceHud;
+        private static BountyBoardHud bountyBoardHud;
+        private static WarHud warHud;
         public static CityInfo playerCityInfo;
         public static bool DebugValSet = false;
 
         public static ClaimsPlayerMovementGUI movementClaimGui { get; set; }
+        private static gui.BoatShareDialog boatShareDialog;
         public ClaimsModApi Api { get; private set; }
         /*==============================================================================================*/
         /*=====================================FUNCTIONS================================================*/
@@ -103,7 +110,12 @@ namespace claims.src
                                                        "magic-portal", "dodging", "highlighter",
                                                        "huts-village", "vertical-banner", "village", "stairs-goal",
                                                         "info", "pencil", "soldering-iron", "envelope", "peace-dove",
-                                                        "sword-brandish", "frog-mouth-helm"};
+                                                        "sword-brandish", "frog-mouth-helm",
+                                                        // city log, admin entry, union letters, back button
+                                                        "files", "id-card", "tower-flag", "fast-backward-button",
+                                                        // plot and city page actions
+                                                        "hamburger-menu", "open-book", "receive-money", "contract",
+                                                        "cancel", "check-mark"};
             foreach (var icon in iconList)
             {
                 capi.Gui.Icons.CustomIcons["claims:" + icon] = delegate (Context ctx, int x, int y, float w, float h, double[] rgba)
@@ -122,6 +134,10 @@ namespace claims.src
             api.RegisterBlockClass("CANCaptureFlagBlock", typeof(CaptureFlagBlock));
             api.RegisterBlockEntityBehaviorClass("FlagEntity", typeof(BlockEntityBehaviorFlag));
             api.RegisterBlockBehaviorClass("Flag", typeof(BlockBehaviorFlag));
+            api.RegisterBlockEntityClass("CampAnchor", typeof(BlockEntityCampAnchor));
+            api.RegisterBlockEntityClass("VillageAnchor", typeof(BlockEntityVillageAnchor));
+            api.RegisterBlockClass("CANVillageGranaryBlock", typeof(BlockVillageGranary));
+            api.RegisterBlockEntityClass("VillageGranary", typeof(BlockEntityVillageGranary));
             //Environment.SetEnvironmentVariable("CAIRO_DEBUG_DISPOSE", "1");
         }
         public override void StartClientSide(ICoreClientAPI api)
@@ -164,11 +180,68 @@ namespace claims.src
             api.Input.RegisterHotKey("claimsplayermovementgui", "Plot info GUI", GlKeys.K, HotkeyType.GUIOrOtherControls);
             api.Input.SetHotKeyHandler("claimsplayermovementgui", new ActionConsumable<KeyCombination>(this.OnHotKeyPlayerMovementGUI));
 
+            api.Input.RegisterHotKey("claimsboatshare", "Share owned boat with city", GlKeys.B, HotkeyType.GUIOrOtherControls, ctrlPressed: true);
+            api.Input.SetHotKeyHandler("claimsboatshare", new ActionConsumable<KeyCombination>(this.OnHotKeyBoatShare));
+
             api.Event.LeftWorld += ShutDownClient;
 
             ClientPacketHandlers.RegisterHandlers();
             CANCityGui = new CANClaimsGui(capi);
+
+            // HUD panels open once and stay up; each decides for itself whether it has anything to
+            // show, so there is nothing to toggle here.
+            balanceHud = new BalanceHud(capi);
+            bountyBoardHud = new BountyBoardHud(capi);
+            warHud = new WarHud(capi);
+            balanceHud.TryOpen();
+            bountyBoardHud.TryOpen();
+            warHud.TryOpen();
+
+            RegisterHudCommands(api);
         }
+
+        /// <summary>
+        /// Toggles for the three HUD panels. They live here rather than in a GUI front-end so that
+        /// removing either front-end leaves the commands and the stored preference intact.
+        /// </summary>
+        private void RegisterHudCommands(ICoreClientAPI api)
+        {
+            if (config?.BalanceHudOverride.HasValue == true)
+                ClaimsHudState.ShowBalance = config.BalanceHudOverride.Value;
+
+            api.ChatCommands.Create("claimshud")
+                .WithDescription("Toggle balance HUD")
+                .HandleWith(args =>
+                {
+                    ClaimsHudState.ShowBalance = !ClaimsHudState.ShowBalance;
+                    config.BalanceHudOverride = ClaimsHudState.ShowBalance;
+
+                    // Load the file first so we only update BalanceHudOverride, rather than writing
+                    // the client's in-memory copy of the server settings back over it.
+                    var savedCfg = api.LoadModConfig<Config>("claims.json") ?? new Config();
+                    savedCfg.BalanceHudOverride = ClaimsHudState.ShowBalance;
+                    api.StoreModConfig(savedCfg, "claims.json");
+
+                    return TextCommandResult.Success("Balance HUD: " + (ClaimsHudState.ShowBalance ? "on" : "off"));
+                });
+
+            api.ChatCommands.Create("bounties")
+                .WithDescription("Toggle the bounty board")
+                .HandleWith(args =>
+                {
+                    ClaimsHudState.ShowBountyBoard = !ClaimsHudState.ShowBountyBoard;
+                    return TextCommandResult.Success("Bounty board: " + (ClaimsHudState.ShowBountyBoard ? "on" : "off"));
+                });
+
+            api.ChatCommands.Create("warhud")
+                .WithDescription("Toggle the war HUD")
+                .HandleWith(args =>
+                {
+                    ClaimsHudState.ShowWarHud = !ClaimsHudState.ShowWarHud;
+                    return TextCommandResult.Success("War HUD: " + (ClaimsHudState.ShowWarHud ? "on" : "off"));
+                });
+        }
+
         public override void StartServerSide(ICoreServerAPI api)
         {
             base.StartServerSide(api);
@@ -201,6 +274,7 @@ namespace claims.src
 
             PermsHandler.initDicts();
             PlotInfo.initDicts();
+            FindAlwaysUseBlocks(api);
 
             //STORAGE WITH CITIES/PLAYERS/OTHER
             dataStorage = new DataStorage();
@@ -386,19 +460,28 @@ namespace claims.src
             {
                 string[] split = it.Split(':');
                 if (split.Length < 2) continue;
+                bool found = false;
                 foreach (var mod in api.ModLoader.Mods)
                 {
-                    if (mod.FileName.StartsWith(split[0]))
+                    // Match on the mod id first, the archive file name is only a fallback:
+                    // file names carry versions and arbitrary casing (VinConomy_1.4.0.zip).
+                    bool isTargetMod = string.Equals(mod.Info?.ModID, split[0], StringComparison.OrdinalIgnoreCase)
+                        || mod.FileName.StartsWith(split[0], StringComparison.OrdinalIgnoreCase);
+                    if (!isTargetMod) continue;
+                    if (mod is not Vintagestory.Common.ModContainer container || container.Assembly == null) continue;
+
+                    foreach (var ii in container.Assembly.GetTypes())
                     {
-                        Type[] allTypes = ((Vintagestory.Common.ModContainer)mod).Assembly.GetTypes();
-                        foreach (var ii in allTypes)
+                        if (ii.Name == split[1])
                         {
-                            if (ii.Name == split[1])
-                            {
-                                claims.config.blockTypesAccess.Add(ii);
-                            }
+                            claims.config.blockTypesAccess.Add(ii);
+                            found = true;
                         }
                     }
+                }
+                if (!found)
+                {
+                    api.Logger.Notification("[claims] ALWAYS_ACCESS_BLOCKS entry '" + it + "' resolved to no type (mod not installed?)");
                 }
             }
         }
@@ -473,6 +556,14 @@ namespace claims.src
                 claims.clientModInstance.pmlc.OnShutDown();
             }
             CANCityGui = null;
+
+            balanceHud?.Dispose();
+            bountyBoardHud?.Dispose();
+            warHud?.Dispose();
+            balanceHud = null;
+            bountyBoardHud = null;
+            warHud = null;
+
             harmonyInstance.UnpatchAll(harmonyID);
             harmonyInstance = null;
             clientModInstance = null;
@@ -480,7 +571,9 @@ namespace claims.src
             clientDataStorage = null;
             playerCityInfo = null;
             movementClaimGui = null;
-            config = null;    
+            boatShareDialog = null;
+            gui.ClientChat.Reset();
+            config = null;
         }
 
         /*==============================================================================================*/
@@ -495,6 +588,25 @@ namespace claims.src
             }
             else
                 CANCityGui.TryOpen();
+            return true;
+        }
+        /// <summary>
+        /// Opens the boat sharing dialog for the boat under the crosshair. Created lazily and kept,
+        /// like the other client dialogs, so it holds no stale entity between uses.
+        /// </summary>
+        private bool OnHotKeyBoatShare(KeyCombination comb)
+        {
+            if (!claims.config.BOAT_SHARE_WITH_CITY) return true;
+
+            boatShareDialog ??= new gui.BoatShareDialog(capi);
+            if (boatShareDialog.IsOpened())
+            {
+                boatShareDialog.TryClose();
+                return true;
+            }
+
+            // TryOpen finds the boat and refuses (with a message) when there is none in sight.
+            boatShareDialog.TryOpen();
             return true;
         }
         private bool OnHotKeyPlayerMovementGUI(KeyCombination comb)
@@ -574,73 +686,63 @@ namespace claims.src
         }
         public static void updateMovementGUIInfo(SavedPlotInfo plot = null)
         {
+            // The panel speaks in the same palette the dialog does: whose land it is in the accent
+            // colour, the details under it muted, and whether PVP is on in red or green - that line
+            // is the one a player crossing a border actually looks for.
+            var titleFont = CairoFont.WhiteDetailText().WithFontSize(18)
+                .WithColor(gui.playerGui.Widgets.ClaimsColors.Value);
+            var detailFont = CairoFont.WhiteDetailText().WithFontSize(16)
+                .WithColor(gui.playerGui.Widgets.ClaimsColors.Label);
+
             if (plot == null)
             {
-                var cai = CairoFont.WhiteDetailText().WithFontSize(18);
-                movementClaimGui.SingleComposer.GetRichtext("line_1")
-                    .SetNewText(Lang.Get("claims:movementgui-wild-lands"), cai);
-                movementClaimGui.SingleComposer.GetRichtext("line_2")
-              .SetNewText("", cai);
-                movementClaimGui.SingleComposer.GetRichtext("line_3")
-               .SetNewText("", cai);
-                movementClaimGui.SingleComposer.GetRichtext("line_4")
-               .SetNewText("", cai);
-                movementClaimGui.SingleComposer.GetRichtext("line_5")
-              .SetNewText("", cai);
+                SetMovementLine(1, Lang.Get("claims:movementgui-wild-lands"), detailFont);
+                ClearMovementLines(2, detailFont);
+                return;
             }
-            else
+
+            SetMovementLine(1, Lang.Get("claims:movementgui-city-name", plot.cityName), titleFont);
+
+            int currentLine = 2;
+
+            if (plot.plotName.Length > 0)
             {
-                var cai = CairoFont.WhiteDetailText().WithFontSize(18).WithOrientation(EnumTextOrientation.Center);
-               /* var f = movementClaimGui.Single*Composer.GetRichtext("line_1");
-                var p = f.Components[0];*/
-
-                //(p as RichTextComponent).Font.Orientation = EnumTextOrientation.Center;
-                movementClaimGui.SingleComposer.GetRichtext("line_1")
-               .SetNewText(Lang.Get("claims:movementgui-city-name", plot.cityName), cai);
-                
-                int currentLine = 2;
-
-                if (plot.plotName.Length > 0)
-                {
-                    movementClaimGui.SingleComposer.GetRichtext("line_" + currentLine)
-                   .SetNewText(Lang.Get("claims:movementgui-plot-name", plot.plotName), cai);
-                    currentLine++;
-                }
-
-                if (plot.groupName.Length > 0)
-                {
-                    movementClaimGui.SingleComposer.GetRichtext("line_" + currentLine)
-                    .SetNewText(Lang.Get("claims:movementgui-group-name", plot.groupName), cai);
-                    currentLine++;
-                }
-
-                if (plot.PvPIsOn)
-                {
-                    movementClaimGui.SingleComposer.GetRichtext("line_" + currentLine)
-                    .SetNewText(Lang.Get("claims:movementgui-pvp-on"), cai);
-                }
-                else
-                {
-                    movementClaimGui.SingleComposer.GetRichtext("line_" + currentLine)
-                    .SetNewText(Lang.Get("claims:movementgui-pvp-off"), cai);
-                }
-                currentLine++;
-                if (plot.price > -1)
-                {
-                    movementClaimGui.SingleComposer.GetRichtext("line_" + currentLine)
-                   .SetNewText(Lang.Get("claims:movementgui-price", plot.price), cai);
-                    currentLine++;
-                }
-                
-                for (; currentLine <= 5; currentLine++)
-                {
-                    movementClaimGui.SingleComposer.GetRichtext("line_" + currentLine)
-                   .SetNewText("", cai);
-                }
-
-                //claimsext.movementClaimGui.SetupDialog();
+                SetMovementLine(currentLine++, Lang.Get("claims:movementgui-plot-name", plot.plotName), detailFont);
             }
 
+            if (plot.groupName.Length > 0)
+            {
+                SetMovementLine(currentLine++, Lang.Get("claims:movementgui-group-name", plot.groupName), detailFont);
+            }
+
+            var pvpFont = CairoFont.WhiteDetailText().WithFontSize(16).WithColor(plot.PvPIsOn
+                ? gui.playerGui.Widgets.ClaimsColors.Danger
+                : gui.playerGui.Widgets.ClaimsColors.Success);
+            SetMovementLine(currentLine++,
+                Lang.Get(plot.PvPIsOn ? "claims:movementgui-pvp-on" : "claims:movementgui-pvp-off"), pvpFont);
+
+            if (plot.price > -1)
+            {
+                SetMovementLine(currentLine++, Lang.Get("claims:movementgui-price", plot.price), titleFont);
+            }
+
+            ClearMovementLines(currentLine, detailFont);
+        }
+
+        private static void SetMovementLine(int line, string text, CairoFont font)
+        {
+            if (line > gui.plotMovementGui.ClaimsPlayerMovementGUI.LineCount) return;
+
+            movementClaimGui.SingleComposer.GetRichtext("line_" + line).SetNewText(text, font);
+        }
+
+        /// <summary>Blanks the slots a shorter plot description left over.</summary>
+        private static void ClearMovementLines(int from, CairoFont font)
+        {
+            for (int line = from; line <= gui.plotMovementGui.ClaimsPlayerMovementGUI.LineCount; line++)
+            {
+                SetMovementLine(line, "", font);
+            }
         }
 
     }

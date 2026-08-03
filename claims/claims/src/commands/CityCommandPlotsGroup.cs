@@ -96,12 +96,7 @@ namespace claims.src.commands
             searchedGroup.saveToDatabase(false);
             tcr.Status = EnumCommandStatus.Success;
             UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
-                new Dictionary<string, object> { { "value", new PlotsGroupCellElement(searchedGroup.Guid,
-                                                                                      searchedGroup.GetPartName(),
-                                                                                      searchedGroup.City.GetPartName(),
-                                                                                      new List<string>(),
-                                                                                      searchedGroup.PermsHandler,
-                                                                                      searchedGroup.PlotsGroupFee)} },
+                new Dictionary<string, object> { { "value", PlotsGroupFeeHelper.ToCell(searchedGroup) } },
                 EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_ADD);
             return tcr;
         }
@@ -278,15 +273,12 @@ namespace claims.src.commands
                        return;
                    }
                    searchedGroup.PlayersList.Add(targetPlayer);
+                   // Joining while a raise is on the board counts as agreeing to it.
+                   PlotsGroupFeeHelper.OnMemberJoined(searchedGroup, targetPlayer);
                    searchedGroup.saveToDatabase();
-                   UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
-                    new Dictionary<string, object> { { "value", new PlotsGroupCellElement(searchedGroup.Guid,
-                                                                                          searchedGroup.GetPartName(),
-                                                                                          searchedGroup.City.GetPartName(),
-                                                                                          searchedGroup.PlayersList.Select(ele => ele.GetPartName()).ToList(),
-                                                                                          searchedGroup.PermsHandler,
-                                                                                          searchedGroup.PlotsGroupFee)} },
-                    EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_UPDATE);
+                   SendGroupUpdateWithMembers(searchedGroup);
+                   UsefullPacketsSend.AddToQueuePlayerInfoUpdate(targetPlayer.Guid,
+                       EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT);
                     foreach (var plot in city.getCityPlots())
                     {
                         if (plot.hasPlotGroup() && plot.getPlotGroup().Equals(searchedGroup))
@@ -301,24 +293,30 @@ namespace claims.src.commands
                    if (!(targetPlayer.hasCity() && targetPlayer.City.Guid.Equals(city.Guid)))
                    {
                        UsefullPacketsSend.AddToQueuePlayerInfoUpdate(targetPlayer.Guid,
-                        new Dictionary<string, object> { { "value", new PlotsGroupCellElement(searchedGroup.Guid,
-                                                                                              searchedGroup.GetPartName(),
-                                                                                              searchedGroup.City.GetPartName(),
-                                                                                              searchedGroup.PlayersList.Select(ele => ele.GetPartName()).ToList(),
-                                                                                              searchedGroup.PermsHandler,
-                                                                                              searchedGroup.PlotsGroupFee)} },
+                        new Dictionary<string, object> { { "value", PlotsGroupFeeHelper.ToCell(searchedGroup,
+                            searchedGroup.PlayersList.Select(ele => ele.GetPartName()).ToList()) } },
                         EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_ADD);
                    }
                },
                () =>
                {
-                   //TODO
+                   // Whoever sent the invitation is owed an answer: without this a refusal looked
+                   // exactly like an invitation nobody had got around to reading yet.
+                   MessageHandler.sendMsgInCity(city, Lang.Get("claims:player_declined_plotsgroup_invite",
+                       targetPlayer.getPartNameReplaceUnder(), searchedGroup.GetPartName()));
                },
                searchedGroup.GetPartName())))
             {
-                MessageHandler.sendMsgToPlayerInfo(targetPlayer, Lang.Get("claims:you_were_invited_to_group", city.getPartNameReplaceUnder(), playerInfo.getPartNameReplaceUnder()));
+                // The fee is part of the offer: accepting starts the daily charge, and the invitation
+                // used to say nothing about it - the player learned the price after joining.
+                MessageHandler.sendMsgToPlayerInfo(targetPlayer, searchedGroup.HasFee()
+                    ? Lang.Get("claims:you_were_invited_to_group_paid", city.getPartNameReplaceUnder(),
+                        playerInfo.getPartNameReplaceUnder(), searchedGroup.PlotsGroupFee)
+                    : Lang.Get("claims:you_were_invited_to_group", city.getPartNameReplaceUnder(),
+                        playerInfo.getPartNameReplaceUnder()));
                 UsefullPacketsSend.AddToQueuePlayerInfoUpdate(targetPlayer.Guid,
-                    new Dictionary<string, object> { { "value", new ClientToPlotsGroupInvitation(city.GetPartName(), searchedGroup.GetPartName(), timeoutStamp) } },
+                    new Dictionary<string, object> { { "value", new ClientToPlotsGroupInvitation(city.GetPartName(),
+                        searchedGroup.GetPartName(), timeoutStamp, searchedGroup.PlotsGroupFee) } },
                     EnumPlayerRelatedInfo.TO_PLOTS_GROUP_INVITE_ADD);
                 tcr.StatusMessage = "claims:you_invited_player_to_group";
                 tcr.MessageParams = new object[] { targetPlayer.GetPartName(), searchedGroup.GetPartName() };
@@ -333,19 +331,70 @@ namespace claims.src.commands
                 return tcr;
             }
         }
+        /// <summary>
+        /// Takes back an invitation into a plots group before it is answered. The counterpart of
+        /// /city uninvite, which does the same for the city itself; until now the command existed,
+        /// was registered without arguments and answered "todo".
+        /// </summary>
         public static TextCommandResult PlotsGroupUnaddTo(TextCommandCallingArgs args)
         {
-            //TODO
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            TextCommandResult tcr = new TextCommandResult();
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
+            TextCommandResult tcr = new();
             tcr.Status = EnumCommandStatus.Error;
 
+            City city = playerInfo.City;
+            if (city == null)
+            {
+                tcr.StatusMessage = "claims:you_dont_have_city";
+                return tcr;
+            }
 
-            tcr.StatusMessage = "todo";
-            /*UsefullPacketsSend.AddToQueuePlayerInfoUpdate(targetPlayer.Guid,
-                    new Dictionary<string, object> { { "value", new ClientToPlotsGroupInvitation(city.GetPartName(), searchedGroup.GetPartName(), timeoutStamp) } },
-                    EnumPlayerRelatedInfo.TO_PLOTS_GROUP_INVITE_ADD);*/
-            return tcr;
+            string groupName = Filter.filterName((string)args.Parsers[0].GetValue());
+            if (groupName.Length == 0 || !Filter.checkForBlockedNames(groupName))
+            {
+                tcr.StatusMessage = "claims:invalid_group_name";
+                return tcr;
+            }
+            string playerName = Filter.filterName((string)args.Parsers[1].GetValue());
+            if (playerName.Length == 0 || !Filter.checkForBlockedNames(playerName))
+            {
+                tcr.StatusMessage = "claims:invalid_player_name";
+                return tcr;
+            }
+            claims.dataStorage.getPlayerByName(playerName, out PlayerInfo targetPlayer);
+            if (targetPlayer == null)
+            {
+                tcr.StatusMessage = "claims:no_such_player";
+                return tcr;
+            }
+
+            CityPlotsGroupInvitation found = null;
+            foreach (CityPlotsGroupInvitation invitation in targetPlayer.groupInvitations.ToArray())
+            {
+                if (invitation.Sender != null && invitation.Sender.Guid == city.Guid
+                    && invitation.GroupName.Equals(groupName))
+                {
+                    found = invitation;
+                    break;
+                }
+            }
+            if (found == null)
+            {
+                tcr.StatusMessage = "claims:no_such_plotsgroup_invite";
+                return tcr;
+            }
+
+            // Withdrawn, not refused: the reject callback tells the city somebody said no, and
+            // taking an offer back is not that.
+            CityPlotsGroupInvitationsHandler.RemoveInvitation(found);
+            UsefullPacketsSend.AddToQueuePlayerInfoUpdate(targetPlayer.Guid,
+                new Dictionary<string, object> { { "value", new ClientToPlotsGroupInvitation(city.GetPartName(), groupName, 0) } },
+                EnumPlayerRelatedInfo.TO_PLOTS_GROUP_INVITE_REMOVE);
+            MessageHandler.sendMsgToPlayerInfo(targetPlayer,
+                Lang.Get("claims:plotsgroup_invite_withdrawn", city.getPartNameReplaceUnder(), groupName));
+
+            return SuccessWithParams("claims:you_withdrew_plotsgroup_invite",
+                new object[] { targetPlayer.GetPartName(), groupName });
         }
         public static TextCommandResult PlotsGroupKickPlayerFromGroup(TextCommandCallingArgs args)
         {
@@ -397,15 +446,11 @@ namespace claims.src.commands
                 return tcr;
             }
             searchedGroup.PlayersList.Remove(targetPlayer);
+            PlotsGroupFeeHelper.OnMemberLeft(searchedGroup, targetPlayer);
             searchedGroup.saveToDatabase();
-            UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
-                new Dictionary<string, object> { { "value", new PlotsGroupCellElement(searchedGroup.Guid,
-                                                                                      searchedGroup.GetPartName(),
-                                                                                      searchedGroup.City.GetPartName(),
-                                                                                      searchedGroup.PlayersList.Select(ele => ele.GetPartName()).ToList(),
-                                                                                      searchedGroup.PermsHandler,
-                                                                                      searchedGroup.PlotsGroupFee)} },
-                EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_UPDATE);
+            SendGroupUpdateWithMembers(searchedGroup);
+            UsefullPacketsSend.AddToQueuePlayerInfoUpdate(targetPlayer.Guid,
+                EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT);
             foreach (var plot in city.getCityPlots())
             {
                 if (plot.hasPlotGroup() && plot.getPlotGroup().Equals(searchedGroup))
@@ -431,9 +476,11 @@ namespace claims.src.commands
                 return tcr;
             }
 
-            claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(player.Entity.ServerPos), out Plot plot);
+            claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(player.Entity.Pos), out Plot plot);
             //NO CLAIMED PLOT HERE || VILLAGE HERE || PLOT NOT OURS
-            if (plot == null || !plot.getCity().Equals(playerInfo.City))
+            // hasCity first: an unclaimed plot object has no city, and asking it for one threw -
+            // the command died on the spot and the player was told nothing at all.
+            if (plot == null || !plot.hasCity() || !plot.getCity().Equals(playerInfo.City))
             {
                 tcr.StatusMessage = "claims:cannot_add_to_group";
                 return tcr;
@@ -459,6 +506,26 @@ namespace claims.src.commands
                 return tcr;
             }
 
+            // Silently reassigning a plot from one group to another would move the rights of a set
+            // of players onto ground they were never given, so say what is in the way instead.
+            if (plot.hasCityPlotsGroup())
+            {
+                tcr.StatusMessage = searchedGroup.Equals(plot.getPlotGroup())
+                    ? "claims:plot_already_in_this_group"
+                    : "claims:plot_already_in_other_group";
+                tcr.MessageParams = new object[] { plot.getPlotGroup().GetPartName() };
+                return tcr;
+            }
+
+            // Folding the plot into a group would void an auction that already has bids - the same
+            // escape hatch as selling it to a citizen, and closed for the same reason.
+            if (part.structure.plots.auction.AuctionRegistry.TryGetRunningFor(plot, out var bidLot)
+                && bidLot.HasBid)
+            {
+                tcr.StatusMessage = "claims:plot_auction_has_bids";
+                return tcr;
+            }
+
             //DELETE OWNER, RECALCULATE HIS RIGHTS AND HIS COMRADES
             if (plot.hasPlotOwner())
             {
@@ -477,9 +544,18 @@ namespace claims.src.commands
             UsefullPacketsSend.SendCurrentPlotUpdate(player, plot);
 
             plot.setPlotGroup(searchedGroup);
+            // A plot inside a group is not sellable, so a standing offer to other cities goes with it.
+            if (part.structure.plots.auction.AuctionRegistry.TryGetRunningFor(plot,
+                    out part.structure.plots.auction.PlotAuction lot))
+            {
+                part.structure.plots.auction.AuctionHandler.CancelLot(lot, "claims:plot_auction_cancelled_lot_gone");
+            }
             plot.saveToDatabase();
-            tcr.Status = EnumCommandStatus.Success;
-            return tcr;
+            // The group's plot count is on its card, and the command said nothing at all before -
+            // from the player's side adding a plot looked like it had done nothing.
+            PlotsGroupFeeHelper.SendGroupUpdate(searchedGroup);
+            return SuccessWithParams("claims:plot_added_to_group",
+                new object[] { plot.getPos().X + " " + plot.getPos().Y, searchedGroup.GetPartName() });
         }
         public static TextCommandResult PlotsGroupPlotRemove(TextCommandCallingArgs args)
         {
@@ -494,7 +570,7 @@ namespace claims.src.commands
                 return tcr;
             }
 
-            claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(player.Entity.ServerPos), out Plot plot);
+            claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(player.Entity.Pos), out Plot plot);
             //NO CLAIMED PLOT HERE || VILLAGE HERE || PLOT NOT OURS
             if (plot == null || !plot.hasCity() || !plot.getCity().Equals(playerInfo.City) || !plot.hasCityPlotsGroup())
             {
@@ -532,8 +608,9 @@ namespace claims.src.commands
             UsefullPacketsSend.SendCurrentPlotUpdate(player, plot);
             plot.saveToDatabase();
 
-            tcr.Status = EnumCommandStatus.Success;
-            return tcr;
+            PlotsGroupFeeHelper.SendGroupUpdate(searchedGroup);
+            return SuccessWithParams("claims:plot_removed_from_group",
+                new object[] { plot.getPos().X + " " + plot.getPos().Y, searchedGroup.GetPartName() });
         }
         public static TextCommandResult PlotsGroupSet(TextCommandCallingArgs args)
         {
@@ -589,14 +666,7 @@ namespace claims.src.commands
                     UsefullPacketsSend.SendCurrentPlotUpdate(player, plot);
                 }
             }
-            UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
-                new Dictionary<string, object> { { "value", new PlotsGroupCellElement(searchedGroup.Guid,
-                                                                                      searchedGroup.GetPartName(),
-                                                                                      searchedGroup.City.GetPartName(),
-                                                                                      new List<string>(),
-                                                                                      searchedGroup.PermsHandler,
-                                                                                      searchedGroup.PlotsGroupFee)} },
-                EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_UPDATE);
+            PlotsGroupFeeHelper.SendGroupUpdate(searchedGroup);
             MessageHandler.sendMsgToPlayer(player,
                 Lang.Get("claims:for_plotsgroup_group_perm_set_what", name, args.Parsers[1].GetValue(), (args.Parsers[2].GetValue() as string), (args.Parsers[3].GetValue() as string)));
             return TextCommandResult.Success();
@@ -629,14 +699,7 @@ namespace claims.src.commands
                 }
             }
             searchedGroup.saveToDatabase();
-            UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
-                new Dictionary<string, object> { { "value", new PlotsGroupCellElement(searchedGroup.Guid,
-                                                                                      searchedGroup.GetPartName(),
-                                                                                      searchedGroup.City.GetPartName(),
-                                                                                      new List<string>(),
-                                                                                      searchedGroup.PermsHandler,
-                                                                                      searchedGroup.PlotsGroupFee)} },
-                EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_UPDATE);
+            PlotsGroupFeeHelper.SendGroupUpdate(searchedGroup);
             return tcr;
         }
         public static TextCommandResult PlotsGroupSetFire(TextCommandCallingArgs args)
@@ -667,14 +730,7 @@ namespace claims.src.commands
                 }
             }
             searchedGroup.saveToDatabase();
-            UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
-                new Dictionary<string, object> { { "value", new PlotsGroupCellElement(searchedGroup.Guid,
-                                                                                      searchedGroup.GetPartName(),
-                                                                                      searchedGroup.City.GetPartName(),
-                                                                                      new List<string>(),
-                                                                                      searchedGroup.PermsHandler,
-                                                                                      searchedGroup.PlotsGroupFee)} },
-                EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_UPDATE);
+            PlotsGroupFeeHelper.SendGroupUpdate(searchedGroup);
             return tcr;
         }
         public static TextCommandResult PlotsGroupSetBlast(TextCommandCallingArgs args)
@@ -705,16 +761,78 @@ namespace claims.src.commands
                 }
             }
             searchedGroup.saveToDatabase();
-            UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
-                new Dictionary<string, object> { { "value", new PlotsGroupCellElement(searchedGroup.Guid,
-                                                                                      searchedGroup.GetPartName(),
-                                                                                      searchedGroup.City.GetPartName(),
-                                                                                      new List<string>(),
-                                                                                      searchedGroup.PermsHandler,
-                                                                                      searchedGroup.PlotsGroupFee)} },
-                EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_UPDATE);
+            PlotsGroupFeeHelper.SendGroupUpdate(searchedGroup);
             return tcr;
         }
+        /// <summary>
+        /// What members of the group pay daily. A raise does not take effect here - see
+        /// <see cref="PlotsGroupFeeHelper"/> for why it has to be accepted first.
+        /// </summary>
+        public static TextCommandResult PlotsGroupSetFee(TextCommandCallingArgs args)
+        {
+            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            TextCommandResult tcr = new();
+            tcr.Status = EnumCommandStatus.Success;
+
+            if (!HelperFunctionSetFlag(player, out var searchedGroup, out _, (args.Parsers[0].GetValue() as string), tcr))
+            {
+                return tcr;
+            }
+
+            int fee = Convert.ToInt32(args.Parsers[1].GetValue());
+            if (!PlotsGroupFeeHelper.SetFee(searchedGroup, fee, out string errorKey))
+            {
+                tcr.Status = EnumCommandStatus.Error;
+                tcr.StatusMessage = errorKey;
+                return tcr;
+            }
+
+            return SuccessWithParams(searchedGroup.HasPendingFee
+                    ? "claims:plotsgroup_fee_raise_set"
+                    : "claims:plotsgroup_fee_set",
+                new object[] { searchedGroup.GetPartName(), fee });
+        }
+
+        /// <summary>
+        /// A member agreeing to an announced raise. Not gated by a permission: it is their own money,
+        /// and the group they are in may well belong to a city they are not a citizen of.
+        /// </summary>
+        public static TextCommandResult PlotsGroupAcceptFee(TextCommandCallingArgs args)
+        {
+            if (!TryResolveCaller(args, out _, out var playerInfo, out var callerErr)) return callerErr;
+            TextCommandResult tcr = new();
+            tcr.Status = EnumCommandStatus.Error;
+
+            string name = Filter.filterName(args.Parsers[0].GetValue() as string);
+            CityPlotsGroup searchedGroup = null;
+            foreach (CityPlotsGroup group in claims.dataStorage.getCityPlotsGroupsDict().Values)
+            {
+                if (group.GetPartName().Equals(name) && group.PlayersList.Contains(playerInfo))
+                {
+                    searchedGroup = group;
+                    break;
+                }
+            }
+
+            if (!PlotsGroupFeeHelper.Accept(searchedGroup, playerInfo, out string errorKey))
+            {
+                tcr.StatusMessage = errorKey;
+                return tcr;
+            }
+            return SuccessWithParams("claims:plotsgroup_fee_accepted",
+                new object[] { searchedGroup.GetPartName(), searchedGroup.PendingFee });
+        }
+
+        /// <summary>Group update carrying its member names, for the pages that list them.</summary>
+        private static void SendGroupUpdateWithMembers(CityPlotsGroup group)
+        {
+            if (group?.City == null) return;
+            UsefullPacketsSend.AddToQueueCityInfoUpdate(group.City.Guid,
+                new Dictionary<string, object> { { "value", PlotsGroupFeeHelper.ToCell(group,
+                    group.PlayersList.Select(ele => ele.GetPartName()).ToList()) } },
+                EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_UPDATE);
+        }
+
         public static bool HelperFunctionSetFlag(IServerPlayer player, out CityPlotsGroup searchedGroup, out City city, string groupName, TextCommandResult tcr)
         {
             searchedGroup = null;

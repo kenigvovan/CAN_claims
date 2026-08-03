@@ -22,10 +22,12 @@ using claims.src.perms;
 using claims.src.rights;
 using Newtonsoft.Json;
 using Vintagestory.API.Common;
+using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
+using Vintagestory.GameContent;
 
 namespace claims.src.commands
 {
@@ -53,13 +55,16 @@ namespace claims.src.commands
                 return TextCommandResult.Success("claims:you_dont_have_city");
             }
             City city = playerInfo.City;
-            if (claims.economyProvider.GetBalance(city.MoneyAccountName) < (decimal)claims.config.CITY_NAME_CHANGE_COST)
+            // A village has no treasury to pay from, so renaming it is free.
+            bool paysForRename = !city.IsVillage();
+            if (paysForRename && claims.economyProvider.GetBalance(city.MoneyAccountName) < (decimal)claims.config.CITY_NAME_CHANGE_COST)
             {
                 UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_NAME);
                 return TextCommandResult.Success("claims:not_enough_money");
             }
 
-            if (claims.economyProvider.Withdraw(playerInfo.City.MoneyAccountName, (decimal)claims.config.CITY_NAME_CHANGE_COST) == MoneyOperationResult.Success)
+            if (!paysForRename
+                || claims.economyProvider.Withdraw(playerInfo.City.MoneyAccountName, (decimal)claims.config.CITY_NAME_CHANGE_COST) == MoneyOperationResult.Success)
             {
                 if (city.rename((string)args.LastArg))
                 {
@@ -366,6 +371,86 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Success("claims:only_for_mayor");
             }
+        }
+
+        /// <summary>
+        /// Sets the city's coat of arms from a layer string ("color_red;cross_white"). No argument
+        /// clears it. Layers are validated rather than normalized silently, so a herald who mistypes
+        /// a pattern is told which one instead of watching it vanish from the result.
+        /// </summary>
+        public static TextCommandResult CitySetEmblem(TextCommandCallingArgs args)
+        {
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
+            if (!playerInfo.hasCity())
+            {
+                return TextCommandResult.Success("claims:no_city");
+            }
+
+            string raw = args.LastArg == null ? "" : ((string)args.LastArg).Trim();
+            if (!EmblemHandler.TryParse(raw, out var layers, out string error))
+            {
+                return SuccessWithParams("claims:emblem_invalid", new object[] { error });
+            }
+
+            playerInfo.City.SetEmblem(EmblemHandler.Join(layers));
+            return layers.Count == 0
+                ? TextCommandResult.Success("claims:emblem_cleared")
+                : SuccessWithParams("claims:emblem_was_set_to", new object[] { EmblemHandler.Join(layers) });
+        }
+
+        /// <summary>
+        /// Sets how the boat the player is looking at is shared: with nobody, their city, or the
+        /// city's alliance. Tied to the crosshair rather than a name, so a fleet cannot be re-flagged
+        /// from across the world.
+        /// </summary>
+        public static TextCommandResult CityBoatShare(TextCommandCallingArgs args)
+        {
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
+
+            if (!claims.config.BOAT_SHARE_WITH_CITY)
+            {
+                return TextCommandResult.Success(Lang.Get("claims:boat-sharing-disabled"));
+            }
+            if (!BoatShareModeHelper.TryParse((string)args.LastArg, out BoatShareMode mode))
+            {
+                return TextCommandResult.Success(Lang.Get("claims:wrong_value"));
+            }
+            if (mode == BoatShareMode.ALLIANCE && !claims.config.BOAT_SHARE_WITH_ALLIANCE)
+            {
+                return TextCommandResult.Success(Lang.Get("claims:boat-alliance-sharing-disabled"));
+            }
+
+            Entity boat = player.CurrentEntitySelection?.Entity;
+            if (boat?.GetBehavior<EntityBehaviorOwnable>() == null)
+            {
+                return TextCommandResult.Success(Lang.Get("claims:boat-look-at-one"));
+            }
+
+            var ownedby = boat.WatchedAttributes.GetTreeAttribute("ownedby");
+            if (ownedby == null || ownedby.GetString("uid", "") != player.PlayerUID)
+            {
+                return TextCommandResult.Success(Lang.Get("claims:boat-not-yours"));
+            }
+
+            BoatShareModeHelper.Set(boat, mode);
+            return SuccessWithParams("claims:boat-share-set",
+                new object[] { Lang.Get(BoatShareModeHelper.LangKeyOf(mode)) });
+        }
+
+        // Chooses where the player wants to reappear after death: nearest point of any kind,
+        // the city's temples, or a war camp of an ongoing battle.
+        public static TextCommandResult SetRespawnPreference(TextCommandCallingArgs args)
+        {
+            if (!TryResolveCaller(args, out var player, out _, out var callerErr)) return callerErr;
+
+            if (!RespawnPreference.TryParse((string)args.LastArg, out EnumRespawnPreference preference))
+            {
+                return TextCommandResult.Success(Lang.Get("claims:wrong_value"));
+            }
+
+            RespawnPreference.Write(player, preference);
+            return SuccessWithParams("claims:respawn_pref_set",
+                new object[] { Lang.Get(RespawnPreference.LangKeyOf(preference)) });
         }
     }
 }

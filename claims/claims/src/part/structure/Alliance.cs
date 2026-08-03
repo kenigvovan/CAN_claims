@@ -1,5 +1,6 @@
 ﻿using claims.src.auxialiry;
 using claims.src.delayed.invitations;
+using claims.src.gui.playerGui.structures;
 using claims.src.part;
 using claims.src.part.interfaces;
 using claims.src.part.structure.conflict;
@@ -23,7 +24,15 @@ namespace claims.src.part.structure
         public City MainCity { get; set; }
         public List<IConflictParty> HostileParties { get; set; } = new List<IConflictParty>();
         public List<Alliance> ComradAlliancies { get; set; } = new List<Alliance>();
+        // Announced one-sided union breaks: ally alliance guid -> unix seconds when the break takes effect.
+        // While the entry is pending the union still holds, so war on that ally stays blocked.
+        public Dictionary<string, long> PendingUnionBreaks { get; set; } = new();
+        // Broken unions: former ally alliance guid -> unix seconds when the break took effect.
+        // Feeds the "no war yet" / "no new union yet" cooldowns.
+        public Dictionary<string, long> UnionBreakCooldowns { get; set; } = new();
         public int AllianceFee { get; set; } = 0;
+        // Coat of arms: ';'-separated texture layers, see EmblemHandler. Empty means none yet.
+        public string Emblem { get; set; } = "";
         public long TimeStampCreated { get; set; }
         public bool Neutral { get; set; } = false;
         public HashSet<Conflict> RunningConflicts { get; } = new HashSet<Conflict>();
@@ -63,6 +72,15 @@ namespace claims.src.part.structure
         public override bool saveToDatabase(bool update = true)
         {
             return claims.getModInstance().getDatabaseHandler().saveAlliance(this, update);
+        }
+        /// <summary>Replaces the coat of arms and pushes it to every member city.</summary>
+        public void SetEmblem(string emblem)
+        {
+            Emblem = EmblemHandler.Normalize(emblem);
+            this.saveToDatabase();
+            UsefullPacketsSend.AddToQueueAllianceInfoUpdate(Guid, EnumPlayerRelatedInfo.ALLIANCE_EMBLEM);
+            // Also to everyone else: an alliance's arms fly on the capture flags of its members.
+            UsefullPacketsSend.BroadcastCityEmblems();
         }
         public List<Invitation> GetSentInvitations()
         {
@@ -119,7 +137,7 @@ namespace claims.src.part.structure
                 StringFunctions.makeFeasibleStringFromNames(StringFunctions.getNamesOfCities(Lang.Get("claims:cities"), Cities), ',') + "\n",
             };
             if (claims.economyProvider.SupportsPlayerWallet)
-                outList.Add(Lang.Get("claims:bank_status") + claims.economyProvider.GetBalance(this.MoneyAccountName) + "\n");
+                outList.Add(Lang.Get("claims:bank_status", claims.economyProvider.GetBalance(this.MoneyAccountName)) + "\n");
             if (this.Neutral)
             {
                 outList.Add(Lang.Get("claims:neutral") + "\n");

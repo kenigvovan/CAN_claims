@@ -1,6 +1,8 @@
 ﻿using System;
 using claims.src.auxialiry;
 using claims.src.bb;
+using claims.src.beb;
+using claims.src.messages;
 using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
@@ -8,6 +10,7 @@ using claims.src.part.structure.plots;
 using claims.src.perms;
 using claims.src.perms.type;
 using Vintagestory.API.Common;
+using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 
@@ -119,6 +122,27 @@ namespace claims.src.events
             }
             return false;
         }
+        // True when the broken block is a war camp's anchor. `allowed` says whether this player may
+        // break it (destroying the whole camp): only the owning city (dismantling) and enemies at
+        // war with it (the objective). Allies/comrades and neutrals may not — no camp griefing.
+        public static bool IsBreakingCampAnchor(PlayerInfo playerInfo, Plot plot, BlockPos pos, out bool allowed)
+        {
+            allowed = false;
+            if (plot == null || plot.Type != PlotType.CAMP || !plot.hasCity() || playerInfo == null)
+                return false;
+            if (plot.PlotDesc is not PlotDescCamp campDesc || campDesc.AnchorPos == null)
+                return false;
+            if (pos.X != campDesc.AnchorPos.X || pos.Y != campDesc.AnchorPos.Y || pos.Z != campDesc.AnchorPos.Z)
+                return false;
+
+            City owner = plot.getCity();
+            if (playerInfo.hasCity())
+            {
+                if (owner.Equals(playerInfo.City)) allowed = true;                       // owner dismantling
+                else if (owner.HostileCities.Contains(playerInfo.City)) allowed = true;  // enemy war objective
+            }
+            return true;
+        }
         public static bool canBlockDestroy(IServerPlayer byPlayer, BlockSelection blockSel, out string claimant)
         {
             claims.dataStorage.GetPlayerByUid(byPlayer.PlayerUID, out PlayerInfo playerInfo);
@@ -136,6 +160,33 @@ namespace claims.src.events
             if (IsDefenderBreakingEnemyFlag(byPlayer, playerInfo, plot, blockSel.Position))
             {
                 return true;
+            }
+            if (IsBreakingCampAnchor(playerInfo, plot, blockSel.Position, out bool campBreakAllowed))
+            {
+                if (!campBreakAllowed) return false;
+                // The anchor is "reinforced": each break attempt is absorbed until the counter
+                // runs out; only the last break destroys the camp (mirrors the capture flag).
+                if (plot.PlotDesc is PlotDescCamp campDesc && campDesc.BreaksLeft > 1)
+                {
+                    // Notify the owner side on the first hit.
+                    if (campDesc.BreaksLeft == claims.config.WAR_CAMP_ANCHOR_BREAKS && plot.hasCity())
+                        MessageHandler.sendMsgInCity(plot.getCity(), Lang.Get("claims:camp_under_attack"));
+                    campDesc.BreaksLeft--;
+                    plot.saveToDatabase();
+                    if (claims.sapi.World.BlockAccessor.GetBlockEntity(blockSel.Position) is BlockEntityCampAnchor anchorBe)
+                    {
+                        anchorBe.BreaksLeft = campDesc.BreaksLeft;
+                        anchorBe.MarkDirty(true);
+                    }
+                    MessageHandler.sendMsgToPlayer(byPlayer, Lang.Get("claims:camp_anchor_reinforced", campDesc.BreaksLeft));
+                    return false;
+                }
+                PartDemolition.DemolishCamp(plot);
+                return true;
+            }
+            if (VillageBlockRules.TryHandleAnchorHit(byPlayer, playerInfo, plot, blockSel.Position, out bool anchorBreaks))
+            {
+                return anchorBreaks;
             }
             PlotPosition currentPosPlayer = PlotPosition.fromBlockPos(blockSel.Position);
             if (currentPosPlayer.Equals(playerInfo.PlayerCache.getLastLocation()))
@@ -303,9 +354,16 @@ namespace claims.src.events
             
             return PlotRelation.STRANGER;
         }
-        private static bool EvalPermission(PlayerInfo playerInfo, Plot plot, PermType permType, bool updateCache, Func<bool> tavernFallback = null)
+        private static bool EvalPermission(PlayerInfo playerInfo, Plot plot, PermType permType, bool updateCache,
+            Func<bool> tavernFallback = null)
         {
             bool b;
+            if ((permType == PermType.BUILD_AND_DESTROY_PERM || permType == PermType.USE_PERM)
+                && VillageBlockRules.IsUnderRaidFor(playerInfo, plot))
+            {
+                if (updateCache) playerInfo.PlayerCache.getCache()[(int)permType] = true;
+                return true;
+            }
             switch (getPlotRelationForPlayerInfo(playerInfo, plot.plotPosition, plot))
             {
                 case PlotRelation.PLOT_OWNER:
@@ -313,7 +371,9 @@ namespace claims.src.events
                     if (updateCache) playerInfo.PlayerCache.getCache()[(int)permType] = true;
                     return true;
                 case PlotRelation.CITIZEN:
-                    b = plot.getPermsHandler().getPerm(PermGroup.CITIZEN, permType);
+                    // Every fighter of the owning side may build/dig freely on their war camp.
+                    b = (plot.Type == PlotType.CAMP && permType == PermType.BUILD_AND_DESTROY_PERM)
+                        || plot.getPermsHandler().getPerm(PermGroup.CITIZEN, permType);
                     break;
                 case PlotRelation.STRANGER:
                     b = plot.getPermsHandler().getPerm(PermGroup.STRANGER, permType);
@@ -325,11 +385,16 @@ namespace claims.src.events
                     b = plot.getPermsHandler().getPerm(PermGroup.COMRADE, permType);
                     break;
                 case PlotRelation.FOE:
-                    b = plot.BorderPlot && IsActiveWarOnPlot(playerInfo, plot);
+                    // Enemy war camps are always attackable; everything else follows WAR_DESTRUCTION_SCOPE.
+                    b = plot.Type == PlotType.CAMP
+                        ? IsActiveWarOnPlot(playerInfo, plot)
+                        : IsPlotInWarDestructionScope(playerInfo, plot);
                     if (updateCache) playerInfo.PlayerCache.getCache()[(int)permType] = b;
                     return b;
                 case PlotRelation.ALLY:
-                    b = plot.getPermsHandler().getPerm(PermGroup.ALLY, permType);
+                    // Allied fighters may also build/dig on the war camp.
+                    b = (plot.Type == PlotType.CAMP && permType == PermType.BUILD_AND_DESTROY_PERM)
+                        || plot.getPermsHandler().getPerm(PermGroup.ALLY, permType);
                     break;
                 default:
                     return false;
@@ -364,11 +429,89 @@ namespace claims.src.events
         // Handles all combinations: alliance vs alliance, city vs city, city vs alliance.
         private static bool IsActiveWarOnPlot(PlayerInfo playerInfo, Plot plot)
         {
+            return TryGetActiveWarOnPlot(playerInfo, plot, out _);
+        }
+        private static bool TryGetActiveWarOnPlot(PlayerInfo playerInfo, Plot plot, out Conflict conflict)
+        {
+            conflict = null;
             if (!playerInfo.hasCity() || !plot.hasCity()) return false;
             IConflictParty playerParty = playerInfo.HasAlliance() ? (IConflictParty)playerInfo.Alliance : playerInfo.City;
             IConflictParty plotParty   = plot.getCity().HasAlliance() ? (IConflictParty)plot.getCity().Alliance : plot.getCity();
-            return ConflictHandler.TryGetConflictWithSides(playerParty, plotParty, out Conflict conflict) && conflict.ActiveWarTime;
+            return ConflictHandler.TryGetConflictWithSides(playerParty, plotParty, out conflict) && conflict.ActiveWarTime;
         }
+
+        /// <summary>
+        /// Whether an enemy fighter may build/destroy on this plot, according to
+        /// WAR_DESTRUCTION_SCOPE. Enemy war camps are always fair game (handled by the caller).
+        /// </summary>
+        private static bool IsPlotInWarDestructionScope(PlayerInfo playerInfo, Plot plot)
+        {
+            if (!TryGetActiveWarOnPlot(playerInfo, plot, out Conflict conflict)) return false;
+
+            switch (claims.config.WAR_DESTRUCTION_SCOPE)
+            {
+                case Config.WAR_DESTRUCTION.ALL_PLOTS:
+                    return true;
+
+                case Config.WAR_DESTRUCTION.BORDER_PLOTS:
+                    return plot.BorderPlot;
+
+                case Config.WAR_DESTRUCTION.BORDER_WITH_OTHER_CITY:
+                    return TouchesOtherCity(plot);
+
+                case Config.WAR_DESTRUCTION.FLAG_PLOTS:
+                    return HasCaptureFlag(conflict, plot.plotPosition, includeNeighbours: false);
+
+                case Config.WAR_DESTRUCTION.FLAG_PLOTS_AND_NEIGHBOURS:
+                    return HasCaptureFlag(conflict, plot.plotPosition, includeNeighbours: true);
+
+                default:
+                    return plot.BorderPlot;
+            }
+        }
+
+        private static bool TouchesOtherCity(Plot plot)
+        {
+            City ownCity = plot.getCity();
+            if (ownCity == null) return false;
+
+            PlotPosition posTmp = new PlotPosition(0, 0);
+            for (int i = -1; i <= 1; i++)
+            {
+                for (int j = -1; j <= 1; j++)
+                {
+                    if (Math.Abs(i) + Math.Abs(j) != 1) continue;
+                    posTmp.X = plot.plotPosition.X + i;
+                    posTmp.Z = plot.plotPosition.Z + j;
+                    if (!claims.dataStorage.GetPlot(posTmp, out var nearPlot)) continue;
+
+                    City nearCity = nearPlot.getCity();
+                    if (nearCity != null && !nearCity.Equals(ownCity)) return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool HasCaptureFlag(Conflict conflict, PlotPosition plotPos, bool includeNeighbours)
+        {
+            if (!claims.dataStorage.WarsTimes.TryGetValue(conflict.Guid, out var warTime)) return false;
+            if (warTime.PlotAttacks.ContainsKey(plotPos)) return true;
+            if (!includeNeighbours) return false;
+
+            PlotPosition posTmp = new PlotPosition(0, 0);
+            for (int i = -1; i <= 1; i++)
+            {
+                for (int j = -1; j <= 1; j++)
+                {
+                    if (Math.Abs(i) + Math.Abs(j) != 1) continue;
+                    posTmp.X = plotPos.X + i;
+                    posTmp.Z = plotPos.Z + j;
+                    if (warTime.PlotAttacks.ContainsKey(posTmp)) return true;
+                }
+            }
+            return false;
+        }
+
         public static void InitPlayerCache(IServerPlayer byPlayer)
         {
             if (byPlayer.Entity == null) return;

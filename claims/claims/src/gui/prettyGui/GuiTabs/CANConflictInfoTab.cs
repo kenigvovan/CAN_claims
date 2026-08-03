@@ -182,10 +182,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
             {
                 return;
             }
-            string firstTypeLabel = cell.FirstPartyType == WarTargetType.Alliance
-                ? Lang.Get("claims:conflict_target_alliance") : Lang.Get("claims:conflict_target_city");
-            string secondTypeLabel = cell.SecondPartyType == WarTargetType.Alliance
-                ? Lang.Get("claims:conflict_target_alliance") : Lang.Get("claims:conflict_target_city");
+            string firstTypeLabel = WarTargetTypeHelper.LangLabel(cell.FirstPartyType);
+            string secondTypeLabel = WarTargetTypeHelper.LangLabel(cell.SecondPartyType);
 
             // --- Title: party names with colors, centered ---
             string midText = $" ({firstTypeLabel})  vs   ({secondTypeLabel})";
@@ -239,6 +237,15 @@ namespace claims.src.gui.prettyGui.GuiTabs
             {
                 ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 160);
                 ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
+
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                Label(Lang.Get("claims:gui_conflict_info_war_score"));
+                ImGui.TableNextColumn();
+                ImGui.PushStyleColor(ImGuiCol.Text, ColValue);
+                ImGui.Text(cell.FirstPartyName + "  " + cell.FirstScore + "  :  " + cell.SecondScore + "  " + cell.SecondPartyName
+                    + "   (" + Lang.Get("claims:gui_conflict_info_to_win", claims.config.WAR_SCORE_TO_WIN) + ")");
+                ImGui.PopStyleColor();
 
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();

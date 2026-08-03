@@ -86,9 +86,23 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:no_city_here");
             }
+            // Villages are outside the economy: the coins would land on a treasury nobody can
+            // ever spend, so their plots are not for sale.
+            if (plot.getCity().IsVillage())
+            {
+                return TextCommandResult.Error("claims:village_feature_locked");
+            }
             if (plot.hasCityPlotsGroup())
             {
                 return TextCommandResult.Error("claims:has_plot_group");
+            }
+            // Cities that already bid on this ground are owed the auction they were promised. Without
+            // this the mayor could break any losing auction by selling the plot to a citizen of their
+            // own - which is exactly what withdrawing a lot with bids on it is forbidden to do.
+            if (part.structure.plots.auction.AuctionRegistry.TryGetRunningFor(plot, out var bidLot)
+                && bidLot.HasBid)
+            {
+                return TextCommandResult.Error("claims:plot_auction_has_bids");
             }
             if (plot.Price > (double)claims.economyProvider.GetBalance(playerInfo.Guid))
             {
@@ -108,6 +122,14 @@ namespace claims.src.commands
                 if (paymentSuccessfull)
                 {
                     plot.Price = -1;
+                    // The plot now belongs to a citizen, so any standing offer to other cities is
+                    // void - it would otherwise sit in the market tab refusing every buyer.
+                    if (part.structure.plots.auction.AuctionRegistry.TryGetRunningFor(plot,
+                            out part.structure.plots.auction.PlotAuction cityLot))
+                    {
+                        part.structure.plots.auction.AuctionHandler.CancelLot(cityLot,
+                            "claims:plot_auction_cancelled_lot_gone");
+                    }
                     plot.lastPaidPrice = (long)savedPrice;
                     plot.TimeStampClaimed = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                     plot.getPermsHandler().setPerm(playerInfo.PermsHandler);
@@ -383,6 +405,13 @@ namespace claims.src.commands
                 if (!playerInfo.hasCity() || !playerInfo.City.Equals(plotHere.getCity()))
                 {
                     return TextCommandResult.Success("claims:not_your_city");
+                }
+                // Retyping the plot - into a war camp, say - would make it unsellable and void the
+                // auction when it closes. Cities that bid are owed the lot they bid on.
+                if (part.structure.plots.auction.AuctionRegistry.TryGetRunningFor(plotHere, out var typeLot)
+                    && typeLot.HasBid)
+                {
+                    return TextCommandResult.Error("claims:plot_auction_has_bids");
                 }
                 TextCommandResult tcr = new();
                 tcr.Status = EnumCommandStatus.Success;

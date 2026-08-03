@@ -1,0 +1,20 @@
+{
+    "code": "villageanchor",
+    "entityClass": "VillageAnchor",
+    "attributes": {
+        "canChisel": false,
+        "reinforcable": false
+    },
+    "shape": { "base": "block/basic/cube" },
+    "textures": {
+        "all": { "base": "game:block/stone/rock/obsidian1" }
+    },
+    "creativeinventory": {
+        "general": [ "" ],
+        "Claims": [ "*" ]
+    },
+    "maxstacksize": 16,
+    "blockmaterial": "stone",
+    "resistance": 10,
+    "drops": []
+}

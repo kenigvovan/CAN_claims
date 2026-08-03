@@ -1,6 +1,7 @@
 ﻿using claims.src.auxialiry;
 using claims.src.gui.playerGui.structures.cellElements;
 using claims.src.part.structure.conflict;
+using claims.src.part.structure.union;
 using ImGuiNET;
 using System.Collections.Generic;
 using System.Linq;
@@ -37,7 +38,13 @@ namespace claims.src.gui.prettyGui.GuiTabs
 
                 string cellName = string.Format("{0} x {1}", letter.From, letter.To);
                 ImGui.Text(cellName);
-                
+
+                // Accepting a Dissolve letter ends the union - never let it read like a union offer.
+                bool dissolve = letter.Purpose == UnionLetterPurpose.Dissolve;
+                ImGui.PushStyleColor(ImGuiCol.Text, dissolve ? ColWarning : ColValue);
+                ImGui.Text(Lang.Get(dissolve ? "claims:gui_union_letter_dissolve" : "claims:gui_union_letter_form"));
+                ImGui.PopStyleColor();
+
                 string expDate = TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(letter.TimeStampExpire, true);
                 ImGui.Text(expDate);
                 
@@ -45,9 +52,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 {
                     if (GreenIconButton("acceptunion", "check-mark", 16))
                     {
-                        ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-
-                        clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/a union accept " + letter.From, EnumChatType.Macro, "");
+                        SendCommand("/a union accept " + letter.From);
 
                         var cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientUnionLetterCellElements.FirstOrDefault(c => c.From == letter.From);
                         if (cell != null)
@@ -65,8 +70,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                     {
                         targetName = letter.To;
                     }
-                    ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                    clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/a union decline " + letter.To, EnumChatType.Macro, "");
+                    SendCommand("/a union decline " + letter.To);
                     var cell = claims.clientDataStorage.clientPlayerInfo.CityInfo.ClientUnionLetterCellElements.FirstOrDefault(c => c.Guid == letter.Guid);
                     if (cell != null)
                     {

@@ -4,7 +4,6 @@ using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.Client.NoObf;
-using static claims.src.gui.playerGui.CANClaimsGui;
 
 namespace claims.src.gui.prettyGui.GuiSecondaryTabs
 {
@@ -30,8 +29,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
 
             if(ImGui.Button(Lang.Get("claims:gui-invite-button")))
             {
-                ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/city invite " + GuiSys.textInput, EnumChatType.Macro, "");
+                SendCommand("/city invite " + GuiSys.textInput);
                 GuiSys.textInput = "";
                 GuiSys.secondaryWindowTab = EnumSecondaryWindowTab.NONE;
             }

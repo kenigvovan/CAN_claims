@@ -1,276 +1,155 @@
-﻿using System;
 using Cairo;
 using claims.src.auxialiry;
 using claims.src.gui.playerGui.structures.cellElements;
+using claims.src.part.structure.conflict;
+using claims.src.part.structure.war;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
-using Vintagestory.API.MathTools;
 
 namespace claims.src.gui.playerGui.GuiElements
 {
-    public class GuiElementConflictCell : GuiElementTextBase, IGuiElementCell, IDisposable
+    /// <summary>
+    /// An ongoing conflict: who is fighting whom, since when, the score, and whether a battle is
+    /// running right now. One button offers peace, the other opens the details.
+    /// </summary>
+    public class GuiElementConflictCell : CANGuiElementCellBase
     {
-        public enum HighlightedTexture
-        {
-            FIRST, SECOND, THIRD
-        }
-        public static double unscaledRightBoxWidth = 40.0;
+        private const double ButtonSize = 32;
+        private const double EdgePadding = 12;
 
         public ClientConflictCellElement cell;
 
-        private bool showModifyIcons = true;
+        private readonly double cellHeight;
 
-        public bool On;
+        protected override double MinCellHeight => cellHeight;
 
-        internal int leftHighlightTextureId;
+        /// <summary>Both actions are on buttons now, so the row itself is not a click target.</summary>
+        protected override bool UseHoverHighlights => false;
 
-        internal int middleHighlightTextureId;
+        private static readonly double[] LabelColor = new double[] { 0.70, 0.70, 0.70, 1.0 };
+        private static readonly double[] BattleColor = new double[] { 0.95, 0.25, 0.25, 1.0 };
 
-        internal int rightHighlightTextureId;
+        /// <summary>Edge of a side's arms, and the room the column of two takes from the text.</summary>
+        private const double EmblemSize = 24;
+        private const double EmblemColumn = EmblemSize + 8;
 
-        internal int switchOnTextureId;
-
-        internal double unscaledSwitchPadding = 4.0;
-
-        internal double unscaledSwitchSize = 25.0;
-
-        private LoadedTexture modcellTexture;
-
-        private IAsset cancelIcon;
-        private IAsset approveIcon;
-
-        private ICoreClientAPI capi;
-
-        public Action<int> OnMouseDownOnCellLeft;
-        public Action<int> OnMouseDownOnCellMiddle;
-        public Action<int> OnMouseDownOnCellRight;
-
-        private IAsset dove;
-        private IAsset sword;
-        private LoadedTexture normalTexture;
-
-        ElementBounds IGuiElementCell.Bounds => Bounds;
+        /// <summary>Where the text starts - moved right when the row shows the sides' arms.</summary>
+        private readonly double textX;
 
         public GuiElementConflictCell(ICoreClientAPI capi, ClientConflictCellElement cell, ElementBounds bounds)
-            : base(capi, "", null, bounds)
+            : base(capi, bounds)
         {
             this.cell = cell;
-            this.Font = CairoFont.WhiteSmallishText();
-            modcellTexture = new LoadedTexture(capi);
 
-            this.cancelIcon = capi.Assets.Get(new AssetLocation("claims:textures/icons/cancel.svg"));
-            this.approveIcon = capi.Assets.Get(new AssetLocation("claims:textures/icons/check-mark.svg"));
+            double cellWidth = Bounds.fixedWidth > 0 ? Bounds.fixedWidth : 430;
 
+            // Arms of both sides, stacked at the left edge in name order. The column only appears
+            // when at least one side has arms, so other rows keep their full width.
+            string firstEmblem = claims.clientDataStorage?.ClientGetEmblem(cell.FirstPartyGuid) ?? "";
+            string secondEmblem = claims.clientDataStorage?.ClientGetEmblem(cell.SecondPartyGuid) ?? "";
+            bool anyEmblem = firstEmblem.Length > 0 || secondEmblem.Length > 0;
+            textX = EdgePadding + (anyEmblem ? EmblemColumn : 0);
 
-            this.dove = capi.Assets.Get(new AssetLocation("claims:textures/icons/peace-dove.svg"));
-            //this.sword = capi.Assets.Get(new AssetLocation("claims:sword-brandish.svg"));
+            double textWidth = cellWidth - ButtonSize * 2 - EdgePadding * 3 - 8 - (anyEmblem ? EmblemColumn : 0);
+            if (textWidth < 120) textWidth = 120;
 
-            this.capi = capi;
-            normalTexture = new LoadedTexture(capi);
+            double y = 8;
+
+            // Party types matter: a war against a city is not a war against its whole alliance.
+            y = AddLine(capi, Lang.Get("claims:gui_conflict_cell_first_line",
+                    cell.FirstPartyName + " (" + WarTargetTypeHelper.LangLabel(cell.FirstPartyType) + ")",
+                    cell.SecondPartyName + " (" + WarTargetTypeHelper.LangLabel(cell.SecondPartyType) + ")"),
+                CairoFont.WhiteMediumText().WithFontSize(17), textWidth, y, 22);
+
+            y = AddLine(capi, Lang.Get("claims:gui_conflict_cell_started_line",
+                    TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(cell.TimeStampCreated, true)),
+                CairoFont.WhiteDetailText().WithColor(LabelColor), textWidth, y, 19);
+
+            y = AddLine(capi, Lang.Get("claims:gui_conflict_cell_score_line", cell.FirstScore, cell.SecondScore),
+                CairoFont.WhiteDetailText(), textWidth, y, 19);
+
+            if (cell.ActiveWarTime)
+            {
+                y = AddLine(capi, Lang.Get("claims:gui_battle_active"),
+                    CairoFont.WhiteDetailText().WithColor(BattleColor), textWidth, y, 19);
+            }
+
+            cellHeight = y + 12;
+            if (cellHeight < 74) cellHeight = 74;
+            Bounds.fixedHeight = cellHeight;
+
+            if (anyEmblem)
+            {
+                AddEmblem(capi, firstEmblem, 8);
+                AddEmblem(capi, secondEmblem, 8 + EmblemSize + 4);
+            }
+
+            AddButtons(capi, cellWidth);
         }
 
-        private void Compose()
+        /// <summary>One side's arms at the given height, or an empty slot when that side has none.</summary>
+        private void AddEmblem(ICoreClientAPI capi, string emblem, double y)
         {
-            ComposeHover(HighlightedTexture.FIRST, ref leftHighlightTextureId);
-            ComposeHover(HighlightedTexture.SECOND, ref middleHighlightTextureId);
-            ComposeHover(HighlightedTexture.THIRD, ref rightHighlightTextureId);
-            genOnTexture();
-            ImageSurface imageSurface = new ImageSurface(Format.Argb32, Bounds.OuterWidthInt, Bounds.OuterHeightInt);
-            Context context = new Context(imageSurface);
-            double num = GuiElement.scaled(unscaledRightBoxWidth);
-            Bounds.CalcWorldBounds();
+            if (emblem.Length == 0) return;
 
-            string cellName = Lang.Get("claims:gui_conflict_cell_first_line", cell.FirstPartyName, cell.SecondPartyName);
-            TextExtents textExtents = Font.GetTextExtents(cellName);
-            textUtil.AutobreakAndDrawMultilineTextAt(context, Font, cellName, Bounds.absPaddingX, Bounds.absPaddingY + GuiElement.scaled(10), textExtents.Width + 1.0, EnumTextOrientation.Left);
-            string expDate = Lang.Get("claims:gui_conflict_cell_started_line", TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(cell.TimeStampCreated, true));
-            textExtents = Font.GetTextExtents(expDate);
-            textUtil.AutobreakAndDrawMultilineTextAt(context, CairoFont.WhiteDetailText(), expDate, Bounds.absPaddingX, Bounds.absPaddingY + GuiElement.scaled(36), textExtents.Width + 1.0, EnumTextOrientation.Left);
-
-            //make border as button
-            EmbossRoundRectangleElement(context, 0.0, 0.0, Bounds.OuterWidth, Bounds.OuterHeight, inverse: false, (int)GuiElement.scaled(4.0), 0);
-
-            double num5 = GuiElement.scaled(unscaledSwitchSize);
-            double num6 = GuiElement.scaled(unscaledSwitchPadding);
-            double num7 = Bounds.absPaddingX + Bounds.InnerWidth - GuiElement.scaled(0.0) - num5 - num6;
-            double num8 = Bounds.absPaddingY + Bounds.absPaddingY;
-
-            capi.Gui.DrawSvg(cancelIcon, imageSurface, (int)(num7 - GuiElement.scaled(3.0)),
-                                                            (int)(num8 + GuiElement.scaled(15.0)),
-                                                            (int)GuiElement.scaled(30.0),
-                                                            (int)GuiElement.scaled(30.0),
-                                                            ColorUtil.ColorFromRgba(255, 128, 0, 255));
-            if (claims.clientDataStorage.clientPlayerInfo.AllianceInfo?.Guid?.Equals(this.cell.Guid) ?? false)
-            {
-                capi.Gui.DrawSvg(approveIcon, imageSurface,
-                (int)(num7 - GuiElement.scaled(unscaledRightBoxWidth) - GuiElement.scaled(10.0)),
-                (int)(num8 + GuiElement.scaled(15.0)),
-                (int)GuiElement.scaled(30.0),
-                (int)GuiElement.scaled(30.0),
-                ColorUtil.ColorFromRgba(0, 153, 0, 255));
-            }
-
-
-            generateTexture(imageSurface, ref modcellTexture);
-
-            context.Dispose();
-            imageSurface.Dispose();
-
-            ImageSurface imageSurface2 = new ImageSurface(Format.Argb32, Bounds.OuterWidthInt, Bounds.OuterHeightInt);
-            Context context2 = new Context(imageSurface2);
-            Bounds.CalcWorldBounds();
-            generateTexture(imageSurface2, ref normalTexture);
-            context2.Dispose();
-            imageSurface2.Dispose();
+            var emblemBounds = ElementBounds.Fixed(EdgePadding, y, EmblemSize, EmblemSize).WithParent(Bounds);
+            children.Add(new GuiElementEmblem(capi, emblemBounds, emblem, drawPlaceholder: false, surfaceOrigin: Bounds));
         }
 
-        private void genOnTexture()
+        private double AddLine(ICoreClientAPI capi, string text, CairoFont font, double width, double y, double height)
         {
-            double num = GuiElement.scaled(unscaledSwitchSize - 2.0 * unscaledSwitchPadding);
-            ImageSurface imageSurface = new ImageSurface(Format.Argb32, (int)num, (int)num);
-            Context context = genContext(imageSurface);
-            GuiElement.RoundRectangle(context, 0.0, 0.0, num, num, 2.0);
-            GuiElement.fillWithPattern(api, context, GuiElement.waterTextureName);
-            generateTexture(imageSurface, ref switchOnTextureId);
-            context.Dispose();
-            imageSurface.Dispose();
+            var lineBounds = ElementBounds.Fixed(textX, y, width, height).WithParent(Bounds);
+            richTexts.Add(new GuiElementRichtext(capi, VtmlUtil.Richtextify(capi, text, font), lineBounds));
+            return y + height;
         }
 
-        private void ComposeHover(HighlightedTexture highlightedTexutre, ref int textureId)
+        private void AddButtons(ICoreClientAPI capi, double cellWidth)
         {
-            ImageSurface imageSurface = new ImageSurface(Format.Argb32, (int)Bounds.OuterWidth, (int)Bounds.OuterHeight);
-            Context context = genContext(imageSurface);
-            double num = GuiElement.scaled(unscaledRightBoxWidth);
-            if (highlightedTexutre == HighlightedTexture.FIRST)
-            {
-                context.NewPath();
-                context.LineTo(0.0, 0.0);
-                context.LineTo(Bounds.InnerWidth - num * 2, 0.0);
-                context.LineTo(Bounds.InnerWidth - num * 2, Bounds.OuterHeight);
-                context.LineTo(0.0, Bounds.OuterHeight);
-                context.ClosePath();
-            }
-            else if (highlightedTexutre == HighlightedTexture.SECOND)
-            {
-                context.NewPath();
-                context.LineTo(Bounds.InnerWidth - num * 2, 0);
-                context.LineTo(Bounds.InnerWidth - num, 0);
-                context.LineTo(Bounds.InnerWidth - num, Bounds.OuterHeight);
-                context.LineTo(Bounds.InnerWidth - num * 2, Bounds.OuterHeight);
-                context.ClosePath();
-            }
-            else
-            {
-                context.NewPath();
-                context.LineTo(Bounds.InnerWidth - num, 0.0);
-                context.LineTo(Bounds.OuterWidth, 0.0);
-                context.LineTo(Bounds.OuterWidth, Bounds.OuterHeight);
-                context.LineTo(Bounds.InnerWidth - num, Bounds.OuterHeight);
-                context.ClosePath();
-            }
+            var font = CairoFont.WhiteDetailText();
+            double buttonY = (cellHeight - ButtonSize) / 2;
 
-            context.SetSourceRGBA(0.0, 0.0, 0.0, 0.15);
-            context.Fill();
-            generateTexture(imageSurface, ref textureId);
-            context.Dispose();
-            imageSurface.Dispose();
-        }
-
-        public void UpdateCellHeight()
-        {
-            Bounds.CalcWorldBounds();
-            if (showModifyIcons && Bounds.fixedHeight < 73.0)
+            var infoBounds = ElementBounds
+                .Fixed(cellWidth - EdgePadding - ButtonSize, buttonY, ButtonSize, ButtonSize)
+                .WithParent(Bounds);
+            children.Add(new GuiElementToggleButton(capi, "claims:info", "", font, (bool t) =>
             {
-                Bounds.fixedHeight = 73.0;
-            }
-        }
-
-        public void OnRenderInteractiveElements(ICoreClientAPI api, float deltaTime)
-        {
-            if (modcellTexture.TextureId == 0)
-            {
-                Compose();
-            }
-
-            ElementBounds imageBounds = ElementBounds.Fixed(Bounds.absX + 10, Bounds.absY + 10, 32, 32);
-            //imageBounds.CalcWorldBounds();
-
-
-            api.Render.Render2DTexturePremultipliedAlpha(
-                normalTexture.TextureId,
-                this.Bounds.renderX / 1.5, this.Bounds.renderY / 1.05
-                , (double)this.Bounds.OuterWidthInt, (double)this.Bounds.OuterHeightInt
-            );
-
-            api.Render.Render2DTexturePremultipliedAlpha(modcellTexture.TextureId, (int)Bounds.absX, (int)Bounds.absY, Bounds.OuterWidthInt, Bounds.OuterHeightInt);
-            int mouseX = api.Input.MouseX;
-            int mouseY = api.Input.MouseY;
-            Vec2d vec2d = Bounds.PositionInside(mouseX, mouseY);
-            if (vec2d != null)
-            {
-                if (vec2d.X > (Bounds.InnerWidth - GuiElement.scaled(GuiElementMainMenuCell.unscaledRightBoxWidth) * 2)
-                    && vec2d.X < (Bounds.InnerWidth - GuiElement.scaled(GuiElementMainMenuCell.unscaledRightBoxWidth)))
-                {
-                    api.Render.Render2DTexturePremultipliedAlpha(middleHighlightTextureId, (int)Bounds.absX, (int)Bounds.absY, Bounds.OuterWidth, Bounds.OuterHeight);
-                }
-                else
-                if (vec2d.X > Bounds.InnerWidth - GuiElement.scaled(GuiElementMainMenuCell.unscaledRightBoxWidth))
-                {
-                    api.Render.Render2DTexturePremultipliedAlpha(rightHighlightTextureId, (int)Bounds.absX, (int)Bounds.absY, Bounds.OuterWidth, Bounds.OuterHeight);
-                }
-                else
-                {
-                    api.Render.Render2DTexturePremultipliedAlpha(leftHighlightTextureId, (int)Bounds.absX, (int)Bounds.absY, Bounds.OuterWidth, Bounds.OuterHeight);
-                }
-            }
-        }
-
-        public override void Dispose()
-        {
-            base.Dispose();
-            modcellTexture?.Dispose();
-            api.Render.GLDeleteTexture(leftHighlightTextureId);
-            api.Render.GLDeleteTexture(middleHighlightTextureId);
-            api.Render.GLDeleteTexture(rightHighlightTextureId);
-            api.Render.GLDeleteTexture(switchOnTextureId);
-            api.Render.GLDeleteTexture(normalTexture.TextureId);
-            normalTexture?.Dispose();
-        }
-
-        public void OnMouseUpOnElement(MouseEvent args, int elementIndex)
-        {
-            int mouseX = api.Input.MouseX;
-            int mouseY = api.Input.MouseY;
-            Vec2d vec2d = Bounds.PositionInside(mouseX, mouseY);
-            api.Gui.PlaySound("menubutton_press");
-            if (vec2d.X > Bounds.InnerWidth - GuiElement.scaled(GuiElementMainMenuCell.unscaledRightBoxWidth) * 2 &&
-                    vec2d.X < Bounds.InnerWidth - GuiElement.scaled(GuiElementMainMenuCell.unscaledRightBoxWidth))
-            {
-                args.Handled = true;
-            }
-            else if (vec2d.X > Bounds.InnerWidth - GuiElement.scaled(GuiElementMainMenuCell.unscaledRightBoxWidth))
-            {
-                claims.CANCityGui.CreateNewCityState = CANClaimsGui.EnumUpperWindowSelectedState.ALLIANCE_SEND_PEACE_OFFER_CONFIRM;
-                claims.CANCityGui.selectedString = cell.Guid;
-                string targetAlliance = cell.FirstPartyName.Equals(claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Name) ? cell.SecondPartyName : cell.FirstPartyName;
-                claims.CANCityGui.secondSelectedString = targetAlliance;
-                claims.CANCityGui.BuildUpperWindow();                
-            }
-            else
-            {
-                args.Handled = true;
-                claims.CANCityGui.selectedString = cell.Guid;
-                claims.CANCityGui.SelectedTab = CANClaimsGui.EnumSelectedTab.ConflictInfoPage;
+                if (!t) return;
+                claims.CANCityGui.State.DialogArgs.Selected = this.cell.Guid;
+                claims.CANCityGui.State.SelectedTab = EnumSelectedTab.ConflictInfoPage;
                 claims.CANCityGui.BuildMainWindow();
-            }
+            }, infoBounds));
+            AddTooltip(infoBounds, Lang.Get("claims:gui_conflict_info_btn"));
+
+            var peaceBounds = ElementBounds
+                .Fixed(cellWidth - EdgePadding - ButtonSize * 2 - 8, buttonY, ButtonSize, ButtonSize)
+                .WithParent(Bounds);
+            children.Add(new GuiElementToggleButton(capi, "claims:peace-dove", "", font, (bool t) =>
+            {
+                if (t) OfferPeace();
+            }, peaceBounds));
+            AddTooltip(peaceBounds, Lang.Get("claims:gui_conflict_peace_offer_btn"));
         }
 
-        public void OnMouseMoveOnElement(MouseEvent args, int elementIndex)
+        private void OfferPeace()
         {
+            // An independent city fights under its own name, so an alliance must not be assumed here.
+            var info = claims.clientDataStorage.clientPlayerInfo;
+            string ourName = info.AllianceInfo?.Name ?? info.CityInfo?.Name ?? "";
+
+            string target = cell.FirstPartyName.Equals(ourName)
+                ? cell.SecondPartyName
+                : cell.FirstPartyName;
+
+            claims.CANCityGui.OpenDialog(EnumUpperWindowSelectedState.ALLIANCE_SEND_PEACE_OFFER_CONFIRM, args =>
+            {
+                args.Selected = this.cell.Guid;
+                args.SelectedSecond = target;
+            });
         }
 
-        public void OnMouseDownOnElement(MouseEvent args, int elementIndex)
+        /// <summary>Everything visible is drawn by the base from richTexts and children.</summary>
+        protected override void ComposeContent(Context ctx, ImageSurface surface)
         {
         }
     }

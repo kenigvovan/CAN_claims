@@ -145,7 +145,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
             ImGui.SetWindowFontScale(1.0f);
             ImGui.PopStyleColor();
 
-            GuiSys.AdminCityFlags.TryGetValue(_selectedCityName, out AdminCityFlagsItem flags);
+            network.packets.AdminClientState.CityFlags.TryGetValue(_selectedCityName, out AdminCityFlagsItem flags);
             if (flags != null)
             {
                 ImGui.PushStyleColor(ImGuiCol.Text, ColHint);
@@ -331,8 +331,7 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.SetTooltip(tooltip);
         }
 
-        private void Send(string cmd) =>
-            ((claims.capi.World as ClientMain).eventManager)
-                .TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, cmd, EnumChatType.Macro, "");
+        // Kept as a local alias so the many call sites below stay short; the real work is in ClientChat.
+        private static void Send(string cmd) => SendCommand(cmd);
     }
 }

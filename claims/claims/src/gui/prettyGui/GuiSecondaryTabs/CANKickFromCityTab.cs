@@ -5,7 +5,6 @@ using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.Client.NoObf;
-using static claims.src.gui.playerGui.CANClaimsGui;
 
 namespace claims.src.gui.prettyGui.GuiSecondaryTabs
 {
@@ -36,8 +35,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
                 if (claims.clientDataStorage.clientPlayerInfo.CityInfo.PlayersNames.Count > GuiSys.selectedComboFirst)
                 {
                     string playerName = claims.clientDataStorage.clientPlayerInfo.CityInfo.PlayersNames[GuiSys.selectedComboFirst];
-                    ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                    clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, "/city kick " + playerName, EnumChatType.Macro, "");
+                    SendCommand("/city kick " + playerName);
                     // Optimistic local update
                     if (claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.CITY_KICK))
                     {

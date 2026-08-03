@@ -35,8 +35,7 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             
             if(ImGui.Button((Lang.Get(ButtonString))))
             {
-                ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, CommandCallOnClick + GuiSys.intInput.ToString(), EnumChatType.Macro, "");
+                SendCommand(CommandCallOnClick + GuiSys.intInput.ToString());
                 // Optimistic local update for plot price
                 if (CommandCallOnClick.StartsWith("/plot fs ")
                     && (claims.clientDataStorage.clientPlayerInfo.PlayerPermissions.HasPermission(rights.EnumPlayerPermissions.PLOT_SET_FS)

@@ -75,12 +75,18 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:need_number");
             }
+            // Taken before the removal: the packet says which cell went, and without it the client
+            // was told "a cell was removed" with nothing to identify it.
+            Vec3i removedPoint = plotHere.Prison.getPrisonCells()[index].getSpawnPosition();
+
             plotHere.Prison.removePrisonCell(index);
             plotHere.saveToDatabase();
             plotHere.Prison.saveToDatabase();
             tcr.Status = EnumCommandStatus.Success;
             tcr.StatusMessage = "claims:prison_cell_removed";
-            UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_REMOVE_PRISON_CELL);
+            UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
+                new Dictionary<string, object> { { "value", new PrisonCellElement(removedPoint, new HashSet<string>()) } },
+                EnumPlayerRelatedInfo.CITY_REMOVE_PRISON_CELL);
             return tcr;
         }
         public static TextCommandResult CRemovePrisonCell(TextCommandCallingArgs args)
@@ -124,7 +130,11 @@ namespace claims.src.commands
             savedPlot.Prison.saveToDatabase();
             tcr.Status = EnumCommandStatus.Success;
             tcr.StatusMessage = "claims:prison_cell_removed";
-            UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, new Dictionary<string, object> { { "value", searchPoint } }, EnumPlayerRelatedInfo.CITY_REMOVE_PRISON_CELL);
+            // A whole cell element, not the bare position: that is what the client deserializes for
+            // this key, and a Vec3i arrived as a cell with no position at all.
+            UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
+                new Dictionary<string, object> { { "value", new PrisonCellElement(searchPoint, new HashSet<string>()) } },
+                EnumPlayerRelatedInfo.CITY_REMOVE_PRISON_CELL);
             return tcr;
         }
         public static TextCommandResult AddPrisonCell(TextCommandCallingArgs args)

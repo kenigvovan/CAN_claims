@@ -1,9 +1,14 @@
-﻿using System.Numerics;
+﻿using System.Linq;
+using System.Numerics;
 using claims.src.auxialiry;
+using claims.src.gui.playerGui.structures.cellElements;
+using claims.src.network.packets;
 using claims.src.part.structure.conflict;
 using ImGuiNET;
 using Vintagestory.API.Client;
+using Vintagestory.API.Common;
 using Vintagestory.API.Config;
+using Vintagestory.Client.NoObf;
 
 namespace claims.src.gui.prettyGui.GuiTabs
 {
@@ -28,10 +33,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.PushID(i++);
                 ImGui.BeginGroup();
 
-                string firstType = conflict.FirstPartyType == WarTargetType.Alliance
-                    ? Lang.Get("claims:conflict_target_alliance") : Lang.Get("claims:conflict_target_city");
-                string secondType = conflict.SecondPartyType == WarTargetType.Alliance
-                    ? Lang.Get("claims:conflict_target_alliance") : Lang.Get("claims:conflict_target_city");
+                string firstType = WarTargetTypeHelper.LangLabel(conflict.FirstPartyType);
+                string secondType = WarTargetTypeHelper.LangLabel(conflict.SecondPartyType);
 
                 // --- Party names ---
                 ImGui.PushStyleColor(ImGuiCol.Text, ColValue);
@@ -99,6 +102,8 @@ namespace claims.src.gui.prettyGui.GuiTabs
                 ImGui.Spacing();
             }
             ImGui.EndChild();
+
+            DrawCasusBelli();
             /*==============================================================================================*/
             /*=====================================UNDER 2 LINE=============================================*/
             /*==============================================================================================*/
@@ -111,5 +116,109 @@ namespace claims.src.gui.prettyGui.GuiTabs
             if (IconButton("conflictletters", "envelope", 60, Lang.Get("claims:gui-conflict-letters")))
                 GuiSys.selectedTab = EnumSelectedTab.ConflictLettersPage;
         }
+
+        // Ally-at-war reasons change without any event addressed to us, so re-ask periodically
+        // while the tab is on screen instead of relying on pushes alone.
+        private long nextRefreshMs;
+
+        private void DrawCasusBelli()
+        {
+            var cityInfo = claims.clientDataStorage.clientPlayerInfo.CityInfo;
+            if (cityInfo == null) return;
+
+            long nowMs = capi.World.ElapsedMilliseconds;
+            if (nowMs >= nextRefreshMs)
+            {
+                nextRefreshMs = nowMs + 5000;
+                claims.clientChannel.SendPacket(new SavedPlotsPacket { type = PacketsContentEnum.CLIENT_REQUEST_CASUS_BELLI });
+            }
+
+            SectionTitle(Lang.Get("claims:gui_casus_belli_list"));
+            HelpMarker(Lang.Get("claims:gui_casus_belli_hint"));
+
+            long now = TimeFunctions.getEpochSeconds();
+            // Drop rows that have nothing left to say: lapsed reason, no cooldown, no pact.
+            var live = cityInfo.ClientCasusBelliCellElements.Where(cb =>
+                cb.Kind == CasusBelliKind.AllyAtWar || cb.ExpiresAt > now
+                || cb.CooldownUntil > now || cb.PactUntil > now || cb.UnionBreakUntil > now).ToList();
+
+            ImGui.BeginChild("CasusBelliScroll", new Vector2(0, 170), true);
+            if (live.Count == 0)
+            {
+                Hint(Lang.Get("claims:cb_none"));
+            }
+            int row = 0;
+            foreach (var cb in live)
+            {
+                ImGui.PushID(1000 + row++);
+                string typeLabel = WarTargetTypeHelper.LangLabel(cb.TargetType);
+
+                // A free war is the strongest reason: it also waives cooldown and declaration cost.
+                ImGui.PushStyleColor(ImGuiCol.Text, cb.Kind == CasusBelliKind.FreeWar ? ColWarning : ColValue);
+                ImGui.Text(StringFunctions.replaceUnderscore(cb.TargetName));
+                ImGui.PopStyleColor();
+                ImGui.SameLine(0, 0);
+                ImGui.PushStyleColor(ImGuiCol.Text, ColLabel);
+                ImGui.Text($" ({typeLabel})");
+                ImGui.PopStyleColor();
+
+                if (cb.Kind != CasusBelliKind.None)
+                {
+                    string reason = Lang.Get(cb.Kind switch
+                    {
+                        CasusBelliKind.FreeWar => "claims:cb_reason_freewar",
+                        CasusBelliKind.AllyAtWar => "claims:cb_reason_ally",
+                        _ => "claims:cb_reason_grievance"
+                    });
+                    Label(cb.ExpiresAt > now
+                        ? Lang.Get("claims:gui_casus_belli_line_timed", reason, StringFunctions.FormatDuration(cb.ExpiresAt - now))
+                        : reason);
+                }
+
+                // Blockers. A free war ignores both, so say so instead of scaring the player off.
+                bool freeWar = cb.Kind == CasusBelliKind.FreeWar;
+                if (cb.CooldownUntil > now)
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Text, freeWar ? ColHint : ColDanger);
+                    ImGui.TextWrapped(Lang.Get(freeWar ? "claims:gui_war_cooldown_waived" : "claims:gui_war_cooldown_left",
+                        StringFunctions.FormatDuration(cb.CooldownUntil - now)));
+                    ImGui.PopStyleColor();
+                }
+                if (cb.UnionBreakUntil > now)
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Text, ColDanger);
+                    ImGui.TextWrapped(Lang.Get("claims:gui_war_union_break_left",
+                        StringFunctions.FormatDuration(cb.UnionBreakUntil - now)));
+                    ImGui.PopStyleColor();
+                }
+                if (cb.PactUntil > now)
+                {
+                    bool canBreak = cb.Kind != CasusBelliKind.None;
+                    ImGui.PushStyleColor(ImGuiCol.Text, canBreak ? ColHint : ColDanger);
+                    ImGui.TextWrapped(Lang.Get(canBreak ? "claims:gui_war_pact_breakable" : "claims:gui_war_pact_left",
+                        StringFunctions.FormatDuration(cb.PactUntil - now)));
+                    ImGui.PopStyleColor();
+                }
+
+                double cost = freeWar ? 0 : claims.config.WAR_DECLARATION_COST;
+                if (cost > 0) Label(Lang.Get("claims:gui_war_declaration_cost", cost));
+
+                if (cb.CanDeclareNow(now))
+                {
+                    if (RedButton(Lang.Get("claims:gui_war_declare_btn")))
+                    {
+                        string command = (HasAlliance ? "/a conflict declare " : "/city war declare ")
+                            + (cb.TargetType == WarTargetType.Alliance ? "alliance:" : "city:") + cb.TargetName;
+                        SendCommand(command);
+                    }
+                }
+
+                ImGui.PopID();
+                ImGui.Separator();
+            }
+            ImGui.EndChild();
+        }
+
+        private bool HasAlliance => claims.clientDataStorage.clientPlayerInfo.AllianceInfo != null;
     }
 }

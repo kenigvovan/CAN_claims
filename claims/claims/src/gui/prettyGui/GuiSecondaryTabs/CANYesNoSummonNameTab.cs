@@ -35,10 +35,9 @@ namespace claims.src.gui.prettyGui.GuiSecondaryTabs
             ImGui.InputText("", ref GuiSys.textInput, 256);
             if (ImGui.Button(Lang.Get(this.YesButtonString)))
             {
-                ClientEventManager clientEventManager = (claims.capi.World as ClientMain).eventManager;
-                clientEventManager.TriggerNewClientChatLine(GlobalConstants.CurrentChatGroup, string.Format("/city summon set cname {0} {1} {2} {3}",
+                SendCommand(string.Format("/city summon set cname {0} {1} {2} {3}",
                    GuiSys.selectedPos.X, GuiSys.selectedPos.Y, GuiSys.selectedPos.Z,
-                   GuiSys.textInput), EnumChatType.Macro, "");
+                   GuiSys.textInput));
                 GuiSys.textInput = "";
             }
             ImGui.End();

@@ -27,7 +27,10 @@ namespace claims.src.part.structure.plots
                 {PlotType.EMBASSY, new PlotInfo("embassy", claims.config.EMBASSY_PLOT_COST) },
                 {PlotType.TAVERN, new PlotInfo("tavern", claims.config.TAVERN_PLOT_COST) },
                 {PlotType.MAIN_CITY_PLOT, new PlotInfo("mainplot", claims.config.MAIN_CITYPLOT_COST) },
-                {PlotType.PRISON, new PlotInfo("prison", claims.config.PRISON_PLOT_COST) }
+                {PlotType.PRISON, new PlotInfo("prison", claims.config.PRISON_PLOT_COST) },
+                {PlotType.ORCHARD, new PlotInfo("orchard", claims.config.ORCHARD_PLOT_COST) },
+                // Villages pay no daily upkeep at all, so their main plot costs nothing.
+                {PlotType.VILLAGE_MAIN, new PlotInfo("villagemain", 0) }
             };
             nameToPlotType = new Dictionary<string, PlotType>
             {
@@ -40,11 +43,15 @@ namespace claims.src.part.structure.plots
                 {"embassy", PlotType.EMBASSY },
                 {"tavern", PlotType.TAVERN },
                 {"MAIN_CITY_PLOT", PlotType.MAIN_CITY_PLOT },
-                {"prison", PlotType.PRISON }
+                {"prison", PlotType.PRISON },
+                {"orchard", PlotType.ORCHARD },
+                // Upper case like MAIN_CITY_PLOT: set by the code when founding, never typed by a player.
+                {"VILLAGE_MAIN", PlotType.VILLAGE_MAIN }
             };
             plotAccessableForPlayersWithCode = new Dictionary<string, string> {
                 { "default", "claims:default_plot_type" },
                 { "farm", "claims:farm_plot_type" },
+                { "orchard", "claims:orchard_plot_type" },
                 { "summon", "claims:summon_plot_type" },
                 { "embassy", "claims:embassy_plot_type" },
                 { "tavern", "claims:tavern_plot_type" },

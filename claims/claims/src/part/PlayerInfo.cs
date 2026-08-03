@@ -20,6 +20,15 @@ namespace claims.src.part
         public int PrisonHoursLeft { get; set; }
         public Prison PrisonedIn { get; set; }
         public bool AwaitForTeleporation { get; set; }
+        // Unix seconds of the last city/camp respawn; drives the post-respawn PvP safe zone.
+        // Transient (not persisted) — no active immunity after a restart is acceptable.
+        public long LastRespawnTimestamp { get; set; } = 0;
+        // Bounties placed on this player's head: poster uid -> escrowed amount. Persisted.
+        public Dictionary<string, long> BountyPosters { get; set; } = new();
+        // Unix seconds until this player may found a settlement again, set when their village is
+        // gone. Persisted - a restart must not wipe the penalty.
+        public long VillageCooldownUntil { get; set; } = 0;
+        public long GetBountyTotal() { long s = 0; foreach (var v in BountyPosters.Values) s += v; return s; }
         public City City { get; private set; }     
         public Alliance Alliance { get { return City?.Alliance; } }
         public HashSet<PlayerInfo> Friends { get; set; }
@@ -56,6 +65,13 @@ namespace claims.src.part
         }
         public void setCity(City city)
         {
+            // Keep the mayor invariant: a player who is the mayor of their current city must
+            // not silently switch to another city and leave the old mayor pointer dangling
+            // (that desyncs MAYOR_NAME from the player's actual permissions).
+            if (this.City != null && !this.City.Equals(city) && this.City.isMayor(this))
+            {
+                this.City.setMayor(null);
+            }
             this.City = city;
             RightsHandler.reapplyRights(this);
         }
@@ -104,6 +120,11 @@ namespace claims.src.part
 
         public void resetCity()
         {
+            // Don't leave a dangling mayor pointer when the mayor is detached from the city.
+            if (City != null && City.isMayor(this))
+            {
+                City.setMayor(null);
+            }
             City = null;
             Prefix = "";
             AfterName = "";
@@ -185,6 +206,28 @@ namespace claims.src.part
             {
                 payments.Add("plots", (int)plotsPayment);
             }
+
+            // Plots groups charge their members too, and used to be missing here entirely - the
+            // player was shown less than what was taken off them the same evening. Counted once per
+            // group, which is how the group is charged and what /citizen fee reports.
+            double groupsPayment = 0;
+            foreach (CityPlotsGroup group in claims.dataStorage.getCityPlotsGroupsDict().Values)
+            {
+                if (!group.HasFee() || !group.PlayersList.Contains(this)) continue;
+                // The mayor of the city owning the group pays nothing to it.
+                if (group.City?.isMayor(this) ?? false) continue;
+                // A group holding no land is not charged - the same condition DayTimer applies, so
+                // the figure shown here matches what is taken.
+                if (!(group.City?.getCityPlots().Any(p => p.hasPlotGroup() && group.Equals(p.getPlotGroup())) ?? false))
+                {
+                    continue;
+                }
+                groupsPayment += group.PlotsGroupFee;
+            }
+            if (groupsPayment != 0)
+            {
+                payments.Add("plotsgroups", (int)groupsPayment);
+            }
             return payments;
         }
         /*********************************************************/
@@ -228,6 +271,26 @@ namespace claims.src.part
         public string getNameReceiver()
         {
             return GetPartName();
+        }
+
+        // Identity is the player UID (Guid), same convention as City/Alliance.
+        // Without this, isMayor / HashSet<PlayerInfo> membership fall back to
+        // reference equality, which silently breaks if two PlayerInfo instances
+        // ever exist for one UID.
+        public override int GetHashCode()
+        {
+            int hash = 13;
+            hash = (hash * 7) + (Guid?.GetHashCode() ?? 0);
+            return hash;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is PlayerInfo other)
+            {
+                return string.Equals(this.Guid, other.Guid);
+            }
+            return false;
         }
     }
 }

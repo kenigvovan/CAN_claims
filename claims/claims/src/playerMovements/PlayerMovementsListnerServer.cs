@@ -386,14 +386,7 @@ namespace claims.src
                     foreach (Plot plot in serverZoneInfo.zonePlots)
                     {
                         preparedSavedPlots.Add(new KeyValuePair<Vec2i, SavedPlotInfo>(plot.getPos(),
-                            new SavedPlotInfo((int)plot.Price, plot.getPermsHandler().pvpFlag,
-                                player.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canBlockDestroyWithOutCacheUpdate(playerInfo, plot),
-                                player.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canBlockUseWithOutCacheUpdate(playerInfo, plot),
-                                player.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canAttackAnimalsWithOutCacheUpdate(playerInfo, plot),
-                                plot.getCity().GetPartName(), plot.GetPartName(),
-                                plot.hasCityPlotsGroup() ? plot.getPlotGroup().GetPartName() : "",
-                                plot.Type == PlotType.TAVERN ? plot.GetClientInnerClaimFromDefault(playerInfo) : null,
-                                plot.getCity().Alliance?.Guid ?? "")));
+                            PlotStateHandling.BuildSavedPlotInfo(plot, player, playerInfo)));
                     }
                     snapshot.Add(new Tuple<Vec2i, long, List<KeyValuePair<Vec2i, SavedPlotInfo>>>(zone, 0L, preparedSavedPlots));
                 }
@@ -483,14 +476,8 @@ namespace claims.src
                         tmpPlotPosition.setXY(coord);
                         if (claims.dataStorage.GetPlot(tmpPlotPosition, out Plot plot))
                         {
-                            updatePlotsForPlayer.Add(new Tuple<Vec2i, SavedPlotInfo>(plot.getPos(), new SavedPlotInfo((int)plot.Price, plot.getPermsHandler().pvpFlag,
-                                pl.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canBlockDestroyWithOutCacheUpdate(playerInfo, plot),
-                                pl.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canBlockUseWithOutCacheUpdate(playerInfo, plot),
-                                pl.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canAttackAnimalsWithOutCacheUpdate(playerInfo, plot),
-                                plot.getCity().GetPartName(), plot.GetPartName(),
-                                plot.hasCityPlotsGroup() ? plot.getPlotGroup().GetPartName() : "",
-                                plot.Type == PlotType.TAVERN ? plot.GetClientInnerClaimFromDefault(playerInfo) : null,
-                                plot.getCity().Alliance?.Guid ?? "")));
+                            updatePlotsForPlayer.Add(new Tuple<Vec2i, SavedPlotInfo>(plot.getPos(),
+                                PlotStateHandling.BuildSavedPlotInfo(plot, pl, playerInfo)));
                         }
                     }
                     if (updatePlotsForPlayer.Count == 0) continue;

@@ -14,6 +14,25 @@ namespace claims.src.auxialiry
 {
     public class PlotStateHandling
     {
+        /// <summary>
+        /// Builds the client-side view of a plot as <paramref name="player"/> sees it: the permission
+        /// flags are resolved per viewer (creative always passes), so every send path must use this
+        /// instead of assembling SavedPlotInfo by hand - a divergence here shows up as a plot that
+        /// looks unclaimed or unprotected on someone's map.
+        /// </summary>
+        public static SavedPlotInfo BuildSavedPlotInfo(Plot plot, IServerPlayer player, PlayerInfo playerInfo)
+        {
+            bool creative = player.WorldData.CurrentGameMode == EnumGameMode.Creative;
+            return new SavedPlotInfo((int)plot.Price, plot.getPermsHandler().pvpFlag,
+                creative || OnBlockAction.canBlockDestroyWithOutCacheUpdate(playerInfo, plot),
+                creative || OnBlockAction.canBlockUseWithOutCacheUpdate(playerInfo, plot),
+                creative || OnBlockAction.canAttackAnimalsWithOutCacheUpdate(playerInfo, plot),
+                plot.getCity().GetPartName(), plot.GetPartName(),
+                plot.hasCityPlotsGroup() ? plot.getPlotGroup().GetPartName() : "",
+                plot.Type == PlotType.TAVERN ? plot.GetClientInnerClaimFromDefault(playerInfo) : null,
+                plot.getCity().Alliance?.Guid ?? "");
+        }
+
         //Send subscribers of plot's zone info about the newly claimed plot
         public static void broadcastPlotClaimedInZone(Plot plot)
         {
@@ -29,14 +48,7 @@ namespace claims.src.auxialiry
                 if (player == null) continue;
                 if (!claims.dataStorage.GetPlayerByUid(uid, out PlayerInfo playerInfo)) continue;
 
-                var tmpPlot = new SavedPlotInfo((int)plot.Price, plot.getPermsHandler().pvpFlag,
-                    player.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canBlockDestroyWithOutCacheUpdate(playerInfo, plot),
-                    player.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canBlockUseWithOutCacheUpdate(playerInfo, plot),
-                    player.WorldData.CurrentGameMode == EnumGameMode.Creative || OnBlockAction.canAttackAnimalsWithOutCacheUpdate(playerInfo, plot),
-                    plot.getCity().GetPartName(), plot.GetPartName(),
-                    plot.hasCityPlotsGroup() ? plot.getPlotGroup().GetPartName() : "",
-                    plot.Type == PlotType.TAVERN ? plot.GetClientInnerClaimFromDefault(playerInfo) : null,
-                    plot.getCity().Alliance?.Guid ?? "");
+                var tmpPlot = BuildSavedPlotInfo(plot, player, playerInfo);
                 string serializedPlots = JsonConvert.SerializeObject(new Tuple<Vec2i, SavedPlotInfo>(plot.getPos(), tmpPlot));
 
                 claims.serverChannel.SendPacket(new SavedPlotsPacket()

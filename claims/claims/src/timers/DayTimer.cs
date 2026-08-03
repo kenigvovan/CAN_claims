@@ -3,6 +3,7 @@ using claims.src.economy;
 using claims.src.messages;
 using claims.src.part;
 using claims.src.part.structure;
+using claims.src.part.structure.war;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -46,6 +47,7 @@ namespace claims.src.timers
             //All players processed
             processCitiesFee();
             ProcessAlliancesFee();
+            ProcessVassalTribute();
 
             //All cities
             processCitiesCare();
@@ -73,6 +75,11 @@ namespace claims.src.timers
                     MessageHandler.sendErrorMsg(Lang.Get("claims:city_istechnical_no_care_processing", city.GetPartName()));
                     continue;
                 }
+                // A village is kept alive by supplies in its granary, not by money.
+                if (city.IsVillage())
+                {
+                    continue;
+                }
                 processCityCare(city);
             }
             //DELETE CITIES WHICH WERE MARKED
@@ -95,7 +102,15 @@ namespace claims.src.timers
                 {
                     if (city.DebtBalance > claims.config.CITY_MAX_DEBT)
                     {
-                        toDeleteCities.Add((city, Lang.Get("claims:city_delete_reason_debt_is_too_high", city.DebtBalance)));
+                        // A fire sale takes precedence over the wrecking ball: while the city's land
+                        // is on the block it stays standing, and it is demolished only if the sale
+                        // brought nothing. Begin() answers false whenever bankruptcy sales are off -
+                        // by the mode, by the auction switch or by a stubbed economy - so the old
+                        // behaviour needs no separate check here.
+                        if (!part.structure.plots.auction.BankruptcyHelper.Begin(city))
+                        {
+                            toDeleteCities.Add((city, Lang.Get("claims:city_delete_reason_debt_is_too_high", city.DebtBalance)));
+                        }
                     }
                 }
                 claims.sapi.Event.RegisterCallback(_ =>
@@ -143,14 +158,25 @@ namespace claims.src.timers
         {
             foreach(City city in citiesPlots.Keys)
             {
+                // Villages collect no fee and own no treasury to collect it into.
+                if (city.IsVillage()) continue;
                 processCityFee(city);
-            }           
+            }
         }
         public static void processCityFee(City city)
         {
             citiesPlots.TryGetValue(city, out List<Plot> cityPlotsList);
+            // Groups that actually hold land in this city, gathered while the plots are walked
+            // anyway - a group is charged once, below, however many plots it turns out to have.
+            HashSet<CityPlotsGroup> groupsWithPlots = new HashSet<CityPlotsGroup>();
             foreach(Plot plot in cityPlotsList)
-            {          
+            {
+                // Before the owner branch below, which skips the rest of the loop for a mayor's plot:
+                // whose plot it is has no bearing on whether the group holds land.
+                if (plot.hasCityPlotsGroup())
+                {
+                    groupsWithPlots.Add(plot.getPlotGroup());
+                }
                 if(plot.hasPlotOwner())
                 {
                     if(plot.getPlotOwner().hasCity() && plot.getPlotOwner().City.isMayor(plot.getPlotOwner()))
@@ -184,25 +210,25 @@ namespace claims.src.timers
                         }
                     }*/
                 }
-                else if (plot.hasCityPlotsGroup())
+            }
+
+            // Membership is charged once a day, not once per plot: a group of six used to cost its
+            // members six times what the mayor typed, so a fee anyone would call reasonable ruined
+            // the very people it was meant to keep. A group holding no land is charged nothing -
+            // there is nothing to be a member of yet.
+            foreach (CityPlotsGroup group in groupsWithPlots)
+            {
+                if (!group.HasFee()) continue;
+                foreach (PlayerInfo player in group.PlayersList)
                 {
-                    if (plot.getPlotGroup().HasFee())
+                    if (city.isMayor(player)) continue;
+                    if (playerSumFee.TryGetValue(player, out decimal val))
                     {
-                        foreach(PlayerInfo player in plot.getPlotGroup().PlayersList)
-                        {
-                            if (plot.getCity().isMayor(player))
-                            {
-                                continue;
-                            }
-                            if (playerSumFee.TryGetValue(player, out decimal val))
-                            {
-                                playerSumFee[player] += (decimal)plot.getPlotGroup().PlotsGroupFee;
-                            }
-                            else
-                            {
-                                playerSumFee[player] = (decimal)plot.getPlotGroup().PlotsGroupFee;
-                            }
-                        }                       
+                        playerSumFee[player] = val + (decimal)group.PlotsGroupFee;
+                    }
+                    else
+                    {
+                        playerSumFee[player] = (decimal)group.PlotsGroupFee;
                     }
                 }
             }
@@ -234,6 +260,7 @@ namespace claims.src.timers
                     if (claims.economyProvider.GetBalance(it.MoneyAccountName) < toPay)
                     {
                         //WE DELETE PLAYER FROM EVERY PLOTGROUP IN THIS CITY
+                        List<CityPlotsGroup> droppedFrom = new List<CityPlotsGroup>();
                         foreach(CityPlotsGroup cpg in city.getCityPlotsGroups())
                         {
                             foreach(PlayerInfo playerInfoHere in cpg.PlayersList.ToArray())
@@ -241,8 +268,36 @@ namespace claims.src.timers
                                 if (playerInfoHere.Equals(it))
                                 {
                                     cpg.PlayersList.Remove(playerInfoHere);
+                                    cityplotsgroups.PlotsGroupFeeHelper.OnMemberLeft(cpg, it);
+                                    cpg.saveToDatabase();
+                                    droppedFrom.Add(cpg);
                                 }
                             }
+                        }
+                        // Being thrown out of every group at once used to happen in complete silence:
+                        // the player found out by walking onto ground they could no longer build on.
+                        if (droppedFrom.Count > 0)
+                        {
+                            MessageHandler.sendMsgToPlayerInfo(it, Lang.Get("claims:plotsgroup_left_no_money",
+                                StringFunctions.concatGroupsNames(droppedFrom, ','),
+                                city.getPartNameReplaceUnder()));
+                            // Their rights came from the groups and are cached per player and per
+                            // plot; without this they keep building on that land until something
+                            // else happens to evict the cache.
+                            it.PlayerCache?.Reset();
+                            foreach (CityPlotsGroup cpg in droppedFrom)
+                            {
+                                cityplotsgroups.PlotsGroupFeeHelper.SendGroupUpdate(cpg);
+                            }
+                            foreach (Plot groupPlot in cityPlotsList ?? new List<Plot>())
+                            {
+                                if (groupPlot.hasPlotGroup() && droppedFrom.Contains(groupPlot.getPlotGroup()))
+                                {
+                                    claims.serverPlayerMovementListener.markPlotToWasReUpdated(groupPlot.getPos());
+                                }
+                            }
+                            UsefullPacketsSend.AddToQueuePlayerInfoUpdate(it.Guid,
+                                gui.playerGui.structures.EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT);
                         }
                         if (claims.config.DELETE_CITIZEN_FROM_CITY_IF_DOESN_PAY_FEE)
                         {
@@ -312,6 +367,64 @@ namespace claims.src.timers
                     }
                 }
             }
+        }
+        public static void ProcessVassalTribute()
+        {
+            double tribute = claims.config.WAR_VASSAL_TRIBUTE;
+            long durationSec = (long)claims.config.WAR_VASSAL_DURATION_DAYS * 86400;
+            long now = TimeFunctions.getEpochSeconds();
+
+            // Vassalage is imposed on a whole losing side, so a subdued alliance would otherwise pay
+            // the full tribute once per member city. Collect the still-valid vassals first, then
+            // split the tribute per side (overlord + the vassal's alliance).
+            List<City> payingVassals = new List<City>();
+            foreach (City vassal in claims.dataStorage.getCitiesList().ToArray())
+            {
+                if (!vassal.IsVassal()) continue;
+                City overlord = vassal.GetOverlord();
+                if (overlord == null)
+                {
+                    PeaceTermsHelper.ReleaseVassal(vassal);
+                    continue;
+                }
+                // Auto-release after the configured duration.
+                if (durationSec > 0 && now - vassal.VassalSince > durationSec)
+                {
+                    PeaceTermsHelper.ReleaseVassal(vassal);
+                    MessageHandler.sendMsgInCity(vassal, Lang.Get("claims:vassalage_ended"));
+                    MessageHandler.sendMsgInCity(overlord, Lang.Get("claims:vassal_freed", vassal.getPartNameReplaceUnder()));
+                    continue;
+                }
+                payingVassals.Add(vassal);
+            }
+
+            if (tribute <= 0) return;
+
+            // Cities of one alliance under the same overlord form a single paying side; a vassal
+            // without an alliance is a side of its own.
+            Dictionary<string, int> sideSizes = new Dictionary<string, int>();
+            foreach (City vassal in payingVassals)
+            {
+                string sideKey = TributeSideKey(vassal);
+                sideSizes[sideKey] = sideSizes.TryGetValue(sideKey, out int count) ? count + 1 : 1;
+            }
+
+            foreach (City vassal in payingVassals)
+            {
+                City overlord = vassal.GetOverlord();
+                if (overlord == null) continue;
+
+                int sideSize = sideSizes[TributeSideKey(vassal)];
+                decimal share = (decimal)tribute / (claims.config.WAR_VASSAL_TRIBUTE_PER_CITY ? 1 : sideSize);
+                if (share <= 0) continue;
+
+                if (claims.economyProvider.Transfer(vassal.MoneyAccountName, overlord.MoneyAccountName, share) != MoneyOperationResult.Success)
+                    claims.sapi.Logger.Warning("[claims] Vassal tribute transfer failed: {0} -> {1}", vassal.MoneyAccountName, overlord.MoneyAccountName);
+            }
+        }
+        private static string TributeSideKey(City vassal)
+        {
+            return vassal.OverlordGuid + "|" + (vassal.HasAlliance() ? vassal.Alliance.Guid : vassal.Guid);
         }
         public static void ProcessAlliancesCare()
         {

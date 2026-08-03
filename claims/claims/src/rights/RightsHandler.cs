@@ -72,6 +72,7 @@ namespace claims.src
                         EnumPlayerPermissions.CITY_PLOTSGROUP_SET_FIRE,
                         EnumPlayerPermissions.CITY_PLOTSGROUP_SET_PVP,
                         EnumPlayerPermissions.CITY_PLOTSGROUP_SET_BLAST,
+                        EnumPlayerPermissions.CITY_PLOTSGROUP_SET_FEE,
                         EnumPlayerPermissions.CITY_WITHDRAW_MONEY,
                         EnumPlayerPermissions.CITY_CREATE_CITY_RANK,
                         EnumPlayerPermissions.CITY_DELETE_CITY_RANK,
@@ -79,7 +80,35 @@ namespace claims.src
                         EnumPlayerPermissions.CITY_ADD_PERMISSION_TO_RANK,
                         EnumPlayerPermissions.CITY_REMOVE_PERMISSION_FROM_RANK,
                         EnumPlayerPermissions.CITY_SET_PLOT_ACCESS_PERMISSIONS,
-                        EnumPlayerPermissions.CITY_BUY_OUTPOST
+                        EnumPlayerPermissions.CITY_BUY_OUTPOST,
+                        EnumPlayerPermissions.CITY_SET_EMBLEM,
+                        EnumPlayerPermissions.CITY_SELL_PLOT_TO_CITY,
+                        EnumPlayerPermissions.CITY_BUY_PLOT_FROM_CITY
+                    }
+                },
+                 // What a village head gets instead of MAYOR. Deliberately a whitelist: a village
+                 // has no treasury, alliances, wars, prisons, summons, plot groups or ranks, and a
+                 // future city permission must not leak into villages just because nobody
+                 // remembered to deny it. CITY_SET_ALL is not here on purpose - it also covers the
+                 // fee and emblem setters.
+                 { "VILLAGE_MAYOR", new HashSet<EnumPlayerPermissions>
+                    {
+                        EnumPlayerPermissions.CITY_CLAIM_PLOT,
+                        EnumPlayerPermissions.CITY_UNCLAIM_PLOT,
+                        EnumPlayerPermissions.CITY_INVITE,
+                        EnumPlayerPermissions.CITY_UNINVITE,
+                        EnumPlayerPermissions.CITY_KICK,
+                        EnumPlayerPermissions.SHOW_INVITES_SENT,
+                        EnumPlayerPermissions.CITY_SET_NAME,
+                        EnumPlayerPermissions.CITY_SET_OPEN_STATE,
+                        EnumPlayerPermissions.CITY_SET_PVP,
+                        EnumPlayerPermissions.CITY_SET_FIRE,
+                        EnumPlayerPermissions.CITY_SET_BLAST,
+                        EnumPlayerPermissions.CITY_SET_DAILY_MSG,
+                        EnumPlayerPermissions.CITY_SET_INV_MSG,
+                        EnumPlayerPermissions.CITY_SET_PLOT_ACCESS_PERMISSIONS,
+                        EnumPlayerPermissions.CITY_SET_PLOTS_COLOR,
+                        EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS
                     }
                 },
                 {
@@ -96,7 +125,8 @@ namespace claims.src
                         EnumPlayerPermissions.ALLIANCE_ACCEPT_UNION,
                         EnumPlayerPermissions.ALLIANCE_DECLARE_UNION,
                         EnumPlayerPermissions.ALLIANCE_DENY_UNION,
-                        EnumPlayerPermissions.ALLIANCE_REVOKE_UNION
+                        EnumPlayerPermissions.ALLIANCE_REVOKE_UNION,
+                        EnumPlayerPermissions.ALLIANCE_SET_EMBLEM
                     }
                 }
 
@@ -116,16 +146,20 @@ namespace claims.src
 
             }
             City city = playerInfo.City;
-            if (city != null) 
+            if (city != null)
             {
                 if (city.isMayor(playerInfo))
                 {
-                    if (PlayerPermissionsByGroups.TryGetValue("MAYOR", out HashSet<EnumPlayerPermissions> mayorPerms))
+                    // A village head gets its own, much smaller group; see getDefaultRankPermsDict.
+                    string mayorGroup = city.IsVillage() ? "VILLAGE_MAYOR" : "MAYOR";
+                    if (PlayerPermissionsByGroups.TryGetValue(mayorGroup, out HashSet<EnumPlayerPermissions> mayorPerms))
                     {
                         playerInfo.PlayerPermissionsHandler.AddPermissions(mayorPerms);
                     }
                 }
-                if (playerInfo.hasCity())
+                // Custom ranks are a city feature; a village must not grant permissions through
+                // ranks it kept from before an admin downgraded it.
+                if (playerInfo.hasCity() && !city.IsVillage())
                 {
                     foreach (string str in playerInfo.getCityTitles())
                     {
@@ -209,6 +243,7 @@ namespace claims.src
                     settings.Converters.Add(new StringEnumConverter());
                     PlayerPermissionsByGroups = JsonConvert.DeserializeObject<Dictionary<string, HashSet<EnumPlayerPermissions>>>(json, settings);
                 }
+                AddMissingGroups(filePath);
             }
             else
             {
@@ -224,6 +259,116 @@ namespace claims.src
                 }
             }
         }
+        /// <summary>
+        /// Permissions added to a group after that group already shipped, listed in the order they
+        /// were introduced. A permissions file written before one of these existed has no idea the
+        /// permission is a thing, so the feature behind it is simply invisible to the mayor of every
+        /// server that has been running for a while - which is how the plots group fee button went
+        /// missing.
+        ///
+        /// Each entry is applied once, remembered by name in <see cref="MigrationsFileSuffix"/>. Not
+        /// applied unconditionally on purpose: an admin who took a permission away from MAYOR meant
+        /// it, and re-adding it on every start would overrule them for good.
+        /// </summary>
+        private static readonly (string Name, string Group, EnumPlayerPermissions Perm)[] permissionMigrations =
+        {
+            ("mayor-emblem", "MAYOR", EnumPlayerPermissions.CITY_SET_EMBLEM),
+            ("mayor-sell-plot-to-city", "MAYOR", EnumPlayerPermissions.CITY_SELL_PLOT_TO_CITY),
+            ("mayor-buy-plot-from-city", "MAYOR", EnumPlayerPermissions.CITY_BUY_PLOT_FROM_CITY),
+            ("mayor-plotsgroup-set-fee", "MAYOR", EnumPlayerPermissions.CITY_PLOTSGROUP_SET_FEE),
+        };
+
+        /// <summary>Written next to the permissions file, one applied migration name per line.</summary>
+        private const string MigrationsFileSuffix = ".migrations";
+
+        /// <summary>
+        /// Adds groups the current code knows about but an existing permissions file predates
+        /// (VILLAGE_MAYOR is the first such case), plus the permissions listed in
+        /// <see cref="permissionMigrations"/>. Groups the server admin already tuned are left
+        /// untouched; the file is only rewritten when something was actually missing.
+        /// </summary>
+        private static void AddMissingGroups(string filePath)
+        {
+            if (PlayerPermissionsByGroups == null)
+            {
+                PlayerPermissionsByGroups = getDefaultRankPermsDict();
+            }
+            bool added = false;
+            foreach (var group in getDefaultRankPermsDict())
+            {
+                if (PlayerPermissionsByGroups.ContainsKey(group.Key)) continue;
+                PlayerPermissionsByGroups.Add(group.Key, group.Value);
+                added = true;
+            }
+            added |= ApplyPermissionMigrations(filePath);
+            if (!added) return;
+            try
+            {
+                JsonSerializerSettings settings = new();
+                settings.Converters.Add(new StringEnumConverter());
+                settings.Formatting = Formatting.Indented;
+                using StreamWriter w = new(filePath);
+                w.WriteLine(JsonConvert.SerializeObject(PlayerPermissionsByGroups, settings));
+            }
+            catch (Exception ex)
+            {
+                // The in-memory dict already has the group, so rights work either way this session.
+                claims.sapi?.Logger.Warning("[claims] Could not write new permission groups to {0}: {1}", filePath, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Grants the permissions from <see cref="permissionMigrations"/> that this file has never
+        /// been offered. Returns whether anything changed, so the caller writes the file once.
+        /// </summary>
+        private static bool ApplyPermissionMigrations(string filePath)
+        {
+            string migrationsPath = filePath + MigrationsFileSuffix;
+            HashSet<string> applied = new();
+            try
+            {
+                if (File.Exists(migrationsPath))
+                {
+                    foreach (string line in File.ReadAllLines(migrationsPath))
+                    {
+                        string name = line.Trim();
+                        if (name.Length > 0) applied.Add(name);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Unreadable record: leave the file alone rather than granting everything again.
+                claims.sapi?.Logger.Warning("[claims] Could not read {0}: {1}", migrationsPath, ex.Message);
+                return false;
+            }
+
+            bool changed = false;
+            foreach (var migration in permissionMigrations)
+            {
+                if (!applied.Add(migration.Name)) continue;
+                if (!PlayerPermissionsByGroups.TryGetValue(migration.Group, out var perms)) continue;
+                if (perms.Add(migration.Perm))
+                {
+                    changed = true;
+                    claims.sapi?.Logger.Notification("[claims] granted {0} to {1} ({2})",
+                        migration.Perm, migration.Group, migration.Name);
+                }
+            }
+
+            // Written even when nothing was added: a migration whose permission the admin had
+            // already granted by hand is still done with, and must not come back next start.
+            try
+            {
+                File.WriteAllLines(migrationsPath, applied);
+            }
+            catch (Exception ex)
+            {
+                claims.sapi?.Logger.Warning("[claims] Could not write {0}: {1}", migrationsPath, ex.Message);
+            }
+            return changed;
+        }
+
         public static bool hasRight(IServerPlayer player, string right)
         {
             return player.ServerData.PermaPrivileges.Contains(right) 

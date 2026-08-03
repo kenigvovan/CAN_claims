@@ -31,6 +31,9 @@ namespace claims.src.gui.prettyGui.GuiTabs
         protected claimsGui GuiSys => _guiSys ??= capi.ModLoader.GetModSystem<claimsGui>();
         public abstract void DrawTab();
 
+        /// <summary>Runs a chat command on behalf of the player - how every button here acts on the world.</summary>
+        protected static void SendCommand(string command) => ClientChat.Send(command);
+
         protected static void AdminHeader(string title, string subtitle = null)
         {
             ImGui.PushStyleColor(ImGuiCol.Text, ColAdmin);

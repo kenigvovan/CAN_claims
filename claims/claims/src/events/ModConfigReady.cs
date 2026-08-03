@@ -5,6 +5,7 @@ using claims.src.commands;
 using claims.src.gui.playerGui.structures;
 using claims.src.gui.playerGui.structures.cellElements;
 using claims.src.messages;
+using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
 using claims.src.part.structure.war;
@@ -20,6 +21,8 @@ namespace claims.src.events
     public class ModConfigReady
     {
         public static Dictionary<string, long> startWarCallbacks = new Dictionary<string, long>();
+        // conflict guid -> NextBattleDateStart we already fired the pre-battle warning for (once per window)
+        public static Dictionary<string, DateTime> battleWarned = new Dictionary<string, DateTime>();
         public static void onModsAndConfigReady()
         {
             claims.loadDatabase();
@@ -34,7 +37,8 @@ namespace claims.src.events
             if (world == null)
             {
                 world = new WorldInfo(claims.sapi.World.Seed.ToString(), Guid.NewGuid().ToString());
-                world.saveToDatabase();
+                claims.dataStorage.setWorldInfo(world);
+                world.saveToDatabase(update: false);
             }
             {
                 var parsers = claims.sapi.ChatCommands.Parsers;
@@ -138,7 +142,15 @@ namespace claims.src.events
                 CheckForWarToStart();
             }, 10 * 1000);
             claims.sapi.Event.Timer(CheckWarToEnd, claims.config.CHECK_FOR_WAR_TO_START_EVERY_N_SECONDS);
-        }        
+            // Auction lots need no polling either: each one arms a callback for its own closing
+            // time. A lot that ran out while the server was down closes on the first pass.
+            part.structure.plots.auction.AuctionHandler.Init();
+            part.structure.plots.auction.BankruptcyHelper.Init();
+            part.structure.plots.auction.AuctionHandler.ScheduleAll();
+            // Villages need no polling: each one arms a callback for the exact moment its daily
+            // raid window opens or closes.
+            part.structure.VillageRaidHelper.ScheduleAll();
+        }
         public static void MarkBorderClaimPlots()
         {
             PlotPosition posTmp = new PlotPosition(0, 0);
@@ -205,6 +217,26 @@ namespace claims.src.events
                             }, (int)(secondsToStart.TotalSeconds < 0 ? 2 : secondsToStart.TotalSeconds) * 1000);
                             startWarCallbacks[conflict.Guid] = savedLong;
                         }
+
+                        // Pre-battle warning: alert both sides WAR_BATTLE_WARN_MINUTES before the window opens,
+                        // once per window (keyed on NextBattleDateStart so a recalculated window warns again).
+                        int warnMinutes = claims.config.WAR_BATTLE_WARN_MINUTES;
+                        if (warnMinutes > 0 && conflict.NextBattleDateStart > DateTime.Now
+                            && (!battleWarned.TryGetValue(conflict.Guid, out var warnedFor) || warnedFor != conflict.NextBattleDateStart))
+                        {
+                            battleWarned[conflict.Guid] = conflict.NextBattleDateStart;
+                            Conflict warnConflict = conflict;
+                            DateTime warnStart = conflict.NextBattleDateStart;
+                            double secondsToWarn = secondsToStart.TotalSeconds - warnMinutes * 60;
+                            claims.sapi.Event.RegisterCallback((float dt) =>
+                            {
+                                // Skip if the window was recalculated or the battle already started.
+                                if (warnConflict.NextBattleDateStart != warnStart || warnConflict.ActiveWarTime) return;
+                                int minsLeft = Math.Max(1, (int)Math.Round((warnStart - DateTime.Now).TotalMinutes));
+                                MessageHandler.SendMsgInAlliance(warnConflict.First, Lang.Get("claims:battle_incoming", warnConflict.Second.GetPartName(), minsLeft));
+                                MessageHandler.SendMsgInAlliance(warnConflict.Second, Lang.Get("claims:battle_incoming", warnConflict.First.GetPartName(), minsLeft));
+                            }, (int)(secondsToWarn < 0 ? 2 : secondsToWarn) * 1000);
+                        }
                     }
                 }
             }
@@ -242,6 +274,16 @@ namespace claims.src.events
                             MessageHandler.SendMsgInAlliance(conflict.Second, Lang.Get("claims:battle_ended_with", conflict.First.GetPartName()));
                             MessageHandler.SendDiscoveryToAlliance(conflict.First, "ingamediscovery-battle-end", Lang.Get("claims:ingamediscovery-battle-end", conflict.Second.GetPartName()), new object[] { });
                             MessageHandler.SendDiscoveryToAlliance(conflict.Second, "ingamediscovery-battle-end", Lang.Get("claims:ingamediscovery-battle-end", conflict.First.GetPartName()), new object[] { });
+
+                            // A camp is a battle-time forward base: without this it would survive
+                            // until the whole war ends, leaving an enemy plot sitting in peacetime.
+                            if (claims.config.WAR_CAMP_REMOVE_AFTER_BATTLE)
+                            {
+                                foreach (City campCity in conflict.First.GetCities())
+                                    PartDemolition.DemolishCampsForConflict(campCity, conflict.Guid);
+                                foreach (City campCity in conflict.Second.GetCities())
+                                    PartDemolition.DemolishCampsForConflict(campCity, conflict.Guid);
+                            }
                         }
                         else
                         {

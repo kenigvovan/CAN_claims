@@ -23,6 +23,13 @@ namespace claims.src.gui.playerGui.GuiElements
         //     Is this button on?
         public bool On;
 
+        /// <summary>
+        /// A button that only displays a state the player does not own - the enemy's half of the war
+        /// schedule. Clearing Toggleable was not enough: this class toggles and fires its handler on
+        /// mouse down regardless, so the enemy's slots could be edited.
+        /// </summary>
+        public bool ReadOnly;
+
         private LoadedTexture releasedTexture;
 
         private LoadedTexture pressedTexture;
@@ -191,6 +198,8 @@ namespace claims.src.gui.playerGui.GuiElements
         //     The mouse event arguments.
         public override void OnMouseDownOnElement(ICoreClientAPI api, MouseEvent args)
         {
+            if (ReadOnly) return;
+
             base.OnMouseDownOnElement(api, args);
             On = !On;
             handler?.Invoke(On);
@@ -237,7 +246,7 @@ namespace claims.src.gui.playerGui.GuiElements
 
         public override void OnKeyDown(ICoreClientAPI api, KeyEvent args)
         {
-            if (base.HasFocus && args.KeyCode == 49)
+            if (!ReadOnly && base.HasFocus && args.KeyCode == 49)
             {
                 args.Handled = true;
                 On = !On;

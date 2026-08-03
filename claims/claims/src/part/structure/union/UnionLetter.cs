@@ -3,11 +3,21 @@ using System;
 
 namespace claims.src.part.structure.union
 {
+    /// <summary>What the two sides are asked to agree on.</summary>
+    public enum UnionLetterPurpose
+    {
+        /// <summary>Form a union.</summary>
+        Form,
+        /// <summary>Dissolve it by mutual consent - no denunciation delay, no post-break cooldowns.</summary>
+        Dissolve
+    }
+
     public class UnionLetter : IExpirable
     {
         public Alliance From { get; set; }
         public Alliance To { get; set; }
         public long TimeStampExpire { get; set; }
+        public UnionLetterPurpose Purpose { get; set; } = UnionLetterPurpose.Form;
         public Action OnAccept { get; }
         public Action OnDeny { get; }
         public string Guid { get; }
