@@ -69,6 +69,7 @@
             "perms TEXT," +
             "plotgroupguid TEXT," +
             "markednopvp INTEGER," +
+            "markednomobspawn INTEGER DEFAULT 0," +
             "plotdesc TEXT," +
             "extraBought INTEGER," +
             "wascaptured INTEGER," +
@@ -161,7 +162,9 @@
            "blasteverywhere INTEGER," +
            "fireforbidden INTEGER," +
            "pvpforbidden INTEGER," +
-           "blastforbidden INTEGER" +
+           "blastforbidden INTEGER," +
+           "mobspawneverywhere INTEGER DEFAULT 0," +
+           "mobspawnforbidden INTEGER DEFAULT 0" +
            ");";
 
         public static string prisonsTable =

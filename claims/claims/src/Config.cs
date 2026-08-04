@@ -20,7 +20,10 @@ namespace claims.src
         public double CITY_MAX_DEBT = 1000;
 
         public double NEUTRAL_ALLANCE_PAYMENT = 50;
-        public bool ADDITIONAL_COST_OF_NO_PVP_PLOT = true;
+        // Off by default: the charge behind it never actually fired (the plot mark it counted was
+        // never set), so turning it on with the flag rework would have raised the upkeep of every
+        // city on every existing server overnight. An admin who wants it can switch it on.
+        public bool ADDITIONAL_COST_OF_NO_PVP_PLOT = false;
 
         public double PLOT_CLAIM_PRICE = 5;
         public double MAX_CITY_FEE = 50;
@@ -370,6 +373,7 @@ namespace claims.src
         public double EMBASSY_PLOT_COST = 8;
         public double TAVERN_PLOT_COST = 9;
         public double PLOT_NO_PVP_FLAG_COST = 3;
+        public double PLOT_NO_MOBSPAWN_FLAG_COST = 3;
         public double MAIN_CITYPLOT_COST = 3;
         public double PRISON_PLOT_COST = 3;
         public double EXTRA_PLOT_COST = 30;
@@ -486,6 +490,7 @@ namespace claims.src
             EnumPlayerPermissions.CITY_SET_PVP,
             EnumPlayerPermissions.CITY_SET_FIRE,
             EnumPlayerPermissions.CITY_SET_BLAST,
+            EnumPlayerPermissions.CITY_SET_MOBSPAWN,
             EnumPlayerPermissions.CITY_SET_GLOBAL_FEE,
             EnumPlayerPermissions.CITY_SET_DAILY_MSG,
             EnumPlayerPermissions.CITY_SET_PLOT_ACCESS_PERMISSIONS,
@@ -521,6 +526,7 @@ namespace claims.src
             EnumPlayerPermissions.CITY_PLOTSGROUP_SET_PVP,
             EnumPlayerPermissions.CITY_PLOTSGROUP_SET_FIRE,
             EnumPlayerPermissions.CITY_PLOTSGROUP_SET_BLAST,
+            EnumPlayerPermissions.CITY_PLOTSGROUP_SET_MOBSPAWN,
             EnumPlayerPermissions.CITY_PLOTSGROUP_SET_FEE,
 
             EnumPlayerPermissions.CITY_SET_PLOTS_COLOR,

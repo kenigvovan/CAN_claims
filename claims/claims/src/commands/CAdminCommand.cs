@@ -160,6 +160,24 @@ namespace claims.src.commands
             }
 
             plot.getPermsHandler().setPvp((string)args.LastArg);
+            plot.MarkNoPvp();
+            plot.saveToDatabase();
+            return tcr;
+        }
+        public static TextCommandResult plotNoMobSpawn(TextCommandCallingArgs args)
+        {
+            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            TextCommandResult tcr = new TextCommandResult();
+            tcr.Status = EnumCommandStatus.Success;
+
+            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z), out Plot plot);
+            if (plot == null)
+            {
+                return tcr;
+            }
+
+            plot.getPermsHandler().setNoMobSpawn((string)args.LastArg);
+            plot.MarkNoMobSpawn();
             plot.saveToDatabase();
             return tcr;
         }
@@ -628,6 +646,29 @@ namespace claims.src.commands
             city.saveToDatabase();
             return tcr;
         }
+        public static TextCommandResult citySetNoMobSpawn(TextCommandCallingArgs args)
+        {
+            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            TextCommandResult tcr = new TextCommandResult();
+            tcr.Status = EnumCommandStatus.Success;
+
+            string filteredName = Filter.filterName((string)args.Parsers[0].GetValue());
+            if (filteredName.Length == 0 || !Filter.checkForBlockedNames(filteredName))
+            {
+                tcr.StatusMessage = "claims:invalid_name";
+                return tcr;
+            }
+            claims.dataStorage.GetCityByName(filteredName, out City city);
+            if (city == null)
+            {
+                tcr.StatusMessage = "claims:no_such_city";
+                return tcr;
+            }
+
+            city.getPermsHandler().setNoMobSpawn((string)args.Parsers[1].GetValue());
+            city.saveToDatabase();
+            return tcr;
+        }
         public static TextCommandResult citySetOpenClosed(TextCommandCallingArgs args)
         {
             IServerPlayer player = args.Caller.Player as IServerPlayer;
@@ -947,6 +988,14 @@ namespace claims.src.commands
             else if (param.Equals("blastfb", StringComparison.OrdinalIgnoreCase))
             {
                 wi.blastForbidden = newVal;
+            }
+            else if (param.Equals("mobspawnew", StringComparison.OrdinalIgnoreCase))
+            {
+                wi.mobSpawnEverywhere = newVal;
+            }
+            else if (param.Equals("mobspawnfb", StringComparison.OrdinalIgnoreCase))
+            {
+                wi.mobSpawnForbidden = newVal;
             }
             else
             {

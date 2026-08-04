@@ -94,14 +94,14 @@ namespace claims.src.gui.playerGui.Pages
         }
 
         /// <summary>
-        /// The plot underfoot: the refresh that fetches it, and its three flags. Passing a null plot
+        /// The plot underfoot: the refresh that fetches it, and its flags. Passing a null plot
         /// draws the card explaining that no plot data has arrived.
         /// </summary>
         private double BuildPlotCard(GuiComposer compo, ElementBounds column, double y, CurrentPlotInfo plot)
         {
             string refreshCaption = Lang.Get("claims:gui-admin-refresh-plot");
 
-            int flagRows = plot == null ? 1 : 3;
+            int flagRows = plot == null ? 1 : 4;
             double body = InputHeight + RowGap + flagRows * GridRowHeight;
             double height = Card.HeaderHeight + body + Card.Padding * 2;
 
@@ -141,6 +141,9 @@ namespace claims.src.gui.playerGui.Pages
                     v => plot.PermsHandler.fireFlag = v, "claims:gui-admin-plot-fire-tooltip"),
                 ("blast", Lang.Get("claims:gui-admin-flag-blast"), plot.PermsHandler.blastFlag,
                     v => plot.PermsHandler.blastFlag = v, "claims:gui-admin-plot-blast-tooltip"),
+                ("nomobspawn", Lang.Get("claims:gui-admin-flag-nomobspawn", claims.config.PLOT_NO_MOBSPAWN_FLAG_COST),
+                    plot.PermsHandler.noMobSpawnFlag,
+                    v => plot.PermsHandler.noMobSpawnFlag = v, "claims:gui-admin-plot-nomobspawn-tooltip"),
             };
 
             for (int i = 0; i < flagDefs.Length; i++)

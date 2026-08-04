@@ -37,14 +37,14 @@ namespace claims.src.database
 
         //WORLD
         public static readonly string DELETE_WORLD = "DELETE FROM WORLDS WHERE guid=@guid";
-        public static readonly string INSERT_WORLD = "INSERT INTO WORLDS (name, guid,pvpeverywhere,fireeverywhere,blasteverywhere,fireforbidden,pvpforbidden,blastforbidden) VALUES (@name,@guid,@pvpeverywhere,@fireeverywhere,@blasteverywhere,@fireforbidden,@pvpforbidden,@blastforbidden)";
-        public static readonly string UPDATE_WORLD = "UPDATE WORLDS SET name=@name, guid=@guid, pvpeverywhere=@pvpeverywhere, fireeverywhere=@fireeverywhere,blasteverywhere=@blasteverywhere,fireforbidden=@fireforbidden,pvpforbidden=@pvpforbidden,blastforbidden=@blastforbidden where guid=@guid";
+        public static readonly string INSERT_WORLD = "INSERT INTO WORLDS (name, guid,pvpeverywhere,fireeverywhere,blasteverywhere,fireforbidden,pvpforbidden,blastforbidden,mobspawneverywhere,mobspawnforbidden) VALUES (@name,@guid,@pvpeverywhere,@fireeverywhere,@blasteverywhere,@fireforbidden,@pvpforbidden,@blastforbidden,@mobspawneverywhere,@mobspawnforbidden)";
+        public static readonly string UPDATE_WORLD = "UPDATE WORLDS SET name=@name, guid=@guid, pvpeverywhere=@pvpeverywhere, fireeverywhere=@fireeverywhere,blasteverywhere=@blasteverywhere,fireforbidden=@fireforbidden,pvpforbidden=@pvpforbidden,blastforbidden=@blastforbidden,mobspawneverywhere=@mobspawneverywhere,mobspawnforbidden=@mobspawnforbidden where guid=@guid";
 
         //PLOT
         public static readonly string DELETE_PLOT = "DELETE FROM PLOTS WHERE x=@x AND z=@z";
-        public static readonly string INSERT_PLOT = "INSERT INTO PLOTS (name, x,z,city,ownerofplot,type,price,customtax,perms,plotgroupguid, markednopvp, plotdesc, extraBought, wascaptured, timestampclaimed, lastpaidprice)" +
-                                                    " VALUES (@name,@x,@z,@city,@ownerofplot,@type,@price,@customtax,@perms,@plotgroupguid, @markednopvp, @plotdesc, @extraBought, @wascaptured, @timestampclaimed, @lastpaidprice)";
-        public static readonly string UPDATE_PLOT = "UPDATE PLOTS SET name=@name, x=@x,z=@z,city=@city, ownerofplot=@ownerofplot, type=@type,price=@price,customtax=@customtax,perms=@perms, plotgroupguid=@plotgroupguid, markednopvp=@markednopvp, plotdesc=@plotdesc, extraBought=@extraBought, wascaptured=@wascaptured, timestampclaimed=@timestampclaimed, lastpaidprice=@lastpaidprice" +
+        public static readonly string INSERT_PLOT = "INSERT INTO PLOTS (name, x,z,city,ownerofplot,type,price,customtax,perms,plotgroupguid, markednopvp, markednomobspawn, plotdesc, extraBought, wascaptured, timestampclaimed, lastpaidprice)" +
+                                                    " VALUES (@name,@x,@z,@city,@ownerofplot,@type,@price,@customtax,@perms,@plotgroupguid, @markednopvp, @markednomobspawn, @plotdesc, @extraBought, @wascaptured, @timestampclaimed, @lastpaidprice)";
+        public static readonly string UPDATE_PLOT = "UPDATE PLOTS SET name=@name, x=@x,z=@z,city=@city, ownerofplot=@ownerofplot, type=@type,price=@price,customtax=@customtax,perms=@perms, plotgroupguid=@plotgroupguid, markednopvp=@markednopvp, markednomobspawn=@markednomobspawn, plotdesc=@plotdesc, extraBought=@extraBought, wascaptured=@wascaptured, timestampclaimed=@timestampclaimed, lastpaidprice=@lastpaidprice" +
                                                     " where x=@x and z=@z";
 
         //PLOT SALE HISTORY

@@ -83,7 +83,9 @@ namespace claims.src
                         EnumPlayerPermissions.CITY_BUY_OUTPOST,
                         EnumPlayerPermissions.CITY_SET_EMBLEM,
                         EnumPlayerPermissions.CITY_SELL_PLOT_TO_CITY,
-                        EnumPlayerPermissions.CITY_BUY_PLOT_FROM_CITY
+                        EnumPlayerPermissions.CITY_BUY_PLOT_FROM_CITY,
+                        EnumPlayerPermissions.CITY_SET_MOBSPAWN,
+                        EnumPlayerPermissions.CITY_PLOTSGROUP_SET_MOBSPAWN
                     }
                 },
                  // What a village head gets instead of MAYOR. Deliberately a whitelist: a village
@@ -104,6 +106,7 @@ namespace claims.src
                         EnumPlayerPermissions.CITY_SET_PVP,
                         EnumPlayerPermissions.CITY_SET_FIRE,
                         EnumPlayerPermissions.CITY_SET_BLAST,
+                        EnumPlayerPermissions.CITY_SET_MOBSPAWN,
                         EnumPlayerPermissions.CITY_SET_DAILY_MSG,
                         EnumPlayerPermissions.CITY_SET_INV_MSG,
                         EnumPlayerPermissions.CITY_SET_PLOT_ACCESS_PERMISSIONS,
@@ -276,6 +279,9 @@ namespace claims.src
             ("mayor-sell-plot-to-city", "MAYOR", EnumPlayerPermissions.CITY_SELL_PLOT_TO_CITY),
             ("mayor-buy-plot-from-city", "MAYOR", EnumPlayerPermissions.CITY_BUY_PLOT_FROM_CITY),
             ("mayor-plotsgroup-set-fee", "MAYOR", EnumPlayerPermissions.CITY_PLOTSGROUP_SET_FEE),
+            ("mayor-set-mobspawn", "MAYOR", EnumPlayerPermissions.CITY_SET_MOBSPAWN),
+            ("mayor-plotsgroup-set-mobspawn", "MAYOR", EnumPlayerPermissions.CITY_PLOTSGROUP_SET_MOBSPAWN),
+            ("village-mayor-set-mobspawn", "VILLAGE_MAYOR", EnumPlayerPermissions.CITY_SET_MOBSPAWN),
         };
 
         /// <summary>Written next to the permissions file, one applied migration name per line.</summary>

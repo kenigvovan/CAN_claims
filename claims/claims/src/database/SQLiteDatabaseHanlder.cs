@@ -275,6 +275,14 @@ namespace claims.src.database
                         "ALTER TABLE CITYPLOTSGROUP ADD COLUMN pendingfeeat INTEGER DEFAULT 0");
                     TryAlterTable("SELECT pendingfeeaccepted FROM CITYPLOTSGROUP LIMIT 1",
                         "ALTER TABLE CITYPLOTSGROUP ADD COLUMN pendingfeeaccepted TEXT DEFAULT \"\"");
+                    // Sticky mark for the paid nomobspawn flag (PLOTS).
+                    TryAlterTable("SELECT markednomobspawn FROM PLOTS LIMIT 1",
+                        "ALTER TABLE PLOTS ADD COLUMN markednomobspawn INTEGER DEFAULT 0");
+                    // World-wide hostile spawn switches (WORLDS).
+                    TryAlterTable("SELECT mobspawneverywhere FROM WORLDS LIMIT 1",
+                        "ALTER TABLE WORLDS ADD COLUMN mobspawneverywhere INTEGER DEFAULT 0");
+                    TryAlterTable("SELECT mobspawnforbidden FROM WORLDS LIMIT 1",
+                        "ALTER TABLE WORLDS ADD COLUMN mobspawnforbidden INTEGER DEFAULT 0");
         }
 
         /// <summary>
@@ -873,6 +881,7 @@ namespace claims.src.database
                 { "@perms", plot.getPermsHandler().ToString() },
                 { "@plotgroupguid", plot.hasPlotGroup() ? plot.getPlotGroup().Guid : "" },
                 { "@markednopvp", plot.MarkedNoPvp },
+                { "@markednomobspawn", plot.MarkedNoMobSpawn },
                 { "@plotdesc", plot.PlotDesc?.Serialize(plot) ?? "" },
                 { "@extraBought", plot.extraBought },
                 { "@wascaptured", plot.WasCaptured },
@@ -924,6 +933,7 @@ namespace claims.src.database
             if (claims.dataStorage.getCityPlotsGroupsDict().TryGetValue(it["plotgroupguid"].ToString(), out CityPlotsGroup cityPlotsGroup))
                 plot.setPlotGroup(cityPlotsGroup);
             plot.MarkedNoPvp = it["markednopvp"].ToString().Equals("0") ? false : true;
+            plot.MarkedNoMobSpawn = ReadBoolColumn(it, "markednomobspawn");
             PlotDesc plotDesc = PlotDesc.Load(plot.Type);
             if (plotDesc != null)
             {
@@ -982,6 +992,8 @@ namespace claims.src.database
                 world.fireForbidden = dr["fireforbidden"].ToString().Equals("0") ? false : true;
                 world.pvpForbidden = dr["pvpforbidden"].ToString().Equals("0") ? false : true;
                 world.blastForbidden = dr["blastforbidden"].ToString().Equals("0") ? false : true;
+                world.mobSpawnEverywhere = ReadBoolColumn(dr, "mobspawneverywhere");
+                world.mobSpawnForbidden = ReadBoolColumn(dr, "mobspawnforbidden");
             }
             return true;
         }
@@ -996,7 +1008,9 @@ namespace claims.src.database
                 { "@blasteverywhere", worldInfo.blastEverywhere },
                 { "@fireforbidden", worldInfo.fireForbidden },
                 { "@pvpforbidden", worldInfo.pvpForbidden },
-                { "@blastforbidden", worldInfo.blastForbidden }
+                { "@blastforbidden", worldInfo.blastForbidden },
+                { "@mobspawneverywhere", worldInfo.mobSpawnEverywhere },
+                { "@mobspawnforbidden", worldInfo.mobSpawnForbidden }
             };
 
             queryQueue.Enqueue(new QuerryInfo("WORLDS", update ? QuerryType.UPDATE : QuerryType.INSERT, tmpDict));
@@ -1023,7 +1037,19 @@ namespace claims.src.database
             world.fireForbidden = !it["fireforbidden"].ToString().Equals("0");
             world.pvpForbidden = !it["pvpforbidden"].ToString().Equals("0");
             world.blastForbidden = !it["blastforbidden"].ToString().Equals("0");
+            world.mobSpawnEverywhere = ReadBoolColumn(it, "mobspawneverywhere");
+            world.mobSpawnForbidden = ReadBoolColumn(it, "mobspawnforbidden");
             return true;
+        }
+
+        /// <summary>
+        /// Reads a boolean column added by a migration. A database from before it simply has the
+        /// flag off, which is the behaviour the server had until now.
+        /// </summary>
+        private static bool ReadBoolColumn(DataRow row, string column)
+        {
+            if (!row.Table.Columns.Contains(column) || row[column] == DBNull.Value) return false;
+            return !row[column].ToString().Equals("0");
         }
         //OTHER
         public override bool saveEveryThing()

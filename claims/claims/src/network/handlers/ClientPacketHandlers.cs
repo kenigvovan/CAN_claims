@@ -242,6 +242,7 @@ namespace claims.src.network.handlers
                 claims.config.OUTPOST_PLOT_COST = packet.OUTPOST_PLOT_COST;
                 claims.config.EXTRA_PLOT_COST = packet.EXTRA_PLOT_COST;
                 claims.config.PLOT_NO_PVP_FLAG_COST = packet.PLOT_NO_PVP_FLAG_COST;
+                claims.config.PLOT_NO_MOBSPAWN_FLAG_COST = packet.PLOT_NO_MOBSPAWN_FLAG_COST;
 
                 claims.config.RANSOM_FOR_NO_CITIZEN = packet.RANSOM_FOR_NO_CITIZEN;
                 claims.config.RANSOM_FOR_CITIZEN = packet.RANSOM_FOR_CITIZEN;

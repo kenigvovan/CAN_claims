@@ -243,6 +243,7 @@ namespace claims.src.commands
                 UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
                 return tcr;
             }
+            plotHere.MarkNoPvp();
             UsefullPacketsSend.AddToQueueCityInfoUpdate(plotHere.getCity().Guid, EnumPlayerRelatedInfo.CITY_DAY_PAYMENT);
             claims.serverPlayerMovementListener.markPlotToWasReUpdated(plotHere.getPos());
             UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
@@ -290,6 +291,34 @@ namespace claims.src.commands
                 return tcr;
             }
 
+            claims.serverPlayerMovementListener.markPlotToWasReUpdated(plotHere.getPos());
+            UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
+            plotHere.saveToDatabase();
+            return tcr;
+        }
+        /// <summary>
+        /// Keeps hostile mobs from spawning on the plot. Costs the city daily, so it also refreshes
+        /// the payment shown to the client, the same way the pvp flag does.
+        /// </summary>
+        public static TextCommandResult SetNoMobSpawn(TextCommandCallingArgs args)
+        {
+            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            TextCommandResult tcr = new();
+            tcr.Status = EnumCommandStatus.Success;
+
+            if (!HelperFunctionSetFlag(player, out Plot plotHere, tcr))
+            {
+                if (plotHere != null) UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
+                return tcr;
+            }
+
+            if (!plotHere.getPermsHandler().setNoMobSpawn((string)args.LastArg))
+            {
+                UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
+                return tcr;
+            }
+            plotHere.MarkNoMobSpawn();
+            UsefullPacketsSend.AddToQueueCityInfoUpdate(plotHere.getCity().Guid, EnumPlayerRelatedInfo.CITY_DAY_PAYMENT);
             claims.serverPlayerMovementListener.markPlotToWasReUpdated(plotHere.getPos());
             UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
             plotHere.saveToDatabase();

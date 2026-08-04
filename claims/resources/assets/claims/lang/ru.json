@@ -1399,5 +1399,12 @@
   "gui-plot-market-seller": "Продавец: {0}",
   "gui-plot-market-coords": "на {0} / {1} (участок {2} / {3})",
   "gui-plot-market-price": "Цена: {0}",
-  "gui-plot-market-buy-tooltip": "Купить участок для своего города"
+  "gui-plot-market-buy-tooltip": "Купить участок для своего города",
+  "nomobspawn_flag_set_to": "Запрет спавна мобов: {0}.",
+  "gui-admin-flag-nomobspawn": "Без мобов ({0}/день)",
+  "gui-admin-flag-nomobspawn-tooltip": "Враждебные мобы не появляются на земле города. Город платит за это каждый день.",
+  "gui-admin-plot-nomobspawn-tooltip": "Не давать враждебным мобам появляться на этом плоте. Город платит за это каждый день.",
+  "gui-prices-no-mobspawn-flag-cost": "Запрет спавна мобов:",
+  "world_mobspawn_everywhere": "Мобы появляются везде: {0}",
+  "world_mobspawn_forbidden": "Спавн мобов запрещён всюду: {0}"
 }

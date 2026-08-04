@@ -93,6 +93,9 @@ namespace claims.src.timers
         public static void processCityCare(City city)
         {
             decimal sumToPay = (decimal)city.GetDayPaymentAmount();
+            // The safety flags of this day are now billed - both here and, for owned plots, in
+            // processCityFee above - so plots whose flag is off again stop counting from now on.
+            city.UpdateSafetyFlagMarks();
             string capturedGuid = city.Guid;
             if (claims.economyProvider.GetBalance(city.MoneyAccountName) < sumToPay + (decimal)city.DebtBalance)
             {
@@ -192,6 +195,20 @@ namespace claims.src.timers
                         else
                         {
                             playerSumFee[plot.getPlotOwner()] = (decimal)plot.getCustomTax();
+                        }
+                    }
+                    // Safety flags of an owned plot are the owner's bill, not the treasury's - the
+                    // city only pays for its own land, see City.GetSafetyFlagsCost.
+                    double safetyFlagsCost = plot.GetSafetyFlagsCost();
+                    if (safetyFlagsCost > 0)
+                    {
+                        if (playerSumFee.TryGetValue(plot.getPlotOwner(), out decimal current))
+                        {
+                            playerSumFee[plot.getPlotOwner()] = current + (decimal)safetyFlagsCost;
+                        }
+                        else
+                        {
+                            playerSumFee[plot.getPlotOwner()] = (decimal)safetyFlagsCost;
                         }
                     }
                     /*else

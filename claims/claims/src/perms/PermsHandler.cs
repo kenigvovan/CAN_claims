@@ -13,10 +13,12 @@ namespace claims.src.perms
         /// If pvpFlag is ture - you can attack in the Part
         /// If fireFlag is true - fire can spread
         /// If blastFlag is true - blast are prevented
+        /// If noMobSpawnFlag is true - hostile mobs do not spawn here, and the city pays for it
         /// </summary>
         public bool pvpFlag { get; set; }
         public bool fireFlag { get; set; }
         public bool blastFlag { get; set; } = true;
+        public bool noMobSpawnFlag { get; set; }
         public bool[] CitizenPerms { get; set; }
         public bool[] StrangerPerms { get; set; }
         public bool[] AlliancePerms { get; set; }
@@ -63,7 +65,8 @@ namespace claims.src.perms
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.Append("pvp: ").Append(pvpFlag ? "on" : "off").Append("| ");
             stringBuilder.Append("fire: ").Append(fireFlag ? "on" : "off").Append("| ");
-            stringBuilder.Append("blast: ").Append(blastFlag ? "off" : "on").Append("\n");
+            stringBuilder.Append("blast: ").Append(blastFlag ? "off" : "on").Append("| ");
+            stringBuilder.Append("nomobspawn: ").Append(noMobSpawnFlag ? "on" : "off").Append("\n");
             stringBuilder.Append("use, build, attack").Append("\n");
 
             stringBuilder.Append("Citizen:");
@@ -96,6 +99,7 @@ namespace claims.src.perms
             pvpFlag = copyFrom.pvpFlag;
             fireFlag = copyFrom.fireFlag;
             blastFlag = copyFrom.blastFlag;
+            noMobSpawnFlag = copyFrom.noMobSpawnFlag;
 
             for(int i = 0;i < CitizenPerms.Length;i++)
             {
@@ -306,6 +310,7 @@ namespace claims.src.perms
         public void setPerms(string loadedStr)
         {
             blastFlag = false;
+            noMobSpawnFlag = false;
             foreach(string it in loadedStr.Split(';'))
             {
                 if (it.Length == 0)
@@ -342,6 +347,9 @@ namespace claims.src.perms
                             continue;
                         case "blast":
                             this.blastFlag = true;
+                            continue;
+                        case "nomobspawn":
+                            this.noMobSpawnFlag = true;
                             continue;
                     }
                 }
@@ -421,6 +429,32 @@ namespace claims.src.perms
             return true;
         }
 
+        public void setNoMobSpawn(bool val)
+        {
+            noMobSpawnFlag = val;
+        }
+        /// <summary>
+        /// Get string (should be on/off string) and set the no-mob-spawn flag value.
+        /// "on" means hostile mobs are kept out, which is what the city pays for.
+        /// </summary>
+        /// <param name="val"></param>
+        public bool setNoMobSpawn(string val)
+        {
+            bool? whichValue = LogicFunctions.IsOnOffNone(val);
+            if (whichValue.HasValue)
+            {
+                if (whichValue.Value == this.noMobSpawnFlag)
+                {
+                    return false;
+                }
+                else
+                {
+                    this.noMobSpawnFlag = whichValue.Value;
+                }
+            }
+            return true;
+        }
+
         public new string ToString()
         {
             StringBuilder stringBuilder = new StringBuilder();  
@@ -435,6 +469,10 @@ namespace claims.src.perms
             if(blastFlag)
             {
                 stringBuilder.Append("blast;");
+            }
+            if(noMobSpawnFlag)
+            {
+                stringBuilder.Append("nomobspawn;");
             }
 
             for(int i = 0; i < StrangerPerms.Length; i++)

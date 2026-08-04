@@ -220,6 +220,10 @@ namespace claims.src.config
             { "city_bankruptcy_grace_days", new IntSpec(1, 365, v => C.CITY_BANKRUPTCY_GRACE_DAYS = v) },
             { "city_bankruptcy_start_price_factor", new DoubleSpec(0, 100, v => C.CITY_BANKRUPTCY_START_PRICE_FACTOR = v) },
 
+            // safety flags a city pays for daily
+            { "plot_no_mobspawn_flag_cost", new DoubleSpec(0, 100000, v => C.PLOT_NO_MOBSPAWN_FLAG_COST = v) },
+            { "plot_no_pvp_flag_cost", new DoubleSpec(0, 100000, v => C.PLOT_NO_PVP_FLAG_COST = v) },
+
             // plots group fees
             { "max_plotsgroup_fee", new DoubleSpec(0, 100000, v => C.MAX_PLOTSGROUP_FEE = v) },
             // 0 lets a raise apply at once, which takes the members' say out of it

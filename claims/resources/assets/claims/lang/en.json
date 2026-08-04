@@ -1686,5 +1686,12 @@
   "gui-plot-market-seller": "Seller: {0}",
   "gui-plot-market-coords": "at {0} / {1} (plot {2} / {3})",
   "gui-plot-market-price": "Price: {0}",
-  "gui-plot-market-buy-tooltip": "Buy this plot for your city"
+  "gui-plot-market-buy-tooltip": "Buy this plot for your city",
+  "nomobspawn_flag_set_to": "No mob spawn flag was set to {0}.",
+  "gui-admin-flag-nomobspawn": "No mob spawn ({0}/day)",
+  "gui-admin-flag-nomobspawn-tooltip": "Hostile mobs do not spawn on the city's land. The city pays for it every day.",
+  "gui-admin-plot-nomobspawn-tooltip": "Keep hostile mobs from spawning on this plot. The city pays for it every day.",
+  "gui-prices-no-mobspawn-flag-cost": "No mob spawn flag:",
+  "world_mobspawn_everywhere": "Hostile mobs spawn everywhere: {0}",
+  "world_mobspawn_forbidden": "Hostile mob spawn forbidden: {0}"
 }

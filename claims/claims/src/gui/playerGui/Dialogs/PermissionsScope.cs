@@ -89,6 +89,7 @@ namespace claims.src.gui.playerGui.Dialogs
             new FlagRow { Label = Lang.Get("claims:gui-admin-flag-pvp"),   SubCommand = "pvp",   Key = "pvp-switch",   Get = h => h.pvpFlag,   Set = (h, v) => h.setPvp(v) },
             new FlagRow { Label = Lang.Get("claims:gui-admin-flag-fire"),  SubCommand = "fire",  Key = "fire-switch",  Get = h => h.fireFlag,  Set = (h, v) => h.setFire(v) },
             new FlagRow { Label = Lang.Get("claims:gui-admin-flag-blast"), SubCommand = "blast", Key = "blast-switch", Get = h => h.blastFlag, Set = (h, v) => h.setBlast(v), Inverted = true },
+            new FlagRow { Label = Lang.Get("claims:gui-admin-flag-nomobspawn", claims.config.PLOT_NO_MOBSPAWN_FLAG_COST), SubCommand = "nomobspawn", Key = "nomobspawn-switch", Get = h => h.noMobSpawnFlag, Set = (h, v) => h.setNoMobSpawn(v) },
         };
 
         private static string OnOff(bool v) => v ? "on" : "off";

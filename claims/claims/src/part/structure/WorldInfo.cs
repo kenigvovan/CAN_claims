@@ -16,11 +16,15 @@ namespace claims.src.part.structure
         public bool pvpEverywhere;
         public bool fireEverywhere;
         public bool blastEverywhere;
+        //Hostile mobs spawn everywhere, the nomobspawn flag of a plot is ignored
+        public bool mobSpawnEverywhere;
 
         //If true can NOT be turned on at all
         public bool fireForbidden;
         public bool pvpForbidden;
         public bool blastForbidden;
+        //Hostile mobs never spawn, claimed land or not
+        public bool mobSpawnForbidden;
 
         public WorldInfo(string val, string guid) : base(val, guid)
         {
@@ -36,7 +40,9 @@ namespace claims.src.part.structure
                 Lang.Get("claims:world_blast_everywhere", this.blastEverywhere) + "\n",
                 Lang.Get("claims:world_pvp_forbidden", this.pvpForbidden) + "\n",
                 Lang.Get("claims:world_fire_forbidden", this.fireForbidden) + "\n",
-                Lang.Get("claims:world_blast_forbidden", this.blastForbidden) + "\n"
+                Lang.Get("claims:world_blast_forbidden", this.blastForbidden) + "\n",
+                Lang.Get("claims:world_mobspawn_everywhere", this.mobSpawnEverywhere) + "\n",
+                Lang.Get("claims:world_mobspawn_forbidden", this.mobSpawnForbidden) + "\n"
             };
             return status;
         }

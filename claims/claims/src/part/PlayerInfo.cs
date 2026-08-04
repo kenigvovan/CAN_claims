@@ -200,6 +200,12 @@ namespace claims.src.part
             foreach (var it in this.PlayerPlots)
             {
                 plotsPayment += it.getCustomTax();
+                // The safety flags of an owned plot are billed to its owner, so they belong in the
+                // figure shown here - the same condition DayTimer applies.
+                if (it.SafetyFlagsPaidByOwner())
+                {
+                    plotsPayment += it.GetSafetyFlagsCost();
+                }
             }
 
             if (plotsPayment != 0)

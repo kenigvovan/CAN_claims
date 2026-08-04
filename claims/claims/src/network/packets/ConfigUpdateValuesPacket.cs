@@ -257,5 +257,7 @@ namespace claims.src.network.packets
         public bool CITY_PLOT_TRADE_GUI;
         [ProtoMember(100)]
         public bool CITY_PLOT_TRADE_REMOTE_BUY;
+        [ProtoMember(101)]
+        public double PLOT_NO_MOBSPAWN_FLAG_COST;
     }
 }

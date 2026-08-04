@@ -245,6 +245,7 @@ namespace claims.src.auxialiry
                        OUTPOST_PLOT_COST = claims.config.OUTPOST_PLOT_COST,
                        EXTRA_PLOT_COST = claims.config.EXTRA_PLOT_COST,
                        PLOT_NO_PVP_FLAG_COST = claims.config.PLOT_NO_PVP_FLAG_COST,
+                       PLOT_NO_MOBSPAWN_FLAG_COST = claims.config.PLOT_NO_MOBSPAWN_FLAG_COST,
 
                        RANSOM_FOR_NO_CITIZEN = claims.config.RANSOM_FOR_NO_CITIZEN,
                        RANSOM_FOR_CITIZEN = claims.config.RANSOM_FOR_CITIZEN,

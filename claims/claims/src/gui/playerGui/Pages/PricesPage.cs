@@ -82,6 +82,7 @@ namespace claims.src.gui.playerGui.Pages
                 Row("claims:gui-prices-outpost-cost", claims.config.OUTPOST_PLOT_COST),
                 Row("claims:gui-prices-extra-plot-cost", claims.config.EXTRA_PLOT_COST),
                 Row("claims:gui-prices-no-pvp-flag-cost", claims.config.PLOT_NO_PVP_FLAG_COST),
+                Row("claims:gui-prices-no-mobspawn-flag-cost", claims.config.PLOT_NO_MOBSPAWN_FLAG_COST),
             });
 
             y = Card.Rows(compo, right, y, Lang.Get("claims:gui-prices-alliance-header"), new List<CardRow>

@@ -175,6 +175,20 @@ namespace claims.src.commands
             UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_PERMISSIONS_UPDATED);
             return SuccessWithParams("claims:blast_flag_set_to", new object[] { (string)args.LastArg });
         }
+        public static TextCommandResult CitySetNoMobSpawn(TextCommandCallingArgs args)
+        {
+            IServerPlayer player = args.Caller.Player as IServerPlayer;
+
+            City city = claims.dataStorage.getCityByPlayerGUID(player.PlayerUID);
+            if (city == null)
+            {
+                return TextCommandResult.Success();
+            }
+            city.getPermsHandler().setNoMobSpawn((string)args.LastArg);
+            city.saveToDatabase();
+            UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_PERMISSIONS_UPDATED);
+            return SuccessWithParams("claims:nomobspawn_flag_set_to", new object[] { (string)args.LastArg });
+        }
         public static TextCommandResult CitySetCitizenPrefix(TextCommandCallingArgs args)
         {
             if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
