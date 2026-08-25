@@ -18,6 +18,12 @@ namespace claims.src.part.structure.conflict
         public war.PeaceTerms Terms { get; set; }
         /// <summary>NON_AGGRESSION only: length of the offered pact in days.</summary>
         public int NapDays { get; set; }
+        /// <summary>
+        /// START_CONFLICT only: what declaring cost the sender, so it can be handed back if the
+        /// declaration never becomes a war. Persisted, because a letter outlives a restart and the
+        /// refund must too.
+        /// </summary>
+        public war.DeclarationCharge Charge { get; set; } = new war.DeclarationCharge();
         public Action OnAccept { get; }
         public Action OnDeny { get; }
         public string Guid { get; }

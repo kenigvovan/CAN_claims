@@ -74,6 +74,11 @@ namespace claims.src.messages
         }
         public static void sendMsgToPlayerInfo(PlayerInfo receiver, string msg)
         {
+            // Callers pass things like city.getMayor(), which is null for a technical city.
+            if (receiver == null)
+            {
+                return;
+            }
             sendMsgToPlayer(claims.sapi.World.PlayerByUid(receiver.Guid) as IServerPlayer, msg);
         }
         public static void sendMsgToPlayer(IServerPlayer receiver, string msg)

@@ -3,9 +3,9 @@ using System.Collections.Generic;
 namespace claims.src.gui.playerGui.Pages
 {
     /// <summary>
-    /// Maps a tab to the page that draws it. Pages are created once and reused, the way the ImGui
-    /// side already does it. Add() is public so future pages - the admin tabs, the city log, the
-    /// map - can register themselves without touching this constructor.
+    /// Maps a tab to the page that draws it. Pages are created once and reused. Add() is public so
+    /// future pages - the admin tabs, the city log, the map - can register themselves without
+    /// touching this constructor.
     /// </summary>
     public sealed class PageRegistry
     {
@@ -51,6 +51,7 @@ namespace claims.src.gui.playerGui.Pages
             Add(EnumSelectedTab.AdminWorld, new AdminWorldPage());
             Add(EnumSelectedTab.AdminCities, new AdminCitiesPage());
             Add(EnumSelectedTab.AdminWar, new AdminWarPage());
+            Add(EnumSelectedTab.AdminWarConfig, new AdminWarConfigPage());
             Add(EnumSelectedTab.AdminPlayer, new AdminPlayerPage());
         }
 

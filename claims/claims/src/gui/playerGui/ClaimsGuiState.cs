@@ -17,6 +17,14 @@ namespace claims.src.gui.playerGui
         public int SelectedColor = -1;
 
         /// <summary>
+        /// Which conflict and tab the war-schedule grid currently holds, as "guid:tab". The grid is
+        /// the player's working copy - refilling it on every window rebuild would wipe the slots
+        /// they just clicked - so it is reloaded only when the page starts showing something else.
+        /// Empty means the grid holds nothing and must be filled.
+        /// </summary>
+        public string WarGridLoadedFor = "";
+
+        /// <summary>
         /// The coat of arms being edited. Held client-side until Apply - a stack of six layers is
         /// built one pick at a time.
         /// </summary>

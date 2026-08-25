@@ -2,6 +2,7 @@ using System;
 using Cairo;
 using claims.src.gui.playerGui.structures.cellElements;
 using claims.src.gui.playerGui.Widgets;
+using claims.src.part.structure.war;
 using Vintagestory.API.Client;
 using Vintagestory.API.Config;
 
@@ -36,6 +37,9 @@ namespace claims.src.gui.playerGui.GuiElements
 
         private readonly DayOfWeek dayOfWeek;
 
+        /// <summary>Whether the server lets battles fall on this day at all.</summary>
+        private readonly bool dayAllowed;
+
         protected override bool UseHoverHighlights => false;
 
         protected override double MinCellHeight => ContentHeight;
@@ -45,6 +49,7 @@ namespace claims.src.gui.playerGui.GuiElements
         {
             this.Cell = cell;
             this.dayOfWeek = cell.DayOfWeek;
+            this.dayAllowed = WarScheduleHelper.IsDayAllowed(cell.DayOfWeek);
 
             var font = CairoFont.WhiteDetailText();
 
@@ -87,10 +92,14 @@ namespace claims.src.gui.playerGui.GuiElements
                         schedule[slot] = !schedule[slot];
                     }, slotBounds, true, ours);
                     toggle.On = schedule[slot];
-                    toggle.ReadOnly = !ours;
+                    // The enemy's row is display-only, and so is any day the server forbids battles on.
+                    toggle.ReadOnly = !ours || !dayAllowed;
                     children.Add(toggle);
 
-                    children.Add(new GuiElementHoverText(capi, GuiElementWarRangeCell.SlotLabel(slot), font, 120, slotBounds));
+                    string hover = dayAllowed
+                        ? WarScheduleDisplay.SlotLabel(dayOfWeek, slot, GuiElementWarRangeCell.SlotLabel(slot))
+                        : Lang.Get("claims:gui-warrange-day-not-allowed", WarScheduleHelper.AllowedDaysText());
+                    children.Add(new GuiElementHoverText(capi, hover, font, 160, slotBounds));
 
                     slotBounds = slotBounds.RightCopy();
                 }
@@ -102,6 +111,7 @@ namespace claims.src.gui.playerGui.GuiElements
         protected override void ComposeContent(Context ctx, ImageSurface surface)
         {
             string dayName = GuiElementWarRangeCell.DayLabel(dayOfWeek);
+            if (!dayAllowed) dayName += " " + Lang.Get("claims:gui-warrange-day-off");
             TextExtents extents = Font.GetTextExtents(dayName);
             textUtil.AutobreakAndDrawMultilineTextAt(ctx, Font, dayName,
                 Bounds.absPaddingX + GuiElement.scaled(6), Bounds.absPaddingY + GuiElement.scaled(4),

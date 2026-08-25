@@ -278,6 +278,7 @@ namespace claims.src.gui.playerGui.Dialogs
             Add(CITY_SEND_NAP_OFFER_NEED_NAME, new DeclareConflictDialog("/city war nap offer ", "claims:name_of_target_to_send_nap"));
             Add(ALLIANCE_SEND_NAP_OFFER_NEED_NAME, new DeclareConflictDialog("/a conflict nap offer ", "claims:name_of_target_to_send_nap"));
             Add(SEND_ULTIMATUM, new UltimatumDialog());
+            Add(WARCFG_CHOICE, new CfgChoiceDialog());
 
             // There is no alliance uninvite dialog: the server only has /city uninvite, so the button
             // that used to open one has been dropped along with its enum value.

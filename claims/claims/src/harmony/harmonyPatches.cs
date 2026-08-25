@@ -45,51 +45,16 @@ namespace claims.src.harmony
         public static readonly MethodInfo EntityBlockFallingDropItems = typeof(Vintagestory.GameContent.EntityBlockFalling)
             .GetMethod("DropItems", BindingFlags.NonPublic | BindingFlags.Instance);
 
-        public static void Prefix_testBlockAccessInternal(Vintagestory.Common.WorldMap __instance, IPlayer player, BlockSelection blockSel, EnumBlockAccessFlags accessType, out string claimant)
-        {
-            claimant = "";
-            ServerMain serverMain = __instance.World as ServerMain;
-        }
+        // Prefix_testBlockAccessInternal used to sit here: a stub for a WorldMap access-check patch
+        // that was never registered in ApplyPatches. It blanked its out parameter and assigned a
+        // local it never read, so it decided nothing - but it read as a working permission hook,
+        // which is the sort of place a rule ends up in by mistake.
 
-        public static bool Prefix_nearToClaimedLand(Vintagestory.GameContent.BlockEntityBomb __instance, ref bool __result)
-        {
-
-            int tmpX = __instance.Pos.X;
-            int tmpZ = __instance.Pos.Z;
-            bool blastEV = claims.dataStorage.getWorldInfo().blastEverywhere;
-            if (blastEV)
-            {
-                __result = true;
-                return false;
-            }
-            if (claims.dataStorage.getWorldInfo().blastForbidden)
-            {
-                __result = false;
-                return false;
-            }
-
-            for (int i = -1; i < 2; ++i)
-            {
-                for (int j = -1; j < 2; ++j)
-                {
-
-                    claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)(tmpX + (i * __instance.BlastRadius)),
-                                                                          (int)(tmpZ + (j * __instance.BlastRadius))), out Plot tb);
-                    if (tb == null)
-                    {
-                        continue;
-                    }
-
-                    if (tb.getPermsHandler().blastFlag || (tb.hasCity() && tb.getCity().getPermsHandler().blastFlag))
-                    {
-                        __result = true;
-                        return false;
-                    }
-                }
-            }
-            __result = false;
-            return false;
-        }
+        // Prefix_nearToClaimedLand used to sit here: a byte-for-byte copy of
+        // Prefix_HasPermissionToUse below, patched onto a BlockEntityBomb method that no longer
+        // exists (there is no nearToClaimedLand in the engine as of 22.2). ApplyPatches never
+        // registered it, so it was forty lines of blast rules that could not run - and the next
+        // change to those rules had even odds of landing in the copy nothing calls.
 
         public static bool Prefix_On_ReceiveDamage(Vintagestory.API.Common.Entities.Entity __instance, DamageSource damageSource, float damage
             , ref bool __result)

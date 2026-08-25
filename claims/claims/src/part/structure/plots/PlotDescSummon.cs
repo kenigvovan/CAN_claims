@@ -56,11 +56,17 @@ namespace claims.src.part.structure.plots
             tcr.MessageParams = new object[] { newTypeName };
         }
 
+        // Guarded like the temple, camp and village descriptions: a plot may have lost its city by
+        // the time its type is reset, and a stored point may be missing if its row failed to parse.
         public override void OnDeactivated(Plot plot)
         {
-            UsefullPacketsSend.AddToQueueCityInfoUpdate(plot.getCity().Guid,
-                new Dictionary<string, object> { { "value", new SummonCellElement(SummonPoint.AsVec3i.Clone(), Name) } },
-                EnumPlayerRelatedInfo.CITY_SUMMON_POINT_REMOVE);
+            if (!plot.hasCity()) return;
+            if (SummonPoint != null)
+            {
+                UsefullPacketsSend.AddToQueueCityInfoUpdate(plot.getCity().Guid,
+                    new Dictionary<string, object> { { "value", new SummonCellElement(SummonPoint.AsVec3i.Clone(), Name) } },
+                    EnumPlayerRelatedInfo.CITY_SUMMON_POINT_REMOVE);
+            }
             plot.getCity().summonPlots.Remove(plot);
         }
     }

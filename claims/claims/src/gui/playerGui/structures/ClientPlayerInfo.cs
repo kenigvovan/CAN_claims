@@ -50,6 +50,7 @@ namespace claims.src.gui.playerGui.structures
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.SHOW_PLOT_MOVEMENT, OnShowPlotMovement);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_INVITE_ADD, OnCityInviteAdd);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_INVITE_REMOVE, OnCityInviteRemove);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.TO_CITY_INVITES, OnCityInvitesAll);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.PLAYER_PERMISSIONS, OnPlayerPermissions);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.FRIENDS, OnPlayerFriends);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_CITIZENS_RANKS, OnCityCitizensRanks);
@@ -257,6 +258,16 @@ namespace claims.src.gui.playerGui.structures
         private void OnCityInviteAdd(string val)
         {
             this.ReceivedInvitations.Add(JsonConvert.DeserializeObject<ClientToCityInvitation>(val));
+        }
+        /// <summary>
+        /// The full list, sent on joining. There was no handler for it, so invitations that arrived
+        /// while the player was away never showed up - only ones sent with them online, through
+        /// CITY_INVITE_ADD above. A snapshot replaces the list rather than appending to it.
+        /// </summary>
+        private void OnCityInvitesAll(string val)
+        {
+            this.ReceivedInvitations = JsonConvert.DeserializeObject<List<ClientToCityInvitation>>(val)
+                ?? new List<ClientToCityInvitation>();
         }
         private void OnCityInviteRemove(string val)
         {
@@ -589,6 +600,7 @@ namespace claims.src.gui.playerGui.structures
         }
         private void OnAllianceName(string val)
         {
+            if (this.AllianceInfo == null) return;
             Tuple<string, string> tup = JsonConvert.DeserializeObject<Tuple<string, string>>(val);
             claims.clientDataStorage.clientPlayerInfo.AllianceInfo.Name = tup.Item2;
         }
@@ -674,6 +686,7 @@ namespace claims.src.gui.playerGui.structures
         }
         private void OnAllianceAllyRemove(string val)
         {
+            if (this.AllianceInfo == null) return;
             List<string> pc = JsonConvert.DeserializeObject<List<string>>(val);
             foreach (var it in pc)
             {
@@ -768,6 +781,9 @@ namespace claims.src.gui.playerGui.structures
                     cell.SecondWarRanges = it.SecondWarRanges;
                     cell.NextBattleDateEnd = it.NextBattleDateEnd;
                     cell.NextBattleDateStart = it.NextBattleDateStart;
+                    // The server sends the state along: agreeing a schedule moves a conflict to
+                    // ACTIVE, and without this the client kept showing it as merely declared.
+                    cell.State = it.State;
                 }
             }
         }
@@ -789,12 +805,20 @@ namespace claims.src.gui.playerGui.structures
         {
             List<string> guids = JsonConvert.DeserializeObject<List<string>>(val);
             if (guids == null || guids.Count == 0) return;
-            string conflictGuid = guids[0];
-            ClientConflictCellElement cell = this.CityInfo.ClientConflictCellElements.FirstOrDefault(c => c.Guid == conflictGuid);
-            if (cell != null)
+            // Every guid, not just the first: the send queue merges the values collected since the
+            // last flush, so two battle windows opening in the same interval arrive together and
+            // the second war stayed invisible to the HUD and the conflict page.
+            bool marked = false;
+            foreach (string conflictGuid in guids)
             {
-                cell.ActiveWarTime = true;
+                ClientConflictCellElement cell = this.CityInfo.ClientConflictCellElements.FirstOrDefault(c => c.Guid == conflictGuid);
+                if (cell != null)
+                {
+                    cell.ActiveWarTime = true;
+                    marked = true;
+                }
             }
+            if (!marked) return;
             var player = claims.capi?.World?.Player;
             if (player != null)
             {
@@ -805,12 +829,19 @@ namespace claims.src.gui.playerGui.structures
         {
             List<string> guids = JsonConvert.DeserializeObject<List<string>>(val);
             if (guids == null || guids.Count == 0) return;
-            string conflictGuid = guids[0];
-            ClientConflictCellElement cell = this.CityInfo.ClientConflictCellElements.FirstOrDefault(c => c.Guid == conflictGuid);
-            if (cell != null)
+            // Same merged-queue payload as the start handler: clearing only the first guid left a
+            // second finished battle showing as still running.
+            bool marked = false;
+            foreach (string conflictGuid in guids)
             {
-                cell.ActiveWarTime = false;
+                ClientConflictCellElement cell = this.CityInfo.ClientConflictCellElements.FirstOrDefault(c => c.Guid == conflictGuid);
+                if (cell != null)
+                {
+                    cell.ActiveWarTime = false;
+                    marked = true;
+                }
             }
+            if (!marked) return;
             var player = claims.capi?.World?.Player;
             if (player != null)
             {

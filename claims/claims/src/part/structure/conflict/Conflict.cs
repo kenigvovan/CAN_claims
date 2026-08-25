@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using claims.src.part.structure.war;
 
 namespace claims.src.part.structure.conflict
 {
@@ -21,6 +22,12 @@ namespace claims.src.part.structure.conflict
         public DateTime LastBattleDateStart { get; set; } = DateTime.UnixEpoch;
         public DateTime LastBattleDateEnd { get; set; } = DateTime.UnixEpoch;
         public long TimeStampStarted { get; set; }
+        /// <summary>
+        /// The war this one was dragged into, empty for a war declared in its own right. An ally
+        /// pulled in by a union fights its own conflict, and that conflict has no reason to outlive
+        /// the one it was called to: peace between the main sides ends it too.
+        /// </summary>
+        public string ParentConflictGuid { get; set; } = "";
         public bool ActiveWarTime { get; set; } = false;
         // War score accumulated across all battle windows of this conflict.
         // When either side reaches config.WAR_SCORE_TO_WIN the conflict ends with that side winning.
@@ -83,9 +90,19 @@ namespace claims.src.part.structure.conflict
                 NextBattleDateEnd = DateTime.UnixEpoch;
             }
         }
+        /// <summary>
+        /// Resolves a weekday+time slot into the next real date it falls on. Weekdays are counted on
+        /// the schedule clock (see <see cref="WarScheduleHelper"/>), while the result is server-local
+        /// time because that is what every war timer compares against.
+        /// </summary>
         public bool GetNextDateForRange(SelectedWarRange range, out DateTime dateTime)
         {
-            DateTime startDate = DateTime.Now + (LastBattleDateEnd == DateTime.UnixEpoch
+            if (!WarScheduleHelper.IsDayAllowed(range.StartDay))
+            {
+                dateTime = DateTime.UnixEpoch;
+                return false;
+            }
+            DateTime startDate = WarScheduleHelper.NowInZone() + (LastBattleDateEnd == DateTime.UnixEpoch
                                                                 ? TimeSpan.Zero
                                                                 : TimeSpan.FromDays(MinimumDaysBetweenBattles));
             for (int i = 0; i < 8; i++)
@@ -93,7 +110,7 @@ namespace claims.src.part.structure.conflict
                 DateTime candidate = startDate.AddDays(i);
                 if (candidate.DayOfWeek == range.StartDay)
                 {
-                    dateTime = candidate.Date + range.StartTime;
+                    dateTime = WarScheduleHelper.ToServerLocal(candidate.Date + range.StartTime);
                     if (dateTime < DateTime.Now)
                     {
                         continue;

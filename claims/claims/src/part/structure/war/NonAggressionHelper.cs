@@ -5,7 +5,7 @@ namespace claims.src.part.structure.war
 {
     /// <summary>
     /// Non-aggression pacts (NAPs): a timed mutual agreement not to declare war. Stored symmetrically
-    /// on every city of both parties (City.NonAggressionPacts: partner party guid -> expiry unix秒).
+    /// on every city of both parties (City.NonAggressionPacts: partner party guid -> expiry unix seconds).
     /// A live pact blocks a war declaration (see WarDeclarationHelper) unless the declarer has a
     /// casus belli or breaks the pact first (paying a penalty).
     /// </summary>

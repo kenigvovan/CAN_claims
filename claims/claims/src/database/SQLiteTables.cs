@@ -35,7 +35,10 @@
             "naps TEXT DEFAULT \"\"," +
             "warjustifications TEXT DEFAULT \"\"," +
             "emblem TEXT DEFAULT \"\"," +
-            "tier INTEGER DEFAULT 0" +
+            "tier INTEGER DEFAULT 0," +
+            // Declared neutral - no wars either way, paid for daily.
+            "neutral INTEGER DEFAULT 0," +
+            "neutraldroppedat INTEGER DEFAULT 0" +
              ");";
 
         public static string playerTable =
@@ -187,6 +190,7 @@
            "comrades TEXT," +
            "alliancefee INTEGER," +
            "neutral INTEGER," +
+           "neutraldroppedat INTEGER DEFAULT 0," +
            "pendingunionbreaks TEXT," +
            "unionbreakcooldowns TEXT," +
            "emblem TEXT DEFAULT \"\"" +
@@ -219,7 +223,9 @@
              "firstkills INTEGER DEFAULT 0," +
              "secondkills INTEGER DEFAULT 0," +
              "firstpillaged INTEGER DEFAULT 0," +
-             "secondpillaged INTEGER DEFAULT 0" +
+             "secondpillaged INTEGER DEFAULT 0," +
+             // The war this one was called into, empty for a war of its own.
+             "parentconflict TEXT DEFAULT \"\"" +
              ");";
 
         // Pending war/peace/NAP/ultimatum offers. Their accept/deny behaviour is rebuilt from
@@ -238,7 +244,12 @@
              "termplotx INTEGER DEFAULT 0," +
              "termplotz INTEGER DEFAULT 0," +
              "termhasplot INTEGER DEFAULT 0," +
-             "napdays INTEGER DEFAULT 0" +
+             "napdays INTEGER DEFAULT 0," +
+             // START_CONFLICT only: what declaring took up front, so a letter that comes to nothing
+             // can hand it back even after a restart.
+             "declarationcost REAL DEFAULT 0," +
+             "spentjustification INTEGER DEFAULT 0," +
+             "spentjustificationtarget TEXT DEFAULT \"\"" +
              ");";
 
         // Pending union offers / mutual-dissolution offers between alliances. Their accept/deny

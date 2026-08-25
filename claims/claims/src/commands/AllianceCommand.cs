@@ -74,7 +74,14 @@ namespace claims.src.commands
                         MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:not_enough_money"));
                         return;
                     }
-                        claims.economyProvider.Withdraw(city.MoneyAccountName, (decimal)claims.config.NEW_ALLIANCE_COST);
+                        // Founded only once it is paid for: an unchecked withdrawal handed out the
+                        // alliance for free whenever the economy refused the charge.
+                        if (claims.economyProvider.Withdraw(city.MoneyAccountName,
+                                (decimal)claims.config.NEW_ALLIANCE_COST) != MoneyOperationResult.Success)
+                        {
+                            MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:economy_money_transaction_error"));
+                            return;
+                        }
                         PartInits.InitNewAlliance(playerInfo, name);
                         MessageHandler.sendGlobalMsg(Lang.Get("claims:new_alliance_created", playerInfo.GetPartName(), name));
                     }
@@ -290,6 +297,8 @@ namespace claims.src.commands
                 {
                     alliance.Cities.Add(city);
                     RightsHandler.AddCityHostilesInAlliance(city, alliance);
+                    // Leaving the alliance clears the comrade links, so joining has to create them.
+                    RightsHandler.AddCityComradesInAlliance(city, alliance);
                     foreach (PlayerInfo playerInCity in city.getPlayerInfos())
                     {
                         RightsHandler.reapplyRights(playerInCity);
@@ -361,8 +370,14 @@ namespace claims.src.commands
                 }
                 else
                 {
+                    // Charged before anything happens: with the result ignored, a refused withdrawal
+                    // still renamed the alliance and still started its cooldown.
+                    if (claims.economyProvider.Withdraw(alliance.MoneyAccountName,
+                            (decimal)claims.config.ALLIANCE_RENAME_COST) != MoneyOperationResult.Success)
+                    {
+                        return TextCommandResult.Success(Lang.Get("claims:economy_money_transaction_error"));
+                    }
                     CooldownHandler.addCooldown(alliance, new CooldownInfo(TimeFunctions.getEpochSeconds() + claims.config.SECONDS_ALLIANCE_RENAME_COOLDOWN, CooldownType.RENAMING));
-                    claims.economyProvider.Withdraw(alliance.MoneyAccountName, (decimal)claims.config.ALLIANCE_RENAME_COST);
                     alliance.SetPartName(name);
                     alliance.saveToDatabase();
                     UsefullPacketsSend.AddToQueueAllianceInfoUpdate(alliance.Guid, new Dictionary<string, object> { { "value", alliance.Guid } }, EnumPlayerRelatedInfo.ALLIANCE_NAME);
@@ -532,7 +547,7 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Success(Lang.Get("claims:same_alliance"));
             }
-            if (ourAlliance.Neutral)
+            if (ourAlliance.IsNeutral)
             {
                 return TextCommandResult.Success(Lang.Get("claims:our_alliance_is_neutral"));
             }
@@ -540,7 +555,7 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Success(Lang.Get("claims:conflict_already_exists"));
             }
-            if (targetParty.Neutral)
+            if (targetParty.IsNeutral)
             {
                 return TextCommandResult.Success(Lang.Get("claims:target_alliance_is_neutral"));
             }
@@ -557,7 +572,8 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Success(Lang.Get("claims:conflict_letter_is_duplicate"));
             }
-            if (!WarDeclarationHelper.TryPassDeclarationGates(ourAlliance, targetParty, ourAlliance.MoneyAccountName, out string declErr))
+            if (!WarDeclarationHelper.TryPassDeclarationGates(ourAlliance, targetParty, ourAlliance.MoneyAccountName,
+                    out string declErr, out var declCharge))
             {
                 return TextCommandResult.Success(Lang.Get(declErr));
             }
@@ -566,8 +582,10 @@ namespace claims.src.commands
             {
                 long timestamp = TimeFunctions.getEpochSeconds() + claims.config.DELAY_FOR_CONFLICT_ACTIVATED;
                 string newConflictGuid = ConflictLetter.GetUnusedGuid().ToString();
+                // Carried by the letter so a refusal, an expiry or a withdrawal can hand it back.
                 if (ConflictHandler.addConflictLetter(ConflictLetterFactory.Build(
-                        ourAlliance, targetParty, LetterPurpose.START_CONFLICT, timestamp, newConflictGuid.ToString())))
+                        ourAlliance, targetParty, LetterPurpose.START_CONFLICT, timestamp, newConflictGuid.ToString(),
+                        charge: declCharge)))
                 {
                     // The letter itself is mirrored to both sides by ConflictHandler.addConflictLetter
                     foreach (var c in targetParty.GetCities())
@@ -661,6 +679,8 @@ namespace claims.src.commands
             UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty, new Dictionary<string, object> { { "value", (foundLetter.Guid, foundLetter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
             UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(ourAlliance, new Dictionary<string, object> { { "value", (foundLetter.Guid, foundLetter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
             ConflictHandler.removeConflictLetter(foundLetter);
+            // Withdrawn before it was answered, so the declaration bought nothing.
+            WarDeclarationHelper.RefundDeclaration(ourAlliance, ourAlliance.MoneyAccountName, foundLetter.Charge);
             return TextCommandResult.Success(Lang.Get("claims:conflict_declaration_removed", targetParty.GetPartName()));
         }
         /// <summary>
@@ -826,6 +846,43 @@ namespace claims.src.commands
             return true;
         }
 
+        /// <summary>
+        /// /alliance neutral on|off - the alliance fights nobody and cannot be fought, for a daily
+        /// fee. Leader only, like every other alliance setting.
+        /// </summary>
+        public static TextCommandResult AllianceSetNeutral(TextCommandCallingArgs args)
+        {
+            if (!TryResolveCaller(args, out _, out var playerInfo, out var callerErr)) return callerErr;
+            if (!playerInfo.HasAlliance())
+                return TextCommandResult.Success(Lang.Get("claims:no_alliance"));
+
+            Alliance alliance = playerInfo.Alliance;
+            if (!alliance.IsLeader(playerInfo))
+                return TextCommandResult.Success(Lang.Get("claims:you_dont_have_right_for_that_command"));
+
+            bool on = ((string)args.LastArg ?? "").Equals("on", StringComparison.OrdinalIgnoreCase);
+
+            if (!on)
+            {
+                NeutralityHelper.Set(alliance, false);
+                MessageHandler.SendMsgInAlliance(alliance, Lang.Get("claims:neutrality_dropped"));
+                return TextCommandResult.Success();
+            }
+
+            if (alliance.Neutral) return TextCommandResult.Success(Lang.Get("claims:neutrality_already"));
+            if (!NeutralityHelper.CanTurnOn(alliance, out string errorKey))
+            {
+                long left = NeutralityHelper.CooldownLeft(alliance);
+                return TextCommandResult.Success(left > 0
+                    ? Lang.Get(errorKey, StringFunctions.FormatDuration(left))
+                    : Lang.Get(errorKey));
+            }
+
+            NeutralityHelper.Set(alliance, true);
+            MessageHandler.SendMsgInAlliance(alliance,
+                Lang.Get("claims:neutrality_declared", claims.config.NEUTRAL_ALLANCE_PAYMENT));
+            return TextCommandResult.Success();
+        }
         public static TextCommandResult DeclareUnion(TextCommandCallingArgs args)
         {
             if (!TryResolveUnionSides(args, out _, out Alliance ourAlliance, out Alliance targetAlliance, out var err))
@@ -835,7 +892,7 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error(Lang.Get("claims:same_alliance"));
             }
-            if (ourAlliance.Neutral)
+            if (ourAlliance.IsNeutral)
             {
                 return TextCommandResult.Success(Lang.Get("claims:our_alliance_is_neutral"));
             }
@@ -843,7 +900,9 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Success(Lang.Get("claims:union_already_exists"));
             }
-            if (targetAlliance.Neutral)
+            // Checked on acceptance as well (UnionLetterFactory): either side may have declared
+            // itself neutral while the offer was in the post.
+            if (targetAlliance.IsNeutral)
             {
                 return TextCommandResult.Success(Lang.Get("claims:target_alliance_is_neutral"));
             }
@@ -904,7 +963,13 @@ namespace claims.src.commands
             return TextCommandResult.Success(Lang.Get("claims:union_break_cancelled", targetAlliance.getPartNameReplaceUnder()));
         }
 
-        /// <summary>Offers to dissolve the union by mutual consent: no delay and no cooldowns for either side.</summary>
+        /// <summary>
+        /// Offers to dissolve the union by mutual consent: no delay and no cooldowns for either side.
+        ///
+        /// With our own denunciation already announced it does not offer but ends the union there and
+        /// then - the way out of a denunciation the other side keeps cancelling. That path counts as
+        /// a one-sided break, so the usual post-break cooldowns apply to it.
+        /// </summary>
         public static TextCommandResult DissolveUnion(TextCommandCallingArgs args)
         {
             if (!TryResolveUnionSides(args, out _, out Alliance ourAlliance, out Alliance targetAlliance, out var err))
@@ -914,6 +979,17 @@ namespace claims.src.commands
                 return TextCommandResult.Success(Lang.Get("claims:no_union_found"));
             if (claims.config.UNION_BREAK_BLOCKED_IN_SHARED_WAR && UnionBreakHelper.SharesRunningWar(ourAlliance, targetAlliance))
                 return TextCommandResult.Success(Lang.Get("claims:union_break_blocked_shared_war"));
+
+            // With a denunciation of our own already announced, this ends the union outright instead
+            // of asking. Cancelling a denunciation is open to both sides, so the side being left
+            // could otherwise call it off for ever and keep a partner it no longer has.
+            if (UnionBreakHelper.PendingBreakLeft(ourAlliance, targetAlliance) > 0)
+            {
+                string breakErr = UnionBreakHelper.TryDissolveDuringDenunciation(ourAlliance, targetAlliance);
+                if (breakErr != null) return TextCommandResult.Success(Lang.Get(breakErr));
+                return TextCommandResult.Success(Lang.Get("claims:union_broken", targetAlliance.getPartNameReplaceUnder()));
+            }
+
             if (UnionHander.TryGetUnionLetter(ourAlliance, targetAlliance, out _))
                 return TextCommandResult.Success(Lang.Get("claims:union_letter_is_duplicate"));
 

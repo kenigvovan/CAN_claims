@@ -1,4 +1,5 @@
 ﻿using System;
+using Vintagestory.API.Config;
 
 namespace claims.src.auxialiry
 {
@@ -67,6 +68,24 @@ namespace claims.src.auxialiry
             DateTimeOffset dateTimeOffSet = DateTimeOffset.FromUnixTimeSeconds(date);
             DateTime datTime = dateTimeOffSet.DateTime;
             return datTime.ToString("T");
+        }
+
+        /// <summary>
+        /// Unix seconds of a battle date, 0 for "no such battle". A plain (DateTimeOffset) cast
+        /// throws for DateTime.MinValue in any zone east of UTC - and MinValue is what the CONFLICTS
+        /// date columns hold for rows written before those columns had a value.
+        /// </summary>
+        public static long ToEpochSecondsSafe(DateTime date)
+        {
+            return date <= DateTime.UnixEpoch ? 0 : ((DateTimeOffset)date.ToUniversalTime()).ToUnixTimeSeconds();
+        }
+
+        /// <summary>A battle date for the GUI: the date itself, or a dash when there was none.</summary>
+        public static string FormatBattleDate(DateTime date)
+        {
+            return date <= DateTime.UnixEpoch
+                ? Lang.Get("claims:gui_battle_date_none")
+                : getDateFromEpochSecondsWithHoursMinutes(ToEpochSecondsSafe(date));
         }
     }
 }

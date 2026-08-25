@@ -92,7 +92,11 @@ namespace claims.src.part
 
                 Dictionary<EnumPlayerRelatedInfo, string> collector = new Dictionary<EnumPlayerRelatedInfo, string>
                 {
-                    { EnumPlayerRelatedInfo.CITY_NAME, city.GetPartName() }
+                    { EnumPlayerRelatedInfo.CITY_NAME, city.GetPartName() },
+                    // This packet rebuilds CityInfo from nothing, and the guid is only ever sent on
+                    // login otherwise: without it the client cannot tell that a letter addressed to
+                    // this city is addressed to us, and the answer buttons go missing.
+                    { EnumPlayerRelatedInfo.CITY_GUID, city.Guid }
                 };
                 if (city.getMayor() != null)
                 {
@@ -256,14 +260,17 @@ namespace claims.src.part
         }
         public static void InitNewUnion(Alliance first, Alliance second)
         {
-            first.ComradAlliancies.Add(second);
-            second.ComradAlliancies.Add(first);
+            // Added only once, the way SetPartiesHostile guards its lists. These are plain Lists and
+            // DemolishUnion removes a single entry each, so a duplicated link would survive breaking
+            // the union - leaving the two permanently allied and unable to ever declare war.
+            if (!first.ComradAlliancies.Contains(second)) first.ComradAlliancies.Add(second);
+            if (!second.ComradAlliancies.Contains(first)) second.ComradAlliancies.Add(first);
             // Save once per city, not once per added link (mirrors PartDemolition.DemolishUnion).
             foreach (var city in first.Cities)
             {
                 foreach(var sCity in second.Cities)
                 {
-                    city.ComradeCities.Add(sCity);
+                    if (!city.ComradeCities.Contains(sCity)) city.ComradeCities.Add(sCity);
                 }
                 city.saveToDatabase();
             }
@@ -271,7 +278,7 @@ namespace claims.src.part
             {
                 foreach(var sCity in first.Cities)
                 {
-                    city.ComradeCities.Add(sCity);
+                    if (!city.ComradeCities.Contains(sCity)) city.ComradeCities.Add(sCity);
                 }
                 city.saveToDatabase();
             }

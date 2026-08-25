@@ -182,7 +182,13 @@ namespace claims.src.part.structure
                 return false;
             }
 
-            if (plotType == PlotType.CAMP || plotType == PlotType.TOURNAMENT)
+            // Types that are never set by hand, only by the routine that builds the thing they
+            // describe. VILLAGE_MAIN belongs here for the same reason CAMP does: PlotDesc.Create
+            // knows neither of them and hands back a bare PlotDesc, so the plot would claim to be a
+            // village centre while holding no anchor, no granary and no supply counter. A village
+            // is shielded from this by VILLAGE_ALLOWED_PLOT_TYPES, an ordinary city was not - and
+            // such a plot turns into a real one the moment an admin retiers the city to a village.
+            if (plotType == PlotType.CAMP || plotType == PlotType.TOURNAMENT || plotType == PlotType.VILLAGE_MAIN)
             {
                 tcr.StatusMessage = "claims:use_other_command_for_that";
                 return false;

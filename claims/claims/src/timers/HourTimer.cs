@@ -1,7 +1,10 @@
 ﻿using claims.src.auxialiry;
 using claims.src.cityplotsgroups;
 using claims.src.delayed.invitations;
+using claims.src.gui.playerGui.structures;
+using claims.src.gui.playerGui.structures.cellElements;
 using claims.src.part;
+using System.Collections.Generic;
 using System.Linq;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -40,6 +43,19 @@ namespace claims.src.timers
                     else
                     {
                         player.PrisonHoursLeft = -1; // released while offline, teleport on next login
+                    }
+                    // Out of the cell as well, not just out of prison: the roster is persisted and
+                    // shown in the city window, so a served sentence left the player sitting there.
+                    if (player.PrisonedIn != null
+                        && player.PrisonedIn.TryGetCellInWhichPlayer(player, out var servedCell))
+                    {
+                        servedCell.RemovePlayer(player);
+                        if (player.PrisonedIn.City != null)
+                        {
+                            UsefullPacketsSend.AddToQueueCityInfoUpdate(player.PrisonedIn.City.Guid,
+                                new Dictionary<string, object> { { "value", new PrisonCellElement(servedCell.spawnPostion, servedCell.playerNames) } },
+                                EnumPlayerRelatedInfo.CITY_CELL_PRISON_UPDATE);
+                        }
                     }
                     player.PrisonedIn = null;
                 }

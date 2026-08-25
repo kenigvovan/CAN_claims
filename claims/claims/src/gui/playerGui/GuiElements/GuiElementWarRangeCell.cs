@@ -1,6 +1,8 @@
 using System;
 using Cairo;
 using claims.src.gui.playerGui.structures.cellElements;
+using claims.src.gui.playerGui.Widgets;
+using claims.src.part.structure.war;
 using Vintagestory.API.Client;
 using Vintagestory.API.Config;
 
@@ -32,6 +34,9 @@ namespace claims.src.gui.playerGui.GuiElements
 
         private readonly DayOfWeek dayOfWeek;
 
+        /// <summary>Whether the server lets battles fall on this day at all.</summary>
+        private readonly bool dayAllowed;
+
         protected override bool UseHoverHighlights => false;
 
         /// <summary>
@@ -45,6 +50,7 @@ namespace claims.src.gui.playerGui.GuiElements
         {
             this.cell = cell;
             this.dayOfWeek = cell.DayOfWeek;
+            this.dayAllowed = WarScheduleHelper.IsDayAllowed(cell.DayOfWeek);
 
             var font = CairoFont.WhiteDetailText();
             ElementBounds slotBounds = ElementBounds.Fixed(GridX, TopPad, SlotSize, SlotSize).WithParent(Bounds);
@@ -56,14 +62,20 @@ namespace claims.src.gui.playerGui.GuiElements
                 {
                     int slot = col + row * Columns;
 
-                    var toggle = new GuiElementToggleButton(capi, "claims:stairs-goal", "", font, (bool t) =>
+                    // CAN's own toggle rather than the vanilla one: it is the only one that can be
+                    // made read-only, which days the server forbids battles on have to be.
+                    var toggle = new CANGuiElementToggleButton(capi, "claims:stairs-goal", (bool t) =>
                     {
                         this.cell.WarRangeArray[slot] = !this.cell.WarRangeArray[slot];
-                    }, slotBounds, true);
+                    }, slotBounds, true, true);
                     toggle.On = this.cell.WarRangeArray[slot];
+                    toggle.ReadOnly = !dayAllowed;
                     children.Add(toggle);
 
-                    children.Add(new GuiElementHoverText(capi, SlotLabel(slot), font, 120, slotBounds));
+                    string hover = dayAllowed
+                        ? WarScheduleDisplay.SlotLabel(this.dayOfWeek, slot, SlotLabel(slot))
+                        : Lang.Get("claims:gui-warrange-day-not-allowed", WarScheduleHelper.AllowedDaysText());
+                    children.Add(new GuiElementHoverText(capi, hover, font, 160, slotBounds));
 
                     slotBounds = slotBounds.RightCopy();
                 }
@@ -92,10 +104,17 @@ namespace claims.src.gui.playerGui.GuiElements
         protected override void ComposeContent(Context ctx, ImageSurface surface)
         {
             string dayName = DayLabel(dayOfWeek);
+            // Short marker, not the spelled-out note the two-sided cell uses: here the day shares its
+            // line with the grid, and "(no battles)" ran straight under the slot buttons. What it
+            // means is in the hover text of every slot on the row.
+            if (!dayAllowed) dayName += " " + Lang.Get("claims:gui-warrange-day-off-short");
+
+            // Never past the column the grid starts in, however long the translated day name is.
+            double maxWidth = GuiElement.scaled(GridX - 12);
             TextExtents extents = Font.GetTextExtents(dayName);
             textUtil.AutobreakAndDrawMultilineTextAt(ctx, Font, dayName,
                 Bounds.absPaddingX + GuiElement.scaled(6), Bounds.absPaddingY + GuiElement.scaled(TopPad),
-                extents.Width + 1.0, EnumTextOrientation.Left);
+                Math.Min(extents.Width + 1.0, maxWidth), EnumTextOrientation.Left);
         }
     }
 }

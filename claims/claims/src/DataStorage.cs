@@ -706,6 +706,8 @@ namespace claims.src
         {
             foreach (var player in claims.sapi.World.AllOnlinePlayers)
             {
+                // A player still connecting is online but has no entity yet.
+                if (player.Entity == null) continue;
                 if (((((int)player.Entity.Pos.X / PlotPosition.plotSize)) == plot.getPos().X &&
                     (((int)player.Entity.Pos.Z / PlotPosition.plotSize)) == plot.getPos().Y))
                 {

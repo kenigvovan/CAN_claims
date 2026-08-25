@@ -134,6 +134,13 @@ namespace claims.src.part.structure.war
             foreach (City loserCity in loser.GetCities())
             {
                 if (loserCity.Equals(overlord)) continue;
+                // A city can be subdued twice over. Only its own pointer was being overwritten, so
+                // the previous overlord kept it on the list it hands out in /city vassals - and,
+                // worse, freed it from its new overlord when that old one was demolished.
+                if (loserCity.IsVassal() && loserCity.OverlordGuid != overlord.Guid)
+                {
+                    ReleaseVassal(loserCity);
+                }
                 loserCity.OverlordGuid = overlord.Guid;
                 loserCity.VassalSince = now;
                 if (!overlord.VassalCities.Contains(loserCity)) overlord.VassalCities.Add(loserCity);

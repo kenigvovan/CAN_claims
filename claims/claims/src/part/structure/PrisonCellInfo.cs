@@ -24,7 +24,26 @@ namespace claims.src.part.structure
         }
         public bool AddPlayer(PlayerInfo player)
         {
-            return prisonedPlayers.Add(player) && playerNames.Add(player.GetPartName());
+            if (player == null) return false;
+            // Both sets are written unconditionally: with && the name was skipped whenever the
+            // player was already in the set, so any drift between the two became permanent.
+            bool added = prisonedPlayers.Add(player);
+            playerNames.Add(player.GetPartName());
+            return added;
+        }
+
+        /// <summary>
+        /// Takes a released prisoner out of the cell. Every way out of prison - the sentence running
+        /// out, escaping the plot, the prison itself being demolished - used to leave them listed
+        /// here for good: the roster is persisted, so the cells of a city filled up over time with
+        /// people long since free.
+        /// </summary>
+        public bool RemovePlayer(PlayerInfo player)
+        {
+            if (player == null) return false;
+            bool removed = prisonedPlayers.Remove(player);
+            playerNames.Remove(player.GetPartName());
+            return removed;
         }
         public HashSet<PlayerInfo> getPlayerInfos()
         {

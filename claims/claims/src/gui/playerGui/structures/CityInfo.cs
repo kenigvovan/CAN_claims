@@ -84,6 +84,7 @@ namespace claims.src.gui.playerGui.structures
             this.CityBalance = cityBalance;
             Criminals = criminals;
             this.ClientWarRangeCellElements = CreateDefaultWarRangeForWeek();
+            this.ClientTwoWarRangesCellElement = CreateDefaultTwoWarRangesForWeek();
         }
         public static List<ClientWarRangeCellElement> CreateDefaultWarRangeForWeek()
         {

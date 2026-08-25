@@ -23,7 +23,7 @@ namespace claims.src.gui.playerGui.Pages
             var compo = ctx.Compo;
             var clientInfo = Player;
 
-            // Buttons the player may not use are left out, as in the ImGui version.
+            // Buttons the player may not use are left out.
             var perms = clientInfo.PlayerPermissions;
             var groups = clientInfo.CityInfo.PlotsGroupCells ?? new List<PlotsGroupCellElement>();
 
@@ -178,7 +178,7 @@ namespace claims.src.gui.playerGui.Pages
             var compo = ctx.Compo;
             PlotsGroupCellElement cell = SelectedGroup();
 
-            // Each button appears only for whoever may press it, as in the ImGui version.
+            // Each button appears only for whoever may press it.
             var perms = Player.PlayerPermissions;
 
             var anchor = ctx.Line.BelowCopy(0, 14);

@@ -176,5 +176,17 @@ namespace claims.src.part.structure.conflict
 
         public static bool TryGetConflictLetter(string guid, out ConflictLetter letter) =>
             registry.TryGetByGuid(guid, out letter);
+
+        /// <summary>Every pending letter this party is on either end of, whatever its purpose.</summary>
+        public static List<ConflictLetter> GetLettersFor(IConflictParty party)
+        {
+            List<ConflictLetter> result = new();
+            if (party == null) return result;
+            foreach (var it in registry.All)
+            {
+                if (it.From.Equals(party) || it.To.Equals(party)) result.Add(it);
+            }
+            return result;
+        }
     }
 }

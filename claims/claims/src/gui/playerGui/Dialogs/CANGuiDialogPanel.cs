@@ -10,8 +10,7 @@ namespace claims.src.gui.playerGui.Dialogs
     /// One form of the secondary window.
     ///
     /// Build() is not virtual: the frame, the title bar and the composing are the base's job, so a
-    /// subclass only says what goes inside. The ImGui side got this wrong the other way round - its
-    /// dialog base carries no helpers at all, so 27 of its 28 dialogs repeat the same window setup.
+    /// subclass only says what goes inside.
     /// </summary>
     public abstract class CANGuiDialogPanel
     {

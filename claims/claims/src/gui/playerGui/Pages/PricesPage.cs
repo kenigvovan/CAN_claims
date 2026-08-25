@@ -48,7 +48,6 @@ namespace claims.src.gui.playerGui.Pages
                         // "default, mainplot, orchard" regardless of the player's language.
                         Label = Lang.Get("claims:gui-plot-type-" + name),
                         Value = Number(entry.Value.getCost()),
-                        // The type's own description, which only ever lived in an ImGui tooltip.
                         Tooltip = Lang.Get("claims:gui-plot-type-desc-" + name),
                         Key = "plottype-" + name
                     });
@@ -91,6 +90,7 @@ namespace claims.src.gui.playerGui.Pages
                 Row("claims:gui-prices-alliance-base-care", claims.config.ALLIANCE_BASE_CARE),
                 Row("claims:gui-prices-alliance-max-fee", claims.config.ALLIANCE_MAX_FEE),
                 Row("claims:gui-prices-neutral-alliance", claims.config.NEUTRAL_ALLANCE_PAYMENT),
+                Row("claims:gui-prices-neutral-city", claims.config.NEUTRAL_CITY_PAYMENT),
             });
 
             Card.Rows(compo, right, y, Lang.Get("claims:gui-prices-city-limits-header"), new List<CardRow>

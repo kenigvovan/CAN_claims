@@ -16,6 +16,8 @@ namespace claims.src.gui.playerGui.structures.cellElements
         public string Guid { get; set; }
         /// <summary>Village or full city; drives the label in the settlement list.</summary>
         public CityTier Tier { get; set; } = CityTier.CITY;
+        /// <summary>Declared neutral - marked in the list, the way an alliance is.</summary>
+        public bool Neutral { get; set; }
         public ClientCityInfoCellElement(int citizensAmount, string mayorName, int claimedPlotsAmount,
                                          string allianceName, long timeStampCreated, string name, bool open, string invMsg, string guid,
                                          CityTier tier = CityTier.CITY)
@@ -42,6 +44,7 @@ namespace claims.src.gui.playerGui.structures.cellElements
             TimeStampCreated = city.TimeStampCreated;
             CitizensAmount = city.getCityCitizens().Count;
             Open = city.openCity;
+            Neutral = city.IsNeutral;
             ClaimedPlotsAmount = city.getCityPlots().Count;
         }
 
@@ -57,7 +60,10 @@ namespace claims.src.gui.playerGui.structures.cellElements
                 city.openCity,
                 city.invMsg,
                 city.Guid,
-                city.Tier);
+                city.Tier)
+            {
+                Neutral = city.IsNeutral
+            };
         }
     }
 }

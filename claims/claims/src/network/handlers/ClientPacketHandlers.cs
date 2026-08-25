@@ -117,8 +117,6 @@ namespace claims.src.network.handlers
                         }
                         break;
                     case PacketsContentEnum.AGREE_NEEDED_ON_NEW_CITY_CREATION:
-                        //TODO Delete after
-                        claims.capi.ModLoader.GetModSystem<claimsGui>().secondaryWindowTab = gui.prettyGui.EnumSecondaryWindowTab.NEED_AGREE;
                         if (claims.CANCityGui != null)
                         {
                             // The proposed city name rides along in Text so the dialog can name it.
@@ -175,7 +173,11 @@ namespace claims.src.network.handlers
                         claims.clientDataStorage.clientPlayerInfo.AcceptChangedValues(someUpdateDict);
                         if (claims.CANCityGui?.IsOpened() ?? false)
                         {
-                            if(claims.CANCityGui.SelectedTab == gui.playerGui.EnumSelectedTab.ConflictInfoPage)
+                            // Only when the schedule itself moved: a city update of any other kind
+                            // used to refill the grid too, wiping the slots the player was in the
+                            // middle of clicking.
+                            if (claims.CANCityGui.SelectedTab == gui.playerGui.EnumSelectedTab.ConflictInfoPage
+                                && someUpdateDict.ContainsKey(EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_WARRANGES_UPDATED))
                             {
                                 claims.CANCityGui.SelectRangeAndFill();
                             }
@@ -254,6 +256,8 @@ namespace claims.src.network.handlers
                 claims.config.ALLIANCE_BASE_CARE = packet.ALLIANCE_BASE_CARE;
                 claims.config.ALLIANCE_MAX_FEE = packet.ALLIANCE_MAX_FEE;
                 claims.config.NEUTRAL_ALLANCE_PAYMENT = packet.NEUTRAL_ALLANCE_PAYMENT;
+                claims.config.NEUTRAL_CITY_PAYMENT = packet.NEUTRAL_CITY_PAYMENT;
+                claims.config.NEUTRALITY_ENABLED = packet.NEUTRALITY_ENABLED;
 
                 claims.config.MAX_CITY_FEE = packet.MAX_CITY_FEE;
                 claims.config.CITY_MAX_DEBT = packet.CITY_MAX_DEBT;
@@ -283,6 +287,15 @@ namespace claims.src.network.handlers
                 claims.config.WAR_NAP_MAX_DAYS = packet.WAR_NAP_MAX_DAYS;
                 claims.config.WAR_NAP_BREAK_PENALTY = packet.WAR_NAP_BREAK_PENALTY;
                 claims.config.WAR_BATTLE_WARN_MINUTES = packet.WAR_BATTLE_WARN_MINUTES;
+                // The host owns the schedule window; the client's own claims.json must not let a
+                // player paint slots on days the server will throw away.
+                claims.config.WAR_ALLOWED_BATTLE_DAYS = packet.WAR_ALLOWED_BATTLE_DAYS?.ConvertAll(d => (DayOfWeek)d) ?? new List<DayOfWeek>();
+                claims.config.WAR_SCHEDULE_TIMEZONE = packet.WAR_SCHEDULE_TIMEZONE ?? "";
+                claims.config.WAR_SCHEDULE_UTC_OFFSET_MINUTES = packet.WAR_SCHEDULE_UTC_OFFSET_MINUTES;
+                if (!string.IsNullOrEmpty(packet.CITY_BANKRUPTCY_MODE))
+                    claims.config.CITY_BANKRUPTCY_MODE = packet.CITY_BANKRUPTCY_MODE;
+                if (packet.CITY_BANKRUPTCY_GRACE_DAYS > 0)
+                    claims.config.CITY_BANKRUPTCY_GRACE_DAYS = packet.CITY_BANKRUPTCY_GRACE_DAYS;
                 claims.config.WAR_ULTIMATUM_ENABLED = packet.WAR_ULTIMATUM_ENABLED;
                 if (packet.WAR_ULTIMATUM_EXPIRE_HOURS > 0)
                     claims.config.WAR_ULTIMATUM_EXPIRE_HOURS = packet.WAR_ULTIMATUM_EXPIRE_HOURS;
@@ -363,6 +376,16 @@ namespace claims.src.network.handlers
                 if(claims.config.ALWAYS_ACCESS_BLOCKS.Count > 0)
                 {
                     claims.FindAlwaysUseBlocks(claims.capi);
+                }
+
+                // The settings list draws its values when its cells are built, so a /cadmin setcfg
+                // left the row showing the old value until the window was reopened. Only the admin
+                // pages are rebuilt: this packet also arrives while a player is typing elsewhere,
+                // and rebuilding the window would take the focus out of their text field.
+                if ((claims.CANCityGui?.IsOpened() ?? false)
+                    && gui.playerGui.CANClaimsGui.IsAdminPage(claims.CANCityGui.SelectedTab))
+                {
+                    claims.CANCityGui.BuildMainWindow();
                 }
             });
             claims.clientChannel.SetMessageHandler<BountyBoardPacket>((packet) =>

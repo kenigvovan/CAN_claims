@@ -97,7 +97,16 @@ namespace claims.src.part
         public bool IsVassal() => !string.IsNullOrEmpty(OverlordGuid);
         public City GetOverlord() => claims.dataStorage.getCityByGUID(OverlordGuid, out City o) ? o : null;
         public bool Dirty { get; set; } = false;
+        /// <summary>
+        /// Declared neutral: cannot declare war, cannot be declared upon, and pays
+        /// NEUTRAL_CITY_PAYMENT a day on top of its upkeep. Read through <see cref="IsNeutral"/>,
+        /// which also honours the server switch - a host turning neutrality off should not leave
+        /// cities that already bought it unattackable.
+        /// </summary>
         public bool Neutral { get; set; } = false;
+        public bool IsNeutral => Neutral && claims.config.NEUTRALITY_ENABLED;
+        /// <summary>Unix seconds when neutrality was last given up; 0 if it never was.</summary>
+        public long NeutralDroppedAt { get; set; } = 0;
         public HashSet<Conflict> RunningConflicts { get; } = new HashSet<Conflict>();
         public Dictionary<string, CustomCityRank> CustomCityRanks { get; set; } = new();
         public List<CityLogEntry> EventLog { get; set; } = new List<CityLogEntry>();
@@ -481,6 +490,8 @@ namespace claims.src.part
             // Villages have a flat plot limit of their own, not the citizen-count levels.
             outStrings.Add($"{Lang.Get("claims:city_claimed_amount_status", this.getCityPlots().Count, Settings.getMaxNumberOfPlotForCity(this)) + (!IsVillage() && cityLevelInfo.Maxextrachunksbought > 0 ? " " + Lang.Get("claims:city_claimed_extra_amount_status", this.Extrachunksbought, cityLevelInfo.Maxextrachunksbought) + "\n" : "\n")}");
             outStrings.Add($"{Lang.Get("claims:created")} {TimeFunctions.getDateFromEpochSeconds(TimeStampCreated)}\n");
+            // Said plainly, as an alliance says it: it decides whether this place can be warred.
+            if (IsNeutral) outStrings.Add(Lang.Get("claims:neutral") + "\n");
             // Its own people know when the village is open to attack; outsiders have to come and
             // find out on the spot.
             if (IsVillage() && forPlayer != null && isCitizen(forPlayer))
@@ -552,6 +563,8 @@ namespace claims.src.part
             if (IsVillage()) return 0;
 
             double sumToPay = claims.config.CITY_BASE_CARE;
+            // Neutrality is bought by the day, the way an alliance buys it.
+            if (IsNeutral) sumToPay += claims.config.NEUTRAL_CITY_PAYMENT;
             // What the plots pay for being safe: no pvp, no hostile spawns. The marks behind it are
             // cleared by the day timer, not here - this is also called to show the figure in the GUI.
             sumToPay += this.GetSafetyFlagsCost();

@@ -24,9 +24,12 @@ namespace claims.src.events
             claims.dataStorage.GetPlayerByUid(byPlayer.PlayerUID, out PlayerInfo playerInfo);
             if (playerInfo == null) return;
 
-            if (!playerInfo.isPrisoned() && damageSource != null && damageSource.SourceEntity is EntityPlayer attackerEntity)
+            // The killer is resolved the same way war score resolves it, projectiles included: the
+            // old check accepted only a direct EntityPlayer source, so an arrow kill never reached
+            // tryToPrison at all - and its own projectile branch was dead code because of it.
+            if (!playerInfo.isPrisoned() && damageSource != null
+                && TryResolveKiller(damageSource, out PlayerInfo attackerPlayerInfo))
             {
-                claims.dataStorage.GetPlayerByUid(attackerEntity.PlayerUID, out PlayerInfo attackerPlayerInfo);
                 tryToPrison(damageSource.SourceEntity, byPlayer, playerInfo, attackerPlayerInfo);
                 if (playerInfo.isPrisoned())
                 {
@@ -145,9 +148,12 @@ namespace claims.src.events
             }
             else if(attacker is EntityProjectile)
             {
-                if((attacker as EntityProjectile).FiredBy is EntityPlayer)
+                if((attacker as EntityProjectile).FiredBy is EntityPlayer firedBy)
                 {
-                    attackPlayer = ((attacker as EntityProjectile).FiredBy as EntityPlayer) as IServerPlayer;
+                    // .Player, not the entity itself: EntityPlayer is not sealed, so casting it to
+                    // IServerPlayer compiles and then quietly yields null - killing anyone with a
+                    // bow or spear never landed them in prison.
+                    attackPlayer = firedBy.Player as IServerPlayer;
                 }
             }
             if (attackPlayer == null)

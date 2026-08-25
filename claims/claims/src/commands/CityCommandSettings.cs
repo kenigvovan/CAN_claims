@@ -262,6 +262,42 @@ namespace claims.src.commands
             }
             return TextCommandResult.Error("");
         }
+        /// <summary>
+        /// /city set neutral on|off - an independent city that fights nobody and cannot be fought,
+        /// for a daily fee. Turning it on is gated by NeutralityHelper; turning it off never is.
+        /// </summary>
+        public static TextCommandResult CitySetNeutral(TextCommandCallingArgs args)
+        {
+            if (!TryResolveCaller(args, out var player, out var playerInfo, out var callerErr)) return callerErr;
+            if (!playerInfo.hasCity())
+                return TextCommandResult.Success(Lang.Get("claims:no_city"));
+
+            City city = playerInfo.City;
+            bool on = ((string)args.LastArg ?? "").Equals("on", StringComparison.OrdinalIgnoreCase);
+
+            if (!on)
+            {
+                part.structure.war.NeutralityHelper.Set(city, false);
+                MessageHandler.sendMsgInCity(city, Lang.Get("claims:neutrality_dropped"));
+                return TextCommandResult.Success();
+            }
+
+            if (city.Neutral) return TextCommandResult.Success(Lang.Get("claims:neutrality_already"));
+            if (!part.structure.war.NeutralityHelper.CanTurnOn(city, out string errorKey))
+            {
+                // The cooldown refusal is worth a number: "come back later" without saying when is
+                // the sort of answer a player has to guess at.
+                long left = part.structure.war.NeutralityHelper.CooldownLeft(city);
+                return TextCommandResult.Success(left > 0
+                    ? Lang.Get(errorKey, StringFunctions.FormatDuration(left))
+                    : Lang.Get(errorKey));
+            }
+
+            part.structure.war.NeutralityHelper.Set(city, true);
+            MessageHandler.sendMsgInCity(city,
+                Lang.Get("claims:neutrality_declared", claims.config.NEUTRAL_CITY_PAYMENT));
+            return TextCommandResult.Success();
+        }
         public static TextCommandResult CitySetFee(TextCommandCallingArgs args)
         {
             IServerPlayer player = args.Caller.Player as IServerPlayer;

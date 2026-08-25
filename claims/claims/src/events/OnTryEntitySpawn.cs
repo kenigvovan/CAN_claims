@@ -10,8 +10,10 @@ namespace claims.src.events
     {
         public static bool Event_OnTrySpawnEntity(IBlockAccessor blockAccessor, ref EntityProperties properties, Vec3d spawnPosition, long herdId)
         {
-            var hostile = properties.Server?.SpawnConditions?.Runtime?.Group.Equals("hostile");
-            if(hostile.HasValue && hostile.Value)
+            // Group itself may be null - plenty of creatures declare runtime spawn conditions without
+            // one - and calling Equals on it threw on every such spawn attempt.
+            bool hostile = properties?.Server?.SpawnConditions?.Runtime?.Group == "hostile";
+            if(hostile)
             {
                 if(claims.dataStorage == null)
                 {

@@ -68,17 +68,29 @@ namespace claims.src.database
             {
                 this.queryQueue.TryDequeue(out QuerryInfo query);
 
-                if (query.action == QuerryType.UPDATE)
+                // The queue is drained inside the 0.5s server timer: an unhandled SQLite exception
+                // here (e.g. a UNIQUE violation from saving a brand-new row twice before the flush)
+                // kills the tick, which in single player closes the whole game without a message.
+                // Losing one write and logging it is strictly better than that.
+                try
                 {
-                    updateDatabase(query);
+                    if (query.action == QuerryType.UPDATE)
+                    {
+                        updateDatabase(query);
+                    }
+                    else if (query.action == QuerryType.INSERT)
+                    {
+                        insertToDatabase(query);
+                    }
+                    else
+                    {
+                        deleteFromDatabase(query);
+                    }
                 }
-                else if (query.action == QuerryType.INSERT)
+                catch (Exception e)
                 {
-                    insertToDatabase(query);
-                }
-                else
-                {
-                    deleteFromDatabase(query);
+                    claims.sapi?.World?.Logger?.Error("[claims] database {0} on table {1} failed: {2}",
+                        query.action, query.targetTable, e);
                 }
             }
         }
@@ -87,10 +99,33 @@ namespace claims.src.database
             return SqliteConnection;
         }
 
+        /// <summary>
+        /// Adds a column when the probe says it is missing.
+        ///
+        /// The probe fails for reasons other than a missing column - a locked file, a damaged page -
+        /// and the ALTER then fails in turn. Unguarded, that second failure left initializeTables,
+        /// which answers false to it: the whole database went uninitialised over one column, and the
+        /// log carried the ALTER's complaint ("duplicate column name") instead of the real cause.
+        /// One failed migration is now logged and the rest still run.
+        /// </summary>
         private void TryAlterTable(string checkSql, string alterSql)
         {
-            try { new SqliteCommand(checkSql, SqliteConnection).ExecuteScalar(); }
-            catch { new SqliteCommand(alterSql, SqliteConnection).ExecuteNonQuery(); }
+            try
+            {
+                new SqliteCommand(checkSql, SqliteConnection).ExecuteScalar();
+                return;
+            }
+            catch (Exception) { }
+
+            try
+            {
+                new SqliteCommand(alterSql, SqliteConnection).ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                claims.sapi?.World?.Logger?.Warning("[claims] column migration failed ({0}): {1}",
+                    alterSql, ex.Message);
+            }
         }
 
         public bool initializeTables()
@@ -278,6 +313,24 @@ namespace claims.src.database
                     // Sticky mark for the paid nomobspawn flag (PLOTS).
                     TryAlterTable("SELECT markednomobspawn FROM PLOTS LIMIT 1",
                         "ALTER TABLE PLOTS ADD COLUMN markednomobspawn INTEGER DEFAULT 0");
+                    // Declared neutrality of a city (alliances have carried it since their table began),
+                    // and for both: when it was last given up, for the re-declare cooldown.
+                    TryAlterTable("SELECT neutral FROM CITIES LIMIT 1",
+                        "ALTER TABLE CITIES ADD COLUMN neutral INTEGER DEFAULT 0");
+                    TryAlterTable("SELECT neutraldroppedat FROM CITIES LIMIT 1",
+                        "ALTER TABLE CITIES ADD COLUMN neutraldroppedat INTEGER DEFAULT 0");
+                    TryAlterTable("SELECT neutraldroppedat FROM ALLIANCIES LIMIT 1",
+                        "ALTER TABLE ALLIANCIES ADD COLUMN neutraldroppedat INTEGER DEFAULT 0");
+                    // The war an ally was called into, so peace between the principals ends theirs too.
+                    TryAlterTable("SELECT parentconflict FROM CONFLICTS LIMIT 1",
+                        "ALTER TABLE CONFLICTS ADD COLUMN parentconflict TEXT DEFAULT \"\"");
+                    // What a pending war declaration took up front, refunded if it comes to nothing.
+                    TryAlterTable("SELECT declarationcost FROM CONFLICTLETTERS LIMIT 1",
+                        "ALTER TABLE CONFLICTLETTERS ADD COLUMN declarationcost REAL DEFAULT 0");
+                    TryAlterTable("SELECT spentjustification FROM CONFLICTLETTERS LIMIT 1",
+                        "ALTER TABLE CONFLICTLETTERS ADD COLUMN spentjustification INTEGER DEFAULT 0");
+                    TryAlterTable("SELECT spentjustificationtarget FROM CONFLICTLETTERS LIMIT 1",
+                        "ALTER TABLE CONFLICTLETTERS ADD COLUMN spentjustificationtarget TEXT DEFAULT \"\"");
                     // World-wide hostile spawn switches (WORLDS).
                     TryAlterTable("SELECT mobspawneverywhere FROM WORLDS LIMIT 1",
                         "ALTER TABLE WORLDS ADD COLUMN mobspawneverywhere INTEGER DEFAULT 0");
@@ -595,7 +648,9 @@ namespace claims.src.database
                 { "@naps", JsonConvert.SerializeObject(city.NonAggressionPacts) },
                 { "@warjustifications", JsonConvert.SerializeObject(city.WarJustifications) },
                 { "@emblem", city.Emblem ?? "" },
-                { "@tier", (int)city.Tier }
+                { "@tier", (int)city.Tier },
+                { "@neutral", city.Neutral },
+                { "@neutraldroppedat", city.NeutralDroppedAt }
             };
 
             queryQueue.Enqueue(new QuerryInfo("CITIES", update ? QuerryType.UPDATE : QuerryType.INSERT, tmpDict));
@@ -798,6 +853,12 @@ namespace claims.src.database
             if (it.Table.Columns.Contains("tier") && int.TryParse(it["tier"].ToString(), out int tierValue)
                 && Enum.IsDefined(typeof(CityTier), tierValue))
                 city.Tier = (CityTier)tierValue;
+
+            if (it.Table.Columns.Contains("neutral") && it["neutral"] != DBNull.Value)
+                city.Neutral = !it["neutral"].ToString().Equals("0");
+            if (it.Table.Columns.Contains("neutraldroppedat") && it["neutraldroppedat"] != DBNull.Value
+                && long.TryParse(it["neutraldroppedat"].ToString(), out long cityNeutralDropped))
+                city.NeutralDroppedAt = cityNeutralDropped;
 
             foreach(var citizen in city.getCityCitizens())
             {
@@ -1324,6 +1385,7 @@ namespace claims.src.database
                 { "@comrades", StringFunctions.concatStringsWithDelim(alliance.ComradAlliancies, ';') },
                 { "@alliancefee", alliance.AllianceFee },
                 { "@neutral", alliance.Neutral },
+                { "@neutraldroppedat", alliance.NeutralDroppedAt },
                 { "@prefix", alliance.Prefix },
                 { "@timestampcreated", alliance.TimeStampCreated },
                 { "@pendingunionbreaks", JsonConvert.SerializeObject(alliance.PendingUnionBreaks) },
@@ -1395,6 +1457,9 @@ namespace claims.src.database
 
             alliance.AllianceFee = int.Parse(it["allianceFee"].ToString());
             alliance.Neutral = it["neutral"].ToString().Equals("0") ? false : true;
+            if (it.Table.Columns.Contains("neutraldroppedat") && it["neutraldroppedat"] != DBNull.Value
+                && long.TryParse(it["neutraldroppedat"].ToString(), out long allianceNeutralDropped))
+                alliance.NeutralDroppedAt = allianceNeutralDropped;
             alliance.Prefix = it["prefix"].ToString();
             alliance.Leader = alliance.MainCity?.getMayor();
             alliance.TimeStampCreated = long.Parse(it["timestampcreated"].ToString());
@@ -1478,10 +1543,27 @@ namespace claims.src.database
                 { "@secondkills", conflict.SecondKills },
                 { "@firstpillaged", conflict.FirstPillaged },
                 { "@secondpillaged", conflict.SecondPillaged },
+                { "@parentconflict", conflict.ParentConflictGuid ?? "" },
             };
 
             queryQueue.Enqueue(new QuerryInfo("CONFLICTS", update ? QuerryType.UPDATE : QuerryType.INSERT, tmpDict));
             return true;
+        }
+        /// <summary>
+        /// A stored battle date. NULL columns and rows migrated with the 0001-01-01 default both
+        /// come back as MinValue, which every consumer would then have to special-case; the epoch is
+        /// the "never" the rest of the war code already understands.
+        /// </summary>
+        private static DateTime ReadBattleDate(object raw)
+        {
+            string s = raw?.ToString() ?? "";
+            if (s.Length == 0) return DateTime.UnixEpoch;
+            try
+            {
+                DateTime parsed = JsonConvert.DeserializeObject<DateTime>(s);
+                return parsed <= DateTime.UnixEpoch ? DateTime.UnixEpoch : parsed;
+            }
+            catch (Exception) { return DateTime.UnixEpoch; }
         }
         public override bool loadConflict(DataRow it)
         {
@@ -1507,10 +1589,10 @@ namespace claims.src.database
             tmpConflict.FirstWarRanges = JsonConvert.DeserializeObject<List<SelectedWarRange>>(it["firstwarranges"].ToString());
             tmpConflict.SecondWarRanges = JsonConvert.DeserializeObject<List<SelectedWarRange>>(it["secondwarranges"].ToString());
             tmpConflict.MinimumDaysBetweenBattles = int.Parse(it["minimumdaysbetweenbattles"].ToString());
-            tmpConflict.LastBattleDateStart = JsonConvert.DeserializeObject<DateTime>(it["lastbattledatestart"].ToString());
-            tmpConflict.LastBattleDateEnd = JsonConvert.DeserializeObject<DateTime>(it["lastbattledateend"].ToString());
-            tmpConflict.NextBattleDateStart = JsonConvert.DeserializeObject<DateTime>(it["nextbattledatestart"].ToString());
-            tmpConflict.NextBattleDateEnd = JsonConvert.DeserializeObject<DateTime>(it["nextbattledateend"].ToString());
+            tmpConflict.LastBattleDateStart = ReadBattleDate(it["lastbattledatestart"]);
+            tmpConflict.LastBattleDateEnd = ReadBattleDate(it["lastbattledateend"]);
+            tmpConflict.NextBattleDateStart = ReadBattleDate(it["nextbattledatestart"]);
+            tmpConflict.NextBattleDateEnd = ReadBattleDate(it["nextbattledateend"]);
 
             tmpConflict.TimeStampStarted = long.Parse(it["timestampstarted"].ToString());
 
@@ -1530,6 +1612,8 @@ namespace claims.src.database
                 tmpConflict.FirstPillaged = fPill;
             if (it.Table.Columns.Contains("secondpillaged") && long.TryParse(it["secondpillaged"].ToString(), out long sPill))
                 tmpConflict.SecondPillaged = sPill;
+            if (it.Table.Columns.Contains("parentconflict") && it["parentconflict"] != DBNull.Value)
+                tmpConflict.ParentConflictGuid = it["parentconflict"].ToString();
 
             tmpConflict.First.RunningConflicts.Add(tmpConflict);
             tmpConflict.Second.RunningConflicts.Add(tmpConflict);
@@ -1589,7 +1673,10 @@ namespace claims.src.database
                 { "@termplotx", terms.CededPlot?.X ?? 0 },
                 { "@termplotz", terms.CededPlot?.Z ?? 0 },
                 { "@termhasplot", terms.CededPlot != null ? 1 : 0 },
-                { "@napdays", letter.NapDays }
+                { "@napdays", letter.NapDays },
+                { "@declarationcost", letter.Charge?.Cost ?? 0 },
+                { "@spentjustification", letter.Charge?.JustificationExpire ?? 0 },
+                { "@spentjustificationtarget", letter.Charge?.TargetGuid ?? "" }
             };
 
             queryQueue.Enqueue(new QuerryInfo("CONFLICTLETTERS", update ? QuerryType.UPDATE : QuerryType.INSERT, tmpDict));
@@ -1952,8 +2039,27 @@ namespace claims.src.database
                                                            int.Parse(it["termplotz"].ToString()));
                     }
 
+                    // What the declaration took up front, so a refusal after a restart still refunds
+                    // it. Read defensively: these columns postdate the letters table.
+                    var charge = new DeclarationCharge();
+                    if (it.Table.Columns.Contains("declarationcost") && it["declarationcost"] != DBNull.Value)
+                    {
+                        double.TryParse(it["declarationcost"].ToString(), NumberStyles.Float,
+                            CultureInfo.InvariantCulture, out double parsedCost);
+                        charge.Cost = parsedCost;
+                    }
+                    if (it.Table.Columns.Contains("spentjustification") && it["spentjustification"] != DBNull.Value)
+                    {
+                        long.TryParse(it["spentjustification"].ToString(), out long parsedExpire);
+                        charge.JustificationExpire = parsedExpire;
+                    }
+                    if (it.Table.Columns.Contains("spentjustificationtarget") && it["spentjustificationtarget"] != DBNull.Value)
+                    {
+                        charge.TargetGuid = it["spentjustificationtarget"].ToString();
+                    }
+
                     ConflictLetter letter = ConflictLetterFactory.Build(from, to, purpose, expire, guid,
-                        terms, int.Parse(it["napdays"].ToString()));
+                        terms, int.Parse(it["napdays"].ToString()), charge);
                     if (letter == null || !ConflictHandler.addConflictLetter(letter, persist: false))
                     {
                         staleGuids.Add(guid);

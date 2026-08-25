@@ -34,6 +34,12 @@ namespace claims.src.part.structure.union
 
                     // Re-check the gates: a war may have started and the post-betrayal cooldown may
                     // still be running while the letter was pending.
+                    if (from.IsNeutral || to.IsNeutral)
+                    {
+                        MessageHandler.SendMsgInAlliance(from, Lang.Get("claims:target_alliance_is_neutral"));
+                        MessageHandler.SendMsgInAlliance(to, Lang.Get("claims:target_alliance_is_neutral"));
+                        return;
+                    }
                     if (ConflictHandler.conflictAlreadyExist(from, to))
                     {
                         MessageHandler.SendMsgInAlliance(from, Lang.Get("claims:union_blocked_by_war"));

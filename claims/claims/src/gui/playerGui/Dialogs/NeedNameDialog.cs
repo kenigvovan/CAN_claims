@@ -33,12 +33,10 @@ namespace claims.src.gui.playerGui.Dialogs
         /// </param>
         /// <param name="onSubmitted">
         /// Optional local update applied right after sending, so the dialog does not have to wait for
-        /// the server round trip. The ImGui version instead branched on what the command string
-        /// started with, which is why this is a callback.
+        /// the server round trip.
         /// </param>
         /// <param name="inputKind">
-        /// Rejects anything that is not a number for the price / tax / amount prompts, which the
-        /// ImGui side handled with dedicated int and double dialogs.
+        /// Rejects anything that is not a number for the price / tax / amount prompts.
         /// </param>
         /// <param name="textArgs">
         /// Placeholder values for the prompt, as YesNoDialog takes them - so a form can say what it

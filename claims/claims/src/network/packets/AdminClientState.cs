@@ -4,8 +4,7 @@ namespace claims.src.network.packets
 {
     /// <summary>
     /// World and per-city flags the server sends to admins, kept here rather than inside a GUI so
-    /// both the native dialog and the ImGui one read the same copy - and so it survives either of
-    /// them being removed.
+    /// the data survives the dialog being closed or replaced.
     /// </summary>
     public static class AdminClientState
     {

@@ -78,7 +78,11 @@ namespace claims.src.gui.hud
                 {
                     wasVisible = false;
                     shownLines = new List<HudLine>();
-                    SingleComposer = null;
+                    // NOT `SingleComposer = null`: the vanilla DlgComposers setter dereferences the
+                    // assigned value, so hiding the panel that way crashed the render thread the
+                    // moment the first battle involving the player's own city ended.
+                    SingleComposer?.Dispose();
+                    Composers.Remove("single");
                 }
                 return;
             }
@@ -110,9 +114,10 @@ namespace claims.src.gui.hud
                 .Fixed(EnumDialogArea.None, OffsetX, OffsetY, PanelWidth, lines.Count * lineHeight + 16)
                 .WithAlignment(Anchor);
 
+            // Fill inside the panel, nothing else: AddDialogBG already makes this a child of
+            // panelBounds, so naming panelBounds a child of it in turn made the two point at each
+            // other and CalcWorldBounds recursed until the stack ran out.
             ElementBounds bgBounds = ElementBounds.Fill.WithFixedPadding(8);
-            bgBounds.BothSizing = ElementSizing.FitToChildren;
-            bgBounds.WithChildren(panelBounds);
 
             var composer = capi.Gui.CreateCompo(ComposerKey, panelBounds)
                                    .AddDialogBG(bgBounds, false);
@@ -128,6 +133,9 @@ namespace claims.src.gui.hud
                 row = row.BelowCopy();
             }
 
+            // The previous composer is not disposed by the setter; without this every score change
+            // leaked one.
+            SingleComposer?.Dispose();
             SingleComposer = composer.Compose();
         }
 
