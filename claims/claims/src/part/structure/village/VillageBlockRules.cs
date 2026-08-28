@@ -57,6 +57,16 @@ namespace claims.src.part.structure
                 return true;
             }
 
+            // A window can be open by the clock while the state that goes with it was never applied -
+            // the schedule is only armed for a server that started with raiding switched on, so
+            // turning it on later leaves the counter at zero. Zero here reads as "one more hit ends
+            // it", which would drop a village on the first swing; refill it instead.
+            if (desc.BreaksLeft <= 0)
+            {
+                desc.RaidActive = true;
+                desc.BreaksLeft = claims.config.VILLAGE_ANCHOR_BREAKS;
+            }
+
             // Same "reinforced block" trick as the war camp anchor: every hit is absorbed and only
             // the last one actually takes the village down.
             if (desc.BreaksLeft > 1)

@@ -30,6 +30,9 @@ namespace claims.src.gui.playerGui
         CITY_SEND_NEW_CONFLICT_LETTER_NEED_NAME, CITY_SEND_NAP_OFFER_NEED_NAME, ALLIANCE_SEND_NAP_OFFER_NEED_NAME,
         SEND_ULTIMATUM,
 
+        // Admin: config values picked from a fixed set of words.
+        WARCFG_CHOICE,
+
         // Villages.
         NEW_VILLAGE_NEED_NAME, VILLAGE_ABANDON_CONFIRM, VILLAGE_UPGRADE_CONFIRM,
 

@@ -8,6 +8,7 @@ using claims.src.gui.playerGui.structures.cellElements;
 using claims.src.gui.playerGui.Widgets;
 using claims.src.network.packets;
 using claims.src.part.structure.conflict;
+using claims.src.part.structure.war;
 using Newtonsoft.Json;
 using Vintagestory.API.Client;
 using Vintagestory.API.Config;
@@ -229,6 +230,27 @@ namespace claims.src.gui.playerGui.Pages
 
             var cell = SelectedConflict();
 
+            // The grid held whatever the last visit left in it: opening a conflict showed neither
+            // the agreed windows nor the enemy's proposal until the tabs were clicked, and sending
+            // from that state posted a stale schedule into the conflict just opened.
+            string gridKey = cell.Guid + ":" + State.SelectedTabGroup;
+            if (State.WarGridLoadedFor != gridKey)
+            {
+                State.WarGridLoadedFor = gridKey;
+                if (State.SelectedTabGroup == (int)EnumSelectedWarRangesTab.APPROVED)
+                {
+                    WarRangeMath.FillWarRangeArrays(cell.WarRanges);
+                }
+                else if (OurPartyName().Equals(cell.FirstPartyName))
+                {
+                    WarRangeMath.FillTwoWarRangesArrays(cell.FirstWarRanges, cell.SecondWarRanges);
+                }
+                else
+                {
+                    WarRangeMath.FillTwoWarRangesArrays(cell.SecondWarRanges, cell.FirstWarRanges);
+                }
+            }
+
             var anchor = ctx.Line.BelowCopy(0, 14);
             anchor.Alignment = EnumDialogArea.LeftTop;
             anchor.fixedWidth = lineBounds.fixedWidth;
@@ -306,20 +328,22 @@ namespace claims.src.gui.playerGui.Pages
                 },
                 new CardRow
                 {
+                    // FormatBattleDate: a (DateTimeOffset) cast on the epoch/MinValue placeholder
+                    // dates crashed the client for every player in a zone east of UTC.
                     Label = Lang.Get("claims:gui-conflict-label-last-battle"),
-                    Value = TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.LastBattleDateStart).ToUnixTimeSeconds()),
+                    Value = TimeFunctions.FormatBattleDate(cell.LastBattleDateStart),
                     Tooltip = Lang.Get("claims:gui_last_start_end_battle",
-                        TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.LastBattleDateStart).ToUnixTimeSeconds()),
-                        TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.LastBattleDateEnd).ToUnixTimeSeconds())),
+                        TimeFunctions.FormatBattleDate(cell.LastBattleDateStart),
+                        TimeFunctions.FormatBattleDate(cell.LastBattleDateEnd)),
                     Key = "lastBattle"
                 },
                 new CardRow
                 {
                     Label = Lang.Get("claims:gui-conflict-label-next-battle"),
-                    Value = TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.NextBattleDateStart).ToUnixTimeSeconds()),
+                    Value = TimeFunctions.FormatBattleDate(cell.NextBattleDateStart),
                     Tooltip = Lang.Get("claims:gui_next_start_end_battle",
-                        TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.NextBattleDateStart).ToUnixTimeSeconds()),
-                        TimeFunctions.getDateFromEpochSecondsWithHoursMinutes(((DateTimeOffset)cell.NextBattleDateEnd).ToUnixTimeSeconds())),
+                        TimeFunctions.FormatBattleDate(cell.NextBattleDateStart),
+                        TimeFunctions.FormatBattleDate(cell.NextBattleDateEnd)),
                     Key = "nextBattle"
                 }
             });
@@ -383,8 +407,17 @@ namespace claims.src.gui.playerGui.Pages
                 TitleHeightShrink = 0
             };
 
+            // Which clock the grid is in. A slot is a weekday plus a time read on the server's
+            // schedule clock, and a player in another zone reading "Saturday 20:00" as their own
+            // Saturday evening turns up for a battle that is already over.
+            const double clockRowHeight = 18;
+            var clockBounds = anchor.FlatCopy().WithFixedHeight(clockRowHeight);
+            clockBounds.fixedY = headerBottom + TabRowHeight + 4;
+            compo.AddStaticText(WarScheduleDisplay.GridHeading(),
+                CairoFont.WhiteDetailText().WithColor(ClaimsColors.Label), clockBounds, "warrange-clock");
+
             var listAnchor = anchor.FlatCopy();
-            listAnchor.fixedY = headerBottom + TabRowHeight + Card.Gap;
+            listAnchor.fixedY = clockBounds.fixedY + clockRowHeight + 4;
             listAnchor.fixedHeight = 0;
 
             // The schedule is parented on the cursor itself rather than on a title row it does not
@@ -404,14 +437,19 @@ namespace claims.src.gui.playerGui.Pages
             if (State.SelectedTabGroup == (int)EnumSelectedWarRangesTab.APPROVED)
             {
                 list = ScrollableList.Add(gui, listAnchor, null,
-                    clientInfo.CityInfo.ClientWarRangeCellElements,
+                    clientInfo.CityInfo.ClientWarRangeCellElements
+                             .Where(c => WarScheduleHelper.IsDayAllowed(c.DayOfWeek)),
                     (ClientWarRangeCellElement c, ElementBounds bounds) => new GuiElementWarRangeCell(compo.Api, c, bounds, State.SelectedTabGroup != 0) { On = true },
                     listOpts);
             }
             else
             {
+                // Days the server forbids are left out rather than drawn dead: a weekend-only server
+                // shows two rows instead of seven, five of them unusable. Which days those are is in
+                // the heading above the grid, so their absence is not a mystery.
                 list = ScrollableList.Add(gui, listAnchor, null,
-                    clientInfo.CityInfo.ClientTwoWarRangesCellElement,
+                    clientInfo.CityInfo.ClientTwoWarRangesCellElement
+                             .Where(c => WarScheduleHelper.IsDayAllowed(c.DayOfWeek)),
                     (ClientTwoWarRangesCellElement c, ElementBounds bounds) => new GuiElementTwoWarRangesCell(compo.Api, c, bounds) { On = true },
                     listOpts);
             }
@@ -438,100 +476,65 @@ namespace claims.src.gui.playerGui.Pages
                         ? city.ClientWarRangeCellElements[index].WarRangeArray
                         : city.ClientTwoWarRangesCellElement[index].OurWarRangeArray;
 
+                    // The whole week as one flat strip of half-hour slots, indexed by the day the cell
+                    // says it is rather than by its position in the list. Reading it as a strip is
+                    // what makes a window that runs past midnight - or past Saturday into Sunday -
+                    // one range instead of a special case.
+                    const int slotsPerDay = 48;
+                    const int totalSlots = 7 * slotsPerDay;
+                    const int cellMinutes = 24 * 60 / slotsPerDay;
+                    bool[] week = new bool[totalSlots];
+                    for (int index = 0; index < 7; index++)
+                    {
+                        bool[] daySlots = slotsOf(index);
+                        int dayBase = (int)dayOf(index) * slotsPerDay;
+                        for (int i = 0; i < slotsPerDay; i++) week[dayBase + i] = daySlots[i];
+                    }
+
                     List<SelectedWarRange> selectedWarRanges = new List<SelectedWarRange>();
-                    int? startIndex = null;
-                    int? savedStartIndex = null;
-                    DayOfWeek? startDay = null;
-                    DayOfWeek? savedStartDay = null;
-                    bool? lastCellState = null;
-                    //try find start of range
 
-                    for (int day = 0; day < 8; day++)
+                    // Start scanning at a slot whose predecessor is empty, so a window straddling the
+                    // week boundary is not cut in two. There is no such slot when the week is either
+                    // fully marked or fully empty.
+                    int firstSlot = -1;
+                    for (int s = 0; s < totalSlots; s++)
                     {
-                        var warRange = slotsOf(day % 7);
-                        for (int i = 0; i < 48; i++)
+                        if (week[s] && !week[(s - 1 + totalSlots) % totalSlots]) { firstSlot = s; break; }
+                    }
+
+                    if (firstSlot < 0)
+                    {
+                        // Marking the entire week used to send nothing at all.
+                        if (week[0])
                         {
-                            //find start of the range
-                            if (warRange[i] && lastCellState.HasValue && !lastCellState.Value)
-                            {
-                                startIndex = i;
-                                savedStartIndex = i;
-                                startDay = (DayOfWeek)(day % 7);
-                                savedStartDay = (DayOfWeek)(day % 7);
-                                goto foundStart;
-                            }
-                            lastCellState = warRange[i];
+                            selectedWarRanges.Add(new SelectedWarRange(DayOfWeek.Sunday, DayOfWeek.Sunday,
+                                TimeSpan.Zero, TimeSpan.FromMinutes(totalSlots * cellMinutes), OurPartyGuid()));
+                        }
+                    }
+                    else
+                    {
+                        int cursor = 0;
+                        while (cursor < totalSlots)
+                        {
+                            int slot = (firstSlot + cursor) % totalSlots;
+                            if (!week[slot]) { cursor++; continue; }
+
+                            int length = 0;
+                            while (cursor + length < totalSlots && week[(firstSlot + cursor + length) % totalSlots]) length++;
+
+                            int startMinutes = slot * cellMinutes;
+                            int durationMinutes = length * cellMinutes;
+                            int endMinutes = (startMinutes + durationMinutes) % (7 * 24 * 60);
+                            selectedWarRanges.Add(new SelectedWarRange(
+                                (DayOfWeek)(startMinutes / (24 * 60)),
+                                (DayOfWeek)(endMinutes / (24 * 60)),
+                                TimeSpan.FromMinutes(startMinutes % (24 * 60)),
+                                TimeSpan.FromMinutes(durationMinutes),
+                                OurPartyGuid()));
+                            cursor += length;
                         }
                     }
 
-                foundStart:
-                    if (startIndex == null)
-                    {
-                        startIndex = 0;
-                        startDay = DayOfWeek.Sunday;
-                    }
-                    bool firstStart = true;
-                    for (int day = 0; day < 8; day++)
-                    {
-                        int dayIndex = ((int)startDay + day) % 7;
-                        DayOfWeek itDay = dayOf(dayIndex);
-                        bool[] itSlots = slotsOf(dayIndex);
-
-                        for (int i = (startIndex.HasValue && firstStart) ? startIndex.Value : 0; i < 48; i++)
-                        {
-                            if (itDay == savedStartDay)
-                            {
-                                if (savedStartIndex != null && i == savedStartIndex - 1)
-                                {
-                                    if (startIndex != null)
-                                    {
-                                        int startDayNum = (int)startDay;
-                                        int startMinutes = startDayNum * 24 * 60 + (startIndex ?? 0) * 30;
-                                        int endMinutes = ((int)itDay) * 24 * 60 + i * 30;
-                                        int diff = endMinutes - startMinutes;
-                                        if (diff < 0)
-                                        {
-                                            diff += 7 * 24 * 60;
-                                        }
-                                        selectedWarRanges.Add(new SelectedWarRange((startDay ?? DayOfWeek.Sunday), itDay,
-                                            new TimeSpan(hours: (i * 30) / 60, minutes: (i * 30) % 60, seconds: 0),
-                                            TimeSpan.FromMinutes(diff), OurPartyGuid()));
-                                    }
-                                    goto searchedAll;
-                                }
-                            }
-                            if (itSlots[i])
-                            {
-                                if (startIndex == null)
-                                {
-                                    startDay = itDay;
-                                    startIndex = i;
-                                }
-                            }
-                            else
-                            {
-                                if (startIndex != null)
-                                {
-                                    int startDayNum = (int)startDay;
-                                    int startMinutes = startDayNum * 24 * 60 + (startIndex ?? 0) * 30;
-                                    int endMinutes = ((int)itDay) * 24 * 60 + i * 30;
-                                    int diff = endMinutes - startMinutes;
-                                    if (diff < 0)
-                                    {
-                                        diff += 7 * 24 * 60;
-                                    }
-                                    selectedWarRanges.Add(new SelectedWarRange((startDay ?? DayOfWeek.Sunday), itDay,
-                                        new TimeSpan(hours: ((startIndex ?? 0) * 30) / 60, minutes: ((startIndex ?? 0) * 30) % 60, seconds: 0),
-                                        TimeSpan.FromMinutes(diff), OurPartyGuid()));
-                                    startIndex = null;
-                                    //startDay = null;
-                                }
-                            }
-                            firstStart = false;
-                        }
-                    }
-
-                searchedAll:
                     if (cell.FirstPartyName.Equals(OurPartyName()))
                     {
                         cell.FirstWarRanges = selectedWarRanges;

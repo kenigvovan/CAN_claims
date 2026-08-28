@@ -1,6 +1,8 @@
 using System;
 using claims.src.economy;
+using claims.src.messages;
 using claims.src.part.structure.conflict;
+using Vintagestory.API.Config;
 
 namespace claims.src.part.structure.war
 {
@@ -13,9 +15,25 @@ namespace claims.src.part.structure.war
     public static class WarDeclarationHelper
     {
         public static bool TryPassDeclarationGates(IConflictParty ourParty, IConflictParty target, string ourAccount, out string errorKey)
+            => TryPassDeclarationGates(ourParty, target, ourAccount, out errorKey, out _);
+
+        /// <summary>
+        /// Same gates, reporting what passing them cost. A declaration that still needs the other
+        /// side's answer hands <paramref name="charge"/> to the letter, which gives it back through
+        /// <see cref="RefundDeclaration"/> if the war never happens.
+        /// </summary>
+        public static bool TryPassDeclarationGates(IConflictParty ourParty, IConflictParty target, string ourAccount,
+            out string errorKey, out DeclarationCharge charge)
         {
             errorKey = null;
+            charge = new DeclarationCharge();
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+            // Neutrality, checked here as well as in the commands: this is the one place every path
+            // to a war goes through, and a free-war justification must not be spent on a war the
+            // rules will refuse anyway.
+            if (ourParty != null && ourParty.IsNeutral) { errorKey = "claims:our_city_is_neutral"; return false; }
+            if (target != null && target.IsNeutral) { errorKey = "claims:target_party_is_neutral"; return false; }
 
             // Cooling-off period after betraying a union. Checked BEFORE the free-war justification:
             // otherwise an ultimatum to the ex-ally (refusing it grants a free war) would launder the
@@ -29,7 +47,17 @@ namespace claims.src.part.structure.war
             // A refused/expired ultimatum grants a free, justified war against that target — bypass every other gate.
             if (HasWarJustification(ourParty, target))
             {
+                // Noted before it is spent, so a declaration that comes to nothing can put it back.
+                charge.JustificationExpire = JustificationExpiryOf(ourParty, target);
+                charge.TargetGuid = target.Guid;
                 ConsumeWarJustification(ourParty, target);
+                // Bypassing the pact gate is not the same as leaving the pact standing: it used to
+                // survive the war it was overridden by, so /nap break still charged a penalty for it
+                // and the next declaration was refused as nap_active long after the two had fought.
+                if (claims.config.WAR_NAP_ENABLED && NonAggressionHelper.HasActivePact(ourParty, target))
+                {
+                    NonAggressionHelper.RemovePact(ourParty, target);
+                }
                 return true;
             }
 
@@ -70,6 +98,7 @@ namespace claims.src.part.structure.war
             {
                 if (claims.economyProvider.GetBalance(ourAccount) < (decimal)cost)
                 {
+                    var f = claims.economyProvider.GetBalance(ourAccount);
                     errorKey = "claims:not_enough_money";
                     return false;
                 }
@@ -78,6 +107,7 @@ namespace claims.src.part.structure.war
                     errorKey = "claims:economy_money_transaction_error";
                     return false;
                 }
+                charge.Cost = cost;
             }
             return true;
         }
@@ -121,6 +151,50 @@ namespace claims.src.part.structure.war
             victimCity.Grievances[offenderPartyGuid] = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             victimCity.saveToDatabase();
             CasusBelliHelper.BroadcastForCity(victimCity);
+        }
+
+        /// <summary>
+        /// Gives back what a declaration took when it never became a war - refused, expired, or
+        /// withdrawn. The fee goes back to the account that paid it; the justification is restored
+        /// with its ORIGINAL expiry, so nothing is stretched by declaring and withdrawing, and one
+        /// that has since run out is simply not put back.
+        /// </summary>
+        public static void RefundDeclaration(IConflictParty ourParty, string ourAccount, DeclarationCharge charge)
+        {
+            if (ourParty == null || charge == null || charge.IsEmpty) return;
+
+            if (charge.Cost > 0 && !string.IsNullOrEmpty(ourAccount))
+            {
+                if (claims.economyProvider.Deposit(ourAccount, (decimal)charge.Cost) != MoneyOperationResult.Success)
+                {
+                    MessageHandler.sendErrorMsg("WarDeclarationHelper: could not refund the declaration fee of "
+                        + charge.Cost + " to " + ourAccount);
+                }
+                else
+                {
+                    MessageHandler.SendMsgInAlliance(ourParty, Lang.Get("claims:war_declaration_refunded", charge.Cost));
+                }
+            }
+
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            if (charge.JustificationExpire > now && charge.TargetGuid != null)
+            {
+                foreach (City city in ourParty.GetCities())
+                {
+                    city.WarJustifications[charge.TargetGuid] = charge.JustificationExpire;
+                    city.saveToDatabase();
+                }
+                CasusBelliHelper.Broadcast(ourParty);
+            }
+        }
+
+        /// <summary>The furthest expiry any of the party's cities holds against this target, 0 if none.</summary>
+        private static long JustificationExpiryOf(IConflictParty ourParty, IConflictParty target)
+        {
+            long best = 0;
+            foreach (City city in ourParty.GetCities())
+                if (city.WarJustifications.TryGetValue(target.Guid, out long exp) && exp > best) best = exp;
+            return best;
         }
 
         /// <summary>True if any of ourParty's cities holds an unexpired free-war justification against target.</summary>

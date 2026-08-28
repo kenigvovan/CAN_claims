@@ -66,7 +66,8 @@ namespace claims.src.gui.playerGui
         /// <summary>The pages reachable through the single admin entry in the tab row.</summary>
         internal static bool IsAdminPage(EnumSelectedTab tab) =>
             tab == EnumSelectedTab.AdminWorld || tab == EnumSelectedTab.AdminCities
-            || tab == EnumSelectedTab.AdminWar || tab == EnumSelectedTab.AdminPlayer;
+            || tab == EnumSelectedTab.AdminWar || tab == EnumSelectedTab.AdminWarConfig
+            || tab == EnumSelectedTab.AdminPlayer;
 
         private static bool adminChecked;
         private static bool isAdmin;
@@ -98,8 +99,8 @@ namespace claims.src.gui.playerGui
 
         public CANClaimsGui(ICoreClientAPI capi) : base(capi)
         {
-            // A little roomier than the ImGui window was: the prices tab fills two columns of cards,
-            // and at 500x600 the lower one ended right at the bottom edge.
+            // The prices tab fills two columns of cards; at 500x600 the lower one ended right at
+            // the bottom edge.
             Width = 560;
             Height = 660;
             SelectedTab = 0;
@@ -212,6 +213,10 @@ namespace claims.src.gui.playerGui
         }
         public void BuildMainWindow()
         {
+            // Leaving the conflict page drops the working copy of its schedule grid, so coming back
+            // shows what the server holds rather than half-finished clicks from the last visit.
+            if (State.SelectedTab != EnumSelectedTab.ConflictInfoPage) State.WarGridLoadedFor = "";
+
             int fixedY1 = 20;
             ElementBounds globalBounds = ElementStdBounds.AutosizedMainDialog.WithAlignment(EnumDialogArea.CenterMiddle);
 

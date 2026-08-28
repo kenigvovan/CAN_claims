@@ -34,7 +34,14 @@ namespace claims.src.part.structure
         // Coat of arms: ';'-separated texture layers, see EmblemHandler. Empty means none yet.
         public string Emblem { get; set; } = "";
         public long TimeStampCreated { get; set; }
+        /// <summary>
+        /// Declared neutral: no wars either way, no unions, and NEUTRAL_ALLANCE_PAYMENT a day on top
+        /// of the upkeep. Read through <see cref="IsNeutral"/> so the server switch is honoured.
+        /// </summary>
         public bool Neutral { get; set; } = false;
+        public bool IsNeutral => Neutral && claims.config.NEUTRALITY_ENABLED;
+        /// <summary>Unix seconds when neutrality was last given up; 0 if it never was.</summary>
+        public long NeutralDroppedAt { get; set; } = 0;
         public HashSet<Conflict> RunningConflicts { get; } = new HashSet<Conflict>();
         private string prefix = "";
         public string Prefix

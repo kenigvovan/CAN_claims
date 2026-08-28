@@ -1,9 +1,26 @@
 using System;
 using System.Collections.Generic;
+using claims.src.part.structure.war;
+using Vintagestory.API.Config;
 
 namespace claims.src.gui.playerGui.Pages
 {
-    public enum EnumCfgKind { Group, Flag, Int, Double }
+    public enum EnumCfgKind
+    {
+        Group, Flag, Int, Double, Text,
+        /// <summary>One of a fixed set of words - picked in a dialog, not typed.</summary>
+        Choice,
+        /// <summary>Any number of a fixed set of words, sent as a comma separated list.</summary>
+        MultiChoice
+    }
+
+    /// <summary>One entry of a <see cref="EnumCfgKind.Choice"/> row: the word sent, and its label.</summary>
+    public sealed class CfgOption
+    {
+        public string Value;
+        public string LabelLangKey;
+        public CfgOption(string value, string labelLangKey) { Value = value; LabelLangKey = labelLangKey; }
+    }
 
     /// <summary>
     /// One row of the war settings editor: a group heading, or a setting with the /cadmin setcfg
@@ -17,11 +34,38 @@ namespace claims.src.gui.playerGui.Pages
         public Func<bool> GetFlag;
         public Func<int> GetInt;
         public Func<double> GetDouble;
+        public Func<string> GetText;
+        /// <summary>
+        /// Shown in the list when the raw value is too long for the value column. The row still
+        /// loads <see cref="GetText"/> into the edit field, so what is displayed may be shortened
+        /// without making the edit field useless.
+        /// </summary>
+        public Func<string> GetDisplay;
+
+        /// <summary>What a Choice/MultiChoice row offers. Null for every other kind.</summary>
+        public CfgOption[] Options;
+
+        /// <summary>
+        /// Empty is a meaningful answer for a MultiChoice - "no restriction" - but the command word
+        /// for it differs per setting ("none", "off"), so the row says which to send.
+        /// </summary>
+        public string EmptyValue = "none";
 
         public static WarCfgRow Group(string label) => new WarCfgRow { Kind = EnumCfgKind.Group, LabelLangKey = label };
         public static WarCfgRow Flag(string label, string key, Func<bool> get) => new WarCfgRow { Kind = EnumCfgKind.Flag, LabelLangKey = label, CfgKey = key, GetFlag = get };
         public static WarCfgRow Int(string label, string key, Func<int> get) => new WarCfgRow { Kind = EnumCfgKind.Int, LabelLangKey = label, CfgKey = key, GetInt = get };
         public static WarCfgRow Dbl(string label, string key, Func<double> get) => new WarCfgRow { Kind = EnumCfgKind.Double, LabelLangKey = label, CfgKey = key, GetDouble = get };
+        /// <summary>A setting whose value is neither a switch nor a number - a day list, a zone id.</summary>
+        public static WarCfgRow Text(string label, string key, Func<string> get, Func<string> display = null)
+            => new WarCfgRow { Kind = EnumCfgKind.Text, LabelLangKey = label, CfgKey = key, GetText = get, GetDisplay = display };
+
+        /// <summary>Pick one of <paramref name="options"/> in a dialog instead of typing the word.</summary>
+        public static WarCfgRow Choice(string label, string key, Func<string> get, Func<string> display, params CfgOption[] options)
+            => new WarCfgRow { Kind = EnumCfgKind.Choice, LabelLangKey = label, CfgKey = key, GetText = get, GetDisplay = display, Options = options };
+
+        /// <summary>Pick any number of <paramref name="options"/>; sent as a comma separated list.</summary>
+        public static WarCfgRow MultiChoice(string label, string key, Func<string> get, Func<string> display, params CfgOption[] options)
+            => new WarCfgRow { Kind = EnumCfgKind.MultiChoice, LabelLangKey = label, CfgKey = key, GetText = get, GetDisplay = display, Options = options };
     }
 
     /// <summary>
@@ -92,6 +136,11 @@ namespace claims.src.gui.playerGui.Pages
             WarCfgRow.Dbl("claims:gui-admin-warcfg-nap-penalty", "war_nap_break_penalty", () => claims.config.WAR_NAP_BREAK_PENALTY),
             WarCfgRow.Int("claims:gui-admin-warcfg-battle-warn", "war_battle_warn_minutes", () => claims.config.WAR_BATTLE_WARN_MINUTES),
 
+            WarCfgRow.Group("claims:gui-admin-warcfg-schedule"),
+            WarCfgRow.MultiChoice("claims:gui-admin-warcfg-allowed-days", "war_allowed_battle_days",
+                AllowedDaysValue, AllowedDaysDisplay, WeekdayOptions()),
+            WarCfgRow.Text("claims:gui-admin-warcfg-timezone", "war_schedule_timezone", ScheduleTimezoneValue),
+
             WarCfgRow.Group("claims:gui-admin-warcfg-ultimatum"),
             WarCfgRow.Flag("claims:gui-admin-warcfg-ultimatum-enabled", "war_ultimatum_enabled", () => claims.config.WAR_ULTIMATUM_ENABLED),
             WarCfgRow.Int("claims:gui-admin-warcfg-ultimatum-hours", "war_ultimatum_expire_hours", () => claims.config.WAR_ULTIMATUM_EXPIRE_HOURS),
@@ -105,6 +154,77 @@ namespace claims.src.gui.playerGui.Pages
             WarCfgRow.Group("claims:gui-admin-warcfg-report"),
             WarCfgRow.Flag("claims:gui-admin-warcfg-report-enabled", "war_report_enabled", () => claims.config.WAR_REPORT_ENABLED),
             WarCfgRow.Flag("claims:gui-admin-warcfg-hud-enabled", "war_hud_enabled", () => claims.config.WAR_HUD_ENABLED),
+
+            WarCfgRow.Group("claims:gui-admin-warcfg-bankruptcy"),
+            WarCfgRow.Choice("claims:gui-admin-warcfg-bankruptcy-mode", "city_bankruptcy_mode",
+                () => claims.config?.CITY_BANKRUPTCY_MODE ?? "off",
+                () => Lang.Get("claims:gui-warcfg-bankruptcy-" + (claims.config?.CITY_BANKRUPTCY_MODE ?? "off")),
+                new CfgOption("off", "claims:gui-warcfg-bankruptcy-off"),
+                new CfgOption("plots", "claims:gui-warcfg-bankruptcy-plots"),
+                new CfgOption("whole_city", "claims:gui-warcfg-bankruptcy-whole_city")),
+            WarCfgRow.Int("claims:gui-admin-warcfg-bankruptcy-grace", "city_bankruptcy_grace_days",
+                () => claims.config.CITY_BANKRUPTCY_GRACE_DAYS),
         };
+
+        /// <summary>The seven weekdays as options, labelled with the short day names already in lang.</summary>
+        private static CfgOption[] WeekdayOptions()
+        {
+            var options = new CfgOption[7];
+            for (int i = 0; i < 7; i++)
+            {
+                string day = ((DayOfWeek)i).ToString().ToLowerInvariant();
+                options[i] = new CfgOption(day, "claims:gui_day_short_" + day);
+            }
+            return options;
+        }
+
+        /// <summary>The row a config key belongs to, for the dialog that edits it.</summary>
+        public static bool TryGetRow(string cfgKey, out WarCfgRow row)
+        {
+            foreach (var it in rows)
+            {
+                if (it.CfgKey != null && it.CfgKey.Equals(cfgKey, StringComparison.OrdinalIgnoreCase))
+                {
+                    row = it;
+                    return true;
+                }
+            }
+            row = null;
+            return false;
+        }
+
+        /// <summary>
+        /// The allowed battle days, written the way setcfg takes them back - clicking the row loads
+        /// this into the edit field, so it has to be valid input rather than prose.
+        /// </summary>
+        private static string AllowedDaysValue()
+        {
+            var days = claims.config?.WAR_ALLOWED_BATTLE_DAYS;
+            if (days == null || days.Count == 0) return "none";
+
+            var parts = new List<string>();
+            for (int i = 0; i < 7; i++)
+            {
+                var day = (DayOfWeek)i;
+                if (days.Contains(day)) parts.Add(day.ToString().ToLowerInvariant());
+            }
+            return string.Join(",", parts);
+        }
+
+        /// <summary>Short day names, which is all the value column has room for.</summary>
+        private static string AllowedDaysDisplay()
+        {
+            if (!WarScheduleHelper.HasDayRestriction)
+            {
+                return Lang.Get("claims:gui-admin-warcfg-days-any");
+            }
+            return WarScheduleHelper.AllowedDaysText();
+        }
+
+        private static string ScheduleTimezoneValue()
+        {
+            string zone = claims.config?.WAR_SCHEDULE_TIMEZONE;
+            return string.IsNullOrWhiteSpace(zone) ? "server" : zone;
+        }
     }
 }

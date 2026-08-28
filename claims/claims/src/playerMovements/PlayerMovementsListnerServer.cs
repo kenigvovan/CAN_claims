@@ -241,6 +241,9 @@ namespace claims.src
                     MessageHandler.sendMsgToPlayerInfo(playerInfo, Lang.Get("claims:you_escaped_prison"));
                     if(playerInfo.PrisonedIn.TryGetCellInWhichPlayer(playerInfo, out var cell))
                     {
+                        // Out of the cell before the roster is sent: it used to go out still listing
+                        // the player who had just escaped, and nothing ever took them off it.
+                        cell.RemovePlayer(playerInfo);
                         UsefullPacketsSend.AddToQueueCityInfoUpdate(playerInfo.PrisonedIn.City.Guid, new Dictionary<string, object> { { "value", new PrisonCellElement(cell.spawnPostion, cell.playerNames) } },
                             EnumPlayerRelatedInfo.CITY_CELL_PRISON_UPDATE);
                     }

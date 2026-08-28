@@ -52,7 +52,7 @@ namespace claims.src.gui.playerGui.GuiElements
 
                 var valueBounds = ElementBounds
                     .Fixed(width - valueWidth - EdgePadding, 4, valueWidth, 20).WithParent(Bounds);
-                AddText(CurrentValue(row), valueBounds, ColorFor(row), 14);
+                AddText(DisplayValue(row), valueBounds, ColorFor(row), 14);
 
                 // The key is what /cadmin setcfg takes, and it is not otherwise visible anywhere.
                 AddTooltip(ElementBounds.Fixed(0, 0, width, RowHeight).WithParent(Bounds),
@@ -69,6 +69,13 @@ namespace claims.src.gui.playerGui.GuiElements
             return row.GetFlag() ? ClaimsColors.Success : ClaimsColors.Danger;
         }
 
+        /// <summary>What the list shows - the same as the editable value unless the row shortens it.</summary>
+        private static string DisplayValue(WarCfgRow row)
+        {
+            return row.GetDisplay != null ? row.GetDisplay() : CurrentValue(row);
+        }
+
+        /// <summary>What clicking the row loads into the edit field: valid setcfg input.</summary>
         public static string CurrentValue(WarCfgRow row)
         {
             switch (row.Kind)
@@ -76,6 +83,10 @@ namespace claims.src.gui.playerGui.GuiElements
                 case EnumCfgKind.Flag: return row.GetFlag() ? "on" : "off";
                 case EnumCfgKind.Int: return row.GetInt().ToString(System.Globalization.CultureInfo.InvariantCulture);
                 case EnumCfgKind.Double: return row.GetDouble().ToString(System.Globalization.CultureInfo.InvariantCulture);
+                case EnumCfgKind.Text:
+                case EnumCfgKind.Choice:
+                case EnumCfgKind.MultiChoice:
+                    return row.GetText() ?? "";
                 default: return "";
             }
         }

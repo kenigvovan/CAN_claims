@@ -1,6 +1,9 @@
+using System;
 using System.Collections.Generic;
 using claims.src.gui.playerGui.Widgets;
 using Vintagestory.API.Client;
+using Vintagestory.API.Config;
+using Vintagestory.API.MathTools;
 
 namespace claims.src.gui.hud
 {
@@ -35,7 +38,7 @@ namespace claims.src.gui.hud
     /// wants and the base recomposes only when that list actually changed - not every frame, and
     /// not never.
     /// </summary>
-    public abstract class ClaimsHud : HudElement
+    public abstract class ClaimsHud : HudElement, IMovableHudPanel
     {
         private List<HudLine> shownLines = new List<HudLine>();
         private bool wasVisible;
@@ -78,7 +81,11 @@ namespace claims.src.gui.hud
                 {
                     wasVisible = false;
                     shownLines = new List<HudLine>();
-                    SingleComposer = null;
+                    // NOT `SingleComposer = null`: the vanilla DlgComposers setter dereferences the
+                    // assigned value, so hiding the panel that way crashed the render thread the
+                    // moment the first battle involving the player's own city ended.
+                    SingleComposer?.Dispose();
+                    Composers.Remove("single");
                 }
                 return;
             }
@@ -102,22 +109,26 @@ namespace claims.src.gui.hud
             return true;
         }
 
+        /// <summary>Recompose on the next frame even though the lines have not changed.</summary>
+        public void OnLayoutChanged() => wasVisible = false;
+
+        protected const double LineHeight = 22;
+        protected const double PanelPadding = 16;
+
         private void Compose(List<HudLine> lines)
         {
-            const double lineHeight = 22;
+            double height = lines.Count * LineHeight + PanelPadding;
+            ElementBounds panelBounds = PanelBounds(height);
 
-            ElementBounds panelBounds = ElementBounds
-                .Fixed(EnumDialogArea.None, OffsetX, OffsetY, PanelWidth, lines.Count * lineHeight + 16)
-                .WithAlignment(Anchor);
-
+            // Fill inside the panel, nothing else: AddDialogBG already makes this a child of
+            // panelBounds, so naming panelBounds a child of it in turn made the two point at each
+            // other and CalcWorldBounds recursed until the stack ran out.
             ElementBounds bgBounds = ElementBounds.Fill.WithFixedPadding(8);
-            bgBounds.BothSizing = ElementSizing.FitToChildren;
-            bgBounds.WithChildren(panelBounds);
 
             var composer = capi.Gui.CreateCompo(ComposerKey, panelBounds)
                                    .AddDialogBG(bgBounds, false);
 
-            ElementBounds row = ElementBounds.Fixed(0, 0, PanelWidth - 16, lineHeight);
+            ElementBounds row = ElementBounds.Fixed(0, 0, PanelWidth - PanelPadding, LineHeight);
             for (int i = 0; i < lines.Count; i++)
             {
                 HudLine line = lines[i];
@@ -128,7 +139,63 @@ namespace claims.src.gui.hud
                 row = row.BelowCopy();
             }
 
+            // The previous composer is not disposed by the setter; without this every score change
+            // leaked one.
+            SingleComposer?.Dispose();
             SingleComposer = composer.Compose();
+        }
+
+        /// <summary>
+        /// Bounds for a panel of the given height: the spot the player dragged it to, or the
+        /// hardcoded anchor. Stored positions are normalised (0..1 of the unscaled viewport) and
+        /// clamped so a panel cannot end up off-screen after a resolution change.
+        /// </summary>
+        private ElementBounds PanelBounds(double height)
+        {
+            var pos = ClaimsHudLayout.Current?.Get(ComposerKey);
+            if (pos == null)
+            {
+                return ElementBounds
+                    .Fixed(EnumDialogArea.None, OffsetX, OffsetY, PanelWidth, height)
+                    .WithAlignment(Anchor);
+            }
+
+            double screenW = capi.Render.FrameWidth / RuntimeEnv.GUIScale;
+            double screenH = capi.Render.FrameHeight / RuntimeEnv.GUIScale;
+            double x = GameMath.Clamp(pos.X * screenW, 0, Math.Max(0, screenW - PanelWidth));
+            double y = GameMath.Clamp(pos.Y * screenH, 0, Math.Max(0, screenH - height));
+            return ElementBounds.Fixed(x, y, PanelWidth, height);
+        }
+
+        // Geometry the layout editor needs to draw a ghost of this panel.
+
+        public string LayoutKey => ComposerKey;
+        public double EditorWidth => PanelWidth;
+
+        /// <summary>Ghost height: panels grow with their lines, this is a typical size.</summary>
+        public virtual double EditorHeight => 2 * LineHeight + PanelPadding;
+
+        /// <summary>What the ghost is labeled with in the layout editor.</summary>
+        public abstract string EditorLabel { get; }
+
+        /// <summary>Unscaled top-left corner the anchor would place a panel of this height at.</summary>
+        public (double X, double Y) DefaultTopLeft(double screenW, double screenH, double height)
+        {
+            switch (Anchor)
+            {
+                case EnumDialogArea.CenterTop:
+                    return (screenW / 2 - PanelWidth / 2 + OffsetX, OffsetY);
+                case EnumDialogArea.CenterBottom:
+                    return (screenW / 2 - PanelWidth / 2 + OffsetX, screenH - height + OffsetY);
+                case EnumDialogArea.RightTop:
+                    return (screenW - PanelWidth + OffsetX, OffsetY);
+                case EnumDialogArea.RightBottom:
+                    return (screenW - PanelWidth + OffsetX, screenH - height + OffsetY);
+                case EnumDialogArea.LeftBottom:
+                    return (OffsetX, screenH - height + OffsetY);
+                default:
+                    return (OffsetX, OffsetY);
+            }
         }
 
         /// <summary>Composer name, unique per panel.</summary>

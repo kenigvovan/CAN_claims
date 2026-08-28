@@ -67,6 +67,13 @@ namespace claims.src.rights
         // CITY_PLOTSGROUP_SET: the flags that one covers cost nobody anything.
         CITY_PLOTSGROUP_SET_FEE,
 
+        // Keeping hostile mobs out of a plot, a city or a plots group. Appended here for the same
+        // reason as CITY_SET_EMBLEM: ranks store the numeric value.
+        PLOT_SET_MOBSPAWN, CITY_SET_MOBSPAWN, CITY_PLOTSGROUP_SET_MOBSPAWN,
+
+        // Declaring the city neutral. Appended for the same reason as the two blocks above.
+        CITY_SET_NEUTRAL,
+
         ALLIANCE_ACCEPT_CONFLICT = 2048, ALLIANCE_REVOKE_CONFLICT, ALLIANCE_DECLARE_CONFLICT, ALLIANCE_DENY_CONFLICT,
         ALLIANCE_OFFER_STOP_CONFLICT, ALLIANCE_ACCEPT_STOP_CONFLICT, ALLIANCE_DENY_STOP_CONFLICT, ALLIANCE_WITHDRAW_MONEY,
         ALLIANCE_DECLARE_UNION, ALLIANCE_REVOKE_UNION, ALLIANCE_ACCEPT_UNION, ALLIANCE_DENY_UNION,

@@ -97,7 +97,16 @@ namespace claims.src.part
         public bool IsVassal() => !string.IsNullOrEmpty(OverlordGuid);
         public City GetOverlord() => claims.dataStorage.getCityByGUID(OverlordGuid, out City o) ? o : null;
         public bool Dirty { get; set; } = false;
+        /// <summary>
+        /// Declared neutral: cannot declare war, cannot be declared upon, and pays
+        /// NEUTRAL_CITY_PAYMENT a day on top of its upkeep. Read through <see cref="IsNeutral"/>,
+        /// which also honours the server switch - a host turning neutrality off should not leave
+        /// cities that already bought it unattackable.
+        /// </summary>
         public bool Neutral { get; set; } = false;
+        public bool IsNeutral => Neutral && claims.config.NEUTRALITY_ENABLED;
+        /// <summary>Unix seconds when neutrality was last given up; 0 if it never was.</summary>
+        public long NeutralDroppedAt { get; set; } = 0;
         public HashSet<Conflict> RunningConflicts { get; } = new HashSet<Conflict>();
         public Dictionary<string, CustomCityRank> CustomCityRanks { get; set; } = new();
         public List<CityLogEntry> EventLog { get; set; } = new List<CityLogEntry>();
@@ -154,25 +163,48 @@ namespace claims.src.part
         {
             return CustomCityRanks.Remove(rankName);
         }
-        public void updateMarkedPVP()
+        /// <summary>
+        /// Clears the safety marks of plots whose flag is off again. Runs right after the payment,
+        /// so a flag that was on at any point during the day has already been billed.
+        /// </summary>
+        public void UpdateSafetyFlagMarks()
         {
             foreach (var it in cityPlots)
             {
-                if (it.getPermsHandler().pvpFlag)
+                bool changed = false;
+                if (it.MarkedNoPvp && it.getPermsHandler().pvpFlag)
+                {
                     it.MarkedNoPvp = false;
+                    changed = true;
+                }
+                if (it.MarkedNoMobSpawn && !it.getPermsHandler().noMobSpawnFlag)
+                {
+                    it.MarkedNoMobSpawn = false;
+                    changed = true;
+                }
+                // Persisted right away: a mark that only cleared in memory would come back on the
+                // next server start and be billed a second time.
+                if (changed) it.saveToDatabase();
             }
         }
-        public double getNoPVPCost()
+        /// <summary>
+        /// What the city pays daily for the safety flags of its plots. Keeping players out (no pvp)
+        /// and keeping hostile mobs out (nomobspawn) are separate flags but one bill: a second
+        /// counter per flag is how this grows into getFireCost() next.
+        ///
+        /// Only the city's own land is counted here: a plot with an owner is billed to that owner
+        /// with the rest of their fee (<see cref="Plot.SafetyFlagsPaidByOwner"/>), so whoever turns
+        /// the flag on is the one who pays for it.
+        /// </summary>
+        public double GetSafetyFlagsCost()
         {
-            double tmp = 0;
+            double sum = 0;
             foreach (Plot it in cityPlots)
             {
-                if (it.MarkedNoPvp)
-                {
-                    ++tmp;
-                }
+                if (it.SafetyFlagsPaidByOwner()) continue;
+                sum += it.GetSafetyFlagsCost();
             }
-            return tmp * claims.config.PLOT_NO_PVP_FLAG_COST;
+            return sum;
         }
         public List<PlayerInfo> getCriminals()
         {
@@ -458,6 +490,8 @@ namespace claims.src.part
             // Villages have a flat plot limit of their own, not the citizen-count levels.
             outStrings.Add($"{Lang.Get("claims:city_claimed_amount_status", this.getCityPlots().Count, Settings.getMaxNumberOfPlotForCity(this)) + (!IsVillage() && cityLevelInfo.Maxextrachunksbought > 0 ? " " + Lang.Get("claims:city_claimed_extra_amount_status", this.Extrachunksbought, cityLevelInfo.Maxextrachunksbought) + "\n" : "\n")}");
             outStrings.Add($"{Lang.Get("claims:created")} {TimeFunctions.getDateFromEpochSeconds(TimeStampCreated)}\n");
+            // Said plainly, as an alliance says it: it decides whether this place can be warred.
+            if (IsNeutral) outStrings.Add(Lang.Get("claims:neutral") + "\n");
             // Its own people know when the village is open to attack; outsiders have to come and
             // find out on the spot.
             if (IsVillage() && forPlayer != null && isCitizen(forPlayer))
@@ -466,7 +500,8 @@ namespace claims.src.part
             }
             if (!IsVillage())
             {
-                outStrings.Add(Lang.Get("claims:city_outgo") + (getExpense() + cityLevelInfo.UnconditionalPayment).ToString() + (getNoPVPCost() > 0 ? "(+" + getNoPVPCost().ToString() + ")" : "") + "\n");
+                double safetyFlagsCost = GetSafetyFlagsCost();
+                outStrings.Add(Lang.Get("claims:city_outgo") + (getExpense() + cityLevelInfo.UnconditionalPayment).ToString() + (safetyFlagsCost > 0 ? "(+" + safetyFlagsCost.ToString() + ")" : "") + "\n");
             }
             outStrings.Add($"{Lang.Get("claims:citizens")} {StringFunctions.makeStringPlayersName(this.getCityCitizens(), ", ")}");
 
@@ -528,13 +563,11 @@ namespace claims.src.part
             if (IsVillage()) return 0;
 
             double sumToPay = claims.config.CITY_BASE_CARE;
-            // Add additional cost for plot with plot with pvp on
-            if (claims.config.ADDITIONAL_COST_OF_NO_PVP_PLOT)
-            {
-                sumToPay += this.getNoPVPCost();
-                //It's a new day, if plot has not pvp turned on we unmark it
-                this.updateMarkedPVP();
-            }
+            // Neutrality is bought by the day, the way an alliance buys it.
+            if (IsNeutral) sumToPay += claims.config.NEUTRAL_CITY_PAYMENT;
+            // What the plots pay for being safe: no pvp, no hostile spawns. The marks behind it are
+            // cleared by the day timer, not here - this is also called to show the figure in the GUI.
+            sumToPay += this.GetSafetyFlagsCost();
 
             foreach (Plot plot in this.getCityPlots())
             {

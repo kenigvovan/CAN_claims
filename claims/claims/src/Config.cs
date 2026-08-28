@@ -11,7 +11,7 @@ namespace claims.src
     public class Config: IConfig
     {
         //ECONOMY
-        public double NEW_CITY_COST = 150;
+        public double NEW_CITY_COST = 25;
         public double CITY_NAME_CHANGE_COST = 20;
         public bool DELETE_CITIZEN_FROM_CITY_IF_DOESN_PAY_FEE = true;
         public bool DELETE_CITY_IF_DOESN_PAY_FEE = false;
@@ -20,7 +20,18 @@ namespace claims.src
         public double CITY_MAX_DEBT = 1000;
 
         public double NEUTRAL_ALLANCE_PAYMENT = 50;
-        public bool ADDITIONAL_COST_OF_NO_PVP_PLOT = true;
+        //Neutrality: a city or alliance that cannot be warred and cannot declare war, paid for daily
+        //on top of the usual upkeep. Off switches the commands off; parties already neutral stop
+        //being treated as such, so a host can withdraw the feature without editing the database.
+        public bool NEUTRALITY_ENABLED = true;
+        public double NEUTRAL_CITY_PAYMENT = 25;
+        //How long after giving neutrality up it cannot be declared again. Without it neutrality is
+        //a door to duck behind: drop it, strike, and hide again the moment the battle turns. 0 = off.
+        public int NEUTRALITY_REDECLARE_COOLDOWN_HOURS = 48;
+        // Off by default: the charge behind it never actually fired (the plot mark it counted was
+        // never set), so turning it on with the flag rework would have raised the upkeep of every
+        // city on every existing server overnight. An admin who wants it can switch it on.
+        public bool ADDITIONAL_COST_OF_NO_PVP_PLOT = false;
 
         public double PLOT_CLAIM_PRICE = 5;
         public double MAX_CITY_FEE = 50;
@@ -193,6 +204,21 @@ namespace claims.src
 
         //WAR - battle window pre-notification
         public int WAR_BATTLE_WARN_MINUTES = 10;
+
+        //WAR - which days of the week battles may be scheduled on. Empty (or all seven) = no limit,
+        //which is what worlds created before this setting keep doing. [Saturday, Sunday] confines
+        //fighting to the weekend.
+        public List<DayOfWeek> WAR_ALLOWED_BATTLE_DAYS = new List<DayOfWeek>();
+        //Which clock those weekdays are read on. Empty = the server machine's own zone. Set it to a
+        //zone id ("Europe/Berlin", or "W. Europe Standard Time" on Windows) so the schedule survives
+        //a move to a host in another zone, and so "the weekend" means the weekend of the player base
+        //rather than of the datacentre.
+        public string WAR_SCHEDULE_TIMEZONE = "";
+        //How far the schedule clock is from UTC right now, in minutes. Worked out on the server and
+        //synced so the schedule grid can say which clock it is in and what a slot is locally; the
+        //client never resolves battle dates itself. Not persisted - it follows daylight saving.
+        [Newtonsoft.Json.JsonIgnore]
+        public int WAR_SCHEDULE_UTC_OFFSET_MINUTES = 0;
 
         //WAR - ultimatums (a peacetime demand; refusal/expiry grants a free, justified war)
         public bool WAR_ULTIMATUM_ENABLED = true;
@@ -370,6 +396,7 @@ namespace claims.src
         public double EMBASSY_PLOT_COST = 8;
         public double TAVERN_PLOT_COST = 9;
         public double PLOT_NO_PVP_FLAG_COST = 3;
+        public double PLOT_NO_MOBSPAWN_FLAG_COST = 3;
         public double MAIN_CITYPLOT_COST = 3;
         public double PRISON_PLOT_COST = 3;
         public double EXTRA_PLOT_COST = 30;
@@ -486,6 +513,7 @@ namespace claims.src
             EnumPlayerPermissions.CITY_SET_PVP,
             EnumPlayerPermissions.CITY_SET_FIRE,
             EnumPlayerPermissions.CITY_SET_BLAST,
+            EnumPlayerPermissions.CITY_SET_MOBSPAWN,
             EnumPlayerPermissions.CITY_SET_GLOBAL_FEE,
             EnumPlayerPermissions.CITY_SET_DAILY_MSG,
             EnumPlayerPermissions.CITY_SET_PLOT_ACCESS_PERMISSIONS,
@@ -521,6 +549,7 @@ namespace claims.src
             EnumPlayerPermissions.CITY_PLOTSGROUP_SET_PVP,
             EnumPlayerPermissions.CITY_PLOTSGROUP_SET_FIRE,
             EnumPlayerPermissions.CITY_PLOTSGROUP_SET_BLAST,
+            EnumPlayerPermissions.CITY_PLOTSGROUP_SET_MOBSPAWN,
             EnumPlayerPermissions.CITY_PLOTSGROUP_SET_FEE,
 
             EnumPlayerPermissions.CITY_SET_PLOTS_COLOR,

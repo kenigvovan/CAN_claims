@@ -48,8 +48,7 @@ namespace claims.src.gui.playerGui.Pages
             ElementBounds sortInner = Card.Frame(compo, column, column.fixedY, sortHeight,
                 Lang.Get("claims:gui-alliancelist-sort-label"));
 
-            // The ImGui version used a row of highlightable buttons; horizontal tabs are the native
-            // control that already carries "which one is active".
+            // Horizontal tabs already carry "which one is active".
             GuiTab[] sortTabs = new GuiTab[SortOrder.Length];
             for (int i = 0; i < SortOrder.Length; i++)
             {

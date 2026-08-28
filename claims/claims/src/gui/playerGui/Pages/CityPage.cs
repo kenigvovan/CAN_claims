@@ -25,8 +25,8 @@ namespace claims.src.gui.playerGui.Pages
                 var clientInfo = claims.clientDataStorage.clientPlayerInfo;
                 var city = clientInfo.CityInfo;
 
-                // Buttons a citizen has no right to press are left out entirely, the way the ImGui
-                // version did it - pressing them only ever produced a refusal from the server.
+                // Buttons a citizen has no right to press are left out entirely - pressing them
+                // only ever produced a refusal from the server.
                 var cityPerms = clientInfo.PlayerPermissions;
                 bool canSetAll = cityPerms.HasPermission(rights.EnumPlayerPermissions.CITY_SET_ALL);
 

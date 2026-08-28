@@ -20,11 +20,11 @@ namespace claims.src.part.structure.conflict
     public static class ConflictLetterFactory
     {
         public static ConflictLetter Build(IConflictParty from, IConflictParty to, LetterPurpose purpose,
-            long expire, string guid, PeaceTerms terms = null, int napDays = 0)
+            long expire, string guid, PeaceTerms terms = null, int napDays = 0, DeclarationCharge charge = null)
         {
             switch (purpose)
             {
-                case LetterPurpose.START_CONFLICT: return BuildStartConflict(from, to, expire, guid);
+                case LetterPurpose.START_CONFLICT: return BuildStartConflict(from, to, expire, guid, charge);
                 case LetterPurpose.END_CONFLICT: return BuildEndConflict(from, to, expire, guid, terms);
                 case LetterPurpose.NON_AGGRESSION: return BuildNonAggression(from, to, expire, guid, napDays);
                 case LetterPurpose.ULTIMATUM: return BuildUltimatum(from, to, expire, guid, terms);
@@ -40,8 +40,10 @@ namespace claims.src.part.structure.conflict
             return purpose != LetterPurpose.CESSION_CONFIRM;
         }
 
-        private static ConflictLetter BuildStartConflict(IConflictParty from, IConflictParty to, long expire, string conflictGuid)
+        private static ConflictLetter BuildStartConflict(IConflictParty from, IConflictParty to, long expire,
+            string conflictGuid, DeclarationCharge charge = null)
         {
+            DeclarationCharge paid = charge ?? new DeclarationCharge();
             ConflictLetter letter = null;
             letter = new ConflictLetter(from, to, LetterPurpose.START_CONFLICT, expire,
                 () =>
@@ -52,6 +54,8 @@ namespace claims.src.part.structure.conflict
                     if (union.UnionHander.PartiesAreAllied(from, to))
                     {
                         RemoveAndSync(from, to, LetterPurpose.START_CONFLICT, conflictGuid);
+                        // No war, so nothing was bought with the fee or the justification.
+                        WarDeclarationHelper.RefundDeclaration(from, from.MoneyAccountName, paid);
                         MessageHandler.SendMsgInAlliance(from, Lang.Get("claims:war_blocked_by_union"));
                         MessageHandler.SendMsgInAlliance(to, Lang.Get("claims:war_blocked_by_union"));
                         return;
@@ -100,10 +104,15 @@ namespace claims.src.part.structure.conflict
                 },
                 () =>
                 {
+                    // Refused or timed out - also the expiry path, since OnExpire is this same
+                    // handler. The declaration bought nothing, so the fee and the justification go
+                    // back rather than being kept for a war that never started.
                     RemoveAndSync(from, to, LetterPurpose.START_CONFLICT, conflictGuid);
+                    WarDeclarationHelper.RefundDeclaration(from, from.MoneyAccountName, paid);
                     MessageHandler.SendMsgInAlliance(from, Lang.Get("claims:conflict_denied"));
                 },
                 conflictGuid);
+            letter.Charge = paid;
             return letter;
         }
 
@@ -119,6 +128,11 @@ namespace claims.src.part.structure.conflict
                     PeaceTermsHelper.ApplyWithConfirm(from, to, peaceTerms,
                         () =>
                         {
+                            // A cession waits on the owning mayor's co-sign, which can take minutes -
+                            // long enough for the war to end on its own (score victory, last plot
+                            // taken). Demolishing a conflict that is already gone would file a second
+                            // war report and start the re-declare cooldown over again.
+                            if (!ConflictHandler.TryGetConflictByGuid(conflict.Guid, out _)) return;
                             PartDemolition.DemolishConflict(conflict);
                             MessageHandler.SendMsgInAlliance(from, Lang.Get("claims:conflict_stopped_with", to.GetPartName()));
                             MessageHandler.SendMsgInAlliance(to, Lang.Get("claims:conflict_stopped_with", from.GetPartName()));
@@ -147,7 +161,14 @@ namespace claims.src.part.structure.conflict
                 () =>
                 {
                     RemoveAndSync(from, to, LetterPurpose.NON_AGGRESSION, guid);
-                    if (ConflictHandler.conflictAlreadyExist(from, to)) return; // war started meanwhile
+                    if (ConflictHandler.conflictAlreadyExist(from, to))
+                    {
+                        // The letter is gone from both windows by now, so silence here reads as a
+                        // signed pact to the side that just accepted one.
+                        MessageHandler.SendMsgInAlliance(from, Lang.Get("claims:nap_blocked_by_war", to.GetPartName()));
+                        MessageHandler.SendMsgInAlliance(to, Lang.Get("claims:nap_blocked_by_war", from.GetPartName()));
+                        return;
+                    }
                     long pactExpiry = TimeFunctions.getEpochSeconds() + (long)days * 86400;
                     NonAggressionHelper.RecordPact(from, to, pactExpiry);
                     MessageHandler.SendMsgInAlliance(from, Lang.Get("claims:nap_signed", to.GetPartName(), days));

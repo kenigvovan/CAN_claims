@@ -30,9 +30,12 @@ namespace claims.src.gui.playerGui.GuiElements
             this.cityStatCell = cityStatCell;
             var font = CairoFont.WhiteDetailText();
 
-            string cellName = string.Format("{0} {1}{2}", cityStatCell.Name,
+            // Neutrality is marked here for the same reason it is on an alliance row: it is what
+            // decides whether this settlement can be warred at all.
+            string cellName = string.Format("{0} {1}{2}{3}", cityStatCell.Name,
                 cityStatCell.AllianceName.Length > 0 ? "[" + cityStatCell.AllianceName + "]" : "",
-                cityStatCell.Tier == part.structure.CityTier.VILLAGE ? " " + Lang.Get("claims:gui-village-mark") : "");
+                cityStatCell.Tier == part.structure.CityTier.VILLAGE ? " " + Lang.Get("claims:gui-village-mark") : "",
+                cityStatCell.Neutral ? " [" + Lang.Get("claims:neutral") + "]" : "");
 
             double textWidth = bounds.fixedWidth - EmblemTextX - ButtonColumn;
             if (textWidth < 120) textWidth = 120;

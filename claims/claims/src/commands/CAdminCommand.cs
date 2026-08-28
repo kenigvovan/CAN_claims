@@ -2,6 +2,7 @@
 using claims.src.citylog;
 using claims.src.events;
 using claims.src.gui.playerGui.structures;
+using claims.src.gui.playerGui.structures.cellElements;
 using claims.src.messages;
 using claims.src.part;
 using claims.src.part.structure;
@@ -160,6 +161,24 @@ namespace claims.src.commands
             }
 
             plot.getPermsHandler().setPvp((string)args.LastArg);
+            plot.MarkNoPvp();
+            plot.saveToDatabase();
+            return tcr;
+        }
+        public static TextCommandResult plotNoMobSpawn(TextCommandCallingArgs args)
+        {
+            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            TextCommandResult tcr = new TextCommandResult();
+            tcr.Status = EnumCommandStatus.Success;
+
+            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z), out Plot plot);
+            if (plot == null)
+            {
+                return tcr;
+            }
+
+            plot.getPermsHandler().setNoMobSpawn((string)args.LastArg);
+            plot.MarkNoMobSpawn();
             plot.saveToDatabase();
             return tcr;
         }
@@ -628,6 +647,29 @@ namespace claims.src.commands
             city.saveToDatabase();
             return tcr;
         }
+        public static TextCommandResult citySetNoMobSpawn(TextCommandCallingArgs args)
+        {
+            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            TextCommandResult tcr = new TextCommandResult();
+            tcr.Status = EnumCommandStatus.Success;
+
+            string filteredName = Filter.filterName((string)args.Parsers[0].GetValue());
+            if (filteredName.Length == 0 || !Filter.checkForBlockedNames(filteredName))
+            {
+                tcr.StatusMessage = "claims:invalid_name";
+                return tcr;
+            }
+            claims.dataStorage.GetCityByName(filteredName, out City city);
+            if (city == null)
+            {
+                tcr.StatusMessage = "claims:no_such_city";
+                return tcr;
+            }
+
+            city.getPermsHandler().setNoMobSpawn((string)args.Parsers[1].GetValue());
+            city.saveToDatabase();
+            return tcr;
+        }
         public static TextCommandResult citySetOpenClosed(TextCommandCallingArgs args)
         {
             IServerPlayer player = args.Caller.Player as IServerPlayer;
@@ -948,6 +990,14 @@ namespace claims.src.commands
             {
                 wi.blastForbidden = newVal;
             }
+            else if (param.Equals("mobspawnew", StringComparison.OrdinalIgnoreCase))
+            {
+                wi.mobSpawnEverywhere = newVal;
+            }
+            else if (param.Equals("mobspawnfb", StringComparison.OrdinalIgnoreCase))
+            {
+                wi.mobSpawnForbidden = newVal;
+            }
             else
             {
                 tcr.Status = EnumCommandStatus.Error;
@@ -974,6 +1024,16 @@ namespace claims.src.commands
                 return tcr;
             }
 
+            // Schedules agreed before the restriction existed keep firing on days it now forbids,
+            // so bring running wars in line with the new setting.
+            string scheduleNote = "";
+            if (key.Equals("war_allowed_battle_days", StringComparison.OrdinalIgnoreCase)
+                || key.Equals("war_schedule_timezone", StringComparison.OrdinalIgnoreCase))
+            {
+                int touched = WarScheduleHelper.ReapplyToExistingConflicts();
+                if (touched > 0) scheduleNote = " (" + touched + " running war(s) rescheduled)";
+            }
+
             // Persist so the edit survives a restart (StoreModConfig is otherwise only
             // called on load), then push the new values to every online client so the
             // change applies without a reconnect.
@@ -986,7 +1046,7 @@ namespace claims.src.commands
                 }
             }
 
-            tcr.StatusMessage = "set " + key + " = " + value;
+            tcr.StatusMessage = "set " + key + " = " + value + scheduleNote;
             return tcr;
         }
         public static TextCommandResult processBackup(TextCommandCallingArgs args)
@@ -1057,6 +1117,9 @@ namespace claims.src.commands
             city.getCityPlots().Add(plotHere);
             city.saveToDatabase();
             plotHere.saveToDatabase();
+            // Same as the regular claim: without this the plot stays BorderPlot=false until a
+            // server restart, so war flags can't be placed on admin-claimed land.
+            plotHere.UpdateBorderPlotValue();
             TreeAttribute tree = new TreeAttribute();
             tree.SetInt("chX", plotHere.getPos().X);
             tree.SetInt("chZ", plotHere.getPos().Y);
@@ -1091,6 +1154,9 @@ namespace claims.src.commands
             city.getCityPlots().Add(plotHere);
             city.saveToDatabase();
             plotHere.saveToDatabase();
+            // Also refreshes neighbours: inside a radiusclaim earlier plots stop being border
+            // as the ring around them fills in.
+            plotHere.UpdateBorderPlotValue();
             TreeAttribute tree = new TreeAttribute();
             tree.SetInt("chX", plotHere.getPos().X);
             tree.SetInt("chZ", plotHere.getPos().Y);
@@ -1289,6 +1355,10 @@ namespace claims.src.commands
         /*==============================================================================================*/
         /*=====================================CONFLICTS================================================*/
         /*==============================================================================================*/
+
+        /// <summary>Battle window length for admin-forced wars and the setbattledate default.</summary>
+        private const int ForcedBattleMinutes = 30;
+
         public static TextCommandResult StartWarTime(TextCommandCallingArgs args)
         {
             string firstName = Filter.filterName(args.Parsers[0].GetValue().ToString());
@@ -1324,12 +1394,46 @@ namespace claims.src.commands
 
             if (!ConflictHandler.TryGetConflictWithSides(firstParty, secondParty, out var conflict))
             {
-                return TextCommandResult.Success(Lang.Get("claims:no_conflict_found"));
+                // The GUI button promises to skip the proposal phase, and against a mayorless
+                // (technical) city nobody can accept a declaration letter anyway - so the admin
+                // command builds the conflict itself. No declaration gates, no allies dragged in:
+                // a forced war is between the two named parties only.
+                conflict = new Conflict("", Alliance.GetUnusedGuid())
+                {
+                    First = firstParty,
+                    Second = secondParty,
+                    StartedBy = firstParty,
+                    State = ConflictState.CREATED,
+                    TimeStampStarted = TimeFunctions.getEpochSeconds(),
+                    MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES
+                };
+                RightsHandler.SetPartiesHostile(firstParty, secondParty, conflict);
+                claims.dataStorage.TryAddConflict(conflict);
+                var conflictCell = ClientConflictCellElement.FromConflict(conflict);
+                UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(firstParty,
+                    new Dictionary<string, object> { { "value", conflictCell } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
+                UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(secondParty,
+                    new Dictionary<string, object> { { "value", conflictCell } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
+                firstParty.saveToDatabase();
+                secondParty.saveToDatabase();
+                conflict.saveToDatabase(false);
             }
+
+            // A forced war may sit on a conflict whose sides never agreed a schedule - with a
+            // mayorless city there is nobody to agree one at all. Its battle dates are still the
+            // epoch, and a WarTime built from those makes CheckWarToEnd close the battle two
+            // seconds after it opened.
+            if (conflict.NextBattleDateEnd <= DateTime.Now)
+            {
+                conflict.NextBattleDateStart = DateTime.Now;
+                conflict.NextBattleDateEnd = conflict.NextBattleDateStart.AddMinutes(ForcedBattleMinutes);
+            }
+            conflict.State = ConflictState.ACTIVE;
+            conflict.saveToDatabase();
 
             if (!claims.dataStorage.WarsTimes.ContainsKey(conflict.Guid) && !ModConfigReady.startWarCallbacks.TryGetValue(conflict.Guid, out var _))
             {
-                long savedLong = claims.sapi.Event.RegisterCallback((float dt) =>
+                long savedLong = claims.sapi.Event.RegisterCallback(ModConfigReady.SafeWarCallback("forced battle start", conflict.Guid, (float dt) =>
                 {
                     if (!claims.dataStorage.WarsTimes.ContainsKey(conflict.Guid))
                     {
@@ -1348,7 +1452,7 @@ namespace claims.src.commands
                         MessageHandler.SendDiscoveryToAlliance(conflict.Second, "ingamediscovery-battle-start", Lang.Get("claims:ingamediscovery-battle-start", conflict.First.GetPartName()), new object[] { });
                         ModConfigReady.CheckWarToEnd();
                     }
-                }, 2 * 1000);
+                }), 2 * 1000);
                 ModConfigReady.startWarCallbacks[conflict.Guid] = savedLong;
             }
             return TextCommandResult.Success("claims:war_started");
@@ -1399,7 +1503,7 @@ namespace claims.src.commands
                 minutesUntilStart = parsedMinutes;
             }
 
-            int battleDurationMinutes = 30;
+            int battleDurationMinutes = ForcedBattleMinutes;
             object rawDuration = args.Parsers[3].GetValue();
             if (rawDuration != null && rawDuration is int parsedDuration && parsedDuration > 0)
             {

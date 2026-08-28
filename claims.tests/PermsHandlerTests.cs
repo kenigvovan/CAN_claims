@@ -294,6 +294,69 @@ namespace claims.tests
             Assert.True(restored.fireFlag);
         }
 
+        // =====================================================================
+        // nomobspawn - a paid flag, so it is off until someone turns it on
+        // =====================================================================
+
+        [Fact]
+        public void Constructor_NoMobSpawn_DefaultFalse()
+        {
+            var h = new PermsHandler();
+            Assert.False(h.noMobSpawnFlag);
+        }
+
+        [Fact]
+        public void SetNoMobSpawn_On_SetsTrueReturnsTrue()
+        {
+            var h = new PermsHandler();
+            bool result = h.setNoMobSpawn("on");
+            Assert.True(result);
+            Assert.True(h.noMobSpawnFlag);
+        }
+
+        [Fact]
+        public void SetNoMobSpawn_SameValue_ReturnsFalse()
+        {
+            var h = new PermsHandler();
+            // noMobSpawnFlag is already false
+            Assert.False(h.setNoMobSpawn("off"));
+        }
+
+        [Fact]
+        public void ToString_SetPerms_RoundTrip_KeepsNoMobSpawn()
+        {
+            var original = new PermsHandler();
+            original.noMobSpawnFlag = true;
+
+            var restored = new PermsHandler();
+            restored.setPerms(original.ToString());
+
+            Assert.True(restored.noMobSpawnFlag);
+        }
+
+        [Fact]
+        public void SetPerms_WithoutToken_ClearsNoMobSpawn()
+        {
+            var h = new PermsHandler();
+            h.noMobSpawnFlag = true;
+
+            h.setPerms("pvp;");
+
+            Assert.False(h.noMobSpawnFlag);
+        }
+
+        [Fact]
+        public void SetPerm_CopyFrom_CopiesNoMobSpawn()
+        {
+            var src = new PermsHandler();
+            src.noMobSpawnFlag = true;
+
+            var dst = new PermsHandler();
+            dst.setPerm(src);
+
+            Assert.True(dst.noMobSpawnFlag);
+        }
+
         [Fact]
         public void ToString_EmptyPerms_ReturnsEmptyString()
         {

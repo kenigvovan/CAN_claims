@@ -93,6 +93,9 @@ namespace claims.src.timers
         public static void processCityCare(City city)
         {
             decimal sumToPay = (decimal)city.GetDayPaymentAmount();
+            // The safety flags of this day are now billed - both here and, for owned plots, in
+            // processCityFee above - so plots whose flag is off again stop counting from now on.
+            city.UpdateSafetyFlagMarks();
             string capturedGuid = city.Guid;
             if (claims.economyProvider.GetBalance(city.MoneyAccountName) < sumToPay + (decimal)city.DebtBalance)
             {
@@ -118,11 +121,16 @@ namespace claims.src.timers
             }
             else
             {
-                if (sumToPay < 1)
+                // The whole bill decides whether there is anything to collect, not the daily part of
+                // it alone: a city whose daily charge rounds to nothing still owes what it failed to
+                // pay earlier, and returning here left that debt standing forever however full the
+                // treasury was - the branch is only reached when the money for it is there.
+                decimal due = Math.Floor(sumToPay) + (decimal)city.DebtBalance;
+                if (due < 1)
                 {
                     return;
                 }
-                if(claims.economyProvider.Withdraw(city.MoneyAccountName, Math.Floor(sumToPay) + (decimal)city.DebtBalance) == MoneyOperationResult.Success )
+                if(claims.economyProvider.Withdraw(city.MoneyAccountName, due) == MoneyOperationResult.Success )
                 {
                     if (city.DebtBalance > 0)
                     {
@@ -140,7 +148,7 @@ namespace claims.src.timers
         {
             double toPay = claims.config.ALLIANCE_BASE_CARE;
 
-            if (alliance.Neutral)
+            if (alliance.IsNeutral)
             {
                 toPay += claims.config.NEUTRAL_ALLANCE_PAYMENT;
             }
@@ -192,6 +200,20 @@ namespace claims.src.timers
                         else
                         {
                             playerSumFee[plot.getPlotOwner()] = (decimal)plot.getCustomTax();
+                        }
+                    }
+                    // Safety flags of an owned plot are the owner's bill, not the treasury's - the
+                    // city only pays for its own land, see City.GetSafetyFlagsCost.
+                    double safetyFlagsCost = plot.GetSafetyFlagsCost();
+                    if (safetyFlagsCost > 0)
+                    {
+                        if (playerSumFee.TryGetValue(plot.getPlotOwner(), out decimal current))
+                        {
+                            playerSumFee[plot.getPlotOwner()] = current + (decimal)safetyFlagsCost;
+                        }
+                        else
+                        {
+                            playerSumFee[plot.getPlotOwner()] = (decimal)safetyFlagsCost;
                         }
                     }
                     /*else
@@ -321,7 +343,11 @@ namespace claims.src.timers
                                 }
                                 plot.resetOwner();
                                 plot.Price = -1;
-                                plot.Type = PlotType.DEFAULT;
+                                // Through setNewType, not by assigning Type: OnDeactivated is what
+                                // takes a temple off the city's respawn points and a summon point off
+                                // its list. Assigning the type skipped that, so a plot taken back for
+                                // non-payment went on serving as the temple it no longer was.
+                                plot.setNewType(new TextCommandResult(), "default", null, true);
                                 plot.saveToDatabase();
                             }
                         }

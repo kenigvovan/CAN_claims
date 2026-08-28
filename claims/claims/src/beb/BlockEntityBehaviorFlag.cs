@@ -18,6 +18,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
 
 namespace claims.src.beb
 {
@@ -215,13 +216,11 @@ namespace claims.src.beb
             {
                 if (this.CapturedPercent >= 1f)
                 {
-                    if (this.captureRef.HasValue) this.Api.Event.UnregisterGameTickListener(this.captureRef.Value);
-                    this.captureRef = null;
-                    this.Banner = null;
-                    this.renderer?.Dispose();
-                    this.renderer = null;
-                    this.CapturedPercent = 0;
-                    this.captureDuration = 0;
+                    // Nothing is torn down before the capture is known to be resolvable: clearing the
+                    // banner first meant a check failing here (the battle window closing on this very
+                    // tick, say) destroyed the banner and lost a finished capture with it. Leaving
+                    // the progress at 100% lets the next tick try again, or CancelCapture return the
+                    // banner when the battle really is over.
                     if (!ConflictHandler.TryGetConflictByGuid(this.ConflictGuid, out var conflict))
                     {
                         return;
@@ -246,6 +245,15 @@ namespace claims.src.beb
                     {
                         return;
                     }
+
+                    if (this.captureRef.HasValue) this.Api.Event.UnregisterGameTickListener(this.captureRef.Value);
+                    this.captureRef = null;
+                    this.Banner = null;
+                    this.renderer?.Dispose();
+                    this.renderer = null;
+                    this.CapturedPercent = 0;
+                    this.captureDuration = 0;
+
                     if (defenderPlot.getCity().getCityPlots().Count == 1)
                     {
                         City defenderCity = defenderPlot.getCity();
@@ -307,6 +315,14 @@ namespace claims.src.beb
                             }
                         }
 
+                        // Pillage the whole eligible share before the city (and its account) is gone,
+                        // and before the conflicts are demolished: DemolishConflict builds the
+                        // after-action report, so doing this afterwards filed a report claiming no
+                        // plots taken and nothing looted for the war that just destroyed a city.
+                        long pillagedAll = WarPillageHelper.Pillage(attackerCity, defenderCity);
+                        WarScoreHelper.RecordPlotCapture(conflict, attackerParty);
+                        WarScoreHelper.RecordPillaged(conflict, attackerParty, pillagedAll);
+
                         foreach (var runningConflict in defenderCity.RunningConflicts.ToArray())
                         {
                             if (runningConflict.First.Equals(attackerParty))
@@ -317,8 +333,6 @@ namespace claims.src.beb
                             PartDemolition.DemolishConflict(runningConflict, EnumConflictEndReason.CityDestroyed);
                         }
 
-                        // Pillage the whole eligible share before the city (and its account) is gone.
-                        WarPillageHelper.Pillage(attackerCity, defenderCity);
                         PartDemolition.demolishCity(defenderCity, string.Format("Last plot captured by {0}", attackerCity.GetPartName()));
 
                         this.Api.Event.RegisterCallback((float ft) =>
@@ -495,10 +509,20 @@ namespace claims.src.beb
         {
             if (this.Api.Side == EnumAppSide.Server)
             {
+                // Every way a capture can be refused says so. A flag that answers a click with
+                // nothing at all is indistinguishable from a broken one, and there are nine ways to
+                // be turned away here.
+                void Refuse(string langKey, params object[] args)
+                {
+                    MessageHandler.sendMsgToPlayer(byPlayer as IServerPlayer,
+                        args.Length == 0 ? Lang.Get(langKey) : Lang.Get(langKey, args));
+                }
+
                 if (this.updateRef == null)
                 {
                     if (!claims.dataStorage.GetPlayerByUid(byPlayer.PlayerUID, out var playerInfo) || !playerInfo.hasCity())
                     {
+                        Refuse("claims:flag-not-in-city");
                         return;
                     }
                     IConflictParty attackerParty = playerInfo.HasAlliance()
@@ -507,11 +531,13 @@ namespace claims.src.beb
                     PlotPosition currentPlotPosition = PlotPosition.fromBlockPos(this.Pos);
                     if (!claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere))
                     {
+                        Refuse("claims:flag-not-claimed-land");
                         return;
                     }
                     City defenderCity = plotHere.getCity();
                     if (defenderCity == null)
                     {
+                        Refuse("claims:flag-not-claimed-land");
                         return;
                     }
                     IConflictParty defenderParty = defenderCity.HasAlliance()
@@ -519,27 +545,59 @@ namespace claims.src.beb
                         : (IConflictParty)defenderCity;
                     if (attackerParty.Equals(defenderParty))
                     {
+                        Refuse("claims:flag-own-land");
                         return;
                     }
                     if (!ConflictHandler.TryGetConflictWithSides(attackerParty, defenderParty, out var conflict))
                     {
+                        Refuse("claims:flag-no-war", defenderParty.GetPartName());
                         return;
                     }
                     if (!conflict.ActiveWarTime)
                     {
+                        Refuse("claims:flag-no-battle",
+                            TimeFunctions.FormatBattleDate(conflict.NextBattleDateStart));
                         return;
                     }
                     if (!claims.dataStorage.WarsTimes.TryGetValue(conflict.Guid, out var warTime))
                     {
+                        Refuse("claims:flag-no-battle",
+                            TimeFunctions.FormatBattleDate(conflict.NextBattleDateStart));
                         return;
                     }
                     if (warTime.PlotAttacks.Count() >= claims.config.MAX_AMOUNT_OF_CAPTURE_FLAGS_ACTIVE)
                     {
+                        Refuse("claims:flag-too-many-captures", claims.config.MAX_AMOUNT_OF_CAPTURE_FLAGS_ACTIVE);
                         return;
                     }
                     if (warTime.PlotAttacks.TryGetValue(currentPlotPosition, out var _))
                     {
+                        Refuse("claims:flag-plot-already-attacked");
                         return;
+                    }
+
+                    // The banner has to be taken before anything is registered. Update() does nothing
+                    // without one, so starting a capture empty-handed used to leave a dead flag that
+                    // never progressed, held one of MAX_AMOUNT_OF_CAPTURE_FLAGS_ACTIVE slots, and
+                    // could not be retried - the updateRef check above turns every later click away.
+                    var activeSlot = byPlayer.InventoryManager.ActiveHotbarSlot;
+                    if (this.Banner == null)
+                    {
+                        if (!activeSlot.CanTake()
+                            || !(activeSlot.Itemstack?.Collectible.Code.Path.Contains("cloth-") ?? false))
+                        {
+                            Refuse("claims:flag-needs-banner");
+                            return;
+                        }
+
+                        this.Banner = activeSlot.TakeOut(1);
+                        this.Blockentity.MarkDirty();
+
+                        if (this.Api is ICoreClientAPI client)
+                        {
+                            this.renderer?.Dispose();
+                            RebuildRenderer(client);
+                        }
                     }
 
                     this.AllianceGuid = playerInfo.HasAlliance() ? playerInfo.Alliance.Guid : null;
@@ -551,21 +609,6 @@ namespace claims.src.beb
                     this.TimesToBreak = claims.config.FLAG_REINFORCEMENT_AMOUNT;
                     warTime.PlotAttacks.TryAdd(currentPlotPosition, new PlotAttack(this.Pos, this.PlayerGuid, DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
                     this.updateRef = this.Api.Event.RegisterGameTickListener(this.Update, 1000);
-                    if (this.Banner == null
-                        && byPlayer.InventoryManager.ActiveHotbarSlot.CanTake()
-                        && (byPlayer.InventoryManager.ActiveHotbarSlot.Itemstack?.Collectible.Code.Path.Contains("cloth-") ?? false)
-                    )
-                    {
-
-                        this.Banner = byPlayer.InventoryManager.ActiveHotbarSlot.TakeOut(1);
-                        this.Blockentity.MarkDirty();
-
-                        if (this.Api is ICoreClientAPI client)
-                        {
-                            this.renderer?.Dispose();
-                            RebuildRenderer(client);
-                        }
-                    }
                     if (claims.config.SEND_ANNOUNCEMENTS_PLOT_IN_UNDER_ATTACK)
                     {
                         StringBuilder sb = new();
@@ -581,6 +624,10 @@ namespace claims.src.beb
 
                         MessageHandler.SendMsgInAlliance(defenderParty, sb.ToString());
                     }
+                }
+                else
+                {
+                    Refuse("claims:flag-capture-already-running");
                 }
             }
         }

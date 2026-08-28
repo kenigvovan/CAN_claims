@@ -23,8 +23,33 @@ namespace claims.src.events
         public static Dictionary<string, long> startWarCallbacks = new Dictionary<string, long>();
         // conflict guid -> NextBattleDateStart we already fired the pre-battle warning for (once per window)
         public static Dictionary<string, DateTime> battleWarned = new Dictionary<string, DateTime>();
+
+        /// <summary>
+        /// Wraps a war timer body so a throw inside it is logged instead of killing the server
+        /// thread - in single player an unhandled callback exception closes the whole game with no
+        /// message, which is why war crashes kept arriving without a stack trace.
+        /// </summary>
+        public static Action<float> SafeWarCallback(string what, string conflictGuid, Action<float> body)
+        {
+            return dt =>
+            {
+                try { body(dt); }
+                catch (Exception e)
+                {
+                    claims.sapi.World.Logger.Error("[claims] {0} failed for conflict {1}: {2}", what, conflictGuid, e);
+                }
+            };
+        }
+
         public static void onModsAndConfigReady()
         {
+            // These are static, so in single player they survive leaving to the menu and entering a
+            // world again. Stale guids then make the ContainsKey checks believe a callback is
+            // already armed, and wars silently never start in the new session.
+            startWarCallbacks.Clear();
+            battleWarned.Clear();
+            endWarCallbacks.Clear();
+
             claims.loadDatabase();
             claims.getModInstance().getDatabaseHandler().loadEveryThing();
             MarkBorderClaimPlots();
@@ -134,6 +159,10 @@ namespace claims.src.events
                     AllianceStatsCashe.Add(it.Guid, ClientAllianceInfoCellElement.FromAlliance(it));
                 }
             }
+            // Catches worlds whose schedules predate WAR_ALLOWED_BATTLE_DAYS, or where the setting
+            // was edited in claims.json while the server was down. Without it such a war would sit
+            // in ACTIVE with a schedule that can never come round again.
+            WarScheduleHelper.ReapplyToExistingConflicts();
             ReculculateNextBattleTimes();
             claims.sapi.Event.Timer(UsefullPacketsSend.CheckCitisUpdatedAndSend, claims.config.SEND_CITY_UPDATES_EVERY_N_SECONDS);
             claims.sapi.Event.Timer(CheckForWarToStart, claims.config.CHECK_FOR_WAR_TO_START_EVERY_N_SECONDS);
@@ -196,7 +225,7 @@ namespace claims.src.events
                     {
                         if(!claims.dataStorage.WarsTimes.ContainsKey(conflict.Guid) && !startWarCallbacks.TryGetValue(conflict.Guid, out var _))
                         {
-                            long savedLong = claims.sapi.Event.RegisterCallback((float dt) =>
+                            long savedLong = claims.sapi.Event.RegisterCallback(SafeWarCallback("battle start", conflict.Guid, (float dt) =>
                             {
                                 if (!claims.dataStorage.WarsTimes.ContainsKey(conflict.Guid))
                                 {
@@ -214,7 +243,7 @@ namespace claims.src.events
                                     MessageHandler.SendDiscoveryToAlliance(conflict.First, "ingamediscovery-battle-start", Lang.Get("claims:ingamediscovery-battle-start", conflict.Second.GetPartName()), new object[] { });
                                     MessageHandler.SendDiscoveryToAlliance(conflict.Second, "ingamediscovery-battle-start", Lang.Get("claims:ingamediscovery-battle-start", conflict.First.GetPartName()), new object[] { });
                                 }
-                            }, (int)(secondsToStart.TotalSeconds < 0 ? 2 : secondsToStart.TotalSeconds) * 1000);
+                            }), (int)(secondsToStart.TotalSeconds < 0 ? 2 : secondsToStart.TotalSeconds) * 1000);
                             startWarCallbacks[conflict.Guid] = savedLong;
                         }
 
@@ -228,14 +257,14 @@ namespace claims.src.events
                             Conflict warnConflict = conflict;
                             DateTime warnStart = conflict.NextBattleDateStart;
                             double secondsToWarn = secondsToStart.TotalSeconds - warnMinutes * 60;
-                            claims.sapi.Event.RegisterCallback((float dt) =>
+                            claims.sapi.Event.RegisterCallback(SafeWarCallback("battle warning", conflict.Guid, (float dt) =>
                             {
                                 // Skip if the window was recalculated or the battle already started.
                                 if (warnConflict.NextBattleDateStart != warnStart || warnConflict.ActiveWarTime) return;
                                 int minsLeft = Math.Max(1, (int)Math.Round((warnStart - DateTime.Now).TotalMinutes));
                                 MessageHandler.SendMsgInAlliance(warnConflict.First, Lang.Get("claims:battle_incoming", warnConflict.Second.GetPartName(), minsLeft));
                                 MessageHandler.SendMsgInAlliance(warnConflict.Second, Lang.Get("claims:battle_incoming", warnConflict.First.GetPartName(), minsLeft));
-                            }, (int)(secondsToWarn < 0 ? 2 : secondsToWarn) * 1000);
+                            }), (int)(secondsToWarn < 0 ? 2 : secondsToWarn) * 1000);
                         }
                     }
                 }
@@ -248,11 +277,13 @@ namespace claims.src.events
             {
                 if (!endWarCallbacks.ContainsKey(wartime.Value.ConflictGuid))
                 {
-                    int delayMs = (int)(wartime.Value.BattleDateEnd - DateTime.Now).TotalMilliseconds;
-                    if (delayMs < 2000) delayMs = 2000;
+                    // Clamp as double first: an epoch BattleDateEnd is minus ~1.7e12 ms, and casting
+                    // that to int before clamping is an overflow, not a small number.
+                    double msLeft = (wartime.Value.BattleDateEnd - DateTime.Now).TotalMilliseconds;
+                    int delayMs = (int)Math.Clamp(msLeft, 2000, int.MaxValue);
 
                     var capturedWartime = wartime.Value;
-                    long callbackId = claims.sapi.Event.RegisterCallback((float dt) =>
+                    long callbackId = claims.sapi.Event.RegisterCallback(SafeWarCallback("battle end", capturedWartime.ConflictGuid, (float dt) =>
                     {
                         endWarCallbacks.Remove(capturedWartime.ConflictGuid);
                         if (claims.dataStorage.WarsTimes.ContainsKey(capturedWartime.ConflictGuid))
@@ -289,7 +320,7 @@ namespace claims.src.events
                         {
                             claims.sapi.World.Logger.Warning("[claims] CheckWarToEnd: conflict {0} not found, likely already demolished.", capturedWartime.ConflictGuid);
                         }
-                    }, delayMs);
+                    }), delayMs);
                     endWarCallbacks[wartime.Value.ConflictGuid] = callbackId;
                 }
             }

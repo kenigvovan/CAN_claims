@@ -692,6 +692,7 @@ namespace claims.src.commands
                 if (plot.hasPlotGroup() && plot.getPlotGroup().Equals(searchedGroup))
                 {
                     plot.getPermsHandler().setPvp((string)args.LastArg);
+                    plot.MarkNoPvp();
                     plot.saveToDatabase();
                     claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
                     claims.dataStorage.ClearCacheForPlayersInPlot(plot);
@@ -761,6 +762,39 @@ namespace claims.src.commands
                 }
             }
             searchedGroup.saveToDatabase();
+            PlotsGroupFeeHelper.SendGroupUpdate(searchedGroup);
+            return tcr;
+        }
+        public static TextCommandResult PlotsGroupSetNoMobSpawn(TextCommandCallingArgs args)
+        {
+            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            TextCommandResult tcr = new();
+            tcr.Status = EnumCommandStatus.Success;
+
+            if (!HelperFunctionSetFlag(player, out var searchedGroup, out var city, (args.Parsers[0].GetValue() as string), tcr))
+            {
+                return tcr;
+            }
+
+            if (!searchedGroup.PermsHandler.setNoMobSpawn((string)args.LastArg))
+            {
+                return tcr;
+            }
+
+            foreach (var plot in city.getCityPlots())
+            {
+                if (plot.hasPlotGroup() && plot.getPlotGroup().Equals(searchedGroup))
+                {
+                    plot.getPermsHandler().setNoMobSpawn((string)args.LastArg);
+                    plot.MarkNoMobSpawn();
+                    plot.saveToDatabase();
+                    claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
+                    claims.dataStorage.ClearCacheForPlayersInPlot(plot);
+                    UsefullPacketsSend.SendCurrentPlotUpdate(player, plot);
+                }
+            }
+            searchedGroup.saveToDatabase();
+            UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_DAY_PAYMENT);
             PlotsGroupFeeHelper.SendGroupUpdate(searchedGroup);
             return tcr;
         }

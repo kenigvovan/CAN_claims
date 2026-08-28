@@ -98,6 +98,10 @@ namespace claims.src.network.packets
         public double ALLIANCE_MAX_FEE;
         [ProtoMember(40)]
         public double NEUTRAL_ALLANCE_PAYMENT;
+        [ProtoMember(140)]
+        public double NEUTRAL_CITY_PAYMENT;
+        [ProtoMember(141)]
+        public bool NEUTRALITY_ENABLED;
 
         // City limits
         [ProtoMember(41)]
@@ -257,5 +261,29 @@ namespace claims.src.network.packets
         public bool CITY_PLOT_TRADE_GUI;
         [ProtoMember(100)]
         public bool CITY_PLOT_TRADE_REMOTE_BUY;
+        [ProtoMember(101)]
+        public double PLOT_NO_MOBSPAWN_FLAG_COST;
+
+        // Days battles may be scheduled on (DayOfWeek numbers, Sunday = 0). The client greys out
+        // the rest of the schedule grid; an empty list means no restriction. Sent as ints because
+        // protobuf-net has no enum list of its own to lean on here.
+        [ProtoMember(102)]
+        public List<int> WAR_ALLOWED_BATTLE_DAYS = new List<int>();
+
+        // Only so the admin page can show what the server is actually using; nothing on the client
+        // resolves dates with it.
+        [ProtoMember(103)]
+        public string WAR_SCHEDULE_TIMEZONE = "";
+        // Offset of the schedule clock from UTC, in minutes. The grid is drawn in that clock, so the
+        // client needs it to label the grid and to work out what a slot is in the player's own time.
+        [ProtoMember(106)]
+        public int WAR_SCHEDULE_UTC_OFFSET_MINUTES;
+
+        // Bankruptcy: listed in the admin settings editor, so the client must show the server's
+        // values rather than its own claims.json.
+        [ProtoMember(104)]
+        public string CITY_BANKRUPTCY_MODE = "off";
+        [ProtoMember(105)]
+        public int CITY_BANKRUPTCY_GRACE_DAYS;
     }
 }

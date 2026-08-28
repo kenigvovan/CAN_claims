@@ -25,8 +25,7 @@ namespace claims.src.gui.playerGui.Dialogs
         {
             Text(l, Lang.Get(promptLangKey));
 
-            // The ImGui version used a pair of radio buttons; a two-entry dropdown is the closest
-            // native equivalent and keeps the command prefixes as the stored values.
+            // A two-entry dropdown keeps the command prefixes as the stored values.
             string[] prefixes = { "city:", "alliance:" };
             string[] labels =
             {

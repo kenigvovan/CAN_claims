@@ -188,6 +188,12 @@ namespace claims.src.events
             {
                 return anchorBreaks;
             }
+            if (IsPlacingCaptureFlagAllowed(byPlayer, playerInfo, plot, blockSel))
+            {
+                // Deliberately before the cache and without writing to it: the answer depends on
+                // the held item, which the per-plot permission cache knows nothing about.
+                return true;
+            }
             PlotPosition currentPosPlayer = PlotPosition.fromBlockPos(blockSel.Position);
             if (currentPosPlayer.Equals(playerInfo.PlayerCache.getLastLocation()))
             {
@@ -316,11 +322,37 @@ namespace claims.src.events
             return EvalPermission(playerInfo, plot, PermType.ATTACK_ANIMALS_PERM, updateCache: true,
                 tavernFallback: () => plot.Type == PlotType.TAVERN && checkInnerClaimPerm(PermType.ATTACK_ANIMALS_PERM, playerInfo.Guid, plot, pos));
         }
+        /// <summary>
+        /// How this player stands to this plot. Order matters, and it reads top-down as "the closest
+        /// tie wins, except that war overrides every tie short of owning the ground yourself".
+        ///
+        /// Owning comes before the plot group: a member of a group that holds their own plot used to
+        /// be judged by the group's settings rather than as its owner, which could lock them out of
+        /// their own land. War comes before the group, the owner's friends list and citizenship: those
+        /// are peacetime ties, and letting them outrank FOE meant a besieger who happened to be a
+        /// friend of the owner - or still listed in one of the defender's plot groups - fought under
+        /// peacetime rules and ignored WAR_DESTRUCTION_SCOPE entirely.
+        /// </summary>
         public static PlotRelation getPlotRelationForPlayerInfo(PlayerInfo playerInfo, PlotPosition pos, Plot plot)
-        {            
+        {
             if((plot.hasCity() && plot.getCity().isMayor(playerInfo)))
             {
                 return PlotRelation.MANAGABLE_OWNER;
+            }
+
+            if (plot.hasPlotOwner() && plot.getPlotOwner().Equals(playerInfo))
+            {
+                return PlotRelation.PLOT_OWNER;
+            }
+
+            // Never against one's own city, whatever the hostile list says: war outranks citizenship
+            // here, so a city that ended up listing itself would turn its own people into besiegers
+            // of their own land.
+            if (plot.hasCity() && playerInfo.hasCity() && !plot.getCity().Equals(playerInfo.City))
+            {
+                // Covers all war types: city vs city, city vs alliance, alliance vs city, alliance vs alliance
+                if (plot.getCity().HostileCities.Contains(playerInfo.City))
+                    return PlotRelation.FOE;
             }
 
             if (plot.hasPlotGroup() && plot.getPlotGroup().PlayersList.Contains(playerInfo))
@@ -328,10 +360,6 @@ namespace claims.src.events
                 return PlotRelation.GROUP_MEMBER;
             }
 
-            if (plot.hasPlotOwner() && plot.getPlotOwner().Equals(playerInfo))
-            {
-                return PlotRelation.PLOT_OWNER;
-            }
             if (plot.hasPlotOwner() && plot.getPlotOwner().Friends.Contains(playerInfo))
             {
                 return PlotRelation.COMRADE;
@@ -339,12 +367,6 @@ namespace claims.src.events
             if (plot.hasCity() && plot.getCity().getCityCitizens().Contains(playerInfo))
             {
                 return PlotRelation.CITIZEN;
-            }          
-            if (plot.hasCity() && playerInfo.hasCity())
-            {
-                // Covers all war types: city vs city, city vs alliance, alliance vs city, alliance vs alliance
-                if (plot.getCity().HostileCities.Contains(playerInfo.City))
-                    return PlotRelation.FOE;
             }
             if (plot.hasCity() && plot.getCity().HasAlliance() && playerInfo.HasAlliance())
             {
@@ -468,6 +490,33 @@ namespace claims.src.events
                 default:
                     return plot.BorderPlot;
             }
+        }
+
+        /// <summary>
+        /// Placing the capture flag is the entry point of the FLAG_PLOTS destruction scopes: those
+        /// scopes only open up where an attack already runs, so without this exception the first
+        /// flag could never be placed and both flag modes were unusable. The empty-position check
+        /// keeps the flag in hand from doubling as a licence to break blocks.
+        /// </summary>
+        private static bool IsPlacingCaptureFlagAllowed(IServerPlayer byPlayer, PlayerInfo playerInfo, Plot plot, BlockSelection blockSel)
+        {
+            if (claims.config.WAR_DESTRUCTION_SCOPE != Config.WAR_DESTRUCTION.FLAG_PLOTS
+                && claims.config.WAR_DESTRUCTION_SCOPE != Config.WAR_DESTRUCTION.FLAG_PLOTS_AND_NEIGHBOURS)
+            {
+                return false;
+            }
+            Block held = byPlayer.InventoryManager?.ActiveHotbarSlot?.Itemstack?.Block;
+            if (held?.GetBehavior<BlockBehaviorFlag>() == null)
+            {
+                return false;
+            }
+            // Placement only: the target position must still be empty (or plant-replaceable).
+            Block target = claims.sapi.World.BlockAccessor.GetBlock(blockSel.Position);
+            if (target.Id != 0 && target.Replaceable < 6000)
+            {
+                return false;
+            }
+            return TryGetActiveWarOnPlot(playerInfo, plot, out _);
         }
 
         private static bool TouchesOtherCity(Plot plot)

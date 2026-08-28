@@ -79,6 +79,7 @@ namespace claims.src
         private static BalanceHud balanceHud;
         private static BountyBoardHud bountyBoardHud;
         private static WarHud warHud;
+        private static HudLayoutEditor hudLayoutEditor;
         public static CityInfo playerCityInfo;
         public static bool DebugValSet = false;
 
@@ -115,7 +116,9 @@ namespace claims.src
                                                         "files", "id-card", "tower-flag", "fast-backward-button",
                                                         // plot and city page actions
                                                         "hamburger-menu", "open-book", "receive-money", "contract",
-                                                        "cancel", "check-mark"};
+                                                        "cancel", "check-mark",
+                                                        // HUD layout editor
+                                                        "expander"};
             foreach (var icon in iconList)
             {
                 capi.Gui.Icons.CustomIcons["claims:" + icon] = delegate (Context ctx, int x, int y, float w, float h, double[] rgba)
@@ -190,6 +193,7 @@ namespace claims.src
 
             // HUD panels open once and stay up; each decides for itself whether it has anything to
             // show, so there is nothing to toggle here.
+            ClaimsHudLayout.Load(capi);
             balanceHud = new BalanceHud(capi);
             bountyBoardHud = new BountyBoardHud(capi);
             warHud = new WarHud(capi);
@@ -233,6 +237,14 @@ namespace claims.src
                     return TextCommandResult.Success("Bounty board: " + (ClaimsHudState.ShowBountyBoard ? "on" : "off"));
                 });
 
+            api.ChatCommands.Create("claimshudedit")
+                .WithDescription("Rearrange the claims HUD panels")
+                .HandleWith(args =>
+                {
+                    OpenHudLayoutEditor();
+                    return TextCommandResult.Success();
+                });
+
             api.ChatCommands.Create("warhud")
                 .WithDescription("Toggle the war HUD")
                 .HandleWith(args =>
@@ -240,6 +252,20 @@ namespace claims.src
                     ClaimsHudState.ShowWarHud = !ClaimsHudState.ShowWarHud;
                     return TextCommandResult.Success("War HUD: " + (ClaimsHudState.ShowWarHud ? "on" : "off"));
                 });
+        }
+
+        /// <summary>
+        /// Opens the drag-to-move HUD layout editor; used by .claimshudedit and the player page.
+        /// </summary>
+        public static void OpenHudLayoutEditor()
+        {
+            // Rebuilt every time: movementClaimGui can be replaced between invocations.
+            movementClaimGui ??= new ClaimsPlayerMovementGUI(capi);
+            hudLayoutEditor?.TryClose();
+            hudLayoutEditor?.Dispose();
+            hudLayoutEditor = new HudLayoutEditor(capi,
+                new List<IMovableHudPanel> { balanceHud, bountyBoardHud, warHud, movementClaimGui });
+            hudLayoutEditor.TryOpen();
         }
 
         public override void StartServerSide(ICoreServerAPI api)
@@ -560,9 +586,12 @@ namespace claims.src
             balanceHud?.Dispose();
             bountyBoardHud?.Dispose();
             warHud?.Dispose();
+            hudLayoutEditor?.Dispose();
             balanceHud = null;
             bountyBoardHud = null;
             warHud = null;
+            hudLayoutEditor = null;
+            ClaimsHudLayout.Current = null;
 
             harmonyInstance.UnpatchAll(harmonyID);
             harmonyInstance = null;

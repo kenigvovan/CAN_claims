@@ -37,10 +37,6 @@ namespace claims.src.cityplotsgroups
                 fee = claims.config.MAX_PLOTSGROUP_FEE;
             }
 
-            // Re-announcing the same raise would reset the wait and wipe the acceptances collected
-            // so far, which is a way to keep members permanently unable to accept in time.
-            if (group.HasPendingFee && group.PendingFee == fee) return true;
-
             long delay = claims.config.PLOTSGROUP_FEE_RAISE_DELAY_HOURS * 3600L;
 
             if (fee <= group.PlotsGroupFee || delay <= 0)
@@ -56,6 +52,22 @@ namespace claims.src.cityplotsgroups
                 return true;
             }
 
+            // An announcement asking no more than the one already standing keeps that one's deadline
+            // and the agreements given to it - whoever said yes to the higher figure has said yes to
+            // this one too. Only guarding the identical amount left the protection open to a mayor
+            // re-announcing a coin less every hour: each such announcement pushed the deadline a full
+            // delay back and wiped the acceptances, so no member could ever agree in time.
+            if (group.HasPendingFee && fee <= group.PendingFee)
+            {
+                if (group.PendingFee == fee) return true;
+                group.PendingFee = fee;
+                group.saveToDatabase();
+                Announce(group, "claims:plotsgroup_fee_raise_announced",
+                    fee, HoursUntil(group.PendingFeeAt), group.PlotsGroupFee);
+                SendGroupUpdate(group);
+                return true;
+            }
+
             group.PendingFee = fee;
             group.PendingFeeAt = TimeFunctions.getEpochSeconds() + delay;
             group.PendingFeeAccepted.Clear();
@@ -65,6 +77,13 @@ namespace claims.src.cityplotsgroups
                 fee, claims.config.PLOTSGROUP_FEE_RAISE_DELAY_HOURS, group.PlotsGroupFee);
             SendGroupUpdate(group);
             return true;
+        }
+
+        /// <summary>Whole hours left until a moment in unix seconds, at least one.</summary>
+        private static int HoursUntil(long at)
+        {
+            long left = at - TimeFunctions.getEpochSeconds();
+            return left <= 3600 ? 1 : (int)((left + 3599) / 3600);
         }
 
         /// <summary>A member agreeing to the announced raise, so it applies to them when it lands.</summary>

@@ -11,6 +11,7 @@ using claims.src.network.packets;
 using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
+using claims.src.part.structure.war;
 using Newtonsoft.Json;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -40,6 +41,10 @@ namespace claims.src.network.handlers
                         return;
                     }
 
+                    // The client can send this the moment it joins, before the server has given the
+                    // player an entity - and the anti-spoof check below reads its position.
+                    if (player.Entity == null) return;
+
                     // Anti-spoof: only allow zones close to player's actual position
                     int zoneBlocks = claims.config.PLOT_SIZE * claims.config.ZONE_PLOTS_LENGTH;
                     Vec2i playerServerPos = new Vec2i((int)player.Entity.Pos.X / zoneBlocks, (int)player.Entity.Pos.Z / zoneBlocks);
@@ -63,6 +68,7 @@ namespace claims.src.network.handlers
                 }
                 else if(packet.type == PacketsContentEnum.CURRENT_PLOT_CLIENT_REQUEST)
                 {
+                    if (player.Entity == null) return;
                     var currentPos = player.Entity.Pos;
                     PlotPosition here = PlotPosition.fromEntityyPos(currentPos);
                     CurrentPlotInfo cpi;
@@ -174,25 +180,37 @@ namespace claims.src.network.handlers
                 {
                     return;
                 }
+                // Refusals are spoken, not swallowed: the submit button gave no answer at all when
+                // the sender was not entitled to set a schedule, which reads as a dead button.
                 IConflictParty ourParty;
                 if (playerInfo.HasAlliance())
                 {
                     if (!playerInfo.Alliance.IsLeader(playerInfo))
+                    {
+                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:warrange-only-alliance-leader"));
                         return;
+                    }
                     ourParty = playerInfo.Alliance;
                 }
                 else if (playerInfo.hasCity())
                 {
                     if (!playerInfo.City.isMayor(playerInfo))
+                    {
+                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:warrange-only-mayor"));
                         return;
+                    }
                     // The GUI reaches war ranges without going through the commands, so the
                     // village gate in TryResolveMyParty does not cover this path.
                     if (playerInfo.City.IsVillage())
+                    {
+                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:warrange-village-cannot"));
                         return;
+                    }
                     ourParty = playerInfo.City;
                 }
                 else
                 {
+                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:warrange-no-city"));
                     return;
                 }
 
@@ -213,11 +231,22 @@ namespace claims.src.network.handlers
                 }
 
                 if (conflict.ActiveWarTime)
+                {
+                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:warrange-battle-running"));
                     return;
+                }
 
                 // Only a side of the conflict may edit its war ranges
                 if (!conflict.First.Equals(ourParty) && !conflict.Second.Equals(ourParty))
+                {
+                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:warrange-not-our-conflict"));
                     return;
+                }
+
+                // The grid the client sends is whatever it felt like sending, so the day restriction
+                // is applied here rather than only in the GUI.
+                ccce.FirstWarRanges = WarScheduleHelper.FilterToAllowedDays(ccce.FirstWarRanges);
+                ccce.SecondWarRanges = WarScheduleHelper.FilterToAllowedDays(ccce.SecondWarRanges);
 
                 bool getFirst = true;
                 if(conflict.First.Equals(ourParty))
@@ -241,6 +270,23 @@ namespace claims.src.network.handlers
                         conflict.SecondWarRanges.Clear();
                         conflict.CalculateNextBattleDate();
                         conflict.State = ConflictState.ACTIVE;
+                        MessageHandler.SendMsgInAlliance(conflict.First,
+                            Lang.Get("claims:warrange-agreed", conflict.Second.GetPartName(),
+                                TimeFunctions.FormatBattleDate(conflict.NextBattleDateStart)));
+                        MessageHandler.SendMsgInAlliance(conflict.Second,
+                            Lang.Get("claims:warrange-agreed", conflict.First.GetPartName(),
+                                TimeFunctions.FormatBattleDate(conflict.NextBattleDateStart)));
+                    }
+                    else
+                    {
+                        // Both sides hear it: the sender learns their proposal was recorded but does
+                        // not meet the enemy's, and the enemy learns there is something to answer.
+                        IConflictParty otherParty = conflict.First.Equals(ourParty) ? conflict.Second : conflict.First;
+                        MessageHandler.sendMsgToPlayer(player,
+                            Lang.Get("claims:warrange-no-common-window",
+                                claims.config.MIN_WARRANGE_DURATION_MINUTES, otherParty.GetPartName()));
+                        MessageHandler.SendMsgInAlliance(otherParty,
+                            Lang.Get("claims:warrange-enemy-proposed", ourParty.GetPartName()));
                     }
                 }
                 else
@@ -270,6 +316,12 @@ namespace claims.src.network.handlers
      
                     conflict.CalculateNextBattleDate();
                     conflict.State = ConflictState.ACTIVE;
+                    // No agreement needed on this server, so the sender is told directly what their
+                    // hours booked rather than being left to guess from the page.
+                    MessageHandler.sendMsgToPlayer(player,
+                        Lang.Get("claims:warrange-agreed",
+                            (conflict.First.Equals(ourParty) ? conflict.Second : conflict.First).GetPartName(),
+                            TimeFunctions.FormatBattleDate(conflict.NextBattleDateStart)));
                 }
                 ModConfigReady.CheckForWarToStart();
                 conflict.saveToDatabase();
@@ -283,43 +335,51 @@ namespace claims.src.network.handlers
                 UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(conflict.Second, new Dictionary<string, object> { { "value", ccce } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_WARRANGES_UPDATED);
             });
         }
+        /// <summary>
+        /// Overlap of the two sides' proposed windows. Positions are minutes since the start of the
+        /// week; a window that runs past midnight simply runs past the end of the week too, so the
+        /// second side's window is also tried one week earlier and later - otherwise a Saturday
+        /// 23:00 window could never meet the very same window proposed by the other side.
+        /// </summary>
         public static List<SelectedWarRange> FindCommonRanges(List<SelectedWarRange> first, List<SelectedWarRange> second)
         {
+            const int week = 7 * 24 * 60;
             List<SelectedWarRange> common = new List<SelectedWarRange>();
             foreach (var firstRange in first)
             {
                 int startFirst = GetMinutes(firstRange.StartDay, firstRange.StartTime);
-                int endFirst = GetMinutes(firstRange.EndDay, firstRange.EndTime);
+                // End is start plus duration, never GetMinutes(EndDay, EndTime): EndTime already
+                // carries the overflow past midnight, so adding EndDay on top counted it twice and
+                // made every window that touched midnight look like it ended before it began.
+                int endFirst = startFirst + (int)firstRange.Duration.TotalMinutes;
                 foreach (var secondRange in second)
                 {
-                    int startSecond = GetMinutes(secondRange.StartDay, secondRange.StartTime);
-                    int endSecond = GetMinutes(secondRange.EndDay, secondRange.EndTime);
+                    int startSecondBase = GetMinutes(secondRange.StartDay, secondRange.StartTime);
+                    int secondLength = (int)secondRange.Duration.TotalMinutes;
 
-                    int start = Math.Max(startFirst, startSecond);
-                    int end = Math.Min(endFirst, endSecond);
-
-                    int diff = end - start;
-
-                    if (diff >= claims.config.MIN_WARRANGE_DURATION_MINUTES)
+                    for (int shift = -week; shift <= week; shift += week)
                     {
+                        int start = Math.Max(startFirst, startSecondBase + shift);
+                        int end = Math.Min(endFirst, startSecondBase + shift + secondLength);
+                        int diff = end - start;
+                        if (diff < claims.config.MIN_WARRANGE_DURATION_MINUTES) continue;
+
+                        int normStart = ((start % week) + week) % week;
+                        int normEnd = (normStart + diff) % week;
                         common.Add(new SelectedWarRange
                         (
-                            (DayOfWeek)(start / (24 * 60)),
-                            (DayOfWeek)(end / (24 * 60)),
-                            TimeSpan.FromMinutes(start % (24 * 60)),
+                            (DayOfWeek)(normStart / (24 * 60)),
+                            (DayOfWeek)(normEnd / (24 * 60)),
+                            TimeSpan.FromMinutes(normStart % (24 * 60)),
                             TimeSpan.FromMinutes(diff),
                             firstRange.SuggestedAllianceGuid
                         ));
-                        //found common range
-                        /*TimeSpan startTime = TimeSpan.FromMinutes(start % (24 * 60));
-                        TimeSpan endTime = TimeSpan.FromMinutes(end % (24 * 60));
-                        DayOfWeek startDay = (DayOfWeek)(start / (24 * 60));
-                        DayOfWeek endDay = (DayOfWeek)(end / (24 * 60));
-                        common.Add(new SelectedWarRange(startDay, endDay, startTime, endTime - startTime, firstRange.SuggestedAllianceGuid));*/
                     }
                 }
             }
-            return common;
+            // The overlap of two allowed windows is itself allowed, but the minute arithmetic above
+            // does not wrap around the week, so re-check rather than trust it.
+            return WarScheduleHelper.FilterToAllowedDays(common);
         }
         /// <summary>
         /// Applies the sharing mode picked in the dialog. Re-checks everything the client claims:

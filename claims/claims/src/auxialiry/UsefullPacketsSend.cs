@@ -165,6 +165,10 @@ namespace claims.src.auxialiry
                 {
                     City city = playerInfo.City;
                     collector.Add(EnumPlayerRelatedInfo.CITY_NAME, city.GetPartName());
+                    // Same reason as on city creation: the joiner's CityInfo is built fresh here and
+                    // the guid is otherwise only sent on login, leaving the client unable to
+                    // recognise itself as the addressee of a conflict letter until a reconnect.
+                    collector.Add(EnumPlayerRelatedInfo.CITY_GUID, city.Guid);
                     if (city.getMayor() != null)
                     {
                         collector.Add(EnumPlayerRelatedInfo.MAYOR_NAME, city.getMayor().GetPartName());
@@ -245,6 +249,7 @@ namespace claims.src.auxialiry
                        OUTPOST_PLOT_COST = claims.config.OUTPOST_PLOT_COST,
                        EXTRA_PLOT_COST = claims.config.EXTRA_PLOT_COST,
                        PLOT_NO_PVP_FLAG_COST = claims.config.PLOT_NO_PVP_FLAG_COST,
+                       PLOT_NO_MOBSPAWN_FLAG_COST = claims.config.PLOT_NO_MOBSPAWN_FLAG_COST,
 
                        RANSOM_FOR_NO_CITIZEN = claims.config.RANSOM_FOR_NO_CITIZEN,
                        RANSOM_FOR_CITIZEN = claims.config.RANSOM_FOR_CITIZEN,
@@ -256,6 +261,8 @@ namespace claims.src.auxialiry
                        ALLIANCE_BASE_CARE = claims.config.ALLIANCE_BASE_CARE,
                        ALLIANCE_MAX_FEE = claims.config.ALLIANCE_MAX_FEE,
                        NEUTRAL_ALLANCE_PAYMENT = claims.config.NEUTRAL_ALLANCE_PAYMENT,
+                       NEUTRAL_CITY_PAYMENT = claims.config.NEUTRAL_CITY_PAYMENT,
+                       NEUTRALITY_ENABLED = claims.config.NEUTRALITY_ENABLED,
 
                        MAX_CITY_FEE = claims.config.MAX_CITY_FEE,
                        CITY_MAX_DEBT = claims.config.CITY_MAX_DEBT,
@@ -288,6 +295,11 @@ namespace claims.src.auxialiry
                        WAR_NAP_MAX_DAYS = claims.config.WAR_NAP_MAX_DAYS,
                        WAR_NAP_BREAK_PENALTY = claims.config.WAR_NAP_BREAK_PENALTY,
                        WAR_BATTLE_WARN_MINUTES = claims.config.WAR_BATTLE_WARN_MINUTES,
+                       WAR_ALLOWED_BATTLE_DAYS = claims.config.WAR_ALLOWED_BATTLE_DAYS?.ConvertAll(d => (int)d) ?? new List<int>(),
+                       WAR_SCHEDULE_TIMEZONE = claims.config.WAR_SCHEDULE_TIMEZONE ?? "",
+                       WAR_SCHEDULE_UTC_OFFSET_MINUTES = WarScheduleHelper.CurrentUtcOffsetMinutes(),
+                       CITY_BANKRUPTCY_MODE = claims.config.CITY_BANKRUPTCY_MODE ?? "off",
+                       CITY_BANKRUPTCY_GRACE_DAYS = claims.config.CITY_BANKRUPTCY_GRACE_DAYS,
                        WAR_ULTIMATUM_ENABLED = claims.config.WAR_ULTIMATUM_ENABLED,
                        WAR_ULTIMATUM_EXPIRE_HOURS = claims.config.WAR_ULTIMATUM_EXPIRE_HOURS,
                        VILLAGE_ENABLED = claims.config.VILLAGE_ENABLED,
@@ -944,7 +956,16 @@ namespace claims.src.auxialiry
                             }
                             break;
                         case EnumPlayerRelatedInfo.TO_CITY_INVITES:
-                            result[pair.Key] = JsonConvert.SerializeObject(InvitationHandler.getInvitesForReceiver(playerInfo));
+                            // The same shape CITY_INVITE_ADD sends, not the Invitation objects
+                            // themselves: those keep their sender and receiver in private fields and
+                            // expose no properties at all, so they serialised to a list of empty
+                            // objects - and this snapshot is what a player gets on joining, which is
+                            // the only way to learn about invitations sent while they were away.
+                            result[pair.Key] = JsonConvert.SerializeObject(
+                                InvitationHandler.getInvitesForReceiver(playerInfo)
+                                    .Select(inv => new ClientToCityInvitation(
+                                        (inv.getSender() as City)?.GetPartName() ?? "", inv.getTimeStamp()))
+                                    .ToList());
                             break;
                         case EnumPlayerRelatedInfo.SHOW_PLOT_MOVEMENT:
                             result[pair.Key] = ((int)playerInfo.showPlotMovement).ToString();

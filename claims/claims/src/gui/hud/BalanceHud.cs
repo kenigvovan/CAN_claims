@@ -14,6 +14,7 @@ namespace claims.src.gui.hud
 
         public override string ToggleKeyCombinationCode => null;
         protected override string ComposerKey => "claims-balance-hud";
+        public override string EditorLabel => Lang.Get("claims:gui-hud-edit-panel-balance");
 
         protected override EnumDialogArea Anchor => EnumDialogArea.RightBottom;
         protected override double OffsetX => -20;

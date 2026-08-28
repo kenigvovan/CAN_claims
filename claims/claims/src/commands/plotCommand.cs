@@ -232,7 +232,7 @@ namespace claims.src.commands
             IServerPlayer player = args.Caller.Player as IServerPlayer;
             TextCommandResult tcr = new();
             tcr.Status = EnumCommandStatus.Success;
-            if (!HelperFunctionSetFlag(player, out Plot plotHere, tcr))
+            if (!HelperFunctionSetFlag(player, out Plot plotHere, tcr, EnumPlayerPermissions.PLOT_SET_PVP))
             {
                 if (plotHere != null) UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
                 return tcr;
@@ -243,6 +243,7 @@ namespace claims.src.commands
                 UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
                 return tcr;
             }
+            plotHere.MarkNoPvp();
             UsefullPacketsSend.AddToQueueCityInfoUpdate(plotHere.getCity().Guid, EnumPlayerRelatedInfo.CITY_DAY_PAYMENT);
             claims.serverPlayerMovementListener.markPlotToWasReUpdated(plotHere.getPos());
             UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
@@ -255,7 +256,7 @@ namespace claims.src.commands
             TextCommandResult tcr = new();
             tcr.Status = EnumCommandStatus.Success;
 
-            if (!HelperFunctionSetFlag(player, out Plot plotHere, tcr))
+            if (!HelperFunctionSetFlag(player, out Plot plotHere, tcr, EnumPlayerPermissions.PLOT_SET_FIRE))
             {
                 if (plotHere != null) UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
                 return tcr;
@@ -278,7 +279,7 @@ namespace claims.src.commands
             TextCommandResult tcr = new();
             tcr.Status = EnumCommandStatus.Success;
 
-            if (!HelperFunctionSetFlag(player, out Plot plotHere, tcr))
+            if (!HelperFunctionSetFlag(player, out Plot plotHere, tcr, EnumPlayerPermissions.PLOT_SET_BLAST))
             {
                 if (plotHere != null) UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
                 return tcr;
@@ -290,6 +291,34 @@ namespace claims.src.commands
                 return tcr;
             }
 
+            claims.serverPlayerMovementListener.markPlotToWasReUpdated(plotHere.getPos());
+            UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
+            plotHere.saveToDatabase();
+            return tcr;
+        }
+        /// <summary>
+        /// Keeps hostile mobs from spawning on the plot. Costs the city daily, so it also refreshes
+        /// the payment shown to the client, the same way the pvp flag does.
+        /// </summary>
+        public static TextCommandResult SetNoMobSpawn(TextCommandCallingArgs args)
+        {
+            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            TextCommandResult tcr = new();
+            tcr.Status = EnumCommandStatus.Success;
+
+            if (!HelperFunctionSetFlag(player, out Plot plotHere, tcr, EnumPlayerPermissions.PLOT_SET_MOBSPAWN))
+            {
+                if (plotHere != null) UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
+                return tcr;
+            }
+
+            if (!plotHere.getPermsHandler().setNoMobSpawn((string)args.LastArg))
+            {
+                UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
+                return tcr;
+            }
+            plotHere.MarkNoMobSpawn();
+            UsefullPacketsSend.AddToQueueCityInfoUpdate(plotHere.getCity().Guid, EnumPlayerRelatedInfo.CITY_DAY_PAYMENT);
             claims.serverPlayerMovementListener.markPlotToWasReUpdated(plotHere.getPos());
             UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
             plotHere.saveToDatabase();
@@ -530,7 +559,12 @@ namespace claims.src.commands
         /*==============================================================================================*/
         /*=====================================HELPERS==================================================*/
         /*==============================================================================================*/
-        public static bool HelperFunctionSetFlag(IServerPlayer player, out Plot plotHere, TextCommandResult tcr)
+        /// <summary>
+        /// Resolves the plot the player stands on and checks they may change its flags: the plot owner,
+        /// the mayor and admins always may, another citizen of the same city needs the flag's own right
+        /// or PLOT_SET_ALL_CITY_PLOTS. Same rule as SetName and SetPermissions.
+        /// </summary>
+        public static bool HelperFunctionSetFlag(IServerPlayer player, out Plot plotHere, TextCommandResult tcr, EnumPlayerPermissions flagPermission)
         {
             PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
             claims.dataStorage.GetPlot(currentPlotPosition, out plotHere);
@@ -553,17 +587,16 @@ namespace claims.src.commands
                 return false;
             }
 
-            if(!plotHere.getCity().isCitizen(playerInfo))
+            if (isOwnerOfPlotMayorAdmin(plotHere, playerInfo, player))
             {
-                if(!plotHere.hasPlotOwner() || !plotHere.getPlotOwner().Equals(playerInfo))
-                {
-                    tcr.StatusMessage = "claims:have_to_be_owner_or_mayor";
-                    return false;
-                }
+                return true;
             }
-            else
+
+            if (playerInfo.City != plotHere.getCity()
+                || !CheckForPlayerPermissions(player, new EnumPlayerPermissions[] { EnumPlayerPermissions.PLOT_SET_ALL_CITY_PLOTS, flagPermission }))
             {
-                return plotHere.hasPlotOwner() && plotHere.getPlotOwner().Equals(playerInfo);
+                tcr.StatusMessage = "claims:you_dont_have_right_for_that_command";
+                return false;
             }
             return true;
         }

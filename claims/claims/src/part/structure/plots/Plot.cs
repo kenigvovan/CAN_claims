@@ -30,7 +30,11 @@ namespace claims.src.part.structure
         // Ask AuctionRegistry.TryGetRunningFor when you need it.
         CityPlotsGroup plotGroup;
         PermsHandler permsHandler = new PermsHandler();
+        // Sticky marks: the plot had a paid safety flag on at some point since the last city payment.
+        // Without them the flag could be turned off right before the money is taken and back on
+        // afterwards, and the protection would be free.
         public bool MarkedNoPvp { get; set; } = false;
+        public bool MarkedNoMobSpawn { get; set; } = false;
         public PlotDesc PlotDesc { get; set; }
         public bool extraBought { get; set; }
         public bool BorderPlot { get; set; } = false;
@@ -62,6 +66,47 @@ namespace claims.src.part.structure
         public PermsHandler getPermsHandler()
         {
             return permsHandler;
+        }
+
+        /// <summary>
+        /// Remembers that the plot is under no-pvp right now, so the city is billed for it at the
+        /// next payment even if pvp is switched back on before then. Call it wherever the pvp flag
+        /// of a plot changes; <see cref="City.UpdateSafetyFlagMarks"/> clears the mark afterwards.
+        /// </summary>
+        public void MarkNoPvp()
+        {
+            if (!permsHandler.pvpFlag) MarkedNoPvp = true;
+        }
+
+        /// <summary>Same as <see cref="MarkNoPvp"/>, for keeping hostile mobs out.</summary>
+        public void MarkNoMobSpawn()
+        {
+            if (permsHandler.noMobSpawnFlag) MarkedNoMobSpawn = true;
+        }
+
+        /// <summary>
+        /// What the safety flags of this plot cost per day. A flag counts when it is on now or was on
+        /// at some point since the last payment - see <see cref="MarkNoPvp"/>.
+        /// </summary>
+        public double GetSafetyFlagsCost()
+        {
+            double sum = 0;
+            if (claims.config.ADDITIONAL_COST_OF_NO_PVP_PLOT && (MarkedNoPvp || !permsHandler.pvpFlag))
+                sum += claims.config.PLOT_NO_PVP_FLAG_COST;
+            if (MarkedNoMobSpawn || permsHandler.noMobSpawnFlag)
+                sum += claims.config.PLOT_NO_MOBSPAWN_FLAG_COST;
+            return sum;
+        }
+
+        /// <summary>
+        /// Whether the owner is billed for the safety flags rather than the city. Land with no owner
+        /// is the city's own, and a mayor pays no fee at all - both fall back to the treasury.
+        /// </summary>
+        public bool SafetyFlagsPaidByOwner()
+        {
+            if (!hasPlotOwner()) return false;
+            PlayerInfo owner = getPlotOwner();
+            return !(owner.hasCity() && owner.City.isMayor(owner));
         }
          
         public bool hasPlotOwner()
@@ -137,7 +182,13 @@ namespace claims.src.part.structure
                 return false;
             }
 
-            if (plotType == PlotType.CAMP || plotType == PlotType.TOURNAMENT)
+            // Types that are never set by hand, only by the routine that builds the thing they
+            // describe. VILLAGE_MAIN belongs here for the same reason CAMP does: PlotDesc.Create
+            // knows neither of them and hands back a bare PlotDesc, so the plot would claim to be a
+            // village centre while holding no anchor, no granary and no supply counter. A village
+            // is shielded from this by VILLAGE_ALLOWED_PLOT_TYPES, an ordinary city was not - and
+            // such a plot turns into a real one the moment an admin retiers the city to a village.
+            if (plotType == PlotType.CAMP || plotType == PlotType.TOURNAMENT || plotType == PlotType.VILLAGE_MAIN)
             {
                 tcr.StatusMessage = "claims:use_other_command_for_that";
                 return false;

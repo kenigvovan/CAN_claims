@@ -7,6 +7,7 @@ using claims.src.part.interfaces;
 using claims.src.part.structure;
 using claims.src.perms;
 using claims.src.rights;
+using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 
 namespace claims.src.part
@@ -142,10 +143,27 @@ namespace claims.src.part
                 {
                     plot.resetOwner();
                     plot.Price = -1;
-                    plot.Type = PlotType.DEFAULT;
+                    // Through setNewType rather than by assigning Type: what a plot type registered
+                    // with its city - a temple respawn point, a summon point, a camp - is undone by
+                    // OnDeactivated, which a plain assignment skips. The city went on respawning
+                    // people at a temple that had stopped being one, and the row was written with a
+                    // DEFAULT type next to a temple's description.
+                    plot.setNewType(new TextCommandResult(), "default", null, true);
                     plot.saveToDatabase();
                     PlayerPlots.Remove(plot);
                 }
+            }
+            // Membership of the city's plot groups goes with the city. It used to be left behind, and
+            // getPlotRelationForPlayerInfo ranks GROUP_MEMBER above CITIZEN, FOE and STRANGER alike:
+            // a former citizen kept the group's rights on that land for good, paid nothing for them
+            // (the daily fee is collected from the city's own citizens), and joining an enemy city
+            // turned those rights into free rein on it during a battle.
+            foreach (CityPlotsGroup group in City.getCityPlotsGroups().ToArray())
+            {
+                if (!group.PlayersList.Remove(this)) continue;
+                PlotsGroupFeeHelper.OnMemberLeft(group, this);
+                group.saveToDatabase();
+                PlotsGroupFeeHelper.SendGroupUpdate(group);
             }
             City.saveToDatabase();
             resetCity();
@@ -200,6 +218,12 @@ namespace claims.src.part
             foreach (var it in this.PlayerPlots)
             {
                 plotsPayment += it.getCustomTax();
+                // The safety flags of an owned plot are billed to its owner, so they belong in the
+                // figure shown here - the same condition DayTimer applies.
+                if (it.SafetyFlagsPaidByOwner())
+                {
+                    plotsPayment += it.GetSafetyFlagsCost();
+                }
             }
 
             if (plotsPayment != 0)

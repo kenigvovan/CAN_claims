@@ -10,8 +10,10 @@ namespace claims.src.events
     {
         public static bool Event_OnTrySpawnEntity(IBlockAccessor blockAccessor, ref EntityProperties properties, Vec3d spawnPosition, long herdId)
         {
-            var hostile = properties.Server?.SpawnConditions?.Runtime?.Group.Equals("hostile");
-            if(hostile.HasValue && hostile.Value)
+            // Group itself may be null - plenty of creatures declare runtime spawn conditions without
+            // one - and calling Equals on it threw on every such spawn attempt.
+            bool hostile = properties?.Server?.SpawnConditions?.Runtime?.Group == "hostile";
+            if(hostile)
             {
                 if(claims.dataStorage == null)
                 {
@@ -37,14 +39,26 @@ namespace claims.src.events
                     claims.DebugValSet = true;
                     return true;
                 }
+                // World flags win over plot flags, same order as blast: forced-on, then forbidden,
+                // then what the land itself says.
+                WorldInfo worldInfo = claims.dataStorage.getWorldInfo();
+                if (worldInfo != null)
+                {
+                    if (worldInfo.mobSpawnEverywhere)
+                    {
+                        return true;
+                    }
+                    if (worldInfo.mobSpawnForbidden)
+                    {
+                        return false;
+                    }
+                }
                 if (claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)spawnPosition.X, (int)spawnPosition.Z), out Plot plot))
                 {
-                    //TODO 
-                    //check for plot/city flags
-                    return false;
+                    // Safety inside the walls is paid for: without the flag the plot spawns mobs
+                    // like unclaimed land does.
+                    return !plot.getPermsHandler().noMobSpawnFlag;
                 }
-                //CHECK FOR CITY HERE
-                //LATER ON CHECK FOR CHUNK/CITY FLAGS
             }
             return true;
         }

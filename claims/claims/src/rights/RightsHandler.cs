@@ -82,8 +82,11 @@ namespace claims.src
                         EnumPlayerPermissions.CITY_SET_PLOT_ACCESS_PERMISSIONS,
                         EnumPlayerPermissions.CITY_BUY_OUTPOST,
                         EnumPlayerPermissions.CITY_SET_EMBLEM,
+                        EnumPlayerPermissions.CITY_SET_NEUTRAL,
                         EnumPlayerPermissions.CITY_SELL_PLOT_TO_CITY,
-                        EnumPlayerPermissions.CITY_BUY_PLOT_FROM_CITY
+                        EnumPlayerPermissions.CITY_BUY_PLOT_FROM_CITY,
+                        EnumPlayerPermissions.CITY_SET_MOBSPAWN,
+                        EnumPlayerPermissions.CITY_PLOTSGROUP_SET_MOBSPAWN
                     }
                 },
                  // What a village head gets instead of MAYOR. Deliberately a whitelist: a village
@@ -104,6 +107,7 @@ namespace claims.src
                         EnumPlayerPermissions.CITY_SET_PVP,
                         EnumPlayerPermissions.CITY_SET_FIRE,
                         EnumPlayerPermissions.CITY_SET_BLAST,
+                        EnumPlayerPermissions.CITY_SET_MOBSPAWN,
                         EnumPlayerPermissions.CITY_SET_DAILY_MSG,
                         EnumPlayerPermissions.CITY_SET_INV_MSG,
                         EnumPlayerPermissions.CITY_SET_PLOT_ACCESS_PERMISSIONS,
@@ -276,6 +280,10 @@ namespace claims.src
             ("mayor-sell-plot-to-city", "MAYOR", EnumPlayerPermissions.CITY_SELL_PLOT_TO_CITY),
             ("mayor-buy-plot-from-city", "MAYOR", EnumPlayerPermissions.CITY_BUY_PLOT_FROM_CITY),
             ("mayor-plotsgroup-set-fee", "MAYOR", EnumPlayerPermissions.CITY_PLOTSGROUP_SET_FEE),
+            ("mayor-set-mobspawn", "MAYOR", EnumPlayerPermissions.CITY_SET_MOBSPAWN),
+            ("mayor-plotsgroup-set-mobspawn", "MAYOR", EnumPlayerPermissions.CITY_PLOTSGROUP_SET_MOBSPAWN),
+            ("village-mayor-set-mobspawn", "VILLAGE_MAYOR", EnumPlayerPermissions.CITY_SET_MOBSPAWN),
+            ("mayor-set-neutral", "MAYOR", EnumPlayerPermissions.CITY_SET_NEUTRAL),
         };
 
         /// <summary>Written next to the permissions file, one applied migration name per line.</summary>
@@ -422,10 +430,14 @@ namespace claims.src
         {
             first.RunningConflicts.Add(conflict);
             second.RunningConflicts.Add(conflict);
+            // A city is never its own enemy. The two sides can share one - an alliance warring a city
+            // that belongs to it, an ally dragged in against its own side - and a city listed in its
+            // own HostileCities is treated as a besieger of its own ground by the permission rules.
             foreach (City ourCity in first.GetCities())
             {
                 foreach (City targetCity in second.GetCities())
                 {
+                    if (ourCity.Equals(targetCity)) continue;
                     if (!ourCity.HostileCities.Contains(targetCity))
                     {
                         ourCity.HostileCities.Add(targetCity);
@@ -437,6 +449,7 @@ namespace claims.src
             {
                 foreach (City ourCity in first.GetCities())
                 {
+                    if (targetCity.Equals(ourCity)) continue;
                     if (!targetCity.HostileCities.Contains(ourCity))
                     {
                         targetCity.HostileCities.Add(ourCity);
@@ -457,21 +470,32 @@ namespace claims.src
             {
                 if(it != second && !it.HostileParties.Contains(second))
                 {
-                    SetPartiesHostile(it, second, conflict);
+                    // The ally's own conflict is built whole before anything is told about it. It
+                    // used to be registered with the conflict of the side that dragged them in, so
+                    // the ally carried a war it was no party to - one DemolishConflict could never
+                    // clear, since it only unlists its own two sides - while the conflict actually
+                    // created for them appeared in nobody's RunningConflicts at all.
                     string newConflictGuid = ConflictLetter.GetUnusedGuid().ToString();
-                    Conflict newConflict = new Conflict("", newConflictGuid);
+                    Conflict newConflict = new Conflict("", newConflictGuid)
+                    {
+                        First = it,
+                        Second = second,
+                        StartedBy = first,
+                        State = ConflictState.CREATED,
+                        TimeStampStarted = TimeFunctions.getEpochSeconds(),
+                        MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES,
+                        // Called into someone else's war: it ends when that one does.
+                        ParentConflictGuid = conflict?.Guid ?? ""
+                    };
                     claims.dataStorage.TryAddConflict(newConflict);
-                    newConflict.First = it;
-                    newConflict.Second = second;
-                    newConflict.StartedBy = first;
-                    newConflict.State = ConflictState.CREATED;
-                    newConflict.TimeStampStarted = TimeFunctions.getEpochSeconds();
-                    newConflict.MinimumDaysBetweenBattles = claims.config.MINIMUM_DAYS_BETWEEN_BATTLES;
+                    SetPartiesHostile(it, second, newConflict);
 
                     var allyConflictCell = ClientConflictCellElement.FromConflict(newConflict);
                     UsefullPacketsSend.AddToQueueAllianceInfoUpdate(it.Guid,
                                 new Dictionary<string, object> { { "value", allyConflictCell } }, EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
-                    UsefullPacketsSend.AddToQueueAllianceInfoUpdate(second.Guid,
+                    // second can be a lone city: the alliance-guid overload finds no alliance for it
+                    // and silently drops the packet, so its citizens never see the conflict appear.
+                    UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(second,
                         new Dictionary<string, object> { { "value", allyConflictCell } },
                         EnumPlayerRelatedInfo.ALLIANCE_CONFLICT_ADD);
 
@@ -490,10 +514,39 @@ namespace claims.src
                 IConflictParty foeParty = runConflict.First.Guid == alliance.Guid ? runConflict.Second : runConflict.First;
                 foreach (City targetCity in foeParty.GetCities())
                 {
+                    // Joining an alliance that is at war with this very city would otherwise make it
+                    // hostile to itself; see SetPartiesHostile.
+                    if (city.Equals(targetCity)) continue;
                     if (!targetCity.HostileCities.Contains(city))
                         targetCity.HostileCities.Add(city);
                     if (!city.HostileCities.Contains(targetCity))
                         city.HostileCities.Add(targetCity);
+                }
+            }
+        }
+        /// <summary>
+        /// Puts a city joining an alliance on the comrade lists of that alliance's allies, and them
+        /// on its own - the mirror of <see cref="AddCityHostilesInAlliance"/>.
+        ///
+        /// Leaving an alliance already clears these lists, so the pairing was one-sided: a city that
+        /// joined after the union had been signed appeared on nobody's comrade list. That list is
+        /// what "an ally of ours is at war with them" is read from, so such a city never gained the
+        /// casus belli its union entitled it to.
+        /// </summary>
+        public static void AddCityComradesInAlliance(City city, Alliance alliance)
+        {
+            foreach (Alliance comradeAlliance in alliance.ComradAlliancies)
+            {
+                foreach (City comradeCity in comradeAlliance.Cities)
+                {
+                    if (city.Equals(comradeCity)) continue;
+                    if (!comradeCity.ComradeCities.Contains(city))
+                    {
+                        comradeCity.ComradeCities.Add(city);
+                        comradeCity.saveToDatabase();
+                    }
+                    if (!city.ComradeCities.Contains(comradeCity))
+                        city.ComradeCities.Add(comradeCity);
                 }
             }
         }

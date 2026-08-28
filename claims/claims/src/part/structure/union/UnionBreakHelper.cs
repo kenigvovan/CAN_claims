@@ -17,6 +17,11 @@ namespace claims.src.part.structure.union
     /// stab the ally in the back on the same turn. Once it takes effect both sides carry cooldowns
     /// before war may be declared or the union signed again. Both sides can instead agree to dissolve
     /// the union at once - that path is free of delay and cooldowns.
+    ///
+    /// A pending denunciation may be called off by either side, so the side being left can keep
+    /// cancelling it. The leaver's way out is to dissolve the union outright while their own
+    /// denunciation stands (<see cref="TryDissolveDuringDenunciation"/>), which still counts as a
+    /// one-sided break and carries its cooldowns.
     /// </summary>
     public static class UnionBreakHelper
     {
@@ -114,6 +119,27 @@ namespace claims.src.part.structure.union
 
         /// <summary>Dissolves the union at once by mutual consent: no delay, no cooldowns.</summary>
         public static void DissolveByAgreement(Alliance a, Alliance b) => FinishBreak(a, b, mutual: true);
+
+        /// <summary>
+        /// Ends the union without asking, but only while a denunciation of it is already on the
+        /// board. Returns a lang key on refusal, null on success.
+        ///
+        /// Cancelling a denunciation is open to both sides, which lets the side being left keep
+        /// calling it off: the leaver announces, the other cancels, and nothing ever happens - while
+        /// the union blocks declaring war on them. This is the way out of that deadlock, and it is
+        /// not a way around the waiting period: the break counts as one-sided, so the post-break war
+        /// cooldown applies and nobody can announce, dissolve and strike in one move.
+        /// </summary>
+        public static string TryDissolveDuringDenunciation(Alliance initiator, Alliance target)
+        {
+            if (!UnionHander.unionAlreadyExist(initiator, target)) return "claims:no_union_found";
+            if (PendingBreakLeft(initiator, target) <= 0) return "claims:union_break_not_announced";
+            if (claims.config.UNION_BREAK_BLOCKED_IN_SHARED_WAR && SharesRunningWar(initiator, target))
+                return "claims:union_break_blocked_shared_war";
+
+            FinishBreak(initiator, target, mutual: false);
+            return null;
+        }
 
         /// <summary>Executes every denunciation whose delay has run out. Called from the letters timer.</summary>
         public static void ApplyDueBreaks()

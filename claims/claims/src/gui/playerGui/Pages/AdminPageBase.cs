@@ -12,13 +12,13 @@ namespace claims.src.gui.playerGui.Pages
         private static readonly EnumSelectedTab[] AdminTabs =
         {
             EnumSelectedTab.AdminWorld, EnumSelectedTab.AdminCities,
-            EnumSelectedTab.AdminWar, EnumSelectedTab.AdminPlayer
+            EnumSelectedTab.AdminWar, EnumSelectedTab.AdminWarConfig, EnumSelectedTab.AdminPlayer
         };
 
         private static readonly string[] AdminTabLangKeys =
         {
             "claims:gui-admin-tab-world", "claims:gui-admin-tab-cities",
-            "claims:gui-admin-tab-war", "claims:gui-admin-tab-player"
+            "claims:gui-admin-tab-war", "claims:gui-admin-tab-warcfg", "claims:gui-admin-tab-player"
         };
 
         protected sealed override void BuildContent(PageBuildContext ctx)

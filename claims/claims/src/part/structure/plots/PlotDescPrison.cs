@@ -46,7 +46,9 @@ namespace claims.src.part.structure.plots
                 foreach (PlayerInfo player in cell.getPlayerInfos())
                 {
                     IServerPlayer onlinePlayer = claims.sapi.World.PlayerByUid(player.Guid) as IServerPlayer;
-                    if (onlinePlayer != null)
+                    // Entity too, not just the player: someone still connecting counts as online and
+                    // has none yet, and they are moved on their next login by the -1 below anyway.
+                    if (onlinePlayer?.Entity != null)
                     {
                         onlinePlayer.SetSpawnPosition(new PlayerSpawnPos((int)ep.X, (int)ep.Y, (int)ep.Z));
                         onlinePlayer.Entity.TeleportToDouble(ep.X, ep.Y, ep.Z);

@@ -37,10 +37,19 @@ namespace claims.src.part.structure.war
             refunded = 0;
             if (target == null || poster == null) return "claims:player_not_found";
             if (!target.BountyPosters.TryGetValue(poster.Guid, out long amount) || amount <= 0) return "claims:bounty_none_from_you";
+
+            // Money first, and only then the record - the other way round destroyed the coins when
+            // the deposit failed: they had been taken when the bounty was placed, the entry was
+            // already gone and written to the database, and nothing arrived on the account. Place()
+            // takes the same order, withdrawing before it writes anything.
+            if (claims.economyProvider.SupportsPlayerWallet
+                && claims.economyProvider.Deposit(poster.MoneyAccountName, (decimal)amount) != MoneyOperationResult.Success)
+            {
+                return "claims:economy_money_transaction_error";
+            }
+
             target.BountyPosters.Remove(poster.Guid);
             target.saveToDatabase();
-            if (claims.economyProvider.SupportsPlayerWallet)
-                claims.economyProvider.Deposit(poster.MoneyAccountName, (decimal)amount);
             refunded = amount;
             BroadcastBoard();
             return null;

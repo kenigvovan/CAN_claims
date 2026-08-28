@@ -14,6 +14,7 @@ namespace claims.src.gui.hud
 
         public override string ToggleKeyCombinationCode => null;
         protected override string ComposerKey => "claims-war-hud";
+        public override string EditorLabel => Lang.Get("claims:gui-hud-edit-panel-war");
 
         protected override EnumDialogArea Anchor => EnumDialogArea.CenterTop;
         protected override double OffsetY => 40;

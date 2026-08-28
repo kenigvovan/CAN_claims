@@ -82,6 +82,82 @@ namespace claims.src.config
             }
         }
 
+        /// <summary>
+        /// A set of weekdays, as a comma-separated list of English day names or their 0-6 numbers
+        /// (Sunday = 0). "none"/"any"/"all" clear the restriction.
+        /// </summary>
+        private sealed class DaysSpec : Spec
+        {
+            private readonly Action<List<DayOfWeek>> set;
+            public DaysSpec(Action<List<DayOfWeek>> set) { this.set = set; }
+            public override bool TrySet(string raw, out string error)
+            {
+                string value = (raw ?? "").Trim().ToLowerInvariant();
+                if (value.Length == 0 || value == "none" || value == "any" || value == "all")
+                {
+                    set(new List<DayOfWeek>());
+                    error = null;
+                    return true;
+                }
+
+                var days = new List<DayOfWeek>();
+                foreach (string part in value.Split(','))
+                {
+                    string token = part.Trim();
+                    if (token.Length == 0) continue;
+
+                    DayOfWeek day;
+                    if (int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out int number))
+                    {
+                        if (number < 0 || number > 6)
+                        {
+                            error = "day number " + number + " is out of range [0..6]";
+                            return false;
+                        }
+                        day = (DayOfWeek)number;
+                    }
+                    else if (!Enum.TryParse(token, true, out day))
+                    {
+                        error = "expected a weekday name or 0-6, got '" + token + "'";
+                        return false;
+                    }
+                    if (!days.Contains(day)) days.Add(day);
+                }
+                set(days);
+                error = null;
+                return true;
+            }
+        }
+
+        /// <summary>A time zone id this machine knows, or empty for the server's own zone.</summary>
+        private sealed class TimeZoneSpec : Spec
+        {
+            private readonly Action<string> set;
+            public TimeZoneSpec(Action<string> set) { this.set = set; }
+            public override bool TrySet(string raw, out string error)
+            {
+                string value = (raw ?? "").Trim();
+                if (value.Length == 0 || value.Equals("server", StringComparison.OrdinalIgnoreCase))
+                {
+                    set("");
+                    error = null;
+                    return true;
+                }
+                try
+                {
+                    TimeZoneInfo.FindSystemTimeZoneById(value);
+                }
+                catch (Exception)
+                {
+                    error = "'" + value + "' is not a time zone this machine knows";
+                    return false;
+                }
+                set(value);
+                error = null;
+                return true;
+            }
+        }
+
         private sealed class BoolSpec : Spec
         {
             private readonly Action<bool> set;
@@ -162,6 +238,10 @@ namespace claims.src.config
             // battle warning
             { "war_battle_warn_minutes", new IntSpec(0, 1440, v => C.WAR_BATTLE_WARN_MINUTES = v) },
 
+            // battle schedule window (e.g. "saturday,sunday" for weekend-only fighting)
+            { "war_allowed_battle_days", new DaysSpec(v => C.WAR_ALLOWED_BATTLE_DAYS = v) },
+            { "war_schedule_timezone", new TimeZoneSpec(v => C.WAR_SCHEDULE_TIMEZONE = v) },
+
             // ultimatums
             { "war_ultimatum_enabled", new BoolSpec(v => C.WAR_ULTIMATUM_ENABLED = v) },
             { "war_ultimatum_expire_hours", new IntSpec(1, 8760, v => C.WAR_ULTIMATUM_EXPIRE_HOURS = v) },
@@ -191,7 +271,14 @@ namespace claims.src.config
             { "village_upgrade_min_citizens", new IntSpec(1, 1000, v => C.VILLAGE_UPGRADE_MIN_CITIZENS = v) },
             { "village_supply_hours_per_item", new IntSpec(1, 10000, v => C.VILLAGE_SUPPLY_HOURS_PER_ITEM = v) },
             { "village_decay_hours", new IntSpec(1, 10000, v => C.VILLAGE_DECAY_HOURS = v) },
-            { "village_raidable", new BoolSpec(v => C.VILLAGE_RAIDABLE = v) },
+            // Re-arms the raid schedule: it is only set up for villages at server start, and only
+            // when raiding was on then, so switching this on later would otherwise leave every
+            // village with an open window nothing ever applied the state of.
+            { "village_raidable", new BoolSpec(v =>
+                {
+                    C.VILLAGE_RAIDABLE = v;
+                    part.structure.VillageRaidHelper.ScheduleAll();
+                }) },
             { "village_raid_duration_seconds", new IntSpec(60, 86400, v => C.VILLAGE_RAID_DURATION_SECONDS = v) },
             { "village_anchor_breaks", new IntSpec(1, 1000, v => C.VILLAGE_ANCHOR_BREAKS = v) },
             { "village_raid_grace_days", new IntSpec(0, 3650, v => C.VILLAGE_RAID_GRACE_DAYS = v) },
@@ -219,6 +306,10 @@ namespace claims.src.config
             { "city_bankruptcy_mode", new WordSpec(new[] { "off", "plots", "whole_city" }, v => C.CITY_BANKRUPTCY_MODE = v) },
             { "city_bankruptcy_grace_days", new IntSpec(1, 365, v => C.CITY_BANKRUPTCY_GRACE_DAYS = v) },
             { "city_bankruptcy_start_price_factor", new DoubleSpec(0, 100, v => C.CITY_BANKRUPTCY_START_PRICE_FACTOR = v) },
+
+            // safety flags a city pays for daily
+            { "plot_no_mobspawn_flag_cost", new DoubleSpec(0, 100000, v => C.PLOT_NO_MOBSPAWN_FLAG_COST = v) },
+            { "plot_no_pvp_flag_cost", new DoubleSpec(0, 100000, v => C.PLOT_NO_PVP_FLAG_COST = v) },
 
             // plots group fees
             { "max_plotsgroup_fee", new DoubleSpec(0, 100000, v => C.MAX_PLOTSGROUP_FEE = v) },

@@ -85,6 +85,14 @@ namespace claims.src.part
                 comrade.ComradeCities.Remove(city);
                 comrade.saveToDatabase();
             }
+            // The same for the hostile lists. Ending the conflicts above clears the pairs that had a
+            // conflict behind them, but an entry left over from anything else - a city that left an
+            // alliance, a war torn down some other way - would outlive the city itself.
+            foreach (City hostile in city.HostileCities.ToArray())
+            {
+                hostile.HostileCities.Remove(city);
+                hostile.saveToDatabase();
+            }
             // Break vassal/overlord links so no dangling guid survives.
             if (city.IsVassal())
             {
@@ -249,12 +257,23 @@ namespace claims.src.part
             foreach (Alliance comradeAlliance in alliance.ComradAlliancies)
             {
                 comradeAlliance.ComradAlliancies.Remove(alliance);
+                // The cities' own comrade lists go with it. Only the link between the alliances was
+                // being cut, so the cities stayed on each other's lists - and that list is what an
+                // "our ally is at war with them" casus belli is read from, handing out grounds for
+                // war on behalf of a union that no longer exists.
+                foreach (City comradeCity in comradeAlliance.Cities)
+                {
+                    foreach (City city in alliance.Cities) comradeCity.ComradeCities.Remove(city);
+                    comradeCity.saveToDatabase();
+                }
                 comradeAlliance.saveToDatabase();
             }
 
             foreach (City city in alliance.Cities)
             {
-
+                // Whatever comrades this city had, it had them through the alliance being dissolved -
+                // the same clearing a city leaving an alliance does.
+                city.ComradeCities.Clear();
                 city.Alliance = null;
                 foreach (var it in city.getCityCitizens())
                 {
@@ -276,6 +295,22 @@ namespace claims.src.part
         }
         public static void DemolishConflict(Conflict conflict, EnumConflictEndReason reason = EnumConflictEndReason.Peace)
         {
+            // Wars the allies of the two sides were called into end with this one. They were never a
+            // quarrel of their own - an ally has no terms to agree and nobody to agree them with - so
+            // leaving them running kept the allies fighting a war whose principals had made peace.
+            // Collected before anything is torn down, and each is ended the same way this one is.
+            List<Conflict> calledIn = new List<Conflict>();
+            foreach (Conflict it in claims.dataStorage.conflicts)
+            {
+                if (it != conflict && it.ParentConflictGuid == conflict.Guid) calledIn.Add(it);
+            }
+            foreach (Conflict it in calledIn)
+            {
+                // Cleared first: the child must not try to take its parent down in turn.
+                it.ParentConflictGuid = "";
+                DemolishConflict(it, reason);
+            }
+
             // Close active war window if conflict ends mid-battle
             if (conflict.ActiveWarTime)
             {

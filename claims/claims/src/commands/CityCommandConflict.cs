@@ -49,7 +49,7 @@ namespace claims.src.commands
                 return TextCommandResult.Success(Lang.Get("claims:you_are_not_mayor"));
 
             City ourCity = playerInfo.City;
-            if (ourCity.Neutral)
+            if (ourCity.IsNeutral)
                 return TextCommandResult.Success(Lang.Get("claims:our_city_is_neutral"));
 
             var (parsedName, targetType) = ParseWarTargetInput((string)args.Parsers[0].GetValue());
@@ -61,7 +61,7 @@ namespace claims.src.commands
                 return TextCommandResult.Success(errorMsg);
             if (targetParty.Equals(ourCity))
                 return TextCommandResult.Success(Lang.Get("claims:same_war_target"));
-            if (targetParty.Neutral)
+            if (targetParty.IsNeutral)
                 return TextCommandResult.Success(Lang.Get("claims:target_party_is_neutral"));
             if (ConflictHandler.conflictAlreadyExist(ourCity, targetParty))
                 return TextCommandResult.Success(Lang.Get("claims:conflict_already_exists"));
@@ -76,15 +76,19 @@ namespace claims.src.commands
             if (claims.config.NEED_AGREE_FOR_CONFLICT
                 && ConflictHandler.TryGetConflictLetter(ourCity, targetParty, LetterPurpose.START_CONFLICT, out _))
                 return TextCommandResult.Success(Lang.Get("claims:conflict_letter_is_duplicate"));
-            if (!WarDeclarationHelper.TryPassDeclarationGates(ourCity, targetParty, ourCity.MoneyAccountName, out string declErr))
+            if (!WarDeclarationHelper.TryPassDeclarationGates(ourCity, targetParty, ourCity.MoneyAccountName,
+                    out string declErr, out var declCharge))
                 return TextCommandResult.Success(Lang.Get(declErr));
 
             if (claims.config.NEED_AGREE_FOR_CONFLICT)
             {
                 long timestamp = TimeFunctions.getEpochSeconds() + claims.config.DELAY_FOR_CONFLICT_ACTIVATED;
                 string newConflictGuid = ConflictLetter.GetUnusedGuid().ToString();
+                // The charge travels with the letter: a declaration that is refused, expires or is
+                // withdrawn gives it back, and the letter is what outlives all three.
                 if (ConflictHandler.addConflictLetter(ConflictLetterFactory.Build(
-                        ourCity, targetParty, LetterPurpose.START_CONFLICT, timestamp, newConflictGuid)))
+                        ourCity, targetParty, LetterPurpose.START_CONFLICT, timestamp, newConflictGuid,
+                        charge: declCharge)))
                 {
                     // The letter itself is mirrored to both sides by ConflictHandler.addConflictLetter
                     foreach (var c in targetParty.GetCities())
@@ -138,6 +142,8 @@ namespace claims.src.commands
             UsefullPacketsSend.AddToQueueConflictPartyInfoUpdate(targetParty,
                 new Dictionary<string, object> { { "value", (letter.Guid, letter.Purpose) } }, EnumPlayerRelatedInfo.ALLIANCE_LETTER_REMOVE);
             ConflictHandler.removeConflictLetter(letter);
+            // Taking the declaration back before it was answered costs nothing: no war was bought.
+            WarDeclarationHelper.RefundDeclaration(ourCity, ourCity.MoneyAccountName, letter.Charge);
             return TextCommandResult.Success(Lang.Get("claims:conflict_declaration_removed", targetParty.GetPartName()));
         }
 
@@ -503,6 +509,11 @@ namespace claims.src.commands
                 return TextCommandResult.Success(errorMsg);
             if (targetParty.Equals(ourParty)) return TextCommandResult.Success(Lang.Get("claims:same_war_target"));
             if (ConflictHandler.conflictAlreadyExist(ourParty, targetParty)) return TextCommandResult.Success(Lang.Get("claims:conflict_already_exists"));
+            // An ultimatum is a threat of war, so neutrality bars it from either end. Refusing one
+            // grants a free-war justification, and against a neutral party that would be a claim its
+            // holder could never use.
+            if (ourParty.IsNeutral) return TextCommandResult.Success(Lang.Get("claims:our_city_is_neutral"));
+            if (targetParty.IsNeutral) return TextCommandResult.Success(Lang.Get("claims:target_party_is_neutral"));
             if (NonAggressionHelper.HasActivePact(ourParty, targetParty)) return TextCommandResult.Success(Lang.Get("claims:ultimatum_nap_active"));
             if (ConflictHandler.TryGetConflictLetter(ourParty, targetParty, LetterPurpose.ULTIMATUM, out _))
                 return TextCommandResult.Success(Lang.Get("claims:conflict_letter_is_duplicate"));

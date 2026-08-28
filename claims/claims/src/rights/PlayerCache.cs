@@ -26,8 +26,18 @@ namespace claims.src.rights
         {
             return playerCache;
         }
+        /// <summary>
+        /// Points the cache at a plot. Answers cached for the previous one are dropped: they were
+        /// computed against its permissions and mean nothing here.
+        ///
+        /// Moving the marker without clearing them let one plot answer for another. A block broken
+        /// across the border re-points the cache at the neighbouring plot and recomputes only the
+        /// build permission, so USE and ATTACK still held what the plot the player stands on had
+        /// granted - and the next click on a chest over there was let through unchecked.
+        /// </summary>
         public void setPlotPosition(PlotPosition loc)
         {
+            if (lastChunk == null || !lastChunk.Equals(loc)) Reset();
             this.lastChunk = loc;
         }
     }

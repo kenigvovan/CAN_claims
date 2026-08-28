@@ -9,7 +9,7 @@ namespace claims.src.gui.playerGui
         CityMap,
         PlotMarket, PlotMarketHistory, PlotAuction,
         EmblemEditor,
-        AdminWorld, AdminCities, AdminWar, AdminPlayer
+        AdminWorld, AdminCities, AdminWar, AdminWarConfig, AdminPlayer
     }
 
     /// <summary>Ordering of the world-wide alliance list.</summary>

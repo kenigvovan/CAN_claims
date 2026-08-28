@@ -27,10 +27,10 @@ namespace claims.src.auxialiry
                 creative || OnBlockAction.canBlockDestroyWithOutCacheUpdate(playerInfo, plot),
                 creative || OnBlockAction.canBlockUseWithOutCacheUpdate(playerInfo, plot),
                 creative || OnBlockAction.canAttackAnimalsWithOutCacheUpdate(playerInfo, plot),
-                plot.getCity().GetPartName(), plot.GetPartName(),
+                plot.hasCity() ? plot.getCity().GetPartName() : "", plot.GetPartName(),
                 plot.hasCityPlotsGroup() ? plot.getPlotGroup().GetPartName() : "",
                 plot.Type == PlotType.TAVERN ? plot.GetClientInnerClaimFromDefault(playerInfo) : null,
-                plot.getCity().Alliance?.Guid ?? "");
+                plot.hasCity() ? (plot.getCity().Alliance?.Guid ?? "") : "");
         }
 
         //Send subscribers of plot's zone info about the newly claimed plot

@@ -83,11 +83,13 @@ namespace claims.src.part.structure.war
                     if (entry != null && until > entry.UnionBreakUntil) entry.UnionBreakUntil = until;
                 }
 
-            // A war already running with that party makes the whole entry moot.
+            // A war already running with that party makes the whole entry moot - and so does the
+            // target being neutral, which no reason on this list can override.
             foreach (var pair in byTarget)
             {
                 if (!ResolveParty(pair.Key, out IConflictParty target)) continue;
                 if (ConflictHandler.conflictAlreadyExist(party, target)) continue;
+                if (target.IsNeutral) continue;
                 result.Add(pair.Value);
             }
             // Free wars first (they expire and cost nothing), then grievances by soonest expiry.
