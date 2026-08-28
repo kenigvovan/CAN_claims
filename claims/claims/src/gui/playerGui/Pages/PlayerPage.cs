@@ -148,7 +148,10 @@ namespace claims.src.gui.playerGui.Pages
             NavRow.Build(Gui, ctx.Current, ctx.Line, 0,
                 new NavButton("claims:village", () => GoTo(EnumSelectedTab.CitiesListPage), Lang.Get("claims:gui-nav-cities-list")),
                 new NavButton("claims:vertical-banner", () => GoTo(EnumSelectedTab.AllianceListPage),
-                    Lang.Get("claims:gui_alliance_list_title")));
+                    Lang.Get("claims:gui_alliance_list_title")),
+                // The editor needs the screen to itself - the ghosts sit where this window is.
+                new NavButton("claims:expander", () => { Gui.TryClose(); claims.OpenHudLayoutEditor(); },
+                    Lang.Get("claims:gui-hud-edit-title")));
         }
 
         /// <summary>Balances are doubles; whole values should not read "1500.0".</summary>
