@@ -102,7 +102,7 @@ namespace claims.src.gui.playerGui.Pages
             WarCfgRow.Group("claims:gui-admin-warcfg-camp"),
             WarCfgRow.Flag("claims:gui-admin-warcfg-camp-enabled", "camp_enabled", () => claims.config.WAR_CAMP_ENABLED),
             WarCfgRow.Int("claims:gui-admin-warcfg-camp-max", "camp_max_per_conflict", () => claims.config.WAR_MAX_CAMPS_PER_CONFLICT),
-            WarCfgRow.Dbl("claims:gui-admin-warcfg-camp-cost", "camp_cost", () => claims.config.CAMP_PLOT_COST),
+            WarCfgRow.Dbl("claims:gui-admin-warcfg-camp-cost", "camp_cost", () => part.structure.plots.PlotInfo.GetSetCost("camp")),
             WarCfgRow.Int("claims:gui-admin-warcfg-camp-mindist", "camp_min_distance", () => claims.config.WAR_CAMP_MIN_DISTANCE_FROM_OTHER_CITY),
             WarCfgRow.Int("claims:gui-admin-warcfg-camp-breaks", "camp_anchor_breaks", () => claims.config.WAR_CAMP_ANCHOR_BREAKS),
 
@@ -164,6 +164,14 @@ namespace claims.src.gui.playerGui.Pages
                 new CfgOption("whole_city", "claims:gui-warcfg-bankruptcy-whole_city")),
             WarCfgRow.Int("claims:gui-admin-warcfg-bankruptcy-grace", "city_bankruptcy_grace_days",
                 () => claims.config.CITY_BANKRUPTCY_GRACE_DAYS),
+
+            WarCfgRow.Group("claims:gui-admin-warcfg-respawn"),
+            WarCfgRow.Flag("claims:gui-admin-warcfg-temple-respawn", "temple_respawn",
+                () => claims.config.TEMPLE_RESPAWN_ENABLED),
+            WarCfgRow.Flag("claims:gui-admin-warcfg-temple-choice", "temple_respawn_choice",
+                () => claims.config.TEMPLE_RESPAWN_CHOICE_ENABLED),
+            WarCfgRow.Flag("claims:gui-admin-warcfg-temple-choice-gui", "temple_respawn_choice_gui",
+                () => claims.config.TEMPLE_RESPAWN_CHOICE_FROM_GUI),
         };
 
         /// <summary>The seven weekdays as options, labelled with the short day names already in lang.</summary>

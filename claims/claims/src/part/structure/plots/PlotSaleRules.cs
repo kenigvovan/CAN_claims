@@ -38,7 +38,8 @@ namespace claims.src.part.structure.plots
             if (plot.hasPlotOwner()) { errorKey = "claims:plot_trade_has_owner"; return false; }
             if (plot.hasCityPlotsGroup()) { errorKey = "claims:has_plots_group"; return false; }
             if (IsAtWar(seller)) { errorKey = "claims:plot_trade_at_war"; return false; }
-            return true;
+            errorKey = subplots.SubPlotLifecycle.BlockingProblem(plot);
+            return errorKey == null;
         }
 
         /// <summary>
@@ -64,7 +65,9 @@ namespace claims.src.part.structure.plots
                 errorKey = "claims:should_be_on_the_border_with_another_claimed_plot";
                 return false;
             }
-            return true;
+            // Listed before a sub-plot was cut out of it.
+            errorKey = subplots.SubPlotLifecycle.BlockingProblem(plot);
+            return errorKey == null;
         }
 
         /// <summary>Whether an offer with this audience is addressed to <paramref name="buyer"/>.</summary>

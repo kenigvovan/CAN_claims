@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using claims.src.auxialiry;
-using claims.src.auxialiry.innerclaims;
 using claims.src.gui.playerGui.structures;
 using claims.src.gui.playerGui.structures.cellElements;
 using claims.src.part.interfaces;
@@ -132,9 +131,15 @@ namespace claims.src.part.structure
         {
             return ownerOfPlot;
         }
+        /// <summary>
+        /// The plot goes back to its city. Buying it copied the owner's own rights over the city's
+        /// (PlotClaim), and nothing put them back: a plot whose owner let strangers build kept
+        /// letting them after it was given up (R28). Flags stay, as the claim left them alone too.
+        /// </summary>
         public void resetOwner()
         {
             ownerOfPlot = null;
+            if (city != null) permsHandler.setRights(city.getPermsHandler());
         }
         public City getCity()
         {
@@ -176,7 +181,7 @@ namespace claims.src.part.structure
 
             // Host can forbid plot types via config; admins (bypassDisabled) and system
             // calls are exempt. Authoritative gate for both the command and the GUI.
-            if (!bypassDisabled && claims.config.DISABLED_PLOT_TYPES.Contains(newPlotType))
+            if (!bypassDisabled && PlotInfo.IsTypeDisabled(newPlotType))
             {
                 tcr.StatusMessage = "claims:plot_type_disabled";
                 return false;
@@ -189,6 +194,13 @@ namespace claims.src.part.structure
             // is shielded from this by VILLAGE_ALLOWED_PLOT_TYPES, an ordinary city was not - and
             // such a plot turns into a real one the moment an admin retiers the city to a village.
             if (plotType == PlotType.CAMP || plotType == PlotType.TOURNAMENT || plotType == PlotType.VILLAGE_MAIN)
+            {
+                tcr.StatusMessage = "claims:use_other_command_for_that";
+                return false;
+            }
+
+            // No longer given to new cities; kept on older ones and settable only by admins.
+            if (!bypassDisabled && plotType == PlotType.MAIN_CITY_PLOT)
             {
                 tcr.StatusMessage = "claims:use_other_command_for_that";
                 return false;
@@ -242,22 +254,6 @@ namespace claims.src.part.structure
         public bool hasCityPlotsGroup()
         {
             return plotGroup != null;
-        }
-        public List<ClientInnerClaim> GetClientInnerClaimFromDefault(PlayerInfo playerInfo)
-        {
-            List<ClientInnerClaim> tmpCIC = new List<ClientInnerClaim>();
-            foreach (var it in (this.PlotDesc as PlotDescTavern).innerClaims)
-            {
-                if(it.membersUids.Contains(playerInfo.Guid))
-                {
-                    tmpCIC.Add(new ClientInnerClaim(it.pos1, it.pos2, it.permissionsFlags));
-                }
-            }
-            if(tmpCIC.Count > 0) 
-            {
-                return tmpCIC;
-            }
-            return null;
         }
         public List<string> getStatus(PlayerInfo forPlayer = null)
         {           

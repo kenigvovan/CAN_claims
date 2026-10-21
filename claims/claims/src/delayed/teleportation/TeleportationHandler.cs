@@ -1,6 +1,8 @@
 using claims.src.auxialiry;
 using claims.src.delayed.cooldowns;
+using claims.src.messages;
 using claims.src.part;
+using Vintagestory.API.Config;
 using Vintagestory.API.Server;
 
 namespace claims.src.delayed.teleportation
@@ -11,14 +13,8 @@ namespace claims.src.delayed.teleportation
 
         public static bool addTeleportation(TeleportationInfo info)
         {
-            foreach (var it in teleportations.Snapshot())
-            {
-                if (it.getTargetPlayer().Guid.Equals(info.getTargetPlayer().Guid))
-                {
-                    teleportations.Remove(it);
-                    break;
-                }
-            }
+            // A new one replaces the waiting one, which is then cancelled like any other.
+            removeTeleportation(info.getTargetPlayer());
             info.getTargetPlayer().AwaitForTeleporation = true;
             teleportations.Add(info);
             return true;
@@ -32,6 +28,7 @@ namespace claims.src.delayed.teleportation
                 {
                     it.getTargetPlayer().AwaitForTeleporation = false;
                     teleportations.Remove(it);
+                    it.Refund();
                     return true;
                 }
             }
@@ -53,6 +50,14 @@ namespace claims.src.delayed.teleportation
             teleportations.ExpireOverdue(it => it.getTimeStamp(), it =>
             {
                 IServerPlayer player = claims.sapi.World.PlayerByUid(it.getTargetPlayer().Guid) as IServerPlayer;
+                if (!it.IsStillAllowed())
+                {
+                    it.Refund();
+                    it.getTargetPlayer().AwaitForTeleporation = false;
+                    if (player != null)
+                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:teleport_cancelled_no_longer_allowed"));
+                    return;
+                }
                 if (player != null)
                     player.Entity.TeleportToDouble(it.getTargetPoint().X + 0.5f, it.getTargetPoint().Y, it.getTargetPoint().Z + 0.5f);
                 CooldownHandler.addCooldown(it.getTargetPlayer(),

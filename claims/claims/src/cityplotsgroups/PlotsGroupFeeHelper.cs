@@ -112,6 +112,8 @@ namespace claims.src.cityplotsgroups
         /// </summary>
         public static void OnMemberJoined(CityPlotsGroup group, PlayerInfo player)
         {
+            // The group's sub-plots open to the new member: their clients are told.
+            subplots.SubPlotSync.MarkGroupChanged(group);
             if (group == null || player == null || !group.HasPendingFee) return;
             if (group.PendingFeeAccepted.Add(player.Guid)) group.saveToDatabase();
         }
@@ -119,6 +121,7 @@ namespace claims.src.cityplotsgroups
         /// <summary>Forgets a member who left, so a later raise does not count them as having agreed.</summary>
         public static void OnMemberLeft(CityPlotsGroup group, PlayerInfo player)
         {
+            subplots.SubPlotSync.MarkGroupChanged(group);
             if (group == null || player == null) return;
             if (group.PendingFeeAccepted.Remove(player.Guid)) group.saveToDatabase();
         }
@@ -164,6 +167,7 @@ namespace claims.src.cityplotsgroups
 
             if (leaving.Count > 0)
             {
+                subplots.SubPlotSync.MarkGroupChanged(group);
                 foreach (Plot plot in group.City?.getCityPlots() ?? new List<Plot>())
                 {
                     if (plot.hasPlotGroup() && plot.getPlotGroup().Equals(group))

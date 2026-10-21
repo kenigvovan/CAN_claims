@@ -48,9 +48,10 @@ namespace claims.src.gui.playerGui.Dialogs
 
             // Nothing is preselected on purpose. These dialogs kick citizens and delete groups, so a
             // mis-click on the button must not act on whichever entry happens to be first; the box
-            // starts blank and the button does nothing until something is actually picked.
-            Args.Text = "";
-            DropDown(l, options, names, picked => Args.Text = picked);
+            // starts blank and the button does nothing until something is actually picked. A pick
+            // already made survives a rebuild - clearing it here erased it on every server packet.
+            Args.Text = KeptPick(options, Args.Text);
+            DropDown(l, options, names, picked => Args.Text = picked, Preselect(Args.Text));
 
             Button(l, Lang.Get(buttonLangKey), () =>
             {

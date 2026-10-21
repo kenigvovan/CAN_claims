@@ -1,4 +1,5 @@
 using Vintagestory.API.Common;
+using Vintagestory.API.MathTools;
 
 namespace claims.src.part
 {
@@ -19,6 +20,7 @@ namespace claims.src.part
     public static class RespawnPreference
     {
         private const string AttributeKey = "claimsrespawnpref";
+        private const string TempleAttributeKey = "claimsrespawntemple";
 
         public static EnumRespawnPreference Read(IPlayer player)
         {
@@ -38,6 +40,46 @@ namespace claims.src.part
 
             attributes.SetInt(AttributeKey, (int)preference);
             attributes.MarkPathDirty(AttributeKey);
+        }
+
+        /// <summary>
+        /// The temple plot the player picked, if it still belongs to <paramref name="cityGuid"/>.
+        /// The city guid is stored with the plot position: a player who moved to another city must
+        /// not keep pointing at the old one's temple, and plot coordinates repeat between cities.
+        /// </summary>
+        public static bool TryReadTemple(IPlayer player, string cityGuid, out Vec2i plotPos)
+        {
+            plotPos = null;
+            var attributes = player?.Entity?.WatchedAttributes;
+            if (attributes == null || string.IsNullOrEmpty(cityGuid)) return false;
+
+            string raw = attributes.GetString(TempleAttributeKey, null);
+            if (string.IsNullOrEmpty(raw)) return false;
+
+            string[] parts = raw.Split('|');
+            if (parts.Length != 3 || parts[0] != cityGuid) return false;
+            if (!int.TryParse(parts[1], out int x) || !int.TryParse(parts[2], out int z)) return false;
+
+            plotPos = new Vec2i(x, z);
+            return true;
+        }
+
+        public static void WriteTemple(IPlayer player, string cityGuid, Vec2i plotPos)
+        {
+            var attributes = player?.Entity?.WatchedAttributes;
+            if (attributes == null || string.IsNullOrEmpty(cityGuid) || plotPos == null) return;
+
+            attributes.SetString(TempleAttributeKey, cityGuid + "|" + plotPos.X + "|" + plotPos.Y);
+            attributes.MarkPathDirty(TempleAttributeKey);
+        }
+
+        public static void ClearTemple(IPlayer player)
+        {
+            var attributes = player?.Entity?.WatchedAttributes;
+            if (attributes == null) return;
+
+            attributes.RemoveAttribute(TempleAttributeKey);
+            attributes.MarkPathDirty(TempleAttributeKey);
         }
 
         public static bool TryParse(string value, out EnumRespawnPreference preference)

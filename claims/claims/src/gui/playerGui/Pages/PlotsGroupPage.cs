@@ -181,12 +181,7 @@ namespace claims.src.gui.playerGui.Pages
             // Each button appears only for whoever may press it.
             var perms = Player.PlayerPermissions;
 
-            var anchor = ctx.Line.BelowCopy(0, 14);
-            anchor.Alignment = EnumDialogArea.LeftTop;
-            double columnWidth = (ctx.Line.fixedWidth - Card.ColumnGap) / 2;
-
-            var left = anchor.FlatCopy();
-            left.fixedWidth = columnWidth;
+            Columns(CardAnchor(ctx), out ElementBounds left, out ElementBounds right);
 
             // --- the group itself ---
             var groupRows = new List<CardRow>
@@ -228,15 +223,6 @@ namespace claims.src.gui.playerGui.Pages
                 Lang.Get("claims:gui-plotsgroup-section-group"), groupRows, slot =>
             {
                 var actions = new ActionRow(compo, slot);
-
-                if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_PLOTSGROUP_SET))
-                {
-                    actions.Add("claims:open-book", "setPermissions",
-                        on => OpenDialog(on
-                            ? EnumUpperWindowSelectedState.CITY_PLOTSGROUP_PERMISSIONS
-                            : EnumUpperWindowSelectedState.NONE),
-                        Lang.Get("claims:gui-plotsgroup-permissions-title"), toggleable: true);
-                }
 
                 if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_PLOTSGROUP_SET_FEE))
                 {
@@ -288,26 +274,31 @@ namespace claims.src.gui.playerGui.Pages
                 }
             });
 
-            // --- its members ---
-            var right = anchor.FlatCopy();
-            right.fixedWidth = columnWidth;
-            right.fixedX += columnWidth + Card.ColumnGap;
-
-            var memberRows = new List<CardRow>
-            {
-                new CardRow
+            // --- its members, each with its own ✕ ---
+            bool canKick = perms.HasPermission(rights.EnumPlayerPermissions.CITY_PLOTSGROUP_KICK_PLAYER);
+            var memberItems = cell.PlayersNames
+                .OrderBy(n => n, System.StringComparer.OrdinalIgnoreCase)
+                .Select(name => new ItemRow
                 {
-                    Label = Lang.Get("claims:gui-plotsgroup-label-members"),
-                    Value = cell.PlayersNames.Count.ToString(),
-                    Tooltip = cell.PlayersNames.Count > 0
-                        ? StringFunctions.concatStringsWithDelim(cell.PlayersNames, ',')
-                        : null,
-                    Key = "groupMembers"
-                }
-            };
+                    Label = StringFunctions.replaceUnderscore(name),
+                    Key = "groupmember-" + name,
+                    Buttons = canKick
+                        ? new List<RowButton>
+                        {
+                            new RowButton("claims:cancel",
+                                () => OpenDialog(EnumUpperWindowSelectedState.REMOVE_PLOTSGROUP_MEMBER_CONFIRM, a => a.Text = name),
+                                Lang.Get("claims:gui-remove-plotsgroup-member"))
+                        }
+                        : new List<RowButton>()
+                })
+                .ToList();
+            // The flags and rights follow in this column; more rows push them onto the navigation row.
+            const int MaxMembersShown = 4;
+            bool membersCut = memberItems.Count > MaxMembersShown;
 
-            Card.RowsWithActions(compo, right, right.fixedY,
-                Lang.Get("claims:gui-plotsgroup-section-members"), memberRows, slot =>
+            double rightY = Card.Items(compo, right, right.fixedY,
+                Lang.Get("claims:gui-plotsgroup-section-members") + " (" + cell.PlayersNames.Count + ")",
+                Card.Limit(memberItems, MaxMembersShown), Lang.Get("claims:gui-list-empty"), slot =>
             {
                 var actions = new ActionRow(compo, slot);
 
@@ -318,13 +309,27 @@ namespace claims.src.gui.playerGui.Pages
                         Lang.Get("claims:gui-add-plotsgroup-member"));
                 }
 
-                if (perms.HasPermission(rights.EnumPlayerPermissions.CITY_PLOTSGROUP_KICK_PLAYER))
+                // For the members a cut list leaves out; the rows carry their own ✕.
+                if (canKick && membersCut)
                 {
                     actions.Add("line", "removeGroupMember",
                         on => { if (on) OpenDialog(EnumUpperWindowSelectedState.REMOVE_PLOTSGROUP_MEMBER_SELECT); },
                         Lang.Get("claims:gui-remove-plotsgroup-member"));
                 }
             });
+
+            // --- its rules, on the page for every member to read ---
+            var scope = Dialogs.PermissionsScopes.PlotsGroup(() => cell.Name, () => cell.PermsHandler);
+            bool canSetRules = perms.HasPermission(rights.EnumPlayerPermissions.CITY_PLOTSGROUP_SET);
+            // The flags have rights of their own, one each; CITY_PLOTSGROUP_SET covers only the grid.
+            rightY = PermTable.Flags(ctx, right, rightY, "groupperm", scope, flag =>
+            {
+                var flagRight = Dialogs.PermissionsScopes.FlagPermission(flag,
+                    rights.EnumPlayerPermissions.CITY_PLOTSGROUP_SET_PVP, rights.EnumPlayerPermissions.CITY_PLOTSGROUP_SET_FIRE,
+                    rights.EnumPlayerPermissions.CITY_PLOTSGROUP_SET_BLAST, rights.EnumPlayerPermissions.CITY_PLOTSGROUP_SET_MOBSPAWN);
+                return flagRight.HasValue && perms.HasPermission(flagRight.Value);
+            });
+            PermTable.Rights(ctx, right, rightY, "groupperm", scope, canSetRules);
 
             // Reached by clicking a group in the list, and the tab bar entry rebuilds this same page
             // - so without this there was no way back to the group list at all.

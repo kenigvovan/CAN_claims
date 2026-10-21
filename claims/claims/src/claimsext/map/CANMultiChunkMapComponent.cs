@@ -26,6 +26,10 @@ namespace claims.src.claimsext.map
 
         private bool[,] chunkSet = new bool[ChunkLen, ChunkLen];
 
+        /// <summary>Tiles queued by <see cref="setChunk"/>, painted in one batch by
+        /// <see cref="FinishSetChunks"/>. Indexed dz * ChunkLen + dx.</summary>
+        private int[][] pixelsToSet;
+
         private int chunksize;
 
         public float TTL = MaxTTL;
@@ -76,12 +80,30 @@ namespace claims.src.claimsext.map
             }
         }
 
+        /// <summary>Queues one game chunk for painting. The GL work happens in
+        /// <see cref="FinishSetChunks"/> so that a batch of tiles costs one framebuffer, not one per
+        /// tile.</summary>
         public void setChunk(int dx, int dz, int[] pixels)
         {
             if (dx < 0 || dx >= ChunkLen || dz < 0 || dz >= ChunkLen)
             {
                 throw new ArgumentOutOfRangeException("dx/dz must be within [0," + (ChunkLen - 1) + "]");
             }
+
+            if (pixelsToSet == null)
+            {
+                pixelsToSet = new int[ChunkLen * ChunkLen][];
+            }
+            pixelsToSet[dz * ChunkLen + dx] = pixels;
+            chunkSet[dx, dz] = true;
+        }
+
+        /// <summary>Paints every tile queued since the last call into this component's texture.
+        /// Creating and destroying the framebuffer is what a chunk paint actually costs, hence one
+        /// framebuffer for the whole batch and a single mipmap pass at the end.</summary>
+        public void FinishSetChunks()
+        {
+            if (pixelsToSet == null) return;
 
             if (tmpTexture == null || tmpTexture.Disposed)
             {
@@ -94,18 +116,23 @@ namespace claims.src.claimsext.map
                 Texture = new LoadedTexture(capi, 0, num, num);
                 capi.Render.LoadOrUpdateTextureFromRgba(emptyPixels, linearMag: false, 0, ref Texture);
             }
-            capi.Render.LoadOrUpdateTextureFromRgba(pixels, linearMag: false, 0, ref tmpTexture);
-            //GL.Enable((EnableCap)3042);
 
-            //GL.BlendFunc(BlendingFactor.One, BlendingFactor.Zero);
-            //GL.BlendEquation(BlendEquationMode.FuncSubtract);
-            //capi.Render.GlToggleBlend(blend: false);
-            //tmpTexture?.Dispose();
-            capi.Render.GLDisableDepthTest();
-            capi.Render.RenderTextureIntoTexture(tmpTexture, 0f, 0f, chunksize, chunksize, Texture, chunksize * dx, chunksize * dz, -1);
+            FrameBufferRef fb = capi.Render.CreateFrameBuffer(Texture);
+            for (int i = 0; i < pixelsToSet.Length; i++)
+            {
+                if (pixelsToSet[i] == null) continue;
+
+                capi.Render.LoadOrUpdateTextureFromRgba(pixelsToSet[i], linearMag: false, 0, ref tmpTexture);
+                // alphaTest -1 turns blending off inside the engine, so the tile overwrites what was
+                // there - that is what lets a chunk that lost its plots go back to transparent.
+                capi.Render.RenderTextureIntoFrameBuffer(0, tmpTexture, 0f, 0f, chunksize, chunksize, fb,
+                    chunksize * (i % ChunkLen), chunksize * (i / ChunkLen), -1);
+                pixelsToSet[i] = null;
+            }
+            capi.Render.DestroyFrameBuffer(fb);
             capi.Render.BindTexture2d(Texture.TextureId);
             capi.Render.GlGenerateTex2DMipmaps();
-            chunkSet[dx, dz] = true;
+            pixelsToSet = null;
         }
 
         public void unsetChunk(int dx, int dz)
@@ -119,6 +146,10 @@ namespace claims.src.claimsext.map
 
         public override void Render(GuiElementMap map, float dt)
         {
+            // A component exists from the moment its first tile is queued, the texture only from the
+            // first FinishSetChunks.
+            if (Texture == null || Texture.Disposed) return;
+
             map.TranslateWorldPosToViewPos(worldPos, ref viewPos);
             capi.Render.Render2DTexture(Texture.TextureId, (int)(map.Bounds.renderX + (double)viewPos.X), (int)(map.Bounds.renderY + (double)viewPos.Y), (int)((float)Texture.Width * map.ZoomLevel), (int)((float)Texture.Height * map.ZoomLevel), renderZ);
         }
@@ -130,8 +161,8 @@ namespace claims.src.claimsext.map
 
         public void ActuallyDispose()
         {
-            Texture.Dispose();
-            tmpTexture.Dispose();
+            // tmpTexture is shared by every component - it goes away in DisposeStatic, not here.
+            Texture?.Dispose();
         }
 
         public bool IsVisible(HashSet<Vec2i> curVisibleChunks)

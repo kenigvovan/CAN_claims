@@ -94,6 +94,24 @@ namespace claims.src.gui.playerGui.Dialogs
 
         private static string OnOff(bool v) => v ? "on" : "off";
 
+        /// <summary>
+        /// The right the server checks for one flag, picked from the four given in flag order
+        /// (pvp, fire, blast, nomobspawn); null for a flag it does not know.
+        /// </summary>
+        public static rights.EnumPlayerPermissions? FlagPermission(FlagRow flag,
+            rights.EnumPlayerPermissions pvp, rights.EnumPlayerPermissions fire,
+            rights.EnumPlayerPermissions blast, rights.EnumPlayerPermissions noMobSpawn)
+        {
+            switch (flag.SubCommand)
+            {
+                case "pvp": return pvp;
+                case "fire": return fire;
+                case "blast": return blast;
+                case "nomobspawn": return noMobSpawn;
+                default: return null;
+            }
+        }
+
         public static PermissionsScope Plot => new PermissionsScope
         {
             Source = () => claims.clientDataStorage.clientPlayerInfo.CurrentPlotInfo.PermsHandler,
@@ -124,8 +142,19 @@ namespace claims.src.gui.playerGui.Dialogs
             Flags = StandardFlags(),
             Perms = new[] { Build, Use },
             Groups = new[] { Citizen },
-            FlagCommand = (flag, on) => $"/c plotsgroup set {flag.SubCommand} {groupName()} {OnOff(on)}",
-            PermCommand = (group, perm, on) => $"/c plotsgroup set p {groupName() ?? "_"} {group.CommandToken} {perm.SubCommand} {OnOff(on)}"
+            FlagCommand = (flag, on) => ClientCommandText.Join("/c plotsgroup set " + flag.SubCommand, groupName(), OnOff(on)),
+            PermCommand = (group, perm, on) => ClientCommandText.Join("/c plotsgroup set p", groupName(), group.CommandToken, perm.SubCommand, OnOff(on))
+        };
+
+        /// <summary>Sub-plot: every group and right, no flags - those stay the chunk's. The name goes last.</summary>
+        public static PermissionsScope SubPlot(Func<string> subPlotName, Func<PermsHandler> source) => new PermissionsScope
+        {
+            Source = source,
+            Flags = new FlagRow[0],
+            Perms = StandardPerms,
+            Groups = StandardGroups,
+            FlagCommand = (flag, on) => null,
+            PermCommand = (group, perm, on) => ClientCommandText.Join("/subplot perm", group.CommandToken, perm.SubCommand, OnOff(on), subPlotName())
         };
     }
 }

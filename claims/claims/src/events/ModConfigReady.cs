@@ -51,7 +51,11 @@ namespace claims.src.events
             endWarCallbacks.Clear();
 
             claims.loadDatabase();
-            claims.getModInstance().getDatabaseHandler().loadEveryThing();
+            if (!claims.getModInstance().getDatabaseHandler().loadEveryThing())
+            {
+                // TODO(A19): what the server does with half-loaded data is an open decision.
+                MessageHandler.sendErrorMsg("Database was not loaded completely, see the errors above.");
+            }
             MarkBorderClaimPlots();
             Settings.loadAll();
             foreach (var plot in claims.dataStorage.getClaimedPlots().Values)

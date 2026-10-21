@@ -152,6 +152,10 @@ namespace claims.src.network.handlers
                     MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:respawn_pref_set",
                         Lang.Get(RespawnPreference.LangKeyOf(preference))));
                 }
+                else if (packet.type == PacketsContentEnum.CLIENT_SET_RESPAWN_TEMPLE)
+                {
+                    HandleSetRespawnTemple(player, packet.data);
+                }
                 else if (packet.type == PacketsContentEnum.CLIENT_SET_BOAT_SHARE)
                 {
                     HandleSetBoatShare(player, packet.data);
@@ -380,6 +384,47 @@ namespace claims.src.network.handlers
             // The overlap of two allowed windows is itself allowed, but the minute arithmetic above
             // does not wrap around the week, so re-check rather than trust it.
             return WarScheduleHelper.FilterToAllowedDays(common);
+        }
+        /// <summary>
+        /// Picks the temple the caller respawns at, or clears the choice on empty data. Everything
+        /// the client sends is re-checked: the setting, that the caller is a citizen, and that the
+        /// plot really carries one of their city's respawn points.
+        /// </summary>
+        private static void HandleSetRespawnTemple(IServerPlayer player, string data)
+        {
+            if (!claims.config.TEMPLE_RESPAWN_ENABLED
+                || !claims.config.TEMPLE_RESPAWN_CHOICE_ENABLED
+                || !claims.config.TEMPLE_RESPAWN_CHOICE_FROM_GUI)
+            {
+                MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:temple_respawn_choice_disabled"));
+                return;
+            }
+
+            if (string.IsNullOrEmpty(data))
+            {
+                RespawnPreference.ClearTemple(player);
+                MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:temple_respawn_cleared"));
+                return;
+            }
+
+            string[] parts = data.Split(';');
+            if (parts.Length != 2) return;
+            if (!int.TryParse(parts[0], out int plotX) || !int.TryParse(parts[1], out int plotZ)) return;
+
+            claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
+            if (playerInfo == null || !playerInfo.hasCity()) return;
+
+            City city = playerInfo.City;
+            var plotPos = new Vec2i(plotX, plotZ);
+            if (!city.TempleRespawnPoints.TryGetValue(plotPos, out Vec3i point) || point == null)
+            {
+                MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:temple_respawn_gone"));
+                return;
+            }
+
+            RespawnPreference.WriteTemple(player, city.Guid, plotPos);
+            MessageHandler.sendMsgToPlayer(player,
+                Lang.Get("claims:temple_respawn_set", point.X, point.Y, point.Z));
         }
         /// <summary>
         /// Applies the sharing mode picked in the dialog. Re-checks everything the client claims:

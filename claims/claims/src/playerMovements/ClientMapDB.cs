@@ -132,6 +132,8 @@ namespace claims.src.playerMovements
 
         public void SetMapPieces(Dictionary<Vec2i, ClientSavedZone> pieces)
         {
+            if (pieces == null || pieces.Count == 0) return;
+
             using (SqliteTransaction transaction = this.sqliteConn.BeginTransaction())
             {
                 this.setMapPieceCmd.Transaction = transaction;

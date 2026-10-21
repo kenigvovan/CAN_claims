@@ -18,6 +18,7 @@ namespace claims.src.commands.register
             RegisterPlotCommands(parsers, sapi);
             RegisterCAdminCommands(parsers, sapi);
             RegisterAllianceCommands(parsers, sapi);
+            RegisterSubPlotCommands(parsers, sapi);
 
             sapi.ChatCommands.Create("cc").HandleWith(commands.ClaimsChatCommands.onCommandCC)
              .RequiresPlayer().RequiresPrivilege(Privilege.chat);
@@ -47,9 +48,142 @@ namespace claims.src.commands.register
               .RequiresPlayer().RequiresPrivilege(Privilege.chat)
               .WithArgs(parsers.Word("cityName"), parsers.Word("groupName"));
 
+            // Both optional: no arguments lists the player's groups, printed as "city:group", and
+            // that form is accepted back as well as "city group".
             sapi.ChatCommands.Create("plotsgroupleave").HandleWith(commands.AcceptCommand.onLeavePlotGroup)
               .RequiresPlayer().RequiresPrivilege(Privilege.chat)
-              .WithArgs(parsers.Word("cityName"), parsers.Word("groupName"));
+              .WithArgs(parsers.OptionalWord("cityName"), parsers.OptionalWord("groupName"));
+        }
+        /// <summary>
+        /// Shape, hand-out and removal need CITY_SUBPLOT_MANAGE, checked in SubPlotEditor; members and
+        /// rules are also open to the owner, so no precondition here.
+        /// </summary>
+        public static void RegisterSubPlotCommands(CommandArgumentParsers parsers, ICoreServerAPI sapi)
+        {
+            sapi.ChatCommands.Create("subplot")
+                .RequiresPlayer().RequiresPrivilege(Privilege.chat).WithAlias("sp")
+                    .BeginSub("pos1")
+                        .HandleWith(commands.SubPlotCommand.Pos1)
+                        .WithDesc("Mark the first corner at the block you look at.")
+                    .EndSub()
+                    .BeginSub("pos2")
+                        .HandleWith(commands.SubPlotCommand.Pos2)
+                        .WithDesc("Mark the second corner at the block you look at.")
+                    .EndSub()
+                    .BeginSub("clearsel")
+                        .HandleWith(commands.SubPlotCommand.ClearSelection)
+                        .WithDesc("Forget the marked corners.")
+                    .EndSub()
+                    .BeginSub("wand")
+                        .HandleWith(commands.SubPlotCommand.GiveWand)
+                        .WithDesc("Get the wand: left click marks the first corner, right click the second.")
+                        .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.CITY_SUBPLOT_MANAGE))
+                    .EndSub()
+                    .BeginSub("create")
+                        .HandleWith(commands.SubPlotCommand.Create)
+                        .WithDesc("Make a sub-plot of the marked box.")
+                        .WithArgs(parsers.Word("name"))
+                    .EndSub()
+                    // The name comes last and may be left out: then the sub-plot looked at, stood in,
+                    // or picked with the wand.
+                    .BeginSub("addbox")
+                        .HandleWith(commands.SubPlotCommand.AddBox)
+                        .WithDesc("Add the marked box to a sub-plot.")
+                        .WithArgs(parsers.OptionalWord("name"))
+                    .EndSub()
+                    .BeginSub("cutbox")
+                        .HandleWith(commands.SubPlotCommand.CutBox)
+                        .WithDesc("Take the marked box out of a sub-plot.")
+                        .WithArgs(parsers.OptionalWord("name"))
+                    .EndSub()
+                    .BeginSub("delete")
+                        .HandleWith(commands.SubPlotCommand.Delete)
+                        .WithDesc("Remove a sub-plot.")
+                        .WithArgs(parsers.OptionalWord("name"))
+                    .EndSub()
+                    .BeginSub("setowner")
+                        .HandleWith(commands.SubPlotCommand.SetOwner)
+                        .WithDesc("Give a sub-plot to a citizen.")
+                        .WithArgs(parsers.Word("playerName"), parsers.OptionalWord("name"))
+                    .EndSub()
+                    .BeginSub("clearowner")
+                        .HandleWith(commands.SubPlotCommand.ClearOwner)
+                        .WithDesc("Take a sub-plot back for the city.")
+                        .WithArgs(parsers.OptionalWord("name"))
+                    .EndSub()
+                    .BeginSub("addmember")
+                        .HandleWith(commands.SubPlotCommand.AddMember)
+                        .WithDesc("Share a sub-plot with a player.")
+                        .WithArgs(parsers.Word("playerName"), parsers.OptionalWord("name"))
+                    .EndSub()
+                    .BeginSub("removemember")
+                        .HandleWith(commands.SubPlotCommand.RemoveMember)
+                        .WithDesc("Stop sharing a sub-plot with a player.")
+                        .WithArgs(parsers.Word("playerName"), parsers.OptionalWord("name"))
+                    .EndSub()
+                    .BeginSub("perm")
+                        .HandleWith(commands.SubPlotCommand.SetPerm)
+                        .WithDesc("What a group may do in a sub-plot.")
+                        .WithArgs(parsers.WordRange("group", "citizen", "stranger", "ally", "friend"),
+                                  parsers.WordRange("type", "use", "build", "attack"),
+                                  parsers.WordRange("state", "on", "off"),
+                                  parsers.OptionalWord("name"))
+                    .EndSub()
+                    .BeginSub("group")
+                        .HandleWith(commands.SubPlotCommand.SetGroup)
+                        .WithDesc("Put a sub-plot into a plots group: its members get the group's rights inside.")
+                        .WithArgs(parsers.Word("plotsGroup"), parsers.OptionalWord("name"))
+                    .EndSub()
+                    .BeginSub("ungroup")
+                        .HandleWith(commands.SubPlotCommand.ClearGroup)
+                        .WithDesc("Take a sub-plot out of its plots group.")
+                        .WithArgs(parsers.OptionalWord("name"))
+                    .EndSub()
+                    .BeginSub("preset")
+                        .HandleWith(commands.SubPlotCommand.ApplyPreset)
+                        .WithDesc("Rules in one go: private, shop (use only) or open.")
+                        .WithArgs(parsers.WordRange("preset", "private", "shop", "open"), parsers.OptionalWord("name"))
+                    .EndSub()
+                    .BeginSub("fs")
+                        .HandleWith(commands.SubPlotCommand.SetForSale)
+                        .WithDesc("Put a sub-plot up for sale to citizens.")
+                        .WithArgs(parsers.Int("price"), parsers.OptionalWord("name"))
+                    .EndSub()
+                    .BeginSub("nfs")
+                        .HandleWith(commands.SubPlotCommand.SetNotForSale)
+                        .WithDesc("Take a sub-plot off sale.")
+                        .WithArgs(parsers.OptionalWord("name"))
+                    .EndSub()
+                    .BeginSub("buy")
+                        .HandleWith(commands.SubPlotCommand.Buy)
+                        .WithDesc("Buy a sub-plot of your city that is for sale.")
+                        .WithArgs(parsers.OptionalWord("name"), parsers.OptionalDouble("price"), parsers.OptionalDouble("tax"))
+                    .EndSub()
+                    .BeginSub("giveback")
+                        .HandleWith(commands.SubPlotCommand.GiveBack)
+                        .WithDesc("Give your sub-plot back to the city.")
+                        .WithArgs(parsers.OptionalWord("name"))
+                    .EndSub()
+                    .BeginSub("tax")
+                        .HandleWith(commands.SubPlotCommand.SetTax)
+                        .WithDesc("Daily tax of a sub-plot; a raise waits for the owner's consent.")
+                        .WithArgs(parsers.Double("tax"), parsers.OptionalWord("name"))
+                    .EndSub()
+                    .BeginSub("accepttax")
+                        .HandleWith(commands.SubPlotCommand.AcceptTax)
+                        .WithDesc("Agree to the announced tax raise of your sub-plot.")
+                        .WithArgs(parsers.OptionalWord("name"))
+                    .EndSub()
+                    .BeginSub("info")
+                        .HandleWith(commands.SubPlotCommand.Info)
+                        .WithDesc("About a sub-plot, by name or the one you look at.")
+                        .WithArgs(parsers.OptionalWord("name"))
+                    .EndSub()
+                    .BeginSub("list")
+                        .HandleWith(commands.SubPlotCommand.List)
+                        .WithDesc("Sub-plots of your city.")
+                    .EndSub()
+                ;
         }
         public static void RegisterVillageCommands(CommandArgumentParsers parsers, ICoreServerAPI sapi)
         {
@@ -1009,11 +1143,13 @@ namespace claims.src.commands.register
                    .EndSub()
                    /////////
                    .BeginSub("claim")
+                       .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.PLOT_CLAIM))
                        .HandleWith(commands.PlotCommand.PlotClaim)
                        .WithDesc("Buy plot you current stand on.(Ownership by a player)")
                    .EndSub()
                    /////////
                    .BeginSub("unclaim")
+                       .WithPreCondition((TextCommandCallingArgs args) => BaseCommand.RequirePermission(args, EnumPlayerPermissions.PLOT_UNCLAIM))
                        .HandleWith(commands.PlotCommand.PlotUnclaim)
                        .WithDesc("Unclaim plot you stand on.(Remove ownership)")
                    .EndSub()
@@ -1144,19 +1280,6 @@ namespace claims.src.commands.register
                     .WithArgs(parsers.OptionalInt("plotX"), parsers.OptionalInt("plotZ"))
                 .EndSub()
                    ;
-
-            /*              
-               .BeginSub("innerclaim")
-                   .IgnoreAdditionalArgs()
-                   .HandleWith(commands.plotCommand.processInnerClaim)
-               .EndSub()
-               .BeginSub("plotmsgs")
-                   .WithArgs(parsers.WordRange("state", "0", "1", "2", "3"))
-                   .WithDesc("Show nothing - 0, only msgs - 1, only hud - 2, both - 3")
-                   .HandleWith(commands.plotCommand.plotMsgs)
-               .EndSub()
-              
-               ;*/
         }
         public static void RegisterCAdminCommands(CommandArgumentParsers parsers, ICoreServerAPI sapi)
         {

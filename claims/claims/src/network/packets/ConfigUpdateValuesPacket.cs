@@ -102,6 +102,8 @@ namespace claims.src.network.packets
         public double NEUTRAL_CITY_PAYMENT;
         [ProtoMember(141)]
         public bool NEUTRALITY_ENABLED;
+        [ProtoMember(142)]
+        public Dictionary<string, double> PLOT_TYPE_SET_COSTS = new Dictionary<string, double>();
 
         // City limits
         [ProtoMember(41)]
@@ -285,5 +287,14 @@ namespace claims.src.network.packets
         public string CITY_BANKRUPTCY_MODE = "off";
         [ProtoMember(105)]
         public int CITY_BANKRUPTCY_GRACE_DAYS;
+
+        // Respawn temple choice: the player page shows the temple list only when the server allows
+        // picking one there. With respawn itself off the temple plot type is hidden as well.
+        [ProtoMember(109)]
+        public bool TEMPLE_RESPAWN_ENABLED;
+        [ProtoMember(107)]
+        public bool TEMPLE_RESPAWN_CHOICE_ENABLED;
+        [ProtoMember(108)]
+        public bool TEMPLE_RESPAWN_CHOICE_FROM_GUI;
     }
 }

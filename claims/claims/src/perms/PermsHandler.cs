@@ -11,8 +11,8 @@ namespace claims.src.perms
     {
         /// <summary>
         /// If pvpFlag is ture - you can attack in the Part
-        /// If fireFlag is true - fire can spread
-        /// If blastFlag is true - blast are prevented
+        /// If fireFlag is true - fire can start and spread here regardless of who lit it
+        /// If blastFlag is true - blasts are allowed (the default: bombs work on claimed land)
         /// If noMobSpawnFlag is true - hostile mobs do not spawn here, and the city pays for it
         /// </summary>
         public bool pvpFlag { get; set; }
@@ -65,7 +65,7 @@ namespace claims.src.perms
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.Append("pvp: ").Append(pvpFlag ? "on" : "off").Append("| ");
             stringBuilder.Append("fire: ").Append(fireFlag ? "on" : "off").Append("| ");
-            stringBuilder.Append("blast: ").Append(blastFlag ? "off" : "on").Append("| ");
+            stringBuilder.Append("blast: ").Append(blastFlag ? "on" : "off").Append("| ");
             stringBuilder.Append("nomobspawn: ").Append(noMobSpawnFlag ? "on" : "off").Append("\n");
             stringBuilder.Append("use, build, attack").Append("\n");
 
@@ -100,7 +100,11 @@ namespace claims.src.perms
             fireFlag = copyFrom.fireFlag;
             blastFlag = copyFrom.blastFlag;
             noMobSpawnFlag = copyFrom.noMobSpawnFlag;
-
+            setRights(copyFrom);
+        }
+        /// <summary>Copies the 4 groups' rights only; the plot flags stay as they are.</summary>
+        public void setRights(PermsHandler copyFrom)
+        {
             for(int i = 0;i < CitizenPerms.Length;i++)
             {
                 CitizenPerms[i] = copyFrom.CitizenPerms[i];
@@ -199,7 +203,10 @@ namespace claims.src.perms
                     return false;
             }
 
-            bool newValue = StringFunctions.getBoolFromString(args[2]);
+            if (!TryParseState(args[2], out bool newValue))
+            {
+                return false;
+            }
 
             switch (permGroup)
             {
@@ -254,7 +261,10 @@ namespace claims.src.perms
                     return false;
             }
 
-            bool newValue = StringFunctions.getBoolFromString(newValueStr);
+            if (!TryParseState(newValueStr, out bool newValue))
+            {
+                return false;
+            }
 
             switch (permGroup)
             {
@@ -272,6 +282,12 @@ namespace claims.src.perms
                     break;
             }
             return true;
+        }
+        // Only "on" and "off": anything else turned the right off, so a typo like "onn" did the opposite.
+        private static bool TryParseState(string str, out bool value)
+        {
+            value = str == "on";
+            return str == "on" || str == "off";
         }
         public bool getPerm(PermGroup group, PermType type)
         {
@@ -307,11 +323,20 @@ namespace claims.src.perms
                 ComradePerms[i] = val;
             }
         }
+        /// <summary>
+        /// Loads what <see cref="ToString"/> wrote. The string lists only what is on, so everything
+        /// starts off: pvp, fire and the group rights used to keep whatever the handler held before.
+        /// An unknown right is skipped - it used to throw out of loading the whole plot or city.
+        /// </summary>
         public void setPerms(string loadedStr)
         {
+            pvpFlag = false;
+            fireFlag = false;
             blastFlag = false;
             noMobSpawnFlag = false;
-            foreach(string it in loadedStr.Split(';'))
+            setValueForAll(false);
+            if (permTypeStringToInt == null) initDicts();
+            foreach(string it in (loadedStr ?? "").Split(';'))
             {
                 if (it.Length == 0)
                     continue;
@@ -319,19 +344,21 @@ namespace claims.src.perms
                 if (it.Contains(":"))
                 {
                     string[] parts = it.Split(':');
+                    if (parts.Length < 2 || !permTypeStringToInt.TryGetValue(parts[1], out int type)) continue;
                     switch(parts[0])
                     {
+                        // "stanger" is how ToString has always spelled it in saved rows.
                         case "stanger":
-                            StrangerPerms[permTypeStringToInt[parts[1]]] = true;
+                            StrangerPerms[type] = true;
                             continue;
                         case "citizen":
-                            CitizenPerms[permTypeStringToInt[parts[1]]] = true;
+                            CitizenPerms[type] = true;
                             continue;
                         case "ally":
-                            AlliancePerms[permTypeStringToInt[parts[1]]] = true;
+                            AlliancePerms[type] = true;
                             continue;
                         case "friend":
-                            ComradePerms[permTypeStringToInt[parts[1]]] = true;
+                            ComradePerms[type] = true;
                             continue;
                     }
                 }
@@ -455,8 +482,13 @@ namespace claims.src.perms
             return true;
         }
 
-        public new string ToString()
+        /// <summary>
+        /// The saved form, read back by <see cref="setPerms"/>. An override: declared with new,
+        /// any call through an object reference - string interpolation included - got the type name.
+        /// </summary>
+        public override string ToString()
         {
+            if (permTypeToString == null) initDicts();
             StringBuilder stringBuilder = new StringBuilder();  
             if(pvpFlag)
             {

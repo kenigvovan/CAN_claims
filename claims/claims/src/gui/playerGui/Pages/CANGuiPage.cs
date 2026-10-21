@@ -68,6 +68,28 @@ namespace claims.src.gui.playerGui.Pages
                 bounds);
         }
 
+        /// <summary>Where a page's cards start: under the tab row, aligned to its left edge.</summary>
+        protected static ElementBounds CardAnchor(PageBuildContext ctx)
+        {
+            var anchor = ctx.Line.BelowCopy(0, 14);
+            anchor.Alignment = EnumDialogArea.LeftTop;
+            return anchor;
+        }
+
+        /// <summary>
+        /// Two card columns of equal width under <paramref name="anchor"/>. Pages used to work this
+        /// out each on their own, eight copies of the same three lines.
+        /// </summary>
+        protected static void Columns(ElementBounds anchor, out ElementBounds left, out ElementBounds right)
+        {
+            double width = (anchor.fixedWidth - Widgets.Card.ColumnGap) / 2;
+            left = anchor.FlatCopy();
+            left.fixedWidth = width;
+            right = anchor.FlatCopy();
+            right.fixedWidth = width;
+            right.fixedX += width + Widgets.Card.ColumnGap;
+        }
+
         protected void OpenDialog(EnumUpperWindowSelectedState dialog, Action<DialogArgs> fill = null)
             => Gui.OpenDialog(dialog, fill);
 

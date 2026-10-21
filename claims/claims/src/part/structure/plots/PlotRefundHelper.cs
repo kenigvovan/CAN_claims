@@ -7,14 +7,20 @@ namespace claims.src.part.structure.plots
 {
     public static class PlotRefundHelper
     {
+        // Above 100 every claim/unclaim round would pay out more than was paid in. Clamped here
+        // too, not only on load: /cadmin setcfg changes the config at runtime.
+        private static int RefundPercent => Math.Clamp(claims.config.PLOT_UNCLAIM_REFUND_PERCENT, 0, 100);
+
         public static void RefundOnCityUnclaim(Plot plot)
         {
             if (plot == null) return;
-            if (claims.config.PLOT_UNCLAIM_REFUND_PERCENT <= 0) return;
+            if (RefundPercent <= 0) return;
             if (plot.WasCaptured) return;
+            // 0: claimed before the stamp existed, or claimed for free by a village.
             if (plot.TimeStampClaimed == 0) return;
             if (!plot.hasCity()) return;
-            // Village plots cost nothing to claim, so there is nothing to refund either.
+            // Village plots cost nothing to claim, so there is nothing to refund either. Kept for
+            // plots a village claimed before the stamp was left at 0 for free claims.
             if (plot.getCity().IsVillage()) return;
 
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -23,7 +29,7 @@ namespace claims.src.part.structure.plots
             double basePrice = plot.extraBought
                 ? claims.config.EXTRA_PLOT_COST
                 : claims.config.PLOT_CLAIM_PRICE;
-            double refund = basePrice * claims.config.PLOT_UNCLAIM_REFUND_PERCENT / 100.0;
+            double refund = basePrice * RefundPercent / 100.0;
             if (refund <= 0) return;
 
             claims.economyProvider.Deposit(plot.getCity().MoneyAccountName, (decimal)refund);
@@ -36,7 +42,7 @@ namespace claims.src.part.structure.plots
         public static long CalculatePersonalUnclaimRefund(Plot plot)
         {
             if (plot == null) return 0;
-            if (claims.config.PLOT_UNCLAIM_REFUND_PERCENT <= 0) return 0;
+            if (RefundPercent <= 0) return 0;
             if (plot.WasCaptured) return 0;
             if (plot.TimeStampClaimed == 0) return 0;
             if (plot.lastPaidPrice <= 0) return 0;
@@ -45,7 +51,7 @@ namespace claims.src.part.structure.plots
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             if (now - plot.TimeStampClaimed < claims.config.PLOT_UNCLAIM_REFUND_MIN_AGE_SECONDS) return 0;
 
-            return plot.lastPaidPrice * claims.config.PLOT_UNCLAIM_REFUND_PERCENT / 100;
+            return plot.lastPaidPrice * RefundPercent / 100;
         }
 
         /// <summary>
@@ -54,9 +60,11 @@ namespace claims.src.part.structure.plots
         public static long GetMaxAffordableRefund(Plot plot, long desiredAmount)
         {
             if (desiredAmount <= 0 || plot == null || !plot.hasCity()) return 0;
-            long cityBalance = (long)claims.economyProvider.GetBalance(plot.getCity().MoneyAccountName);
+            // Compared as decimal: without an economy mod the balance is decimal.MaxValue, and
+            // casting that to long threw OverflowException out of /plot unclaim.
+            decimal cityBalance = claims.economyProvider.GetBalance(plot.getCity().MoneyAccountName);
             if (cityBalance <= 0) return 0;
-            return Math.Min(desiredAmount, cityBalance);
+            return cityBalance >= desiredAmount ? desiredAmount : (long)Math.Floor(cityBalance);
         }
 
         /// <summary>

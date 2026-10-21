@@ -22,18 +22,13 @@ namespace claims.src.part.structure
         {
             if (village == null) return;
 
-            int hours = claims.config.VILLAGE_REFOUND_COOLDOWN_HOURS;
-            long until = TimeFunctions.getEpochSeconds() + (long)hours * 3600;
-
             foreach (PlayerInfo citizen in village.getCityCitizens())
             {
-                // Never shorten a penalty the player already carries.
-                if (citizen.VillageCooldownUntil < until) citizen.VillageCooldownUntil = until;
-                citizen.saveToDatabase();
+                SetPlayerCooldown(citizen, abandoned: false);
                 MessageHandler.sendMsgToPlayerInfo(citizen, Lang.Get("claims:village_lost_cooldown",
-                    HoursLeft(citizen.VillageCooldownUntil), claims.config.VILLAGE_SITE_COOLDOWN_HOURS));
+                    HoursLeft(RefoundUntil(citizen)), claims.config.VILLAGE_SITE_COOLDOWN_HOURS));
             }
-            MarkRuins(village, claims.config.VILLAGE_SITE_COOLDOWN_HOURS);
+            MarkRuins(village, abandoned: false);
         }
 
         /// <summary>Cooldown for giving a village up voluntarily - shorter than losing one.</summary>
@@ -41,29 +36,55 @@ namespace claims.src.part.structure
         {
             if (village == null) return;
 
-            int hours = claims.config.VILLAGE_ABANDON_COOLDOWN_HOURS;
-            long until = TimeFunctions.getEpochSeconds() + (long)hours * 3600;
             if (mayor != null)
             {
-                if (mayor.VillageCooldownUntil < until) mayor.VillageCooldownUntil = until;
-                mayor.saveToDatabase();
+                SetPlayerCooldown(mayor, abandoned: true);
                 MessageHandler.sendMsgToPlayerInfo(mayor, Lang.Get("claims:village_lost_cooldown",
-                    HoursLeft(mayor.VillageCooldownUntil), hours));
+                    HoursLeft(RefoundUntil(mayor)), claims.config.VILLAGE_ABANDON_COOLDOWN_HOURS));
             }
-            MarkRuins(village, hours);
+            MarkRuins(village, abandoned: true);
         }
 
-        private static void MarkRuins(City village, int hours)
+        /// <summary>When this player may found a settlement again, by the current config; 0 if never blocked.</summary>
+        public static long RefoundUntil(PlayerInfo player)
         {
-            if (hours <= 0) return;
-            long until = TimeFunctions.getEpochSeconds() + (long)hours * 3600;
+            if (player == null || player.VillageLostAt <= 0) return 0;
+            int hours = player.VillageAbandoned
+                ? claims.config.VILLAGE_ABANDON_COOLDOWN_HOURS
+                : claims.config.VILLAGE_REFOUND_COOLDOWN_HOURS;
+            return player.VillageLostAt + (long)hours * 3600;
+        }
+
+        private static void SetPlayerCooldown(PlayerInfo player, bool abandoned)
+        {
+            long now = TimeFunctions.getEpochSeconds();
+            long previousUntil = RefoundUntil(player);
+            long previousLostAt = player.VillageLostAt;
+            bool previousAbandoned = player.VillageAbandoned;
+
+            player.VillageLostAt = now;
+            player.VillageAbandoned = abandoned;
+            // Never shorten a penalty the player already carries.
+            if (RefoundUntil(player) < previousUntil)
+            {
+                player.VillageLostAt = previousLostAt;
+                player.VillageAbandoned = previousAbandoned;
+            }
+            player.saveToDatabase();
+        }
+
+        private static void MarkRuins(City village, bool abandoned)
+        {
+            VillageRuin fresh = new VillageRuin(TimeFunctions.getEpochSeconds(), abandoned);
+            if (fresh.Until <= fresh.Since) return;
 
             foreach (Plot plot in village.getCityPlots())
             {
                 Vec2i pos = plot.getPos();
-                bool existed = claims.dataStorage.VillageRuins.ContainsKey(pos);
-                claims.dataStorage.VillageRuins[pos] = until;
-                claims.getModInstance().getDatabaseHandler().saveVillageRuin(pos.X, pos.Y, until, existed);
+                bool existed = claims.dataStorage.VillageRuins.TryGetValue(pos, out VillageRuin old);
+                if (existed && old.Until > fresh.Until) continue;
+                claims.dataStorage.VillageRuins[pos] = new VillageRuin(fresh.Since, fresh.Abandoned);
+                claims.getModInstance().getDatabaseHandler().saveVillageRuin(pos.X, pos.Y, fresh.Since, fresh.Abandoned, existed);
             }
         }
 
@@ -75,10 +96,11 @@ namespace claims.src.part.structure
         {
             long now = TimeFunctions.getEpochSeconds();
 
-            if (founder != null && founder.VillageCooldownUntil > now)
+            long refoundUntil = RefoundUntil(founder);
+            if (refoundUntil > now)
             {
                 langKey = "claims:village_refound_cooldown";
-                hoursLeft = HoursLeft(founder.VillageCooldownUntil);
+                hoursLeft = HoursLeft(refoundUntil);
                 return false;
             }
 
@@ -110,11 +132,12 @@ namespace claims.src.part.structure
             int radius = claims.config.VILLAGE_RUIN_RADIUS_PLOTS;
 
             long latest = 0;
-            foreach (KeyValuePair<Vec2i, long> ruin in claims.dataStorage.VillageRuins)
+            foreach (KeyValuePair<Vec2i, VillageRuin> ruin in claims.dataStorage.VillageRuins)
             {
-                if (ruin.Value <= now) continue;
+                long until = ruin.Value.Until;
+                if (until <= now) continue;
                 if (MathClaims.distanceBetween(ruin.Key, plotPos) > radius) continue;
-                if (ruin.Value > latest) latest = ruin.Value;
+                if (until > latest) latest = until;
             }
             return latest;
         }
@@ -124,9 +147,9 @@ namespace claims.src.part.structure
         {
             long now = TimeFunctions.getEpochSeconds();
             List<Vec2i> expired = new List<Vec2i>();
-            foreach (KeyValuePair<Vec2i, long> ruin in claims.dataStorage.VillageRuins)
+            foreach (KeyValuePair<Vec2i, VillageRuin> ruin in claims.dataStorage.VillageRuins)
             {
-                if (ruin.Value <= now) expired.Add(ruin.Key);
+                if (ruin.Value.Until <= now) expired.Add(ruin.Key);
             }
             foreach (Vec2i pos in expired)
             {

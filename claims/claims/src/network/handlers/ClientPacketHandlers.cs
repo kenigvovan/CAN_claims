@@ -49,8 +49,17 @@ namespace claims.src.network.handlers
                         break;
                     case PacketsContentEnum.ALL_CITY_COLORS:
                         Dictionary<string, int> colors = JsonConvert.DeserializeObject<Dictionary<string, int>>(packet.data);
-                        claims.clientDataStorage.ClientSetCityNameToColorDict(colors);
-                        //claims.getModInstance().plotsMapLayer.RedrawPlots();
+                        if (claims.clientDataStorage == null) break;
+                        // Only recoloured cities are redrawn; the border grid picks colours up on its next rebuild.
+                        PlotsMapLayer colorsMapLayer = ResolvePlotsMapLayer();
+                        foreach (string recoloured in claims.clientDataStorage.ClientSetCityNameToColorDict(colors))
+                        {
+                            if (colorsMapLayer == null) break;
+                            foreach (var plotInfo in claims.clientDataStorage.GetCitySavedPlotInfos(recoloured))
+                            {
+                                colorsMapLayer.OnResChunkPixels(plotInfo, recoloured);
+                            }
+                        }
                         break;
                     case PacketsContentEnum.SERVER_UPDATED_ZONES_ANSWER:
                         HashSet<Tuple<Vec2i, long, List<KeyValuePair<Vec2i, SavedPlotInfo>>>> updatedZones = JsonConvert.DeserializeObject<HashSet<Tuple<Vec2i, long, List<KeyValuePair<Vec2i, SavedPlotInfo>>>>>(packet.data);
@@ -70,8 +79,7 @@ namespace claims.src.network.handlers
                             if (claims.clientDataStorage.getClientSavedZone(tup.Item1, out var savedZone) && savedZone != null)
                             {
                                 zonesMapLayer?.clearZoneSavedPlotsFromMap(tup.Item1);
-                                savedZone.savedPlots = zonePlots;
-                                savedZone.timestamp = tup.Item2;
+                                savedZone.ReplacePlots(zonePlots, tup.Item2);
                                 zonesMapLayer?.generateFromZoneSavedPlotsOnMap(tup.Item1);
                             }
                             //no such zone, reset it
@@ -79,6 +87,8 @@ namespace claims.src.network.handlers
                             {
                                 ClientSavedZone newZone = new ClientSavedZone(zonePlots);
                                 newZone.timestamp = tup.Item2;
+                                // Straight from the server and not yet in the local map database.
+                                newZone.Dirty = true;
                                 claims.clientDataStorage.addClientSavedZone(tup.Item1, newZone);
                                 zonesMapLayer?.generateFromZoneSavedPlotsOnMap(tup.Item1);
                             }
@@ -128,10 +138,36 @@ namespace claims.src.network.handlers
                             }
                         }
                         break;
+                    case PacketsContentEnum.AGREE_NEEDED_ON_PLOT_TYPE_SET:
+                        if (claims.CANCityGui != null)
+                        {
+                            string[] parts = (packet.data ?? "").Split('|');
+                            claims.CANCityGui.OpenDialog(gui.playerGui.EnumUpperWindowSelectedState.PLOT_SET_TYPE_CONFIRM, args =>
+                            {
+                                args.First = parts[0];
+                                args.Second = parts.Length > 1 ? parts[1] : "";
+                            });
+                            if (claims.CANCityGui.IsOpened())
+                            {
+                                claims.CANCityGui.BuildMainWindow();
+                            }
+                        }
+                        break;
+                    case PacketsContentEnum.AGREE_NEEDED_ON_PLOT_CLAIM:
+                        if (claims.CANCityGui != null)
+                        {
+                            claims.CANCityGui.OpenDialog(gui.playerGui.EnumUpperWindowSelectedState.PLOT_CLAIM_CONFIRM,
+                                args => args.First = packet.data ?? "");
+                            if (claims.CANCityGui.IsOpened())
+                            {
+                                claims.CANCityGui.BuildMainWindow();
+                            }
+                        }
+                        break;
                     case PacketsContentEnum.OWN_CITY_INFO_ON_JOIN:
                     case PacketsContentEnum.OWN_NEW_CITY_CREATED:
                         var cityValuesDict = JsonConvert.DeserializeObject<Dictionary<EnumPlayerRelatedInfo, string>>(packet.data);
-                        claims.clientDataStorage.clientPlayerInfo = new ClientPlayerInfo();
+                        claims.clientDataStorage.clientPlayerInfo = new ClientPlayerInfo { ReceivedFromServer = true };
 
                         //if player has city there will be name of it and we need to create instance of lists for cityinfo
                         if(cityValuesDict.ContainsKey(EnumPlayerRelatedInfo.CITY_NAME) && claims.clientDataStorage.clientPlayerInfo.CityInfo == null)
@@ -171,6 +207,9 @@ namespace claims.src.network.handlers
                             claims.clientDataStorage.clientPlayerInfo.CityInfo = new CityInfo();
                         }
                         claims.clientDataStorage.clientPlayerInfo.AcceptChangedValues(someUpdateDict);
+                        // The login snapshot comes this way - the player's queued fields are sent as
+                        // a city-params packet, not as PlayerGuiRelatedInfoPacket.
+                        claims.clientDataStorage.clientPlayerInfo.ReceivedFromServer = true;
                         if (claims.CANCityGui?.IsOpened() ?? false)
                         {
                             // Only when the schedule itself moved: a city update of any other kind
@@ -204,6 +243,7 @@ namespace claims.src.network.handlers
             claims.clientChannel.SetMessageHandler<PlayerGuiRelatedInfoPacket>((packet) =>
             {
                 claims.clientDataStorage.clientPlayerInfo.AcceptChangedValues(packet.playerGuiRelatedInfoDictionary);
+                claims.clientDataStorage.clientPlayerInfo.ReceivedFromServer = true;
                 if (claims.CANCityGui?.IsOpened() ?? false)
                 {
                     claims.CANCityGui.BuildMainWindow();
@@ -245,6 +285,7 @@ namespace claims.src.network.handlers
                 claims.config.EXTRA_PLOT_COST = packet.EXTRA_PLOT_COST;
                 claims.config.PLOT_NO_PVP_FLAG_COST = packet.PLOT_NO_PVP_FLAG_COST;
                 claims.config.PLOT_NO_MOBSPAWN_FLAG_COST = packet.PLOT_NO_MOBSPAWN_FLAG_COST;
+                claims.config.PLOT_TYPE_SET_COSTS = packet.PLOT_TYPE_SET_COSTS ?? new Dictionary<string, double>();
 
                 claims.config.RANSOM_FOR_NO_CITIZEN = packet.RANSOM_FOR_NO_CITIZEN;
                 claims.config.RANSOM_FOR_CITIZEN = packet.RANSOM_FOR_CITIZEN;
@@ -296,6 +337,9 @@ namespace claims.src.network.handlers
                     claims.config.CITY_BANKRUPTCY_MODE = packet.CITY_BANKRUPTCY_MODE;
                 if (packet.CITY_BANKRUPTCY_GRACE_DAYS > 0)
                     claims.config.CITY_BANKRUPTCY_GRACE_DAYS = packet.CITY_BANKRUPTCY_GRACE_DAYS;
+                claims.config.TEMPLE_RESPAWN_ENABLED = packet.TEMPLE_RESPAWN_ENABLED;
+                claims.config.TEMPLE_RESPAWN_CHOICE_ENABLED = packet.TEMPLE_RESPAWN_CHOICE_ENABLED;
+                claims.config.TEMPLE_RESPAWN_CHOICE_FROM_GUI = packet.TEMPLE_RESPAWN_CHOICE_FROM_GUI;
                 claims.config.WAR_ULTIMATUM_ENABLED = packet.WAR_ULTIMATUM_ENABLED;
                 if (packet.WAR_ULTIMATUM_EXPIRE_HOURS > 0)
                     claims.config.WAR_ULTIMATUM_EXPIRE_HOURS = packet.WAR_ULTIMATUM_EXPIRE_HOURS;

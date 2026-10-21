@@ -2,12 +2,15 @@
 using System.Collections.Generic;
 using System.Text;
 using claims.src.auxialiry;
+using claims.src.messages;
+using claims.src.part;
 using claims.src.part.structure;
 using Newtonsoft.Json.Linq;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
 using Vintagestory.API.Util;
 using Vintagestory.GameContent;
 
@@ -191,6 +194,69 @@ namespace claims.src.blocks
             }
             
         }
+        /// <summary>
+        /// Right clicking a temple block picks it as the citizen's own respawn point; clicking the
+        /// one already picked drops back to "nearest". Everything else about the block is unchanged.
+        /// </summary>
+        public override bool OnBlockInteractStart(IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel)
+        {
+            // Only the empty hand picks a respawn point - with an item held the block's own behaviours
+            // (wrench orientation, repairing) must keep working. Off = the block behaves as it always
+            // did; saying so on every click would only be noise.
+            if (blockSel == null
+                || byPlayer?.InventoryManager?.ActiveHotbarSlot?.Empty == false
+                || !claims.config.TEMPLE_RESPAWN_ENABLED
+                || !claims.config.TEMPLE_RESPAWN_CHOICE_ENABLED)
+            {
+                return base.OnBlockInteractStart(world, byPlayer, blockSel);
+            }
+
+            // The client has to claim the interaction: vanilla only tells the server about it when
+            // this returned true there (SystemMouseInWorldInteractions.TryBeginUseBlock). Whether the
+            // block really is a temple of the player's own city is decided on the server below.
+            if (world.Side != EnumAppSide.Server || byPlayer is not IServerPlayer serverPlayer)
+            {
+                return true;
+            }
+
+            claims.dataStorage.GetPlot(PlotPosition.fromBlockPos(blockSel.Position), out Plot plot);
+            if (plot == null || plot.Type != PlotType.TEMPLE || !plot.hasCity())
+            {
+                return base.OnBlockInteractStart(world, byPlayer, blockSel);
+            }
+
+            claims.dataStorage.GetPlayerByUid(serverPlayer.PlayerUID, out PlayerInfo playerInfo);
+            City city = plot.getCity();
+            if (playerInfo == null || !playerInfo.hasCity() || playerInfo.City != city)
+            {
+                MessageHandler.sendMsgToPlayer(serverPlayer, Lang.Get("claims:temple_respawn_not_citizen"));
+                return true;
+            }
+
+            Vec2i plotPos = plot.getPos();
+            // A temple plot only holds a respawn point once a temple block was placed on it; a block
+            // that predates the plot type never registered one, so register the clicked one.
+            if (!city.TempleRespawnPoints.ContainsKey(plotPos))
+            {
+                city.AddTempleRespawnPoint(plot, blockSel.Position);
+                city.saveToDatabase();
+            }
+
+            if (RespawnPreference.TryReadTemple(serverPlayer, city.Guid, out Vec2i chosen)
+                && chosen.X == plotPos.X && chosen.Y == plotPos.Y)
+            {
+                RespawnPreference.ClearTemple(serverPlayer);
+                MessageHandler.sendMsgToPlayer(serverPlayer, Lang.Get("claims:temple_respawn_cleared"));
+                return true;
+            }
+
+            RespawnPreference.WriteTemple(serverPlayer, city.Guid, plotPos);
+            Vec3i point = city.TempleRespawnPoints[plotPos];
+            MessageHandler.sendMsgToPlayer(serverPlayer,
+                Lang.Get("claims:temple_respawn_set", point.X, point.Y, point.Z));
+            return true;
+        }
+
         public override ItemStack[] GetDrops(IWorldAccessor world, BlockPos pos, IPlayer byPlayer, float dropQuantityMultiplier = 1)
         {
             ItemStack it = new ItemStack(world.GetBlock(new AssetLocation("claims:cantempleblock")), 1);

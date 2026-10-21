@@ -74,6 +74,9 @@ namespace claims.src.rights
         // Declaring the city neutral. Appended for the same reason as the two blocks above.
         CITY_SET_NEUTRAL,
 
+        // Cutting the city's land into sub-plots, pricing and removing them. Appended likewise.
+        CITY_SUBPLOT_MANAGE,
+
         ALLIANCE_ACCEPT_CONFLICT = 2048, ALLIANCE_REVOKE_CONFLICT, ALLIANCE_DECLARE_CONFLICT, ALLIANCE_DENY_CONFLICT,
         ALLIANCE_OFFER_STOP_CONFLICT, ALLIANCE_ACCEPT_STOP_CONFLICT, ALLIANCE_DENY_STOP_CONFLICT, ALLIANCE_WITHDRAW_MONEY,
         ALLIANCE_DECLARE_UNION, ALLIANCE_REVOKE_UNION, ALLIANCE_ACCEPT_UNION, ALLIANCE_DENY_UNION,

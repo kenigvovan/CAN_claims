@@ -73,8 +73,10 @@ namespace claims.src.events
             double radius = claims.config.WAR_RESPAWN_SAFEZONE_RADIUS;
             double radiusSq = radius * radius;
 
-            foreach (var rp in city.TempleRespawnPoints.Values)
-                if (rp != null && WithinSq(pos, rp, radiusSq)) return true;
+            // Nobody respawns at a temple while the setting is off, so it earns no safe zone either.
+            if (claims.config.TEMPLE_RESPAWN_ENABLED)
+                foreach (var rp in city.TempleRespawnPoints.Values)
+                    if (rp != null && WithinSq(pos, rp, radiusSq)) return true;
             foreach (var camp in city.campPlots)
                 if (camp.PlotDesc is PlotDescCamp pd && pd.AnchorPos != null && WithinSq(pos, pd.AnchorPos, radiusSq)) return true;
             return false;

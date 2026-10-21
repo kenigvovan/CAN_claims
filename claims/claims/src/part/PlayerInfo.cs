@@ -26,9 +26,11 @@ namespace claims.src.part
         public long LastRespawnTimestamp { get; set; } = 0;
         // Bounties placed on this player's head: poster uid -> escrowed amount. Persisted.
         public Dictionary<string, long> BountyPosters { get; set; } = new();
-        // Unix seconds until this player may found a settlement again, set when their village is
-        // gone. Persisted - a restart must not wipe the penalty.
-        public long VillageCooldownUntil { get; set; } = 0;
+        // Unix seconds when this player's village was lost, 0 if never. The refounding cooldown is
+        // counted from here against the current config, so changing the config applies to it.
+        public long VillageLostAt { get; set; } = 0;
+        // Given up voluntarily rather than lost - picks the shorter abandon cooldown.
+        public bool VillageAbandoned { get; set; } = false;
         public long GetBountyTotal() { long s = 0; foreach (var v in BountyPosters.Values) s += v; return s; }
         public City City { get; private set; }     
         public Alliance Alliance { get { return City?.Alliance; } }
@@ -148,7 +150,12 @@ namespace claims.src.part
                     // OnDeactivated, which a plain assignment skips. The city went on respawning
                     // people at a temple that had stopped being one, and the row was written with a
                     // DEFAULT type next to a temple's description.
-                    plot.setNewType(new TextCommandResult(), "default", null, true);
+                    // The city's main plot keeps its type: it belongs to the city, not to the buyer
+                    // (R31 - an older city lost MAIN_CITY_PLOT whenever the citizen who bought it left).
+                    if (plot.Type != PlotType.MAIN_CITY_PLOT && plot.Type != PlotType.VILLAGE_MAIN)
+                    {
+                        plot.setNewType(new TextCommandResult(), "default", null, true);
+                    }
                     plot.saveToDatabase();
                     PlayerPlots.Remove(plot);
                 }
@@ -165,6 +172,7 @@ namespace claims.src.part
                 group.saveToDatabase();
                 PlotsGroupFeeHelper.SendGroupUpdate(group);
             }
+            subplots.SubPlotLifecycle.OnPlayerLeftCity(this, City);
             City.saveToDatabase();
             resetCity();
         }
@@ -242,7 +250,8 @@ namespace claims.src.part
                 if (group.City?.isMayor(this) ?? false) continue;
                 // A group holding no land is not charged - the same condition DayTimer applies, so
                 // the figure shown here matches what is taken.
-                if (!(group.City?.getCityPlots().Any(p => p.hasPlotGroup() && group.Equals(p.getPlotGroup())) ?? false))
+                if (!(group.City?.getCityPlots().Any(p => p.hasPlotGroup() && group.Equals(p.getPlotGroup())) ?? false)
+                    && !claims.dataStorage.AllSubPlots().Any(s => s.Group == group))
                 {
                     continue;
                 }
@@ -251,6 +260,14 @@ namespace claims.src.part
             if (groupsPayment != 0)
             {
                 payments.Add("plotsgroups", (int)groupsPayment);
+            }
+            // Sub-plot taxes, on DayTimer's terms: the city's mayor pays none.
+            double subPlotsPayment = claims.dataStorage.AllSubPlots()
+                .Where(s => this.Equals(s.Owner) && s.Tax > 0 && !(s.City?.isMayor(this) ?? false))
+                .Sum(s => s.Tax);
+            if (subPlotsPayment != 0)
+            {
+                payments.Add("subplots", (int)subPlotsPayment);
             }
             return payments;
         }

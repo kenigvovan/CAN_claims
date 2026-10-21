@@ -119,6 +119,7 @@ namespace claims.src.gui.playerGui.Pages
                 case EnumCityLogEvent.FlagCaptured:
                 case EnumCityLogEvent.TreasuryPillaged:
                 case EnumCityLogEvent.CitizenKicked:
+                case EnumCityLogEvent.CitizenEvictedUnpaid:
                 case EnumCityLogEvent.UnionBroken:
                     return ClaimsColors.Danger;
 
@@ -126,7 +127,12 @@ namespace claims.src.gui.playerGui.Pages
                 case EnumCityLogEvent.AllianceJoined:
                 case EnumCityLogEvent.UnionFormed:
                 case EnumCityLogEvent.PlotBoughtFromCity:
+                case EnumCityLogEvent.SubPlotSold:
                     return ClaimsColors.Success;
+
+                case EnumCityLogEvent.SubPlotRemoved:
+                case EnumCityLogEvent.SubPlotTaxRefused:
+                    return ClaimsColors.Warning;
 
                 case EnumCityLogEvent.CitizenLeft:
                 case EnumCityLogEvent.AllianceLeft:
@@ -169,6 +175,14 @@ namespace claims.src.gui.playerGui.Pages
                 case EnumCityLogEvent.PlotBoughtFromCity: return Lang.Get("claims:log-plot-bought-from-city", args0, args1, args2);
                 case EnumCityLogEvent.CityBankrupt: return Lang.Get("claims:log-city-bankrupt", args0);
                 case EnumCityLogEvent.CityAbsorbed: return Lang.Get("claims:log-city-absorbed", args0, args1);
+                case EnumCityLogEvent.CitizenEvictedUnpaid: return Lang.Get("claims:log-citizen-evicted-unpaid", args0, args1);
+                case EnumCityLogEvent.SubPlotCreated: return Lang.Get("claims:log-subplot-created", args0);
+                case EnumCityLogEvent.SubPlotRemoved: return Lang.Get("claims:log-subplot-removed", args0);
+                case EnumCityLogEvent.SubPlotSold: return Lang.Get("claims:log-subplot-sold", args0, args1, args2);
+                case EnumCityLogEvent.SubPlotGiven: return Lang.Get("claims:log-subplot-given", args0, args1);
+                case EnumCityLogEvent.SubPlotReturned: return Lang.Get("claims:log-subplot-returned", args0, args1);
+                case EnumCityLogEvent.SubPlotTaxChanged: return Lang.Get("claims:log-subplot-tax-changed", args0, args1);
+                case EnumCityLogEvent.SubPlotTaxRefused: return Lang.Get("claims:log-subplot-tax-refused", args0, args1, args2);
                 default: return entry.EventType.ToString();
             }
         }

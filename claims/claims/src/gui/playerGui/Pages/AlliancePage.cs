@@ -26,12 +26,7 @@ namespace claims.src.gui.playerGui.Pages
             var lineBounds = ctx.Line;
             var alliance = Player.AllianceInfo;
 
-            var anchor = ctx.Line.BelowCopy(0, 14);
-            anchor.Alignment = EnumDialogArea.LeftTop;
-            double columnWidth = (lineBounds.fixedWidth - Card.ColumnGap) / 2;
-
-            var column = anchor.FlatCopy();
-            column.fixedWidth = columnWidth;
+            Columns(CardAnchor(ctx), out ElementBounds column, out ElementBounds rightColumn);
             double y = column.fixedY;
 
             // --- the alliance itself ---
@@ -57,7 +52,7 @@ namespace claims.src.gui.playerGui.Pages
             {
                 // The arms go at the right end of the action strip, as on the city page.
                 var emblemBounds = slot.FlatCopy().WithFixedSize(Card.ActionSize, Card.ActionSize);
-                emblemBounds.fixedX = column.fixedX + columnWidth - Card.Padding - Card.ActionSize;
+                emblemBounds.fixedX = column.fixedX + column.fixedWidth - Card.Padding - Card.ActionSize;
                 compo.AddEmblem(alliance.Emblem, emblemBounds, "alliance-emblem");
                 Tooltip.Add(compo, Lang.Get("claims:gui-emblem-alliance-tooltip"), emblemBounds, "tip-alliance-emblem");
 
@@ -102,9 +97,6 @@ namespace claims.src.gui.playerGui.Pages
             }
 
             // --- right column: member cities and who the alliance stands with ---
-            var rightColumn = anchor.FlatCopy();
-            rightColumn.fixedWidth = columnWidth;
-            rightColumn.fixedX += columnWidth + Card.ColumnGap;
             double rightY = rightColumn.fixedY;
 
             var cityRows = new List<CardRow>
@@ -218,25 +210,15 @@ namespace claims.src.gui.playerGui.Pages
             var column = anchor.FlatCopy();
             column.fixedWidth = lineBounds.fixedWidth;
 
-            const double hintHeight = 40;
-            double foundHeight = Card.HeaderHeight + hintHeight + Card.ActionGap + Card.ActionSize + Card.Padding * 2;
-
-            ElementBounds inner = Card.Frame(compo, column, column.fixedY, foundHeight,
-                Lang.Get("claims:gui-alliance-section-found"));
-
-            var hintBounds = inner.FlatCopy().WithFixedHeight(hintHeight);
-            compo.AddStaticText(Lang.Get("claims:gui-alliance-found-hint"),
-                CairoFont.WhiteSmallText().WithColor(ClaimsColors.Label), hintBounds, "alliance-found-hint");
-
-            var slot = inner.FlatCopy().WithFixedSize(Card.ActionSize, Card.ActionSize);
-            slot.fixedY = inner.fixedY + hintHeight + Card.ActionGap;
-
-            var actions = new ActionRow(compo, slot);
-            actions.Add("claims:queen-crown", "createAlliance",
-                on => { if (on) OpenDialog(EnumUpperWindowSelectedState.NEW_ALLIANCE_NEED_NAME); },
-                Lang.Get("claims:gui-new-alliance-button"));
-
-            double belowCard = column.fixedY + foundHeight + Card.Gap;
+            // Measured, not a fixed 40: a longer translation of the hint ran under the button.
+            double belowCard = Card.Note(compo, column, column.fixedY, Lang.Get("claims:gui-alliance-section-found"),
+                Lang.Get("claims:gui-alliance-found-hint"), slot =>
+            {
+                var actions = new ActionRow(compo, slot);
+                actions.Add("claims:queen-crown", "createAlliance",
+                    on => { if (on) OpenDialog(EnumUpperWindowSelectedState.NEW_ALLIANCE_NEED_NAME); },
+                    Lang.Get("claims:gui-new-alliance-button"));
+            });
 
             // Only a city can be invited into an alliance, so a player without one has no list to
             // show - reading CityInfo unchecked here threw instead.

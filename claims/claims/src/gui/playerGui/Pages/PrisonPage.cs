@@ -15,8 +15,8 @@ namespace claims.src.gui.playerGui.Pages
     /// </summary>
     public sealed class PrisonPage : CANGuiPage
     {
-        /// <summary>How many criminals the card names before falling back to a count.</summary>
-        private const int CriminalsShown = 4;
+        /// <summary>Rows of the criminals card, the last one "and N more" when there are more.</summary>
+        private const int CriminalsShown = 5;
 
         protected override bool IsAvailable(out string reasonLangKey)
         {
@@ -31,68 +31,35 @@ namespace claims.src.gui.playerGui.Pages
             var city = Player.CityInfo;
             var cells = city.PrisonCells;
 
-            var anchor = ctx.Line.BelowCopy(0, 14);
-            anchor.Alignment = EnumDialogArea.LeftTop;
-
-            double columnWidth = (ctx.Line.fixedWidth - Card.ColumnGap) / 2;
+            var anchor = CardAnchor(ctx);
+            Columns(anchor, out ElementBounds leftColumn, out ElementBounds rightColumn);
 
             // --- left: who the city has convicted ---
-            var leftColumn = anchor.FlatCopy();
-            leftColumn.fixedWidth = columnWidth;
 
-            var criminalRows = new List<CardRow>
-            {
-                new CardRow
+            // The names themselves, each with its own ✕: the list is consulted to check whether a
+            // given player is on it, and pardoning one used to mean picking the name again in a form.
+            bool canRemove = perms.HasPermission(EnumPlayerPermissions.CITY_REMOVE_CRIMINAL)
+                          || perms.HasPermission(EnumPlayerPermissions.CITY_CRIMINAL_ALL);
+            var criminalItems = city.Criminals
+                .Select(name => new ItemRow
                 {
-                    Label = Lang.Get("claims:gui-prison-label-criminals"),
-                    Value = city.Criminals.Count.ToString(),
-                    Tooltip = city.Criminals.Count > 0
-                        ? StringFunctions.concatStringsWithDelim(city.Criminals, ',')
-                        : null,
-                    ValueColor = city.Criminals.Count > 0 ? ClaimsColors.Danger : null,
-                    Key = "criminals"
-                }
-            };
+                    Label = StringFunctions.replaceUnderscore(name),
+                    Key = "criminal-" + name,
+                    Buttons = canRemove
+                        ? new List<RowButton>
+                        {
+                            new RowButton("claims:cancel",
+                                () => OpenDialog(EnumUpperWindowSelectedState.REMOVE_CRIMINAL_CONFIRM, a => a.Text = name),
+                                Lang.Get("claims:gui-prison-remove-criminal-tooltip"))
+                        }
+                        : new List<RowButton>()
+                })
+                .ToList();
+            bool criminalsCut = criminalItems.Count > CriminalsShown;
 
-            // The names themselves, not just how many there are: the list is consulted to check
-            // whether a given player is on it, and hovering a number to find out is no way to do it.
-            if (city.Criminals.Count == 0)
-            {
-                criminalRows.Add(new CardRow
-                {
-                    Label = Lang.Get("claims:gui-prison-no-criminals"),
-                    Value = "",
-                    Key = "no-criminals"
-                });
-            }
-            else
-            {
-                int shown = 0;
-                foreach (string criminal in city.Criminals.Take(CriminalsShown))
-                {
-                    criminalRows.Add(new CardRow
-                    {
-                        Label = StringFunctions.replaceUnderscore(criminal),
-                        Value = "",
-                        Key = "criminal" + shown++
-                    });
-                }
-
-                int rest = city.Criminals.Count - CriminalsShown;
-                if (rest > 0)
-                {
-                    criminalRows.Add(new CardRow
-                    {
-                        Label = Lang.Get("claims:gui-prison-cell-more", rest),
-                        Value = "",
-                        Tooltip = StringFunctions.concatStringsWithDelim(city.Criminals, ','),
-                        Key = "criminals-rest"
-                    });
-                }
-            }
-
-            double leftY = Card.RowsWithActions(compo, leftColumn, leftColumn.fixedY,
-                Lang.Get("claims:gui-prison-section-criminals"), criminalRows, slot =>
+            double leftY = Card.Items(compo, leftColumn, leftColumn.fixedY,
+                Lang.Get("claims:gui-prison-section-criminals") + " (" + city.Criminals.Count + ")",
+                Card.Limit(criminalItems, CriminalsShown), Lang.Get("claims:gui-prison-no-criminals"), slot =>
             {
                 var actions = new ActionRow(compo, slot);
 
@@ -104,8 +71,8 @@ namespace claims.src.gui.playerGui.Pages
                         Lang.Get("claims:gui-prison-add-criminal-tooltip"));
                 }
 
-                if (perms.HasPermission(EnumPlayerPermissions.CITY_REMOVE_CRIMINAL)
-                 || perms.HasPermission(EnumPlayerPermissions.CITY_CRIMINAL_ALL))
+                // For the names a cut list leaves out; the rows carry their own ✕.
+                if (canRemove && criminalsCut)
                 {
                     actions.Add("line", "removeCriminal",
                         on => { if (on) OpenDialog(EnumUpperWindowSelectedState.REMOVE_CRIMINAL); },
@@ -114,9 +81,6 @@ namespace claims.src.gui.playerGui.Pages
             });
 
             // --- right: the prison itself ---
-            var rightColumn = anchor.FlatCopy();
-            rightColumn.fixedWidth = columnWidth;
-            rightColumn.fixedX += columnWidth + Card.ColumnGap;
 
             int occupiedCells = cells.Count(cell => cell.Players.Count > 0);
             int inmates = cells.Sum(cell => cell.Players.Count);

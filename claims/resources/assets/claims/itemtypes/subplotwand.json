@@ -1,0 +1,28 @@
+{
+	code: "subplotwand",
+	class: "CANSubPlotWand",
+	shape: { base: "game:item/stick" },
+	textures: {
+		oak: { base: "game:block/wood/debarked/oak" }
+	},
+	creativeinventory: { "general": ["*"], "items": ["*"] },
+	maxstacksize: 1,
+	guiTransform: {
+		translation: { x: 0, y: 0, z: 0 },
+		rotation: { x: -53, y: 91, z: -9 },
+		origin: { x: 0.58, y: 0.19, z: 0.44 },
+		scale: 2.11
+	},
+	tpHandTransform: {
+		translation: { x: -1.22, y: 0.06, z: -0.89 },
+		rotation: { x: -6, y: 30, z: 18 },
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 0.59
+	},
+	groundTransform: {
+		translation: { x: 0, y: 0, z: 0 },
+		rotation: { x: 0, y: 0, z: 0 },
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 5
+	}
+}

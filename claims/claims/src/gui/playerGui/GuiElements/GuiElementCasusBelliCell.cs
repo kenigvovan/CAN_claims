@@ -27,9 +27,9 @@ namespace claims.src.gui.playerGui.GuiElements
         /// <summary>Declaring war happens on its own button, never by clicking the row.</summary>
         protected override bool UseHoverHighlights => false;
 
-        private static readonly double[] LabelColor = new double[] { 0.70, 0.70, 0.70, 1.0 };
-        private static readonly double[] WarningColor = new double[] { 0.93, 0.75, 0.30, 1.0 };
-        private static readonly double[] DangerColor = new double[] { 0.90, 0.35, 0.30, 1.0 };
+        private static readonly double[] LabelColor = Widgets.ClaimsColors.Label;
+        private static readonly double[] WarningColor = Widgets.ClaimsColors.Warning;
+        private static readonly double[] DangerColor = Widgets.ClaimsColors.Danger;
 
         public GuiElementCasusBelliCell(ICoreClientAPI capi, ClientCasusBelliCellElement cell, ElementBounds bounds)
             : base(capi, bounds)

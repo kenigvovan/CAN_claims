@@ -59,9 +59,8 @@ namespace claims.src
         public ClientPlayerInfo clientPlayerInfo { get; set; }
         public List<Conflict> conflicts { get; } = new List<Conflict>();
         public Dictionary<string, WarTime> WarsTimes { get; } = new Dictionary<string, WarTime>();
-        // Plot positions where a village fell -> unix seconds until anything may be founded there
-        // again. Persisted in VILLAGERUINS.
-        public Dictionary<Vec2i, long> VillageRuins { get; } = new Dictionary<Vec2i, long>();
+        // Plot positions where a village is gone. Persisted in VILLAGERUINS.
+        public Dictionary<Vec2i, VillageRuin> VillageRuins { get; } = new Dictionary<Vec2i, VillageRuin>();
         // Completed inter-city plot sales, oldest first. Persisted in PLOTSALES.
         public List<PlotSaleRecord> PlotSaleHistory { get; } = new List<PlotSaleRecord>();
         // Land auction lots by guid, open and closed alike. Persisted in AUCTIONS/AUCTIONBIDS.
@@ -380,10 +379,16 @@ namespace claims.src
         {
             return tmpColors;
         }
-        public bool ClientSetCityNameToColorDict(Dictionary<string, int> val)
+        /// <summary>Replaces the known city colours; returns the cities whose colour changed.</summary>
+        public List<string> ClientSetCityNameToColorDict(Dictionary<string, int> val)
         {
-            partToColor = val;
-            return true;
+            var incoming = val ?? new Dictionary<string, int>();
+            var changed = incoming
+                .Where(pair => partToColor.TryGetValue(pair.Key, out int old) && old != pair.Value)
+                .Select(pair => pair.Key)
+                .ToList();
+            partToColor = incoming;
+            return changed;
         }
 
         /// <summary>Party guid (city or alliance) -> coat of arms, for everyone who has one. Client side only.</summary>
@@ -471,6 +476,92 @@ namespace claims.src
         public bool removePlotsGroup(string guid)
         {
             return guidToCityPlotsGroupDict.TryRemove(guid, out _);
+        }
+
+        /*==============================================================================================*/
+        /*=====================================SUBPLOTS=================================================*/
+        /*==============================================================================================*/
+        // A sub-plot by guid, and the sub-plots reaching into each chunk - what an access check and a
+        // packet for one chunk look up. Kept in step by Add/Remove/Reshape only.
+        private readonly Dictionary<string, subplots.SubPlot> guidToSubPlot = new Dictionary<string, subplots.SubPlot>();
+        private readonly Dictionary<Vec2i, List<subplots.SubPlot>> chunkToSubPlots = new Dictionary<Vec2i, List<subplots.SubPlot>>();
+
+        public IEnumerable<subplots.SubPlot> AllSubPlots() => guidToSubPlot.Values;
+
+        public bool TryGetSubPlot(string guid, out subplots.SubPlot subPlot) => guidToSubPlot.TryGetValue(guid ?? "", out subPlot);
+
+        public bool AddSubPlot(subplots.SubPlot subPlot)
+        {
+            if (subPlot?.Shape == null || !guidToSubPlot.TryAdd(subPlot.Guid, subPlot)) return false;
+            Index(subPlot);
+            subplots.SubPlotSync.MarkChanged(subPlot);
+            return true;
+        }
+
+        public bool RemoveSubPlot(subplots.SubPlot subPlot)
+        {
+            if (subPlot == null || !guidToSubPlot.Remove(subPlot.Guid)) return false;
+            Unindex(subPlot);
+            subplots.SubPlotSync.MarkChanged(subPlot);
+            return true;
+        }
+
+        /// <summary>Gives a sub-plot a new shape, moving it between the chunks it reaches.</summary>
+        public void ReshapeSubPlot(subplots.SubPlot subPlot, subplots.geometry.BoxShape shape)
+        {
+            var old = subPlot.Shape;
+            Unindex(subPlot);
+            subPlot.Shape = shape;
+            Index(subPlot);
+            subplots.SubPlotSync.MarkChanged(old);
+            subplots.SubPlotSync.MarkChanged(subPlot);
+        }
+
+        /// <summary>The sub-plots reaching into a chunk; empty, never null.</summary>
+        public IReadOnlyList<subplots.SubPlot> SubPlotsInChunk(Vec2i chunk)
+        {
+            return chunk != null && chunkToSubPlots.TryGetValue(chunk, out var list) ? list : Array.Empty<subplots.SubPlot>();
+        }
+
+        /// <summary>The sub-plot holding this block, if any.</summary>
+        public bool TryGetSubPlotAt(int x, int y, int z, out subplots.SubPlot subPlot)
+        {
+            int size = PlotPosition.plotSize;
+            subPlot = null;
+            if (size <= 0) return false;
+            foreach (var candidate in SubPlotsInChunk(new Vec2i(x / size, z / size)))
+            {
+                if (candidate.Shape.Contains(x, y, z))
+                {
+                    subPlot = candidate;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void Index(subplots.SubPlot subPlot)
+        {
+            foreach (Vec2i chunk in subPlot.Chunks(PlotPosition.plotSize))
+            {
+                if (!chunkToSubPlots.TryGetValue(chunk, out var list))
+                {
+                    list = new List<subplots.SubPlot>();
+                    chunkToSubPlots[chunk] = list;
+                }
+                if (!list.Contains(subPlot)) list.Add(subPlot);
+            }
+        }
+
+        private void Unindex(subplots.SubPlot subPlot)
+        {
+            if (subPlot.Shape == null) return;
+            foreach (Vec2i chunk in subPlot.Chunks(PlotPosition.plotSize))
+            {
+                if (!chunkToSubPlots.TryGetValue(chunk, out var list)) continue;
+                list.Remove(subPlot);
+                if (list.Count == 0) chunkToSubPlots.Remove(chunk);
+            }
         }
 
         /*==============================================================================================*/
@@ -586,7 +677,7 @@ namespace claims.src
             else
             {
                 ClientSavedPlotsInZones.Add(new Vec2i(vec.X / claims.config.ZONE_PLOTS_LENGTH, vec.Y / claims.config.ZONE_PLOTS_LENGTH),
-                    new ClientSavedZone(new Dictionary<Vec2i, SavedPlotInfo> { { vec.Copy(), savedPlotInfo } }));
+                    new ClientSavedZone(new Dictionary<Vec2i, SavedPlotInfo> { { vec.Copy(), savedPlotInfo } }) { Dirty = true });
             }
         }
         public bool removeClientSavedPlots(Vec2i vec)
@@ -632,16 +723,18 @@ namespace claims.src
                     {
                         foreach (var it in savedPlot.clientInnerClaims)
                         {
+                            // A sub-plot's piece in this chunk, or a tavern room: its flags, already
+                            // worked out for this player by the server, win over the chunk's.
                             if (it.Contains(blockSel.Position))
                             {
                                 // use, build,  attackAnimals
                                 if (accessType == EnumBlockAccessFlags.BuildOrBreak)
                                 {
-                                    return it.permissionsFlags[1];
+                                    return it.May(1);
                                 }
                                 else if (accessType == EnumBlockAccessFlags.Use)
                                 {
-                                    return it.permissionsFlags[0];
+                                    return it.May(0);
                                 }
                                 return false;
                             }

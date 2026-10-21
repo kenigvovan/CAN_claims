@@ -59,6 +59,22 @@ namespace claims.src.part.structure.plots
                 { "temple", "claims:temple_plot_type" }
             };
         }
+        /// <summary>Whether the host switched this plot type off: the config list, plus the temple
+        /// while temple respawn is off - a temple plot has no other use, so let nobody buy one.</summary>
+        public static bool IsTypeDisabled(string code)
+        {
+            if (claims.config == null) return false;
+            if (claims.config.DISABLED_PLOT_TYPES?.Contains(code) == true) return true;
+            return code == "temple" && !claims.config.TEMPLE_RESPAWN_ENABLED;
+        }
+
+        /// <summary>One-time price of setting a plot to this type, see Config.PLOT_TYPE_SET_COSTS.</summary>
+        public static double GetSetCost(string code)
+        {
+            if (claims.config?.PLOT_TYPE_SET_COSTS == null) return 0;
+            return claims.config.PLOT_TYPE_SET_COSTS.TryGetValue(code, out double cost) ? cost : 0;
+        }
+
         public static void ClearDicts()
         {
             dictPlotTypes = null;

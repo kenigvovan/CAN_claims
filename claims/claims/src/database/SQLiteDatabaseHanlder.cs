@@ -28,6 +28,11 @@ namespace claims.src.database
         ConcurrentQueue<QuerryInfo> queryQueue = new ConcurrentQueue<QuerryInfo>();
         private SqliteConnection SqliteConnection = null;
 
+        /// <summary>Transaction the current <see cref="drainQueue"/> runs in, null outside of it.
+        /// Microsoft.Data.Sqlite refuses a command whose Transaction differs from the connection's
+        /// open one, so every command executed during a drain attaches this.</summary>
+        private SqliteTransaction drainTransaction = null;
+
         public SQLiteDatabaseHanlder() : base()
         {
             string folderPath;
@@ -64,33 +69,72 @@ namespace claims.src.database
         /// </summary>
         private void drainQueue()
         {
-            while (!this.queryQueue.IsEmpty)
-            {
-                this.queryQueue.TryDequeue(out QuerryInfo query);
+            if (this.queryQueue.IsEmpty) return;
 
-                // The queue is drained inside the 0.5s server timer: an unhandled SQLite exception
-                // here (e.g. a UNIQUE violation from saving a brand-new row twice before the flush)
-                // kills the tick, which in single player closes the whole game without a message.
-                // Losing one write and logging it is strictly better than that.
-                try
+            if (this.SqliteConnection.State != System.Data.ConnectionState.Open)
+            {
+                SqliteConnection.Open();
+            }
+
+            // One transaction for the whole batch. Outside of one, SQLite commits - and fsyncs - after
+            // every statement, and a radius claim queues several hundred of them: that was a multi-
+            // second stall of the server thread half a second after the command.
+            try
+            {
+                drainTransaction = SqliteConnection.BeginTransaction();
+            }
+            catch (Exception e)
+            {
+                claims.sapi?.World?.Logger?.Error("[claims] database transaction could not start: {0}", e);
+                drainTransaction = null;
+            }
+
+            try
+            {
+                while (!this.queryQueue.IsEmpty)
                 {
-                    if (query.action == QuerryType.UPDATE)
+                    this.queryQueue.TryDequeue(out QuerryInfo query);
+
+                    // The queue is drained inside the 0.5s server timer: an unhandled SQLite exception
+                    // here (e.g. a UNIQUE violation from saving a brand-new row twice before the flush)
+                    // kills the tick, which in single player closes the whole game without a message.
+                    // Losing one write and logging it is strictly better than that.
+                    try
                     {
-                        updateDatabase(query);
+                        if (query.action == QuerryType.UPDATE)
+                        {
+                            updateDatabase(query);
+                        }
+                        else if (query.action == QuerryType.INSERT)
+                        {
+                            insertToDatabase(query);
+                        }
+                        else
+                        {
+                            deleteFromDatabase(query);
+                        }
                     }
-                    else if (query.action == QuerryType.INSERT)
+                    catch (Exception e)
                     {
-                        insertToDatabase(query);
-                    }
-                    else
-                    {
-                        deleteFromDatabase(query);
+                        claims.sapi?.World?.Logger?.Error("[claims] database {0} on table {1} failed: {2}",
+                            query.action, query.targetTable, e);
                     }
                 }
-                catch (Exception e)
+            }
+            finally
+            {
+                if (drainTransaction != null)
                 {
-                    claims.sapi?.World?.Logger?.Error("[claims] database {0} on table {1} failed: {2}",
-                        query.action, query.targetTable, e);
+                    try
+                    {
+                        drainTransaction.Commit();
+                    }
+                    catch (Exception e)
+                    {
+                        claims.sapi?.World?.Logger?.Error("[claims] database commit failed: {0}", e);
+                    }
+                    drainTransaction.Dispose();
+                    drainTransaction = null;
                 }
             }
         }
@@ -173,6 +217,14 @@ namespace claims.src.database
 
                 //VILLAGE RUINS
                 command = new SqliteCommand(SQLiteTables.villageRuinsTable, SqliteConnection);
+                command.ExecuteNonQuery();
+
+                //PENDING INVITATIONS
+                command = new SqliteCommand(SQLiteTables.invitationsTable, SqliteConnection);
+                command.ExecuteNonQuery();
+
+                //SUBPLOTS
+                command = new SqliteCommand(SQLiteTables.subPlotsTable, SqliteConnection);
                 command.ExecuteNonQuery();
 
                 //INTER-CITY PLOT SALES
@@ -300,9 +352,16 @@ namespace claims.src.database
                     // Settlement tier (CITIES). 0 = city, so existing rows stay cities.
                     TryAlterTable("SELECT tier FROM CITIES LIMIT 1",
                         "ALTER TABLE CITIES ADD COLUMN tier INTEGER DEFAULT 0");
-                    // Refounding cooldown after a village is gone (PLAYERS).
-                    TryAlterTable("SELECT villagecooldown FROM PLAYERS LIMIT 1",
-                        "ALTER TABLE PLAYERS ADD COLUMN villagecooldown INTEGER DEFAULT 0");
+                    // Refounding cooldown after a village is gone (PLAYERS), and when/how the ruins
+                    // appeared (VILLAGERUINS). The old villagecooldown/until columns are left unused.
+                    TryAlterTable("SELECT villagelostat FROM PLAYERS LIMIT 1",
+                        "ALTER TABLE PLAYERS ADD COLUMN villagelostat INTEGER DEFAULT 0");
+                    TryAlterTable("SELECT villageabandoned FROM PLAYERS LIMIT 1",
+                        "ALTER TABLE PLAYERS ADD COLUMN villageabandoned INTEGER DEFAULT 0");
+                    TryAlterTable("SELECT since FROM VILLAGERUINS LIMIT 1",
+                        "ALTER TABLE VILLAGERUINS ADD COLUMN since INTEGER DEFAULT 0");
+                    TryAlterTable("SELECT abandoned FROM VILLAGERUINS LIMIT 1",
+                        "ALTER TABLE VILLAGERUINS ADD COLUMN abandoned INTEGER DEFAULT 0");
                     // An announced plots group fee raise, waiting for the members to accept it.
                     TryAlterTable("SELECT pendingfee FROM CITYPLOTSGROUP LIMIT 1",
                         "ALTER TABLE CITYPLOTSGROUP ADD COLUMN pendingfee INTEGER DEFAULT -1");
@@ -336,6 +395,17 @@ namespace claims.src.database
                         "ALTER TABLE WORLDS ADD COLUMN mobspawneverywhere INTEGER DEFAULT 0");
                     TryAlterTable("SELECT mobspawnforbidden FROM WORLDS LIMIT 1",
                         "ALTER TABLE WORLDS ADD COLUMN mobspawnforbidden INTEGER DEFAULT 0");
+                    // Daily tax of a sub-plot's owner (SUBPLOTS).
+                    TryAlterTable("SELECT tax FROM SUBPLOTS LIMIT 1",
+                        "ALTER TABLE SUBPLOTS ADD COLUMN tax REAL DEFAULT 0");
+                    TryAlterTable("SELECT pendingtax FROM SUBPLOTS LIMIT 1",
+                        "ALTER TABLE SUBPLOTS ADD COLUMN pendingtax REAL DEFAULT -1");
+                    TryAlterTable("SELECT pendingtaxat FROM SUBPLOTS LIMIT 1",
+                        "ALTER TABLE SUBPLOTS ADD COLUMN pendingtaxat INTEGER DEFAULT 0");
+                    TryAlterTable("SELECT pendingtaxaccepted FROM SUBPLOTS LIMIT 1",
+                        "ALTER TABLE SUBPLOTS ADD COLUMN pendingtaxaccepted INTEGER DEFAULT 0");
+                    TryAlterTable("SELECT plotsgroup FROM SUBPLOTS LIMIT 1",
+                        "ALTER TABLE SUBPLOTS ADD COLUMN plotsgroup TEXT DEFAULT \"\"");
         }
 
         /// <summary>
@@ -373,7 +443,7 @@ namespace claims.src.database
 
 
             int rowsChanged;
-            using (var cmd = new SqliteCommand(querryString, SqliteConnection))
+            using (var cmd = new SqliteCommand(querryString, SqliteConnection, drainTransaction))
             {
                 foreach (var pair in querry.parameters)
                 {
@@ -381,10 +451,13 @@ namespace claims.src.database
                 }
                 rowsChanged = cmd.ExecuteNonQuery();
             }
+            // No row yet: insert it right here, in queue order. Re-queued at the end instead, a second
+            // save of the same new row also missed, the oldest INSERT won and the later ones failed on
+            // the key - the latest state was lost, and a DELETE queued in between was undone.
             if (rowsChanged == 0)
             {
                 querry.action = QuerryType.INSERT;
-                queryQueue.Enqueue(querry);
+                insertToDatabase(querry);
             }
             return true;
         }
@@ -400,7 +473,7 @@ namespace claims.src.database
 
 
             int rowsChanged;
-            using (var cmd = new SqliteCommand(querryString, SqliteConnection))
+            using (var cmd = new SqliteCommand(querryString, SqliteConnection, drainTransaction))
             {
                 foreach (var pair in querry.parameters)
                 {
@@ -424,7 +497,7 @@ namespace claims.src.database
 
 
             int rowsChanged;
-            using (var cmd = new SqliteCommand(querryString, SqliteConnection))
+            using (var cmd = new SqliteCommand(querryString, SqliteConnection, drainTransaction))
             {
                 foreach (var pair in querry.parameters)
                 {
@@ -491,7 +564,8 @@ namespace claims.src.database
                 { "@prisonguid", player.isPrisoned() ? player.PrisonedIn.Guid : "" },
                 { "@prisonhoursleft", player.PrisonHoursLeft },
                 { "@bounties", JsonConvert.SerializeObject(player.BountyPosters) },
-                { "@villagecooldown", player.VillageCooldownUntil }
+                { "@villagelostat", player.VillageLostAt },
+                { "@villageabandoned", player.VillageAbandoned ? 1 : 0 }
 
             };
 
@@ -558,10 +632,13 @@ namespace claims.src.database
                 if (b.Length != 0)
                     tmp.BountyPosters = JsonConvert.DeserializeObject<Dictionary<string, long>>(b) ?? new();
             }
-            if (it.Table.Columns.Contains("villagecooldown")
-                && long.TryParse(it["villagecooldown"].ToString(), out long villageCooldown))
+            // The old villagecooldown column held a ready end time that the config could not change;
+            // it is ignored, so cooldowns from older builds are dropped once.
+            if (it.Table.Columns.Contains("villagelostat")
+                && long.TryParse(it["villagelostat"].ToString(), out long villageLostAt))
             {
-                tmp.VillageCooldownUntil = villageCooldown;
+                tmp.VillageLostAt = villageLostAt;
+                tmp.VillageAbandoned = it["villageabandoned"].ToString() == "1";
             }
             return true;
         }
@@ -577,7 +654,14 @@ namespace claims.src.database
                 DataTable dt = readFromDatabase("SELECT * FROM PLAYERS", new Dictionary<string, object> { });
                 foreach (DataRow it in dt.Rows)
                 {
-                    loadPlayerInfo(it);
+                    try
+                    {
+                        loadPlayerInfo(it);
+                    }
+                    catch (Exception e)
+                    {
+                        MessageHandler.sendErrorMsg("loadAllPlayersInfo: player " + it["uid"] + " skipped: " + e.Message);
+                    }
                 }
             }
             catch (SqliteException e)
@@ -887,7 +971,14 @@ namespace claims.src.database
                 DataTable dt = readFromDatabase("SELECT * FROM CITIES", new Dictionary<string, object> { });
                 foreach (DataRow it in dt.Rows)
                 {
-                    loadCity(it);
+                    try
+                    {
+                        loadCity(it);
+                    }
+                    catch (Exception e)
+                    {
+                        MessageHandler.sendErrorMsg("loadAllCitis: city " + it["guid"] + " skipped: " + e.Message);
+                    }
                 }
             }
             catch (SqliteException e)
@@ -1025,7 +1116,15 @@ namespace claims.src.database
                 DataTable dt = readFromDatabase("SELECT * FROM PLOTS", new Dictionary<string, object> { });
                 foreach (DataRow it in dt.Rows)
                 {
-                    loadPlot(it);
+                    // One bad row costs that plot, not every plot after it.
+                    try
+                    {
+                        loadPlot(it);
+                    }
+                    catch (Exception e)
+                    {
+                        MessageHandler.sendErrorMsg("loadAllPlots: plot at " + it["x"] + " " + it["z"] + " skipped: " + e.Message);
+                    }
                 }
             }
             catch (SqliteException e)
@@ -1126,40 +1225,25 @@ namespace claims.src.database
 
         public override bool makeBackup(string fileName)
         {
-            string cs;
-            if (claims.config.FULL_BACKUP_FOLDER.Length == 0)
-            {
-                string folderPath = @"" + Path.Combine(GamePaths.DataPath, claims.config.BACKUP_FOLDER_NAME_IN_DATA_FOLDER);
-                if(!Directory.Exists(folderPath))
-                {
-                    Directory.CreateDirectory(folderPath);
-                }
-
-                if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-                {
-                    cs = @"" + Path.Combine(folderPath, fileName);
-                }
-                else
-                {
-                    cs = @"" + Path.Combine(folderPath, fileName);
-                }
-
-            }
-            else
-            {
-                cs = Path.Combine(claims.config.PATH_TO_DB_AND_JSON_FILES, fileName);
-            }
             try
             {
-                using (SqliteConnection dest = new SqliteConnection(@"Data Source=" + cs))
+                // FULL_BACKUP_FOLDER used to be read only as a switch: the copy then went to
+                // PATH_TO_DB_AND_JSON_FILES, next to the database it was meant to protect.
+                string folderPath = timers.BackupScheduler.BackupFolder();
+                Directory.CreateDirectory(folderPath);
+                // Queued writes are not in the file yet; without this the copy missed up to half a
+                // second of changes.
+                drainQueue();
+                // No pooling: a pooled connection keeps the backup file open after the copy.
+                using (SqliteConnection dest = new SqliteConnection("Data Source=" + Path.Combine(folderPath, fileName) + ";Pooling=False"))
                 {
                     dest.Open();
                     this.getConnection().BackupDatabase(dest, "main", "main");
                 }
             }
-            catch (SqliteException e)
+            catch (Exception e)
             {
-                MessageHandler.sendErrorMsg("[claims] makeBackup::" + fileName + " - " + e.Message);
+                claims.sapi?.Logger.Error("[claims] Backup {0} failed: {1}", fileName, e);
                 return false;
             }
             return true;
@@ -1724,13 +1808,16 @@ namespace claims.src.database
                 {
                     int x = int.Parse(it["x"].ToString());
                     int z = int.Parse(it["z"].ToString());
-                    long until = long.Parse(it["until"].ToString());
-                    if (until <= now)
+                    // since = 0: a row from an older build, which stored only the end time. Dropped
+                    // like the player cooldowns of that build.
+                    long since = long.Parse(it["since"].ToString());
+                    VillageRuin ruin = new VillageRuin(since, it["abandoned"].ToString() == "1");
+                    if (since <= 0 || ruin.Until <= now)
                     {
                         expired.Add(new Vec2i(x, z));
                         continue;
                     }
-                    claims.dataStorage.VillageRuins[new Vec2i(x, z)] = until;
+                    claims.dataStorage.VillageRuins[new Vec2i(x, z)] = ruin;
                 }
             }
             catch (SqliteException e)
@@ -1747,10 +1834,10 @@ namespace claims.src.database
             return true;
         }
 
-        public override bool saveVillageRuin(int x, int z, long until, bool update = true)
+        public override bool saveVillageRuin(int x, int z, long since, bool abandoned, bool update = true)
         {
             queryQueue.Enqueue(new QuerryInfo("VILLAGERUINS", update ? QuerryType.UPDATE : QuerryType.INSERT,
-                new Dictionary<string, object> { { "@x", x }, { "@z", z }, { "@until", until } }));
+                new Dictionary<string, object> { { "@x", x }, { "@z", z }, { "@since", since }, { "@abandoned", abandoned ? 1 : 0 } }));
             return true;
         }
 
@@ -1758,6 +1845,193 @@ namespace claims.src.database
         {
             queryQueue.Enqueue(new QuerryInfo("VILLAGERUINS", QuerryType.DELETE,
                 new Dictionary<string, object> { { "@x", x }, { "@z", z } }));
+            return true;
+        }
+
+        public override bool saveSubPlot(subplots.SubPlot subPlot, bool update = true)
+        {
+            queryQueue.Enqueue(new QuerryInfo("SUBPLOTS", update ? QuerryType.UPDATE : QuerryType.INSERT, new Dictionary<string, object>
+            {
+                { "@guid", subPlot.Guid },
+                { "@name", subPlot.GetPartName() },
+                { "@city", subPlot.City?.Guid ?? "" },
+                { "@owner", subPlot.Owner?.Guid ?? "" },
+                { "@boxes", subplots.SubPlot.FormatBoxes(subPlot.Shape) },
+                { "@price", subPlot.Price },
+                { "@perms", subPlot.PermsHandler.ToString() },
+                { "@members", string.Join(";", subPlot.Members.Select(m => m.Guid)) },
+                { "@timestampclaimed", subPlot.TimeStampClaimed },
+                { "@lastpaidprice", subPlot.LastPaidPrice },
+                { "@tax", subPlot.Tax },
+                { "@pendingtax", subPlot.PendingTax },
+                { "@pendingtaxat", subPlot.PendingTaxAt },
+                { "@pendingtaxaccepted", subPlot.PendingTaxAccepted ? 1 : 0 },
+                { "@plotsgroup", subPlot.Group?.Guid ?? "" }
+            }));
+            return true;
+        }
+
+        public override bool deleteSubPlot(subplots.SubPlot subPlot)
+        {
+            queryQueue.Enqueue(new QuerryInfo("SUBPLOTS", QuerryType.DELETE,
+                new Dictionary<string, object> { { "@guid", subPlot.Guid } }));
+            return true;
+        }
+
+        /// <summary>
+        /// Puts the sub-plots back. A row whose city is gone or whose boxes do not read as a shape is
+        /// logged and skipped, not deleted: a hand-edited row should be fixable, not lost.
+        /// </summary>
+        public override bool loadSubPlots()
+        {
+            MessageHandler.sendDebugMsg("Load all SUBPLOTS.");
+            if (this.SqliteConnection.State != System.Data.ConnectionState.Open)
+            {
+                SqliteConnection.Open();
+            }
+            try
+            {
+                DataTable dt = readFromDatabase("SELECT * FROM SUBPLOTS", new Dictionary<string, object> { });
+                foreach (DataRow it in dt.Rows)
+                {
+                    string guid = it["guid"].ToString();
+                    if (!claims.dataStorage.getCityByGUID(it["city"].ToString(), out City city))
+                    {
+                        claims.sapi.Logger.Warning("[claims] sub-plot {0}: city {1} not found, skipped", guid, it["city"]);
+                        continue;
+                    }
+                    var shape = subplots.SubPlot.ParseBoxes(it["boxes"].ToString());
+                    if (shape == null)
+                    {
+                        claims.sapi.Logger.Warning("[claims] sub-plot {0}: boxes '{1}' are not a valid shape, skipped", guid, it["boxes"]);
+                        continue;
+                    }
+                    var subPlot = new subplots.SubPlot(it["name"].ToString(), guid) { City = city, Shape = shape };
+                    string owner = it["owner"].ToString();
+                    if (owner.Length > 0 && claims.dataStorage.GetPlayerByUid(owner, out PlayerInfo ownerInfo))
+                    {
+                        subPlot.Owner = ownerInfo;
+                    }
+                    foreach (string uid in it["members"].ToString().Split(';'))
+                    {
+                        if (uid.Length > 0 && claims.dataStorage.GetPlayerByUid(uid, out PlayerInfo member)) subPlot.Members.Add(member);
+                    }
+                    subPlot.PermsHandler.setPerms(it["perms"].ToString());
+                    // Through IConvertible, not ToString: a REAL comes back as a double, and its text
+                    // in a comma-decimal locale would not parse back.
+                    subPlot.Price = ReadNumber(it["price"], -1);
+                    subPlot.TimeStampClaimed = (long)ReadNumber(it["timestampclaimed"], 0);
+                    subPlot.LastPaidPrice = (long)ReadNumber(it["lastpaidprice"], 0);
+                    subPlot.Tax = dt.Columns.Contains("tax") ? ReadNumber(it["tax"], 0) : 0;
+                    if (dt.Columns.Contains("pendingtax"))
+                    {
+                        subPlot.PendingTax = ReadNumber(it["pendingtax"], -1);
+                        subPlot.PendingTaxAt = (long)ReadNumber(it["pendingtaxat"], 0);
+                        subPlot.PendingTaxAccepted = ReadNumber(it["pendingtaxaccepted"], 0) != 0;
+                    }
+                    // A group of another city, or one that is gone, is dropped: its members would get
+                    // rights on ground that is not the group's city's.
+                    string groupGuid = dt.Columns.Contains("plotsgroup") ? it["plotsgroup"].ToString() : "";
+                    if (groupGuid.Length > 0 && claims.dataStorage.getPlotsGroup(groupGuid, out var group) && city.Equals(group.City))
+                    {
+                        subPlot.Group = group;
+                    }
+                    claims.dataStorage.AddSubPlot(subPlot);
+                }
+            }
+            catch (Exception e)
+            {
+                claims.sapi.Logger.Error("[claims] loadSubPlots: {0}", e);
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>A numeric column read without going through text; NULL or garbage gives the fallback.</summary>
+        private static double ReadNumber(object value, double fallback)
+        {
+            if (value == null || value is DBNull) return fallback;
+            try
+            {
+                return value is IConvertible c ? c.ToDouble(CultureInfo.InvariantCulture) : fallback;
+            }
+            catch (FormatException)
+            {
+                return fallback;
+            }
+            catch (InvalidCastException)
+            {
+                return fallback;
+            }
+        }
+
+        public override bool saveInvitation(string kind, string senderGuid, string receiverGuid, long expiresAt)
+        {
+            // As an update, which inserts a missing row: inviting again over a row left by an
+            // invitation that ran out while the server was down rewrites it instead of failing.
+            queryQueue.Enqueue(new QuerryInfo("INVITATIONS", QuerryType.UPDATE, new Dictionary<string, object>
+            {
+                { "@kind", kind }, { "@sender", senderGuid }, { "@receiver", receiverGuid }, { "@expires", expiresAt }
+            }));
+            return true;
+        }
+
+        public override bool deleteInvitation(string kind, string senderGuid, string receiverGuid)
+        {
+            queryQueue.Enqueue(new QuerryInfo("INVITATIONS", QuerryType.DELETE, new Dictionary<string, object>
+            {
+                { "@kind", kind }, { "@sender", senderGuid }, { "@receiver", receiverGuid }
+            }));
+            return true;
+        }
+
+        /// <summary>
+        /// Puts back the invitations that were waiting when the server stopped. One that ran out
+        /// meanwhile, or whose city or player is gone, or whose player has found a city since, is
+        /// deleted instead: it could not be accepted anyway.
+        /// </summary>
+        public override bool loadInvitations()
+        {
+            MessageHandler.sendDebugMsg("Load all INVITATIONS.");
+            if (this.SqliteConnection.State != System.Data.ConnectionState.Open)
+            {
+                SqliteConnection.Open();
+            }
+            long now = TimeFunctions.getEpochSeconds();
+            var stale = new List<(string Kind, string Sender, string Receiver)>();
+            try
+            {
+                DataTable dt = readFromDatabase("SELECT * FROM INVITATIONS", new Dictionary<string, object> { });
+                foreach (DataRow it in dt.Rows)
+                {
+                    string kind = it["kind"].ToString();
+                    string sender = it["sender"].ToString();
+                    string receiver = it["receiver"].ToString();
+                    long.TryParse(it["expires"].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out long expires);
+
+                    bool restored = expires > now
+                        && kind == delayed.invitations.CityInvitation.Kind
+                        && claims.dataStorage.getCityByGUID(sender, out City city)
+                        && claims.dataStorage.GetPlayerByUid(receiver, out PlayerInfo player)
+                        && !player.hasCity()
+                        && delayed.invitations.InvitationHandler.Restore(
+                            delayed.invitations.CityInvitation.Create(city, player, expires));
+                    if (!restored)
+                    {
+                        stale.Add((kind, sender, receiver));
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                claims.sapi.Logger.Error("[claims] loadInvitations: {0}", e);
+                return false;
+            }
+
+            foreach (var row in stale)
+            {
+                deleteInvitation(row.Kind, row.Sender, row.Receiver);
+            }
             return true;
         }
 

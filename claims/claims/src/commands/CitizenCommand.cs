@@ -139,6 +139,8 @@ namespace claims.src.commands
             }
             if (playerInfo.addComrade(targetPlayer))
             {
+                // Same as on removal: a cached refusal would outlive the new friendship.
+                targetPlayer.PlayerCache.Reset();
                 UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, gui.playerGui.structures.EnumPlayerRelatedInfo.FRIENDS);
                 MessageHandler.sendMsgToPlayerInfo(targetPlayer, Lang.Get("claims:player_added_you_as_comrade", playerInfo.getPartNameReplaceUnder()));
                 playerInfo.saveToDatabase();
@@ -167,6 +169,8 @@ namespace claims.src.commands
             }
             if (playerInfo.removeComrade(targetPlayer))
             {
+                // Their rights on the owner's plots changed: drop the cached answers (PR1).
+                targetPlayer.PlayerCache.Reset();
                 UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, gui.playerGui.structures.EnumPlayerRelatedInfo.FRIENDS);
                 MessageHandler.sendMsgToPlayerInfo(targetPlayer, Lang.Get("claims:you_were_remove_from_comrades_by", playerInfo.getPartNameReplaceUnder()));
                 playerInfo.saveToDatabase();

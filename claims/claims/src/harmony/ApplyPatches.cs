@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Vintagestory.API.Common;
+using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.Common;
 using Vintagestory.GameContent;
@@ -91,6 +92,10 @@ namespace claims.src.harmony
 
             TryPatch(harmonyInstance, typeof(Vintagestory.GameContent.BEBehaviorBurning).GetMethod("TrySpreadTo"),
                 "BEBehaviorBurning.TrySpreadTo", prefix: "Prefix_On_TrySpreadFireAllDirs");
+
+            TryPatch(harmonyInstance, typeof(Vintagestory.GameContent.BEBehaviorBurning).GetMethod("OnFirePlaced",
+                new[] { typeof(BlockPos), typeof(BlockPos), typeof(string), typeof(bool) }),
+                "BEBehaviorBurning.OnFirePlaced", prefix: "Prefix_On_FirePlaced");
 
             TryPatch(harmonyInstance, typeof(Vintagestory.GameContent.BlockEntityBomb).GetMethod("HasPermissionToUse"),
                 "BlockEntityBomb.HasPermissionToUse", prefix: "Prefix_HasPermissionToUse");

@@ -79,10 +79,10 @@ namespace claims.src.gui.playerGui.GuiElements
 
         // ---- contents ----
 
-        private static readonly double[] WarningColor = new double[] { 0.93, 0.75, 0.30, 1.0 };
-        private static readonly double[] DangerColor = new double[] { 0.90, 0.35, 0.30, 1.0 };
-        private static readonly double[] PeacefulColor = new double[] { 0.45, 0.85, 0.50, 1.0 };
-        private static readonly double[] LabelColor = new double[] { 0.70, 0.70, 0.70, 1.0 };
+        private static readonly double[] WarningColor = Widgets.ClaimsColors.Warning;
+        private static readonly double[] DangerColor = Widgets.ClaimsColors.Danger;
+        private static readonly double[] PeacefulColor = Widgets.ClaimsColors.Success;
+        private static readonly double[] LabelColor = Widgets.ClaimsColors.Label;
 
         private CairoFont PurposeFont()
         {

@@ -102,7 +102,9 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("");
             }
-            if (args.LastArg == null)
+            string first = (string)args.Parsers[0].GetValue();
+            string second = (string)args.Parsers[1].GetValue();
+            if (string.IsNullOrEmpty(first) && string.IsNullOrEmpty(second))
             {
                 List<string> names = new List<string>
                 {
@@ -117,12 +119,11 @@ namespace claims.src.commands
                 }
                 return TextCommandResult.Success(StringFunctions.makeFeasibleStringFromNames(names, ','));
             }
-            if(!((string)args.LastArg).Contains(":"))
+            if (!TryParseGroupRef(first, second, out string rawCity, out string rawGroup))
             {
                 return TextCommandResult.Success("claims:wrong_format");
             }
-            string[] splitted = ((string)args.LastArg).Split(':');
-            string cityName = Filter.filterName(splitted[0]);
+            string cityName = Filter.filterName(rawCity);
             if (cityName.Length == 0 || !Filter.checkForBlockedNames(cityName))
             {
                 return TextCommandResult.Success("claims:no_city_found");
@@ -134,7 +135,7 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Success("claims:no_city_found");
             }
-            string groupName = Filter.filterName(splitted[1]);
+            string groupName = Filter.filterName(rawGroup);
             if (groupName.Length == 0 || !Filter.checkForBlockedNames(groupName))
             {
                 return TextCommandResult.Success("claims:invlaid_group_name");
@@ -165,6 +166,28 @@ namespace claims.src.commands
             UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid,
                 gui.playerGui.structures.EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT);
             return SuccessWithParams("claims:you_left_plotsgroup", new object[] { searchedGroup.GetPartName() });
+        }
+        /// <summary>
+        /// "city group" or "city:group", the second being how the no-argument listing prints a
+        /// group. The command was registered with two words while this read one "city:group", so
+        /// "city group" was always the wrong format and "city:group" was missing its second word.
+        /// </summary>
+        public static bool TryParseGroupRef(string first, string second, out string city, out string group)
+        {
+            city = null;
+            group = null;
+            if (string.IsNullOrEmpty(first)) return false;
+            if (string.IsNullOrEmpty(second))
+            {
+                string[] parts = first.Split(':');
+                if (parts.Length != 2 || parts[0].Length == 0 || parts[1].Length == 0) return false;
+                city = parts[0];
+                group = parts[1];
+                return true;
+            }
+            city = first;
+            group = second;
+            return true;
         }
         public static TextCommandResult AcceptToAllianceInvitation(TextCommandCallingArgs args)
         {

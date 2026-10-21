@@ -13,7 +13,10 @@ namespace claims.src
         //ECONOMY
         public double NEW_CITY_COST = 25;
         public double CITY_NAME_CHANGE_COST = 20;
-        public bool DELETE_CITIZEN_FROM_CITY_IF_DOESN_PAY_FEE = true;
+        // Off by default: a citizen who cannot pay loses their plots and groups but stays. An
+        // eviction runs in the day cycle, often at server start, and looked to players like the
+        // mod dropping citizens on relog. Servers with an existing config keep their own value.
+        public bool DELETE_CITIZEN_FROM_CITY_IF_DOESN_PAY_FEE = false;
         public bool DELETE_CITY_IF_DOESN_PAY_FEE = false;
 
         public double CITY_BASE_CARE = 2;
@@ -61,6 +64,8 @@ namespace claims.src
         public int BACKUP_CHECK_TIMER_SECONDS = 10;
         public string BACKUP_FOLDER_NAME_IN_DATA_FOLDER = "claims_backups";
         public string FULL_BACKUP_FOLDER = "";
+        // Scheduled backups kept; older ones are deleted. 0 (default) keeps all. The manual backup is never deleted.
+        public int BACKUP_KEEP_COUNT = 0;
         //CHAT
         // When true: players are auto-added to the mod chat group on join and mod
         // notifications go to that group's dedicated chat tab.
@@ -109,7 +114,10 @@ namespace claims.src
         public bool PVP_DURING_PART_OF_THE_DAY = true;
         public float PVP_TIME_START = 19;
         public float PVP_TIME_END = 6;
+        //Real seconds. HOUR_NEW_DAY_START is the offset of the cycle grid from the Unix epoch.
         public long MOD_DAY_DURATION_IN_SECONDS = 86400;
+        //How many cycles that passed while the server was off are charged on start; 0 - none.
+        public int DAY_MAX_MISSED_CYCLES_TO_PROCESS = 1;
         public int SECONDS_ALLIANCE_RENAME_COOLDOWN { get; set; } = 10;
         public int CHECK_FOR_WAR_TO_START_EVERY_N_SECONDS = 600;
         public int CHECK_FOR_WAR_TO_START_CALLBACK_EVERY_N_SECONDS = 960;
@@ -375,6 +383,8 @@ namespace claims.src
         public double RANSOM_FOR_MAYOR = 20;
         public double RANSOM_FOR_LEADER = 30;
         public double RANSOM_FOR_CHIEF = 5;
+        // Hour timer runs a prisoner serves before release; at least 1.
+        public int PRISON_SENTENCE_HOURS = 3;
 
         //DEFENCE
         public HashSet<string> PROTECTED_MOB_TYPES = new HashSet<string>();
@@ -383,6 +393,16 @@ namespace claims.src
         // e.g. "temple", "summon", "tavern", "farm"). Empty = everything allowed.
         // Admins bypass this via /cadmin. Synced to clients to hide disabled types in the GUI.
         public HashSet<string> DISABLED_PLOT_TYPES = new HashSet<string>();
+
+        //RESPAWN
+        // Off = temples are no respawn points at all: citizens fall back to a war camp or the vanilla
+        // spawn, and the temple plot type is switched off with them, since it does nothing else.
+        public bool TEMPLE_RESPAWN_ENABLED = true;
+        // Whether a citizen may pick which of their city's temples they respawn at (right click the
+        // temple block). Off = the server always uses the nearest respawn point, as before.
+        public bool TEMPLE_RESPAWN_CHOICE_ENABLED = true;
+        // Off = the choice is only made by right clicking a temple block, the GUI list is hidden.
+        public bool TEMPLE_RESPAWN_CHOICE_FROM_GUI = true;
 
         //PLOTS COST
         public double DEFAULT_PLOT_COST = 1;
@@ -400,6 +420,13 @@ namespace claims.src
         public double MAIN_CITYPLOT_COST = 3;
         public double PRISON_PLOT_COST = 3;
         public double EXTRA_PLOT_COST = 30;
+        //One-time price of setting a plot to a type, by type code; "camp" is the price of founding a camp.
+        //Daily upkeep of a type is *_PLOT_COST above.
+        public Dictionary<string, double> PLOT_TYPE_SET_COSTS = new Dictionary<string, double>
+        {
+            { "default", 0 }, { "temple", 5 }, { "farm", 6 }, { "orchard", 6 }, { "summon", 7 },
+            { "embassy", 8 }, { "tavern", 9 }, { "prison", 3 }, { "camp", 4 }
+        };
 
         //REFUND ON UNCLAIM
         public int PLOT_UNCLAIM_REFUND_PERCENT = 0;
@@ -448,8 +475,21 @@ namespace claims.src
         public int SEND_CITY_UPDATES_EVERY_N_SECONDS = 60;
         public int CHECK_FOR_PACKETS_TO_SEND_EVERY_N_SECONDS = 1;
 
-        //INNER CLAIM
-        public int MAX_NUMBER_INNER_CLAIM_PER_TAVERN = 3;
+        //SUB-PLOTS
+        // Boxes one sub-plot may be made of: each one goes to every client near it, chunk by chunk.
+        public int SUBPLOT_MAX_BOXES = 8;
+        // Limits; 0 switches one off. Volume in blocks: 32×32×32 by default, a large house.
+        public int SUBPLOT_MAX_PER_CITY = 50;
+        public int SUBPLOT_MAX_OWNED_PER_PLAYER = 3;
+        public int SUBPLOT_MAX_VOLUME = 32768;
+        public int SUBPLOT_MIN_VOLUME = 8;
+        /// <summary>Ceiling for a sub-plot's daily tax.</summary>
+        public double MAX_SUBPLOT_TAX = 50;
+        /// <summary>
+        /// How long a raised sub-plot tax waits. The owner keeps paying the old one and has to accept
+        /// the new one; one who does not gives the sub-plot back when the wait is over. 0 applies at once.
+        /// </summary>
+        public int SUBPLOT_TAX_RAISE_DELAY_HOURS = 24;
 
         //CLAIMSEXT
         public bool NEW_CITY_ONLY_BY_ITEM = false;
@@ -490,6 +530,37 @@ namespace claims.src
         public HashSet<string> ROLE_CODES_WITH_ADMIN_RIGHTS = new HashSet<string>();
         public bool CLAIM_LIMITERS_ENABLED = false;
         public Dictionary<string, Dictionary<string, object>> CLAIM_LIMITERS = new Dictionary<string, Dictionary<string, object>>();
+        /// <summary>One-time changes already made to this file, by id; see <see cref="ApplyConfigMigrations"/>.</summary>
+        public HashSet<string> APPLIED_CONFIG_MIGRATIONS = new HashSet<string>();
+
+        // Changes an existing claims.json needs once: new defaults the file was written without.
+        // Run once each, so a host who later undoes one keeps it undone.
+        private static readonly (string Id, Action<Config> Apply)[] ConfigMigrations =
+        {
+            ("subplot-manage-available", c => c.AVAILABLE_CITY_PERMISSIONS?.Add(EnumPlayerPermissions.CITY_SUBPLOT_MANAGE)),
+        };
+
+        /// <summary>Applies the migrations this file has not had yet; true when any was applied.</summary>
+        public static bool ApplyConfigMigrations(Config config)
+        {
+            config.APPLIED_CONFIG_MIGRATIONS ??= new HashSet<string>();
+            bool changed = false;
+            foreach (var (id, apply) in ConfigMigrations)
+            {
+                if (!config.APPLIED_CONFIG_MIGRATIONS.Add(id)) continue;
+                apply(config);
+                changed = true;
+            }
+            return changed;
+        }
+
+        /// <summary>A fresh file has the current defaults already: every migration counts as done.</summary>
+        public static void MarkConfigMigrationsApplied(Config config)
+        {
+            config.APPLIED_CONFIG_MIGRATIONS ??= new HashSet<string>();
+            foreach (var (id, _) in ConfigMigrations) config.APPLIED_CONFIG_MIGRATIONS.Add(id);
+        }
+
         public static void AddDefaultValues()
         {
             claims.config.DAYTIME_MAKE_BACKUP = new HashSet<string> { "6:00", "12:00", "18:00", "0:00" };
@@ -498,6 +569,7 @@ namespace claims.src
         "violet"};
             claims.config.BLOCKED_COMMANDS_PRISON = new HashSet<string> { "summon" };
             claims.config.AVAILABLE_CITY_PERMISSIONS = new() { EnumPlayerPermissions.CITY_CLAIM_PLOT,
+            EnumPlayerPermissions.CITY_SUBPLOT_MANAGE,
             EnumPlayerPermissions.CITY_UNCLAIM_PLOT,
             EnumPlayerPermissions.CITY_BUY_EXTRA_PLOT,
             EnumPlayerPermissions.CITY_BUY_OUTPOST,
@@ -602,7 +674,9 @@ namespace claims.src
                 {
                     ValidatePlotSize(api);
                     ValidateAuctionSettings(api);
+                    ValidateRefundSettings(api);
                     FillEmptyVillageLists();
+                    ApplyConfigMigrations(claims.config);
                     api.StoreModConfig<Config>(claims.config, "claims.json");
                     return;
                 }
@@ -610,18 +684,21 @@ namespace claims.src
                 {
                     claims.config = new Config();
                     AddDefaultValues();
+                    MarkConfigMigrationsApplied(claims.config);
                     ValidatePlotSize(api);
                     api.StoreModConfig<Config>(claims.config, "claims.json");
                 }
             }
-            catch
+            catch (Exception e)
             {
+                // Not written back: storing the defaults here wiped every setting of a file that
+                // only had a typo in it.
+                api.Logger.Error("[claims] claims.json could not be read, defaults are used until it is fixed: " + e.Message);
                 if (claims.config == null)
                 {
                     claims.config = new Config();
                     AddDefaultValues();
                     ValidatePlotSize(api);
-                    api.StoreModConfig<Config>(claims.config, "claims.json");
                     return;
                 }
             }
@@ -664,6 +741,18 @@ namespace claims.src
             if (claims.config.AUCTION_EXTEND_WINDOW_SECONDS < 0) claims.config.AUCTION_EXTEND_WINDOW_SECONDS = 0;
             if (claims.config.CITY_BANKRUPTCY_GRACE_DAYS < 1) claims.config.CITY_BANKRUPTCY_GRACE_DAYS = 1;
             if (claims.config.CITY_BANKRUPTCY_START_PRICE_FACTOR < 0) claims.config.CITY_BANKRUPTCY_START_PRICE_FACTOR = 0;
+        }
+
+        /// <summary>Above 100% a claim/unclaim round pays out more than was paid in.</summary>
+        private static void ValidateRefundSettings(ICoreAPI api)
+        {
+            int percent = claims.config.PLOT_UNCLAIM_REFUND_PERCENT;
+            if (percent < 0 || percent > 100)
+            {
+                claims.config.PLOT_UNCLAIM_REFUND_PERCENT = Math.Clamp(percent, 0, 100);
+                api.Logger.Error("[claims] PLOT_UNCLAIM_REFUND_PERCENT={0} is outside 0..100, using {1}.",
+                    percent, claims.config.PLOT_UNCLAIM_REFUND_PERCENT);
+            }
         }
 
         private static void ValidatePlotSize(ICoreAPI api)

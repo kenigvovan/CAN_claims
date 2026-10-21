@@ -13,6 +13,11 @@ namespace claims.src.commands
             return TextCommandResult.Success(Lang.Get("claims:economy_not_configured"));
         }
 
+        private static TextCommandResult UseBankChest()
+        {
+            return TextCommandResult.Success(Lang.Get("claims:economy_use_bank_chest"));
+        }
+
         public static TextCommandResult OnCityBalance(TextCommandCallingArgs args)
         {
             IServerPlayer player = args.Caller.Player as IServerPlayer;
@@ -47,6 +52,10 @@ namespace claims.src.commands
             {
                 return WalletUnavailable();
             }
+            if (!claims.economyProvider.SupportsRemoteCoinTransfer)
+            {
+                return UseBankChest();
+            }
 
             if(claims.economyProvider.GetBalance(playerInfo.City.MoneyAccountName) < toWithdraw)
             {
@@ -78,14 +87,30 @@ namespace claims.src.commands
             {
                 return WalletUnavailable();
             }
+            if (!claims.economyProvider.SupportsRemoteCoinTransfer)
+            {
+                return UseBankChest();
+            }
 
             decimal collectedValue = claims.economyProvider.TakeCoinItemsFromActiveSlot(player);
-            if(collectedValue > 0)
+            if (collectedValue <= 0)
             {
-                claims.economyProvider.Deposit(playerInfo.City.MoneyAccountName, (decimal)collectedValue);
-                return SuccessWithParams("claims:economy_virtual_city_deposited", new object[] { collectedValue });
+                return TextCommandResult.Success("claims:economy_deposit_no_coin_in_hand");
             }
-            return TextCommandResult.Success("claims:economy_virtual_city_deposit_error");
+            var result = claims.economyProvider.Deposit(playerInfo.City.MoneyAccountName, collectedValue);
+            if (result != MoneyOperationResult.Success)
+            {
+                claims.economyProvider.GiveCoinItemsToPlayer(player, collectedValue);
+                claims.sapi.Logger.Warning("[claims] City deposit to {0} failed: {1}", playerInfo.City.MoneyAccountName, result);
+                return SuccessWithParams("claims:economy_deposit_account_failed", new object[] { result });
+            }
+            decimal repaid = CityDebt.Repay(playerInfo.City, collectedValue);
+            if (repaid > 0)
+            {
+                return SuccessWithParams("claims:economy_city_deposit_repaid_debt",
+                    new object[] { collectedValue, repaid, playerInfo.City.DebtBalance });
+            }
+            return SuccessWithParams("claims:economy_virtual_city_deposited", new object[] { collectedValue });
         }
         public static TextCommandResult OnAllianceBalance(TextCommandCallingArgs args)
         {
@@ -121,6 +146,10 @@ namespace claims.src.commands
             {
                 return WalletUnavailable();
             }
+            if (!claims.economyProvider.SupportsRemoteCoinTransfer)
+            {
+                return UseBankChest();
+            }
 
             if (claims.economyProvider.GetBalance(playerInfo.Alliance.MoneyAccountName) < toWithdraw)
             {
@@ -152,14 +181,24 @@ namespace claims.src.commands
             {
                 return WalletUnavailable();
             }
+            if (!claims.economyProvider.SupportsRemoteCoinTransfer)
+            {
+                return UseBankChest();
+            }
 
             decimal collectedValue = claims.economyProvider.TakeCoinItemsFromActiveSlot(player);
-            if (collectedValue > 0)
+            if (collectedValue <= 0)
             {
-                claims.economyProvider.Deposit(playerInfo.Alliance.MoneyAccountName, (decimal)collectedValue);
-                return SuccessWithParams("claims:economy_virtual_alliance_deposited", new object[] { collectedValue });
+                return TextCommandResult.Success("claims:economy_deposit_no_coin_in_hand");
             }
-            return TextCommandResult.Success("claims:economy_virtual_city_deposit_error");
+            var result = claims.economyProvider.Deposit(playerInfo.Alliance.MoneyAccountName, collectedValue);
+            if (result != MoneyOperationResult.Success)
+            {
+                claims.economyProvider.GiveCoinItemsToPlayer(player, collectedValue);
+                claims.sapi.Logger.Warning("[claims] Alliance deposit to {0} failed: {1}", playerInfo.Alliance.MoneyAccountName, result);
+                return SuccessWithParams("claims:economy_deposit_account_failed", new object[] { result });
+            }
+            return SuccessWithParams("claims:economy_virtual_alliance_deposited", new object[] { collectedValue });
         }
     }
 }

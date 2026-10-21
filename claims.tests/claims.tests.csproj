@@ -26,6 +26,21 @@
     <Reference Include="VintagestoryLib">
       <HintPath>..\..\..\..\AppData\Roaming\Vintagestory\VintagestoryLib.dll</HintPath>
     </Reference>
+    <!-- SQLite as the game ships it: the mod references it with Private=False, so DatabaseQueueTests
+         need their own copy next to the test assembly, native e_sqlite3 included. -->
+    <Reference Include="Microsoft.Data.Sqlite">
+      <HintPath>..\..\..\..\AppData\Roaming\Vintagestory\Lib\Microsoft.Data.Sqlite.dll</HintPath>
+    </Reference>
+    <Reference Include="SQLitePCLRaw.core">
+      <HintPath>..\..\..\..\AppData\Roaming\Vintagestory\Lib\SQLitePCLRaw.core.dll</HintPath>
+    </Reference>
+    <Reference Include="SQLitePCLRaw.batteries_v2">
+      <HintPath>..\..\..\..\AppData\Roaming\Vintagestory\Lib\SQLitePCLRaw.batteries_v2.dll</HintPath>
+    </Reference>
+    <Reference Include="SQLitePCLRaw.provider.e_sqlite3">
+      <HintPath>..\..\..\..\AppData\Roaming\Vintagestory\Lib\SQLitePCLRaw.provider.e_sqlite3.dll</HintPath>
+    </Reference>
+    <None Include="..\..\..\..\AppData\Roaming\Vintagestory\Lib\e_sqlite3.dll" Link="e_sqlite3.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
   </ItemGroup>
 
   <ItemGroup>

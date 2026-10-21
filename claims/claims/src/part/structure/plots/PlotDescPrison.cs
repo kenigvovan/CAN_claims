@@ -50,7 +50,7 @@ namespace claims.src.part.structure.plots
                     // has none yet, and they are moved on their next login by the -1 below anyway.
                     if (onlinePlayer?.Entity != null)
                     {
-                        onlinePlayer.SetSpawnPosition(new PlayerSpawnPos((int)ep.X, (int)ep.Y, (int)ep.Z));
+                        auxialiry.PrisonSpawn.Restore(onlinePlayer);
                         onlinePlayer.Entity.TeleportToDouble(ep.X, ep.Y, ep.Z);
                         player.PrisonHoursLeft = 0;
                     }

@@ -3,11 +3,13 @@ using claims.src.auxialiry;
 using claims.src.economy;
 using claims.src.gui.playerGui.structures;
 using claims.src.messages;
+using claims.src.network.packets;
 using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.plots;
 using claims.src.rights;
 using System;
+using System.Globalization;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Server;
@@ -73,6 +75,36 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:no_plots_here");
             }
+            TextCommandResult refusal = CheckCanClaim(playerInfo, plot);
+            if (refusal != null) return refusal;
+
+            // The sale waits for /agree at the price the player was shown: the mayor may change it in
+            // the meantime, and the buyer must never pay a price they did not see.
+            int offeredPrice = plot.Price;
+            AgreementHandler.addNewAgreementOrReplace(new Agreement(() =>
+            {
+                TextCommandResult result = claims.dataStorage.GetPlot(plot.plotPosition, out Plot current) && current == plot
+                    ? CheckCanClaim(playerInfo, plot)
+                    : TextCommandResult.Error("claims:plot_claim_offer_changed");
+                if (result == null && plot.Price != offeredPrice)
+                {
+                    result = TextCommandResult.Error("claims:plot_claim_offer_changed");
+                }
+                result ??= SellPlotToPlayer(player, playerInfo, plot);
+                MessageHandler.sendMsgToPlayer(player, Lang.Get(result.StatusMessage, result.MessageParams ?? new object[0]));
+            }, player.PlayerUID));
+
+            claims.serverChannel.SendPacket(new SavedPlotsPacket()
+            {
+                type = PacketsContentEnum.AGREE_NEEDED_ON_PLOT_CLAIM,
+                data = offeredPrice.ToString(CultureInfo.InvariantCulture)
+            }, player);
+            return SuccessWithParams("claims:plot_claim_ask", new object[] { offeredPrice, claims.config.AGREEMENT_COMMAND });
+        }
+
+        /// <summary>Null when the player may buy this plot now, otherwise the reason why not.</summary>
+        public static TextCommandResult CheckCanClaim(PlayerInfo playerInfo, Plot plot)
+        {
             if (plot.hasPlotOwner())
             {
                 return TextCommandResult.Error("claims:plot_has_owner_already");
@@ -104,6 +136,12 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:plot_auction_has_bids");
             }
+            // Put up for sale before a sub-plot was cut out of it.
+            string subPlotProblem = subplots.SubPlotLifecycle.BlockingProblem(plot);
+            if (subPlotProblem != null)
+            {
+                return TextCommandResult.Error(subPlotProblem);
+            }
             if (plot.Price > (double)claims.economyProvider.GetBalance(playerInfo.Guid))
             {
                 return TextCommandResult.Error("claims:not_enough_money");
@@ -112,43 +150,44 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:cannot_buy_plot_in_another_city");
             }
-            if (plot.Type == PlotType.EMBASSY || (playerInfo.hasCity() && plot.getCity().Equals(playerInfo.City)))
-            {
-                //Save price localy or do not move after we change plot price
-                decimal savedPrice = (decimal)plot.Price;
+            return null;
+        }
 
-                bool paymentSuccessfull = claims.economyProvider.Transfer(playerInfo.MoneyAccountName, plot.getCity().MoneyAccountName, (decimal)plot.Price)
-                    == MoneyOperationResult.Success;
-                if (paymentSuccessfull)
-                {
-                    plot.Price = -1;
-                    // The plot now belongs to a citizen, so any standing offer to other cities is
-                    // void - it would otherwise sit in the market tab refusing every buyer.
-                    if (part.structure.plots.auction.AuctionRegistry.TryGetRunningFor(plot,
-                            out part.structure.plots.auction.PlotAuction cityLot))
-                    {
-                        part.structure.plots.auction.AuctionHandler.CancelLot(cityLot,
-                            "claims:plot_auction_cancelled_lot_gone");
-                    }
-                    plot.lastPaidPrice = (long)savedPrice;
-                    plot.TimeStampClaimed = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                    plot.getPermsHandler().setPerm(playerInfo.PermsHandler);
-                    plot.setPlotOwner(playerInfo);
-                    playerInfo.PlayerPlots.Add(plot);
-                    plot.saveToDatabase();
-                    playerInfo.saveToDatabase();
-                    claims.dataStorage.ClearCacheForPlayersInPlot(plot);
-                    claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
-                    UsefullPacketsSend.SendCurrentPlotUpdate(player, plot);
-                    UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT);
-                    return SuccessWithParams("claims:plot_has_been_claimed_by_player_paid", new object[] { savedPrice });
-                }
-                else
-                {
-                    return TextCommandResult.Error("claims:economy_money_transaction_error");
-                }
+        /// <summary>Takes the payment and hands the plot over; nothing changes if the payment fails.</summary>
+        private static TextCommandResult SellPlotToPlayer(IServerPlayer player, PlayerInfo playerInfo, Plot plot)
+        {
+            //Save price localy or do not move after we change plot price
+            decimal savedPrice = (decimal)plot.Price;
+
+            bool paymentSuccessfull = claims.economyProvider.Transfer(playerInfo.MoneyAccountName, plot.getCity().MoneyAccountName, (decimal)plot.Price)
+                == MoneyOperationResult.Success;
+            if (!paymentSuccessfull)
+            {
+                return TextCommandResult.Error("claims:economy_money_transaction_error");
             }
-            return TextCommandResult.Success();
+            plot.Price = -1;
+            // The plot now belongs to a citizen, so any standing offer to other cities is
+            // void - it would otherwise sit in the market tab refusing every buyer.
+            if (part.structure.plots.auction.AuctionRegistry.TryGetRunningFor(plot,
+                    out part.structure.plots.auction.PlotAuction cityLot))
+            {
+                part.structure.plots.auction.AuctionHandler.CancelLot(cityLot,
+                    "claims:plot_auction_cancelled_lot_gone");
+            }
+            plot.lastPaidPrice = (long)savedPrice;
+            plot.TimeStampClaimed = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            // Rights only: the flags belong to the plot. Copying them reset a paid nomobspawn
+            // and turned blasts back on with every sale.
+            plot.getPermsHandler().setRights(playerInfo.PermsHandler);
+            plot.setPlotOwner(playerInfo);
+            playerInfo.PlayerPlots.Add(plot);
+            plot.saveToDatabase();
+            playerInfo.saveToDatabase();
+            claims.dataStorage.ClearCacheForPlayersInPlot(plot);
+            claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
+            UsefullPacketsSend.SendCurrentPlotUpdate(player, plot);
+            UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT);
+            return SuccessWithParams("claims:plot_has_been_claimed_by_player_paid", new object[] { savedPrice });
         }
         public static TextCommandResult PlotUnclaim(TextCommandCallingArgs args)
         {
@@ -178,6 +217,18 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:has_plots_group");
             }
+            // Nobody to give it back from. Let through, the mayor stood in as the owner and was paid
+            // the refund the real owner had already had (R09) - and a plot saved before the refund
+            // basis was cleared on unclaim still carries it.
+            if (!plot.hasPlotOwner())
+            {
+                return TextCommandResult.Error("claims:plot_has_no_owner");
+            }
+
+            // The mayor may unclaim a citizen's plot too: the refund and the owner's plot list are the
+            // owner's, not the caller's. Taken from the caller, the owner kept the plot in their list
+            // and leaving the city later stripped it from whoever had bought it since (R27).
+            PlayerInfo owner = plot.getPlotOwner();
 
             long desired = PlotRefundHelper.CalculatePersonalUnclaimRefund(plot);
             if (desired > 0)
@@ -189,14 +240,26 @@ namespace claims.src.commands
                     Plot capturedPlot = plot;
                     PlayerInfo capturedPlayerInfo = playerInfo;
                     IServerPlayer capturedPlayer = player;
+                    PlayerInfo ownerAtRequest = owner;
+                    PlayerInfo plotOwnerAtRequest = plot.getPlotOwner();
                     AgreementHandler.addNewAgreementOrReplace(new Agreement(
                         () =>
                         {
-                            if (captured > 0)
+                            // Checked again: while the request waited, the plot may have been unclaimed
+                            // and sold to someone else - the late /agree used to take it from them.
+                            if (!claims.dataStorage.GetPlot(capturedPlot.plotPosition, out Plot current) || current != capturedPlot
+                                || !capturedPlot.hasCity() || capturedPlot.getPlotOwner() != plotOwnerAtRequest
+                                || !(capturedPlayerInfo.Equals(ownerAtRequest) || capturedPlot.getCity().isMayor(capturedPlayerInfo)))
                             {
-                                PlotRefundHelper.TryTransferPersonalRefund(capturedPlot, capturedPlayerInfo, captured);
+                                MessageHandler.sendMsgToPlayer(capturedPlayer, Lang.Get("claims:plot_was_changed"));
+                                return;
                             }
-                            FinishPersonalUnclaim(capturedPlot, capturedPlayerInfo, capturedPlayer);
+                            if (captured > 0 && !PlotRefundHelper.TryTransferPersonalRefund(capturedPlot, ownerAtRequest, captured))
+                            {
+                                MessageHandler.sendMsgToPlayer(capturedPlayer, Lang.Get("claims:economy_money_transaction_error"));
+                                return;
+                            }
+                            FinishPersonalUnclaim(capturedPlot, ownerAtRequest, capturedPlayer);
                             MessageHandler.sendMsgToPlayer(capturedPlayer,
                                 Lang.Get("claims:refund_unclaim_done_reduced", captured));
                         },
@@ -206,22 +269,30 @@ namespace claims.src.commands
                         : "claims:refund_unclaim_reduced_ask";
                     return SuccessWithParams(askKey, new object[] { affordable, desired, claims.config.AGREEMENT_COMMAND });
                 }
-                PlotRefundHelper.TryTransferPersonalRefund(plot, playerInfo, desired);
+                // A refund that did not go through keeps the plot where it was: the owner gave it
+                // back for that money (A4).
+                if (!PlotRefundHelper.TryTransferPersonalRefund(plot, owner, desired))
+                {
+                    return TextCommandResult.Error("claims:economy_money_transaction_error");
+                }
             }
 
-            FinishPersonalUnclaim(plot, playerInfo, player);
+            FinishPersonalUnclaim(plot, owner, player);
             return TextCommandResult.Success("claims:plot_has_been_unclaimed_by_player");
         }
 
-        private static void FinishPersonalUnclaim(Plot plot, PlayerInfo playerInfo, IServerPlayer player)
+        /// <param name="owner">Who loses the plot; <paramref name="player"/> is who asked for it.</param>
+        private static void FinishPersonalUnclaim(Plot plot, PlayerInfo owner, IServerPlayer player)
         {
-            plot.setPlotOwner(null);
-            playerInfo.PlayerPlots.Remove(plot);
-            playerInfo.saveToDatabase();
+            plot.resetOwner();
+            // The refund is paid for this purchase, once - as PlotTransferHelper does on a transfer.
+            plot.lastPaidPrice = 0;
+            owner.PlayerPlots.Remove(plot);
+            owner.saveToDatabase();
             claims.dataStorage.ClearCacheForPlayersInPlot(plot);
             claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
             UsefullPacketsSend.SendCurrentPlotUpdate(player, plot);
-            UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT);
+            UsefullPacketsSend.AddToQueuePlayerInfoUpdate(owner.Guid, EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT);
             plot.saveToDatabase();
         }
         /*==============================================================================================*/
@@ -379,22 +450,22 @@ namespace claims.src.commands
 
             if (tax < 0)
             {
-                return TextCommandResult.Success("claims:not_negative");
+                return TextCommandResult.Error("claims:not_negative");
             }
             PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
             if(!claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere))
             {
-                return TextCommandResult.Success("claims:plot_not_claimed");
+                return TextCommandResult.Error("claims:plot_not_claimed");
             }
 
             if(!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
             {
-                return TextCommandResult.Success("claims:no_such_player");
+                return TextCommandResult.Error("claims:no_such_player");
             }
 
             if(!playerInfo.hasCity() || !playerInfo.City.Equals(plotHere.getCity()))
             {
-                return TextCommandResult.Success("claims:not_your_city");
+                return TextCommandResult.Error("claims:not_your_city");
             }
             
             if (!plotHere.setCustomTax(tax))
@@ -416,49 +487,111 @@ namespace claims.src.commands
         public static TextCommandResult SetType(TextCommandCallingArgs args)
         {
             IServerPlayer player = args.Caller.Player as IServerPlayer;
+            string typeName = (string)args.Parsers[0].GetValue();
 
-
-            if (PlotInfo.nameToPlotType.ContainsKey((string)args.LastArg))
-            {
-                PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
-                if(!claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere))
-                {
-                    return TextCommandResult.Success("claims:plot_not_claimed");
-                }
-
-                if(!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-                {
-                    return TextCommandResult.Success("claims:no_such_player");
-                }
-
-                if (!playerInfo.hasCity() || !playerInfo.City.Equals(plotHere.getCity()))
-                {
-                    return TextCommandResult.Success("claims:not_your_city");
-                }
-                // Retyping the plot - into a war camp, say - would make it unsellable and void the
-                // auction when it closes. Cities that bid are owed the lot they bid on.
-                if (part.structure.plots.auction.AuctionRegistry.TryGetRunningFor(plotHere, out var typeLot)
-                    && typeLot.HasBid)
-                {
-                    return TextCommandResult.Error("claims:plot_auction_has_bids");
-                }
-                TextCommandResult tcr = new();
-                tcr.Status = EnumCommandStatus.Success;
-                if (!plotHere.setNewType(tcr, (string)args.LastArg, player))
-                {
-                    UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
-                    return tcr;
-                }
-                claims.serverPlayerMovementListener.markPlotToWasReUpdated(plotHere.getPos());
-                UsefullPacketsSend.SendCurrentPlotUpdate(player, plotHere);
-                UsefullPacketsSend.AddToQueueCityInfoUpdate(plotHere.getCity().Guid, EnumPlayerRelatedInfo.CITY_DAY_PAYMENT);
-                plotHere.getCity().FirePlotsMapChanged(EnumPlotsMapChangeReason.TypeChanged);
-                return tcr;
-            }
-            else
+            if (!PlotInfo.nameToPlotType.ContainsKey(typeName))
             {
                 return TextCommandResult.Error("");
             }
+            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
+            if (!claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere))
+            {
+                return TextCommandResult.Error("claims:plot_not_claimed");
+            }
+            TextCommandResult err = CheckCanSetType(player, plotHere);
+            if (err != null) return err;
+
+            // Types a player can't set by hand go straight to setNewType, which explains the refusal.
+            double setCost = PlotInfo.plotAccessableForPlayersWithCode.ContainsKey(typeName) && !PlotInfo.IsTypeDisabled(typeName)
+                ? PlotInfo.GetSetCost(typeName)
+                : 0;
+            if (setCost <= 0)
+            {
+                return ApplyPlotType(player, plotHere, typeName, 0);
+            }
+            if (plotHere.Type == PlotInfo.nameToPlotType[typeName])
+            {
+                return TextCommandResult.Success("claims:plot_the_same_type_set");
+            }
+            if (claims.economyProvider.GetBalance(plotHere.getCity().MoneyAccountName) < (decimal)setCost)
+            {
+                return TextCommandResult.Error("claims:not_enough_money");
+            }
+
+            AgreementHandler.addNewAgreementOrReplace(new Agreement(() =>
+            {
+                // Anything may have changed while the offer waited.
+                TextCommandResult result = CheckCanSetType(player, plotHere);
+                if (result == null && PlotInfo.GetSetCost(typeName) != setCost)
+                {
+                    result = TextCommandResult.Error("claims:plot_set_type_cost_changed");
+                }
+                result ??= ApplyPlotType(player, plotHere, typeName, setCost);
+                if (!string.IsNullOrEmpty(result.StatusMessage))
+                {
+                    MessageHandler.sendMsgToPlayer(player, Lang.Get(result.StatusMessage, result.MessageParams ?? new object[0]));
+                }
+            }, player.PlayerUID));
+
+            string typeLangKey = PlotInfo.plotAccessableForPlayersWithCode.TryGetValue(typeName, out string key) ? key : typeName;
+            claims.serverChannel.SendPacket(new SavedPlotsPacket()
+            {
+                type = PacketsContentEnum.AGREE_NEEDED_ON_PLOT_TYPE_SET,
+                data = typeLangKey + "|" + setCost.ToString(CultureInfo.InvariantCulture)
+            }, player);
+            return SuccessWithParams("claims:plot_set_type_cost_ask", new object[] { Lang.Get(typeLangKey), setCost, claims.config.AGREEMENT_COMMAND });
+        }
+
+        /// <summary>Null when the player may retype this plot, otherwise the reason why not.</summary>
+        private static TextCommandResult CheckCanSetType(IServerPlayer player, Plot plot)
+        {
+            if (!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
+            {
+                return TextCommandResult.Error("claims:no_such_player");
+            }
+            if (!plot.hasCity() || !playerInfo.hasCity() || !playerInfo.City.Equals(plot.getCity()))
+            {
+                return TextCommandResult.Error("claims:not_your_city");
+            }
+            // Retyping the plot - into a war camp, say - would make it unsellable and void the
+            // auction when it closes. Cities that bid are owed the lot they bid on.
+            if (part.structure.plots.auction.AuctionRegistry.TryGetRunningFor(plot, out var typeLot)
+                && typeLot.HasBid)
+            {
+                return TextCommandResult.Error("claims:plot_auction_has_bids");
+            }
+            return null;
+        }
+
+        private static TextCommandResult ApplyPlotType(IServerPlayer player, Plot plot, string typeName, double setCost)
+        {
+            City city = plot.getCity();
+            if (setCost > 0 && claims.economyProvider.GetBalance(city.MoneyAccountName) < (decimal)setCost)
+            {
+                return TextCommandResult.Error("claims:not_enough_money");
+            }
+            // Paid first, typed second: a failed withdrawal used to be only logged after the type was
+            // already set, handing the paid type out for free.
+            if (setCost > 0 && claims.economyProvider.Withdraw(city.MoneyAccountName, (decimal)setCost) != MoneyOperationResult.Success)
+            {
+                return TextCommandResult.Error("claims:economy_money_transaction_error");
+            }
+            TextCommandResult tcr = new();
+            tcr.Status = EnumCommandStatus.Success;
+            if (!plot.setNewType(tcr, typeName, player))
+            {
+                if (setCost > 0 && claims.economyProvider.Deposit(city.MoneyAccountName, (decimal)setCost) != MoneyOperationResult.Success)
+                {
+                    claims.sapi.Logger.Error("[claims] Plot type set refused, refund failed: {0}, amount {1}", city.MoneyAccountName, setCost);
+                }
+                UsefullPacketsSend.SendCurrentPlotUpdate(player, plot);
+                return tcr;
+            }
+            claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
+            UsefullPacketsSend.SendCurrentPlotUpdate(player, plot);
+            UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_DAY_PAYMENT);
+            city.FirePlotsMapChanged(EnumPlotsMapChangeReason.TypeChanged);
+            return tcr;
         }
         public static TextCommandResult SetPermissions(TextCommandCallingArgs args)
         {
@@ -490,7 +623,10 @@ namespace claims.src.commands
                 }
             }
 
-            plot.getPermsHandler().setAccessPerm(args.RawArgs);
+            if (!plot.getPermsHandler().setAccessPerm(args.RawArgs))
+            {
+                return TextCommandResult.Error("claims:wrong_value");
+            }
 
             claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
             plot.saveToDatabase();
@@ -504,24 +640,29 @@ namespace claims.src.commands
 
             if(!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
             {
-                return TextCommandResult.Success("claims:no_such_player");
+                return TextCommandResult.Error("claims:no_such_player");
             }
 
             if(!claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z), out Plot plot))
             {
-                return TextCommandResult.Success("claims:no_plots_here");
+                return TextCommandResult.Error("claims:no_plots_here");
             }
 
             if (!playerInfo.hasCity() || !playerInfo.City.Equals(plot.getCity()))
             {
-                return TextCommandResult.Success("claims:not_your_city");
+                return TextCommandResult.Error("claims:not_your_city");
             }
 
             int price = (int)args.LastArg;
 
             if (price < 0)
             {
-                return TextCommandResult.Success("claims:try_pos");
+                return TextCommandResult.Error("claims:try_pos");
+            }
+            string subPlotProblem = subplots.SubPlotLifecycle.BlockingProblem(plot);
+            if (subPlotProblem != null)
+            {
+                return TextCommandResult.Error(subPlotProblem);
             }
             plot.Price = price;
             plot.saveToDatabase();
@@ -537,16 +678,16 @@ namespace claims.src.commands
 
             if(!claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
             {
-                return TextCommandResult.Success("claims:no_such_player");
+                return TextCommandResult.Error("claims:no_such_player");
             }
 
             if(!claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z), out Plot plot))
             {
-                return TextCommandResult.Success("claims:no_plots_here");
+                return TextCommandResult.Error("claims:no_plots_here");
             }
             if (!playerInfo.hasCity() || !playerInfo.City.Equals(plot.getCity()))
             {
-                return TextCommandResult.Success("claims:not_your_city");
+                return TextCommandResult.Error("claims:not_your_city");
             }
 
             plot.Price = -1;
@@ -600,614 +741,5 @@ namespace claims.src.commands
             }
             return true;
         }
-
-
-        /*public static TextCommandResult plotMsgs(TextCommandCallingArgs args)
-        {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            TextCommandResult tcr = new TextCommandResult();
-            tcr.Status = EnumCommandStatus.Success;
-
-            claims.dataStorage.getPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo2);
-            switch((string)args.LastArg)
-            {
-                case "0":
-                    playerInfo2.showPlotMovement = EnumShowPlotMovement.SHOW_NONE;
-                    return tcr;
-                case "1":
-                    playerInfo2.showPlotMovement = EnumShowPlotMovement.SHOW_MESSAGE;
-                    return tcr;
-                case "2":
-                    playerInfo2.showPlotMovement = EnumShowPlotMovement.SHOW_HUD;
-                    return tcr;
-                case "3":
-                    playerInfo2.showPlotMovement = EnumShowPlotMovement.SHOW_MESSAGE_HUD;
-                    return tcr;
-            }
-            return tcr;
-        }       
-        public static TextCommandResult processInnerClaim(TextCommandCallingArgs args)
-        {
-            TextCommandResult tcr = new TextCommandResult();
-            tcr.Status = EnumCommandStatus.Success;
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-
-            if (args.RawArgs.Length == 0)
-            {
-                return tcr;
-            }
-            if (!RightsHandler.hasRight(player, PermConstants.PLOT_INNER_CLAIM))
-            {
-                MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:you_dont_have_right_for_that_command"));
-                return tcr;
-            }
-            PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
-            claims.dataStorage.getPlot(currentPlotPosition, out Plot plotHere);
-            if (plotHere == null)
-            {
-                MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:plot_not_claimed"));
-                return tcr;
-            }
-            if(plotHere.getType() != PlotType.TAVERN)
-            {
-                MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:only_for_tavern"));
-                return tcr;
-            }
-            if (plotHere.getPlotDesc() is not PlotDescTavern tavernDesc)
-            {
-                MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:only_for_tavern"));
-                return tcr;
-            }
-            claims.dataStorage.getPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-            if (!(plotHere.hasPlotOwner() && plotHere.getPlotOwner().Equals(playerInfo))
-                && !plotHere.getCity().Equals(playerInfo.City))
-            {
-                MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:plot_owner_or_mayor_needed"));
-                return tcr;
-            }
- 
-
-            //CHECKS FOR RIGHTS
-            if (args.RawArgs[0].Equals("create", StringComparison.OrdinalIgnoreCase))
-            {
-                if(!claims.dataStorage.getInnerClaimRecord(player.PlayerUID, out InnerClaimRecord innerClaimRecord))
-                {
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:no_such_record"));
-                    return tcr;
-                }
-                if(innerClaimRecord.pos1 == null || innerClaimRecord.pos2 == null)
-                {
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:need_both_points"));
-                    return tcr;
-                }
-                claims.dataStorage.getPlot(new PlotPosition(innerClaimRecord.plotCoords), out Plot plot);
-                if(plot == null)
-                {
-                    claims.dataStorage.tryRemoveClaimRecord(player.PlayerUID);
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:no_plot_here"));
-                    return tcr;
-                }
-
-                if (plot.getPlotDesc() is not PlotDescTavern plotTavernDesc)
-                {
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:wrong_plot_type"));
-                    return tcr;
-                }
-                if(plotTavernDesc.innerClaims.Count > claims.config.MAX_NUMBER_INNER_CLAIM_PER_TAVERN)
-                {
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:too_much_inner_claims"));
-                    return tcr;
-                }
-                foreach(var it in plotTavernDesc.innerClaims)
-                {
-                    if(it.Intersects(new InnerClaim(innerClaimRecord.pos1, innerClaimRecord.pos2)))
-                    {
-                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:intersects_with_existing_inner_claim"));
-                        return tcr;
-                    }
-                }
-
-                plotTavernDesc.addNewInnerClaim(innerClaimRecord.pos1, innerClaimRecord.pos2);
-                claims.dataStorage.tryRemoveClaimRecord(player.PlayerUID);
-                plot.saveToDatabase();
-                MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:inner_claim_was_added"));
-                return tcr;
-                //WE HAVE 2 POINTS - TRY CREATE
-            }
-            else if (args.RawArgs[0].Equals("start", StringComparison.OrdinalIgnoreCase))
-            {
-                if(!claims.dataStorage.getInnerClaimRecord(player.PlayerUID, out InnerClaimRecord innerClaimRecord))
-                {
-                    InnerClaimRecord tmpAdd = new InnerClaimRecord();
-                    claims.dataStorage.addClaimRecord(player.PlayerUID, tmpAdd);
-                    tmpAdd.plotCoords = new Vec2i((int)player.Entity.Pos.X / PlotPosition.plotSize, (int)player.Entity.Pos.Z / PlotPosition.plotSize);
-                }
-                claims.dataStorage.getInnerClaimRecord(player.PlayerUID, out InnerClaimRecord tmp);
-                if(player.CurrentBlockSelection == null)
-                {
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:no_selection"));
-                    return tcr;
-                }
-
-                if (player.CurrentBlockSelection.Position.X / PlotPosition.plotSize == tmp.plotCoords.X
-                    && player.CurrentBlockSelection.Position.Z / PlotPosition.plotSize == tmp.plotCoords.Y)
-                {
-                    tmp.pos1 = new Vec3i();
-                    tmp.pos1.X = player.CurrentBlockSelection.Position.X;
-                    tmp.pos1.Y = player.CurrentBlockSelection.Position.Y;
-                    tmp.pos1.Z = player.CurrentBlockSelection.Position.Z;
-                }
-                else
-                {
-                    tmp.plotCoords.X = player.CurrentBlockSelection.Position.X / PlotPosition.plotSize;
-                    tmp.plotCoords.Y = player.CurrentBlockSelection.Position.Z / PlotPosition.plotSize;
-                    tmp.pos1.X = player.CurrentBlockSelection.Position.X;
-                    tmp.pos1.Y = player.CurrentBlockSelection.Position.Y;
-                    tmp.pos1.Z = player.CurrentBlockSelection.Position.Z;
-                    tmp.pos2 = null;
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:plot_was_changed"));
-                }
-                reapplyHighlightRecord(player, tmp);
-                return tcr;
-                //IF NO RECORD - CREATE
-                //POS1 ADD
-            }
-            else if (args.RawArgs[0].Equals("end", StringComparison.OrdinalIgnoreCase))
-            {
-                if (!claims.dataStorage.getInnerClaimRecord(player.PlayerUID, out InnerClaimRecord innerClaimRecord))
-                {
-                    InnerClaimRecord tmpAdd = new InnerClaimRecord();
-                    claims.dataStorage.addClaimRecord(player.PlayerUID, tmpAdd);
-                    tmpAdd.plotCoords = new Vec2i((int)player.Entity.Pos.X / PlotPosition.plotSize, (int)player.Entity.Pos.Z / PlotPosition.plotSize);
-                }
-                claims.dataStorage.getInnerClaimRecord(player.PlayerUID, out InnerClaimRecord tmp);
-                if(player.CurrentBlockSelection == null)
-                {
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:no_selection"));
-                    return tcr;
-                }
-                if ((player.CurrentBlockSelection.Position.X / PlotPosition.plotSize == tmp.plotCoords.X)
-                    && (player.CurrentBlockSelection.Position.Z / PlotPosition.plotSize == tmp.plotCoords.Y)
-                    )
-                {
-                    tmp.pos2 = new Vec3i();                 
-                    tmp.pos2.X = player.CurrentBlockSelection.Position.X;
-                    tmp.pos2.Y = player.CurrentBlockSelection.Position.Y;
-                    tmp.pos2.Z = player.CurrentBlockSelection.Position.Z;
-                }
-                else
-                {
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:out_of_plot"));
-                    return tcr;
-                }
-                reapplyHighlightRecord(player, tmp);
-                return tcr;
-                //IF NO RECORD - CREATE
-                //POS2 ADD
-            }
-            else if (args.RawArgs[0].Equals("delete", StringComparison.OrdinalIgnoreCase))
-            {
-
-                if (args.RawArgs.Length < 2)
-                {
-                    return tcr;
-                }
-                try
-                {
-                    int claimNumber = int.Parse(args.RawArgs[1]);
-                    if (claimNumber < 0)
-                    {
-                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:not_valid_number"));
-                        return tcr;
-                    }
-                    if(tavernDesc.innerClaims.Count - 1 < claimNumber)
-                    {
-                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:not_valid_number"));
-                        return tcr;
-                    }
-                    tavernDesc.innerClaims.RemoveAt(claimNumber);
-                    plotHere.saveToDatabase();
-                    return tcr;
-                }
-                catch (FormatException e)
-                {
-                    return tcr;
-                }
-                //BY NUMBER
-            }
-            else if (args.RawArgs[0].Equals("list", StringComparison.OrdinalIgnoreCase))
-            {
-                MessageHandler.sendMsgToPlayer(player, tavernDesc.innerClaimsToString());
-                return tcr;
-                //NUMBER. RIGHTS. MEMBERS.
-            }
-            else if (args.RawArgs[0].Equals("add", StringComparison.OrdinalIgnoreCase))
-            {
-                if(args.RawArgs.Length < 3)
-                {
-                    return tcr;
-                }
-                try
-                {
-                    int claimNumber = int.Parse(args.RawArgs[1]);
-                    if(claimNumber < 0)
-                    {
-                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:not_valid_number"));
-                        return tcr;
-                    }
-                    string name = Filter.filterName(args.RawArgs[2]);
-                    if (!claims.dataStorage.getPlayerByName(name, out PlayerInfo targetPlayerInfo))
-                    {
-                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:no_such_player"));
-                        return tcr;
-                    }
-                    else
-                    {
-                        
-                        if(tavernDesc.innerClaims.Count - 1 < claimNumber)
-                        {
-                            MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:not_valid_number"));
-                            return tcr;
-                        }
-                        tavernDesc.innerClaims[claimNumber].membersUids.Add(targetPlayerInfo.Guid);
-                        plotHere.saveToDatabase();
-                        return tcr;
-                    }
-                }catch(FormatException e)
-                {
-                    return tcr;
-                }
-
-                //NUMBER PLAYER'S NAME
-            }
-            else if (args.RawArgs[0].Equals("kick", StringComparison.OrdinalIgnoreCase))
-            {
-                if (args.RawArgs.Length < 3)
-                {
-                    return tcr;
-                }
-                try
-                {
-                    int claimNumber = int.Parse(args.RawArgs[1]);
-                    if (claimNumber < 0)
-                    {
-                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:not_valid_number"));
-                        return tcr;
-                    }
-                    string name = Filter.filterName(args.RawArgs[2]);
-                    if (!claims.dataStorage.getPlayerByName(name, out PlayerInfo targetPlayerInfo))
-                    {
-                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:no_such_player"));
-                        return tcr;
-                    }
-                    else
-                    {
-
-                        if (tavernDesc.innerClaims.Count - 1 < claimNumber)
-                        {
-                            MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:not_valid_number"));
-                            return tcr;
-                        }
-                        tavernDesc.innerClaims[claimNumber].membersUids.Remove(targetPlayerInfo.Guid);
-                        plotHere.saveToDatabase();
-                        return tcr;
-                    }
-                }
-                catch (FormatException e)
-                {
-                    return tcr;
-                }
-                //NUMBER PLAYER'S NAME
-            }
-            else if (args.RawArgs[0].Equals("show", StringComparison.OrdinalIgnoreCase))
-            {
-                if (args.RawArgs.Length < 2)
-                {
-                    return tcr;
-                }
-                try
-                {
-                    int claimNumber = int.Parse(args.RawArgs[1]);
-                    if (claimNumber < 0)
-                    {
-                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:not_valid_number"));
-                        return tcr;
-                    }                  
-
-                    if (tavernDesc.innerClaims.Count - 1 < claimNumber)
-                    {
-                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:not_valid_number"));
-                        return tcr;
-                    }
-                    reapplyHighlightInnerClaim(player, tavernDesc.innerClaims[claimNumber]);
-                    return tcr;
-                    
-                }
-                catch (FormatException e)
-                {
-                    return tcr;
-                }
-                //NUMBER
-            }
-            else if (args.RawArgs[0].Equals("set", StringComparison.OrdinalIgnoreCase)) 
-            {
-                if(args.RawArgs.Length < 4)
-                {
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:need_claim_number_flag_value"));
-                    return tcr;
-                }
-                int claimNumber = 0;
-                try
-                {
-                    claimNumber = int.Parse(args.RawArgs[1]);
-                    if (claimNumber < 0)
-                    {
-                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:not_valid_number"));
-                        return tcr;
-                    }
-                }
-                catch (FormatException e)
-                {
-                    return tcr;
-                }
-                if (tavernDesc.innerClaims.Count - 1 < claimNumber)
-                {
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:not_valid_number"));
-                    return tcr;
-                }
-                if(args.RawArgs[2].Equals("build"))
-                {
-                    if(args.RawArgs[3].Equals("on"))
-                    {
-                        tavernDesc.innerClaims[claimNumber].permissionsFlags[1] = true;
-                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:flag_now_has_value", "build", "on"));
-                    }
-                    else if (args.RawArgs[3].Equals("off"))
-                    {
-                        tavernDesc.innerClaims[claimNumber].permissionsFlags[1] = false;
-                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:flag_now_has_value", "build", "off"));
-                    }
-                }
-                else if (args.RawArgs[2].Equals("use"))
-                {
-                    if (args.RawArgs[3].Equals("on"))
-                    {
-                        tavernDesc.innerClaims[claimNumber].permissionsFlags[0] = true;
-                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:flag_now_has_value", "use", "on"));
-                    }
-                    else if (args.RawArgs[3].Equals("off"))
-                    {
-                        tavernDesc.innerClaims[claimNumber].permissionsFlags[0] = false;
-                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:flag_now_has_value", "use", "off"));
-                    }
-                }
-                else if (args.RawArgs[2].Equals("attack"))
-                {
-                    if (args.RawArgs[3].Equals("on"))
-                    {
-                        tavernDesc.innerClaims[claimNumber].permissionsFlags[2] = true;
-                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:flag_now_has_value", "attack", "on"));
-                    }
-                    else if(args.RawArgs[3].Equals("off"))
-                    {
-                        tavernDesc.innerClaims[claimNumber].permissionsFlags[2] = false;
-                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:flag_now_has_value", "attack", "off"));
-                    }
-                }
-
-                plotHere.saveToDatabase();
-                return tcr;
-            }
-            return tcr;
-        }
-        public static void reapplyHighlightRecord(IServerPlayer player, InnerClaimRecord innerClaimRecord)
-        {
-            if (innerClaimRecord.pos1 == null || innerClaimRecord.pos2 == null)
-            {
-                return;
-            }
-            List<BlockPos> bList = new List<BlockPos>();
-            List<int> colors = new List<int>();
-            colors.Add(ColorUtil.ToRgba(64, 255, 255, 0));
-            var bp1 = new BlockPos(innerClaimRecord.pos1.X, innerClaimRecord.pos1.Y, innerClaimRecord.pos1.Z);
-            var bp2 = new BlockPos(innerClaimRecord.pos2.X, innerClaimRecord.pos2.Y, innerClaimRecord.pos2.Z);
-            if (innerClaimRecord.pos1.X > innerClaimRecord.pos2.X)
-            {
-                bp1.Add(1, 0, 0);
-            }
-            else
-            {
-                bp2.Add(1, 0, 0);
-            }
-            bList.Add(bp1);
-            
-            if (innerClaimRecord.pos1.Z > innerClaimRecord.pos2.Z)
-            {
-                bp1.Add(0, 0, 1); 
-            }
-            else
-            {
-                bp2.Add(0, 0, 1);
-            }
-
-            if (innerClaimRecord.pos1.Y > innerClaimRecord.pos2.Y)
-            {
-                bp1.Add(0, 1, 0);
-            }
-            else
-            {
-                bp2.Add(0, 1, 0);
-            }
-
-            bList.Add(bp2);
-            claims.sapi.World.HighlightBlocks(player as IPlayer, 61, bList, colors, shape: EnumHighlightShape.Cube);
-        }
-        public static void reapplyHighlightInnerClaim(IServerPlayer player, InnerClaim innerClaim)
-        {
-            if (innerClaim.pos1 == null || innerClaim.pos2 == null)
-            {
-                return;
-            }
-            List<BlockPos> bList = new List<BlockPos>();
-            List<int> colors = new List<int> ();
-            colors.Add(ColorUtil.ToRgba(64, 255, 255, 0));
-            var bp1 = new BlockPos(innerClaim.pos1.X, innerClaim.pos1.Y, innerClaim.pos1.Z);
-            var bp2 = new BlockPos(innerClaim.pos2.X, innerClaim.pos2.Y, innerClaim.pos2.Z);
-            if (innerClaim.pos1.X > innerClaim.pos2.X)
-            {
-                bp1.Add(1, 0, 0);
-            }
-            else
-            {
-                bp2.Add(1, 0, 0);
-            }
-            bList.Add(bp1);
-
-            if (innerClaim.pos1.Z > innerClaim.pos2.Z)
-            {
-                bp1.Add(0, 0, 1);
-            }
-            else
-            {
-                bp2.Add(0, 0, 1);
-            }
-
-            if (innerClaim.pos1.Y > innerClaim.pos2.Y)
-            {
-                bp1.Add(0, 1, 0);
-            }
-            else
-            {
-                bp2.Add(0, 1, 0);
-            }
-
-            bList.Add(bp2);
-            claims.sapi.World.HighlightBlocks(player, 61, bList, colors, shape: EnumHighlightShape.Cubes);
-        }
-        public static void processPlotSet(IServerPlayer player, CmdArgs args, TextCommandResult res)
-        {
-            if (args.Length == 0)
-            {
-                return;
-            }
-
-
-            else if (args[0].Equals("type", StringComparison.OrdinalIgnoreCase))
-            {
-                if (args.Length < 2)
-                {
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:need_type"));
-                    return;
-                }
-            }
-            
-            else if (args[0].Equals("fire", StringComparison.OrdinalIgnoreCase))
-            {
-                if (args.Length < 2)
-                {
-                    return;
-                }
-
-                if (!claims.dataStorage.getPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo))
-                {
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:no_such_player"));
-                    return;
-                }
-                PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
-                if (!claims.dataStorage.getPlot(currentPlotPosition, out Plot plotHere))
-                {
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:plot_not_claimed"));
-                    return;
-                }
-                if (!RightsHandler.hasRight(player, PermConstants.PLOT_SET_ALL))
-                {
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:you_dont_have_right_for_that_command"));
-                    return;
-                }
-
-                if (!plotHere.hasCity())
-                {
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:no_city_here"));
-                    return;
-                }
-                if (!plotHere.getCity().getPlayerInfos().Contains(playerInfo) && (!plotHere.hasPlotOwner() || !plotHere.getPlotOwner().Equals(playerInfo)))
-                {
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:no_city_here"));
-                    return;
-                }
-                if (args[1].Equals("on", StringComparison.OrdinalIgnoreCase))
-                {
-                    plotHere.getPermsHandler().setFire(false);
-                    plotHere.saveToDatabase();
-                    return;
-                }
-                if (args[1].Equals("off", StringComparison.OrdinalIgnoreCase))
-                {
-                    plotHere.getPermsHandler().setFire(true);
-                    plotHere.saveToDatabase();
-                    return;
-                }
-            }
-            else if (args[0].Equals("blast", StringComparison.OrdinalIgnoreCase))
-            {
-                if (args.Length < 2)
-                {
-                    return;
-                }
-                claims.dataStorage.getPlayerByUid(player.PlayerUID, out PlayerInfo playerInfo);
-                if (playerInfo == null)
-                {
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:plot_not_claimed"));
-                    return;
-                }
-                PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
-                claims.dataStorage.getPlot(currentPlotPosition, out Plot plotHere);
-                if (plotHere == null)
-                {
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:plot_already_claimed"));
-                    return;
-                }
-                if (!RightsHandler.hasRight(player, PermConstants.PLOT_SET_ALL))
-                {
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:you_dont_have_right_for_that_command"));
-                    return;
-                }
-
-                if (!plotHere.hasCity())
-                {
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:no_city_here"));
-                    return;
-                }
-                if (!plotHere.getCity().getPlayerInfos().Contains(playerInfo) && (!plotHere.hasPlotOwner() || !plotHere.getPlotOwner().Equals(playerInfo)))
-                {
-                    MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:no_city_here"));
-                    return;
-                }
-                if (args[1].Equals("on", StringComparison.OrdinalIgnoreCase))
-                {
-                    plotHere.getPermsHandler().setBlast(false);
-                    plotHere.saveToDatabase();
-                    return;
-                }
-                if (args[1].Equals("off", StringComparison.OrdinalIgnoreCase))
-                {
-                    plotHere.getPermsHandler().setBlast(true);
-                    plotHere.saveToDatabase();
-                    return;
-                }
-            }
-
-        }
-      
-       
-      
-      
-       
-       
-        
-       
-       
-        
-              */
     }
 }

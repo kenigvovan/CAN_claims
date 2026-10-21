@@ -38,6 +38,9 @@ namespace claims.src.gui.playerGui.Pages
             Add(EnumSelectedTab.PlotMarket, new PlotMarketPage());
             Add(EnumSelectedTab.PlotMarketHistory, new PlotMarketHistoryPage());
             Add(EnumSelectedTab.PlotAuction, new PlotAuctionPage());
+            Add(EnumSelectedTab.CityRules, new CityRulesPage());
+            Add(EnumSelectedTab.SubPlots, new SubPlotsPage());
+            Add(EnumSelectedTab.SubPlotInfoPage, new SubPlotInfoPage());
         }
 
         /// <summary>

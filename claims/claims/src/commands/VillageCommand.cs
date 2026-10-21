@@ -99,6 +99,11 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:you_dont_have_right_for_that_command");
             }
+            // A city has no raid window, so upgrading would end an open raid on the spot.
+            if (VillageRaidHelper.IsRaidWindowOpen(village))
+            {
+                return TextCommandResult.Error("claims:village_upgrade_during_raid");
+            }
             if (village.getCityCitizens().Count < claims.config.VILLAGE_UPGRADE_MIN_CITIZENS)
             {
                 return ErrorWithParams("claims:village_upgrade_needs_citizens",

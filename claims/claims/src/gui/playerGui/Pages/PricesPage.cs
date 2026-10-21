@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using claims.src.gui.playerGui.Widgets;
+using claims.src.part.structure;
 using claims.src.part.structure.plots;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -41,13 +42,23 @@ namespace claims.src.gui.playerGui.Pages
             {
                 foreach (var entry in PlotInfo.dictPlotTypes)
                 {
+                    // The village main plot is set by the code when a village is founded and always
+                    // costs nothing - a price row for it only reads as a plot you could buy.
+                    if (entry.Key == PlotType.VILLAGE_MAIN) continue;
+
                     string name = entry.Value.getFullName();
+                    // Daily upkeep, then the one-time price of setting the type where there is one.
+                    string value = Number(entry.Value.getCost());
+                    if (claims.config.PLOT_TYPE_SET_COSTS != null && claims.config.PLOT_TYPE_SET_COSTS.TryGetValue(name, out double setCost))
+                    {
+                        value += " / " + Number(setCost);
+                    }
                     plotRows.Add(new CardRow
                     {
                         // The code name is the lang key, not the caption - the list used to read
                         // "default, mainplot, orchard" regardless of the player's language.
                         Label = Lang.Get("claims:gui-plot-type-" + name),
-                        Value = Number(entry.Value.getCost()),
+                        Value = value,
                         Tooltip = Lang.Get("claims:gui-plot-type-desc-" + name),
                         Key = "plottype-" + name
                     });

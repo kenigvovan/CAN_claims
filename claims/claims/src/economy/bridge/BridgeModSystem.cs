@@ -20,12 +20,22 @@ namespace claims.src.economy.bridge
             // caneconomy fills its coin index only in the RunGame phase (after
             // ModsAndConfigReady), so the denominations must be read there.
             api.Event.ServerRunPhase(EnumServerRunPhase.RunGame, RefreshCoinData);
+            // Both the claims data and caneconomy's handler are ready by RunGame.
+            api.Event.ServerRunPhase(EnumServerRunPhase.RunGame, () => TreasuryAccounts.EnsureAll());
         }
 
         public override void Dispose()
         {
             base.Dispose();
             if (!_adapterInstalled) return;
+            UninstallAdapter();
+        }
+
+        // Kept out of Dispose: JIT-compiling a method that touches caneconomy types loads
+        // caneconomy.dll, so Dispose itself must not reference them when the mod is absent.
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private void UninstallAdapter()
+        {
             caneconomy.src.implementations.VirtualMoney.VirtualMoneyEconomyHandler.AccountBalanceChanged -= claims.RaiseAccountBalanceChanged;
             caneconomy.caneconomy.OnBlockRemovedBlockEntityOpenableContainer -= RealBankActions.OnBlockRemoved;
             caneconomy.caneconomy.OnReceivedClientPacketBlockEntitySign -= RealBankActions.OnButtonSave;

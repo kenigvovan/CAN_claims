@@ -16,6 +16,39 @@ namespace claims.src.gui.playerGui.Pages
     /// </summary>
     public sealed class PlotPage : CANGuiPage
     {
+        /// <summary>
+        /// The sub-plots cut out of this plot, one row each: who holds it, its price and tax, and what
+        /// the player may do inside. Read from the pieces the client already has; none, no card.
+        /// </summary>
+        private static double SubPlotsCard(GuiComposer compo, ElementBounds column, double y, int plotX, int plotZ)
+        {
+            if (!claims.clientDataStorage.getSavedPlot(new Vintagestory.API.MathTools.Vec2i(plotX, plotZ), out var saved) || saved == null) return y;
+            var rows = new List<CardRow>();
+            var seen = new HashSet<string>();
+            foreach (var piece in saved.SubPlotPieces())
+            {
+                if (!seen.Add(piece.Name)) continue;
+                var parts = new List<string>
+                {
+                    piece.Owner.Length > 0 ? piece.Owner : Lang.Get("claims:banner-subplot-city")
+                };
+                string offer = subplots.SubPlotText.Offer(piece.Price, piece.Tax);
+                if (offer != null) parts.Add(offer);
+                // A rent already names the tax.
+                if (piece.Tax > 0 && piece.Price != 0) parts.Add(Lang.Get("claims:gui-subplot-tax", Number(piece.Tax)));
+                parts.Add(Lang.Get(piece.May(1) ? "claims:gui-subplot-you-build" : piece.May(0) ? "claims:gui-subplot-you-use" : "claims:gui-subplot-you-nothing"));
+                rows.Add(new CardRow
+                {
+                    Label = piece.Name,
+                    Value = string.Join(" · ", parts),
+                    ValueColor = piece.May(1) ? ClaimsColors.Success : null,
+                    Key = "subplot-" + piece.Name
+                });
+            }
+            if (rows.Count == 0) return y;
+            return Card.Rows(compo, column, y, Lang.Get("claims:gui-plot-section-subplots"), rows);
+        }
+
         protected override void BuildContent(PageBuildContext ctx)
         {
             var compo = ctx.Compo;
@@ -41,7 +74,7 @@ namespace claims.src.gui.playerGui.Pages
             // the claim commands take.
             if (!plot.IsClaimed)
             {
-                Card.Rows(compo, anchor, anchor.fixedY, Lang.Get("claims:gui-plot-section-plot"), new List<CardRow>
+                double unclaimedY = Card.Rows(compo, anchor, anchor.fixedY, Lang.Get("claims:gui-plot-section-plot"), new List<CardRow>
                 {
                     new CardRow
                     {
@@ -57,6 +90,15 @@ namespace claims.src.gui.playerGui.Pages
                         Key = "plotunclaimed"
                     },
                 });
+
+                // Borders do not need a claim: seeing where the chunk ends is exactly what a player
+                // wants before claiming it. The page used to stop above, leaving no way to switch
+                // them on but the chat command.
+                Card.Actions(compo, anchor, unclaimedY, Lang.Get("claims:gui-plot-section-actions"), slot =>
+                {
+                    var borderActions = new ActionRow(compo, slot);
+                    AddBorderActions(borderActions);
+                });
                 return;
             }
 
@@ -67,10 +109,24 @@ namespace claims.src.gui.playerGui.Pages
             bool owned = plot.OwnerName?.Length > 0;
             bool forSale = plot.Price > -1;
 
-            double y = anchor.fixedY;
+            // What the plot is and what can be done to it on the left; its rules on the right, for
+            // everyone to read - they used to sit in a side window only its editors could open.
+            Columns(anchor, out ElementBounds left, out ElementBounds right);
+            bool canSetRules = canEditPlot || perms.HasPermission(EnumPlayerPermissions.PLOT_SET_PLOT_ACCESS_PERMISSIONS);
+            // Each flag by its own right, as /plot set checks it; an editor of the plot may set them all.
+            double rightY = PermTable.Flags(ctx, right, right.fixedY, "plotperm", Dialogs.PermissionsScopes.Plot, flag =>
+            {
+                if (canEditPlot) return true;
+                var flagRight = Dialogs.PermissionsScopes.FlagPermission(flag, EnumPlayerPermissions.PLOT_SET_PVP,
+                    EnumPlayerPermissions.PLOT_SET_FIRE, EnumPlayerPermissions.PLOT_SET_BLAST, EnumPlayerPermissions.PLOT_SET_MOBSPAWN);
+                return flagRight.HasValue && perms.HasPermission(flagRight.Value);
+            });
+            double rightEnd = PermTable.Rights(ctx, right, rightY, "plotperm", Dialogs.PermissionsScopes.Plot, canSetRules);
+
+            double y = left.fixedY;
 
             // --- what this plot is ---
-            y = Card.Rows(compo, anchor, y, Lang.Get("claims:gui-plot-section-plot"), new List<CardRow>
+            y = Card.Rows(compo, left, y, Lang.Get("claims:gui-plot-section-plot"), new List<CardRow>
             {
                 new CardRow
                 {
@@ -102,7 +158,7 @@ namespace claims.src.gui.playerGui.Pages
             });
 
             // --- what it costs ---
-            y = Card.Rows(compo, anchor, y, Lang.Get("claims:gui-plot-section-economy"), new List<CardRow>
+            y = Card.Rows(compo, left, y, Lang.Get("claims:gui-plot-section-economy"), new List<CardRow>
             {
                 new CardRow
                 {
@@ -157,7 +213,7 @@ namespace claims.src.gui.playerGui.Pages
                 }
                 if (onAuction)
                 {
-                    long left = plot.AuctionEndsAt - TimeFunctions.getEpochSeconds();
+                    long secondsLeft = plot.AuctionEndsAt - TimeFunctions.getEpochSeconds();
                     marketRows.Add(new CardRow
                     {
                         Label = Lang.Get("claims:gui-plot-label-auction-bid"),
@@ -170,8 +226,8 @@ namespace claims.src.gui.playerGui.Pages
                     marketRows.Add(new CardRow
                     {
                         Label = Lang.Get("claims:gui-auction-duration"),
-                        Value = left > 0
-                            ? Lang.Get("claims:gui-auction-time-left", left / 3600, (left % 3600) / 60)
+                        Value = secondsLeft > 0
+                            ? Lang.Get("claims:gui-auction-time-left", secondsLeft / 3600, (secondsLeft % 3600) / 60)
                             : Lang.Get("claims:gui-auction-closing"),
                         Key = "plotauctionleft"
                     });
@@ -206,7 +262,7 @@ namespace claims.src.gui.playerGui.Pages
                     });
                 }
 
-                y = Card.RowsWithActions(compo, anchor, y, Lang.Get("claims:gui-plot-section-city-market"), marketRows, slot =>
+                y = Card.RowsWithActions(compo, left, y, Lang.Get("claims:gui-plot-section-city-market"), marketRows, slot =>
                 {
                     var marketActions = new ActionRow(compo, slot);
 
@@ -289,8 +345,12 @@ namespace claims.src.gui.playerGui.Pages
                 });
             }
 
+            y = SubPlotsCard(compo, left, y, plot.PlotPosition.X, plot.PlotPosition.Y);
+
             // --- everything that can be done to it ---
-            Card.Actions(compo, anchor, y, Lang.Get("claims:gui-plot-section-actions"), slot =>
+            // Under both columns, the full width: a mayor's strip is up to nine buttons, more than
+            // half the window holds, and the strip does not wrap.
+            Card.Actions(compo, anchor, System.Math.Max(y, rightEnd), Lang.Get("claims:gui-plot-section-actions"), slot =>
             {
                 var actions = new ActionRow(compo, slot);
 
@@ -349,13 +409,6 @@ namespace claims.src.gui.playerGui.Pages
                         Lang.Get("claims:gui-plot-set-tax-tooltip"), toggleable: true);
                 }
 
-                if (canEditPlot || perms.HasPermission(EnumPlayerPermissions.PLOT_SET_PLOT_ACCESS_PERMISSIONS))
-                {
-                    actions.Add("claims:open-book", "setPermissions",
-                        on => Toggle(on, EnumUpperWindowSelectedState.PLOT_PERMISSIONS),
-                        Lang.Get("claims:gui-plot-set-permissions-tooltip"), toggleable: true);
-                }
-
                 // The prison and summon plots each get the one command that only makes sense on them.
                 if (plot.PlotType == PlotType.PRISON && perms.HasPermission(EnumPlayerPermissions.CITY_PRISON_ADD_CELL))
                 {
@@ -368,13 +421,23 @@ namespace claims.src.gui.playerGui.Pages
                         Lang.Get("claims:gui-plot-set-summon-tooltip"));
                 }
 
-                actions.Add("claims:highlighter", "showBorders", on => Run("/plot borders on"),
-                    Lang.Get("claims:gui-plot-show-borders-tooltip"));
-
-                // "eraser" is one of the game's own icons, not one of the mod's - no "claims:" prefix.
-                actions.Add("eraser", "hideBorders", on => Run("/plot borders off"),
-                    Lang.Get("claims:gui-plot-hide-borders-tooltip"));
+                AddBorderActions(actions);
             });
+        }
+
+        /// <summary>
+        /// The border grid on and off, shared by the claimed and unclaimed plot pages. The grid is
+        /// drawn by the client (PlotBorderRenderer); turning it on also switches off the server's
+        /// /plot borders box, so the two never stand on top of each other.
+        /// </summary>
+        private void AddBorderActions(ActionRow actions)
+        {
+            bool shown = claims.clientPrefs?.ShowPlotBorders ?? false;
+            actions.Add(shown ? "eraser" : "claims:highlighter", "toggleBorders", on =>
+            {
+                claims.TogglePlotBorders();
+                Gui.BuildMainWindow();
+            }, Lang.Get(shown ? "claims:gui-plot-hide-borders-tooltip" : "claims:gui-plot-show-borders-tooltip"));
         }
 
         /// <summary>A toggleable button opens its form, and closes it again when switched back off.</summary>

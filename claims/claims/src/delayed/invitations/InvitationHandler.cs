@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using claims.src.part;
 using claims.src.part.interfaces;
 
 namespace claims.src.delayed.invitations
@@ -15,10 +16,24 @@ namespace claims.src.delayed.invitations
                 {
                     inv.getReceiver().deleteReceivedInvitation(inv);
                     inv.getSender().deleteSentInvitation(inv);
+                    Forget(inv);
                 });
         }
 
         public static bool addNewInvite(Invitation invitation)
+        {
+            if (!Register(invitation)) return false;
+            if (invitation.Kind != null && invitation.getSender() is Part sender && invitation.getReceiver() is Part receiver)
+            {
+                claims.getModInstance()?.getDatabaseHandler()?.saveInvitation(invitation.Kind, sender.Guid, receiver.Guid, invitation.getTimeStamp());
+            }
+            return true;
+        }
+
+        /// <summary>An invitation read back from the database: registered, not written again.</summary>
+        public static bool Restore(Invitation invitation) => Register(invitation);
+
+        private static bool Register(Invitation invitation)
         {
             foreach (var it in invites.Snapshot())
             {
@@ -36,6 +51,15 @@ namespace claims.src.delayed.invitations
             return true;
         }
 
+        /// <summary>Drops the saved row of an invitation that has been answered, withdrawn or has run out.</summary>
+        private static void Forget(Invitation invitation)
+        {
+            if (invitation.Kind != null && invitation.getSender() is Part sender && invitation.getReceiver() is Part receiver)
+            {
+                claims.getModInstance()?.getDatabaseHandler()?.deleteInvitation(invitation.Kind, sender.Guid, receiver.Guid);
+            }
+        }
+
         public static bool removeInvitationIfExists(ISender sender, IReceiver receiver)
         {
             foreach (var it in invites.Snapshot())
@@ -45,6 +69,7 @@ namespace claims.src.delayed.invitations
                     it.getSender().GetSentInvitations().Remove(it);
                     it.getReceiver().getReceivedInvitations().Remove(it);
                     invites.Remove(it);
+                    Forget(it);
                     return true;
                 }
             }
@@ -71,6 +96,7 @@ namespace claims.src.delayed.invitations
                     it.getReceiver().deleteReceivedInvitation(it);
                     it.getSender().deleteSentInvitation(it);
                     invites.Remove(it);
+                    Forget(it);
                 }
             }
         }
@@ -83,6 +109,7 @@ namespace claims.src.delayed.invitations
                 {
                     it.getReceiver().deleteReceivedInvitation(it);
                     invites.Remove(it);
+                    Forget(it);
                 }
             }
         }

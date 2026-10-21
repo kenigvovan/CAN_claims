@@ -56,7 +56,7 @@ namespace claims.src.gui.playerGui.Pages
 
             // The grid element sizes itself to the city; the viewport around it is what scrolls.
             var mapBounds = ElementBounds.Fixed(0, 0, 10, 10);
-            var map = new GuiElementCityMap(compo.Api, plots, mapBounds);
+            var map = new GuiElementCityMap(compo.Api, plots, mapBounds, Player.CityInfo?.SubPlotCells);
             mapBounds.WithFixedSize(map.MapWidth, map.MapHeight);
 
             // The legend is measured first: it is what is left over that the map may fill, rather

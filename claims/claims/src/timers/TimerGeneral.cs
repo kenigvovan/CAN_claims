@@ -14,10 +14,13 @@ namespace claims.src.timers
             //Start new day sequence. The callback runs on the main server thread —
             //day/hour processing touches shared game state, so it must NOT be offloaded
             //to a background thread (that caused data races with the server tick).
-            var returnId = sapi.Event.RegisterCallback((dt =>
+            //Polled rather than scheduled: picks up a changed day length without a restart.
+            bool firstDayCheck = true;
+            var returnId = sapi.Event.RegisterGameTickListener(dt =>
             {
-                new DayTimer().Run(true);
-            }), (int)TimeFunctions.getSecondsBeforeNextDayStart() * 1000);
+                DayTimer.CheckNewDay(firstDayCheck);
+                firstDayCheck = false;
+            }, 30000);
 
             sapi.Logger.Debug("StartTimers:newdayTimer, handlerID " + returnId);
 

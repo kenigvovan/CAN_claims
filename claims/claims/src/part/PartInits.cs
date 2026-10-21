@@ -49,7 +49,8 @@ namespace claims.src.part
             Plot newPlot = new Plot(pos);
             newPlot.Price = -1;
             newPlot.setCity(city);
-            newPlot.Type = tier == CityTier.VILLAGE ? PlotType.VILLAGE_MAIN : PlotType.MAIN_CITY_PLOT;
+            // A city's founding plot is an ordinary one; MAIN_CITY_PLOT is only left on older cities.
+            newPlot.Type = tier == CityTier.VILLAGE ? PlotType.VILLAGE_MAIN : PlotType.DEFAULT;
             if (tier == CityTier.VILLAGE)
             {
                 PlaceVillageAnchor(city, newPlot);
