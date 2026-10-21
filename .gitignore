@@ -368,3 +368,4 @@ CLAUDE.md
 
 # Markdown files
 *.md
+/ps.txt
