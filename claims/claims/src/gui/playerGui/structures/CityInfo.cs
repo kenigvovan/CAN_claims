@@ -22,6 +22,10 @@ namespace claims.src.gui.playerGui.structures
         /// <summary>How long that window lasts, in minutes.</summary>
         public int RaidWindowMinutes { get; set; } = 0;
         public string MayorName { get; set; }
+        /// <summary>Whether the city takes anyone who asks, without an invitation.</summary>
+        public bool Open { get; set; } = false;
+        /// <summary>What newcomers read about this city in the world-wide list; empty when unset.</summary>
+        public string InvMsg { get; set; } = "";
         public long TimeStampCreated { get; set; }
         public List<string> PlayersNames;
         public Dictionary<string, int> MaxCountPlots { get; set; } = new();
@@ -43,7 +47,8 @@ namespace claims.src.gui.playerGui.structures
         public PermsHandler PermsHandler { get; set; } = new();
         public List<PrisonCellElement> PrisonCells { get; set; } = new();
         public List<SummonCellElement> SummonCells { get; set; } = new();
-        public List<PlotsGroupCellElement> PlotsGroupCells { get; set; } = new();   
+        public List<PlotsGroupCellElement> PlotsGroupCells { get; set; } = new();
+        public List<SubPlotCellElement> SubPlotCells { get; set; } = new();
         public List<ClientToAllianceInvitationCellElement> ClientToAllianceInvitations { get; set; } = new();
         public List<ClientConflictCellElement> ClientConflictCellElements { get; set; } = new();
         public List<ClientConflictLetterCellElement> ClientConflictLetterCellElements { get; set; } = new();
@@ -54,6 +59,8 @@ namespace claims.src.gui.playerGui.structures
         public List<ClientCasusBelliCellElement> ClientCasusBelliCellElements { get; set; } = new();
         public List<CityLogEntry> EventLog { get; set; } = new List<CityLogEntry>();
         public List<CityPlotMiniInfo> PlotsMap { get; set; } = new List<CityPlotMiniInfo>();
+        /// <summary>Temples a citizen may pick as their respawn point.</summary>
+        public List<TempleRespawnPointInfo> TempleRespawnPoints { get; set; } = new List<TempleRespawnPointInfo>();
         /// <summary>Plots other cities offer to ours, and the deals our city already took part in.</summary>
         public List<PlotSaleRecord> PlotMarketHistory { get; set; } = new List<PlotSaleRecord>();
         /// <summary>

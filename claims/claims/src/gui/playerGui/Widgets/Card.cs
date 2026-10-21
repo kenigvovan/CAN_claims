@@ -26,6 +26,10 @@ namespace claims.src.gui.playerGui.Widgets
     {
         public const double LineHeight = 17;
 
+        /// <summary>A list line is taller than a caption line: it carries icon buttons.</summary>
+        public const double ItemHeight = 22;
+        private const double ItemButtonSize = 20;
+
         /// <summary>Heading text, the gap before its rule, and the gap between rule and first row.</summary>
         private const double HeaderTextHeight = 20;
         private const double HeaderRuleGap = 5;
@@ -69,8 +73,11 @@ namespace claims.src.gui.playerGui.Widgets
             if (title != null)
             {
                 var header = inner.FlatCopy().WithFixedHeight(HeaderTextHeight);
-                compo.AddStaticText(title, CairoFont.WhiteSmallishText().WithColor(ClaimsColors.Section),
-                    header, HeaderKey(compo, title));
+                var headerFont = CairoFont.WhiteSmallishText().WithColor(ClaimsColors.Section);
+                // A long heading wrapped onto the rule and the first row; cut short, full on hover.
+                string shown = Fit(title, headerFont, innerWidth);
+                compo.AddStaticText(shown, headerFont, header, UniqueKey(compo, "sec-" + title));
+                if (shown != title) Tooltip.Add(compo, title, header, UniqueKey(compo, "sectip-" + title));
 
                 var rule = header.BelowCopy(0, HeaderRuleGap).WithFixedHeight(2);
                 compo.AddInset(rule);
@@ -86,14 +93,95 @@ namespace claims.src.gui.playerGui.Widgets
         /// A key no element on this composer holds yet. Two cards on one page may legitimately carry
         /// the same heading, and a repeated key makes the composer throw.
         /// </summary>
-        private static string HeaderKey(GuiComposer compo, string title)
+        public static string UniqueKey(GuiComposer compo, string key)
         {
-            string key = "sec-" + title;
-            for (int i = 2; compo.GetElement(key) != null; i++)
+            string result = key;
+            for (int i = 2; compo.GetElement(result) != null; i++)
             {
-                key = "sec-" + title + "-" + i;
+                result = key + "-" + i;
             }
-            return key;
+            return result;
+        }
+
+        /// <summary>
+        /// A list card: one line per entry with its own buttons, an empty-state text when there is
+        /// nothing, and an optional action strip at the bottom (null for none). Replaces a count with
+        /// the names in a tooltip and a separate "type the name" form for acting on one of them.
+        /// It does not scroll: cut a long list with <see cref="Limit"/>, or keep ScrollableList.
+        /// </summary>
+        public static double Items(GuiComposer compo, ElementBounds column, double y, string title,
+                                   List<ItemRow> items, string emptyText, System.Action<ElementBounds> actions = null)
+        {
+            int lines = System.Math.Max(1, items.Count);
+            double height = HeaderHeight + lines * ItemHeight + Padding * 2;
+            if (actions != null) height += ActionGap + ActionSize;
+            ElementBounds inner = Frame(compo, column, y, height, title);
+
+            if (items.Count == 0)
+            {
+                var empty = inner.FlatCopy().WithFixedHeight(ItemHeight);
+                compo.AddStaticText(emptyText ?? "", CairoFont.WhiteSmallText().WithColor(ClaimsColors.Label),
+                    empty, UniqueKey(compo, "empty-" + title));
+            }
+
+            for (int i = 0; i < items.Count; i++)
+            {
+                DrawItem(compo, inner, items[i], inner.fixedY + i * ItemHeight);
+            }
+
+            if (actions != null)
+            {
+                var slot = inner.FlatCopy().WithFixedSize(ActionSize, ActionSize);
+                slot.fixedY = inner.fixedY + lines * ItemHeight + ActionGap;
+                actions(slot);
+            }
+            return y + height + Gap;
+        }
+
+        /// <summary>
+        /// A card holding one block of wrapped text, such as a hint. Measured, not given a height:
+        /// a fixed one cut a long translation short or left a short one floating in empty space.
+        /// </summary>
+        public static double Note(GuiComposer compo, ElementBounds column, double y, string title, string text,
+                                  System.Action<ElementBounds> actions = null)
+        {
+            CairoFont font = CairoFont.WhiteSmallText().WithColor(ClaimsColors.Label);
+            double width = column.fixedWidth - Padding * 2;
+            // Measured in screen pixels, as the font is scaled; the card works in unscaled units.
+            double textHeight = compo.Api.Gui.Text.GetMultilineTextHeight(font, text, GuiElement.scaled(width))
+                                / Vintagestory.API.Config.RuntimeEnv.GUIScale + 4;
+
+            // No heading, no room for one: Frame only draws it when there is a title.
+            double height = (title != null ? HeaderHeight : 0) + textHeight + Padding * 2;
+            if (actions != null) height += ActionGap + ActionSize;
+            ElementBounds inner = Frame(compo, column, y, height, title);
+
+            var textBounds = inner.FlatCopy().WithFixedHeight(textHeight);
+            compo.AddStaticText(text, font, textBounds, UniqueKey(compo, "note-" + (title ?? "")));
+
+            if (actions != null)
+            {
+                var slot = inner.FlatCopy().WithFixedSize(ActionSize, ActionSize);
+                slot.fixedY = inner.fixedY + textHeight + ActionGap;
+                actions(slot);
+            }
+            return y + height + Gap;
+        }
+
+        /// <summary>
+        /// At most <paramref name="max"/> entries, the last one replaced by "and N more" when the
+        /// list is longer - what a list card does instead of scrolling.
+        /// </summary>
+        public static List<ItemRow> Limit(List<ItemRow> items, int max)
+        {
+            if (items.Count <= max || max < 2) return items;
+            var shown = items.GetRange(0, max - 1);
+            shown.Add(new ItemRow
+            {
+                Label = Vintagestory.API.Config.Lang.Get("claims:gui-list-and-more", items.Count - (max - 1)),
+                Key = "more-" + items[0].Key
+            });
+            return shown;
         }
 
         /// <summary>
@@ -201,8 +289,47 @@ namespace claims.src.gui.playerGui.Widgets
             }
         }
 
+        private static void DrawItem(GuiComposer compo, ElementBounds inner, ItemRow item, double rowY)
+        {
+            double buttonsWidth = item.Buttons.Count * (ItemButtonSize + 4);
+            var labelFont = CairoFont.WhiteSmallText();
+            var valueFont = CairoFont.WhiteSmallText().WithColor(item.ValueColor ?? ClaimsColors.Value)
+                                     .WithOrientation(EnumTextOrientation.Right);
+
+            double valueWidth = string.IsNullOrEmpty(item.Value) ? 0
+                : System.Math.Min(valueFont.GetTextExtents(item.Value).Width + 6, inner.fixedWidth * 0.4);
+            double labelWidth = inner.fixedWidth - buttonsWidth - valueWidth - 6;
+
+            // Text sits a little lower than the buttons so both read as one line.
+            var labelBounds = inner.FlatCopy().WithFixedSize(labelWidth, LineHeight);
+            labelBounds.fixedY = rowY + 2;
+            string shown = Fit(item.Label, labelFont, labelWidth);
+            compo.AddStaticText(shown, labelFont, labelBounds, UniqueKey(compo, "itemlabel-" + item.Key));
+            if (item.Tooltip != null) Tooltip.Add(compo, item.Tooltip, labelBounds, UniqueKey(compo, "itemtip-" + item.Key));
+            else if (shown != item.Label) Tooltip.Add(compo, item.Label, labelBounds, UniqueKey(compo, "itemfull-" + item.Key));
+
+            if (valueWidth > 0)
+            {
+                var valueBounds = inner.FlatCopy().WithFixedSize(valueWidth, LineHeight);
+                valueBounds.fixedX += labelWidth + 2;
+                valueBounds.fixedY = rowY + 2;
+                compo.AddStaticText(item.Value, valueFont, valueBounds, UniqueKey(compo, "itemvalue-" + item.Key));
+            }
+
+            for (int b = 0; b < item.Buttons.Count; b++)
+            {
+                RowButton button = item.Buttons[b];
+                var bounds = inner.FlatCopy().WithFixedSize(ItemButtonSize, ItemButtonSize);
+                bounds.fixedX += inner.fixedWidth - (item.Buttons.Count - b) * (ItemButtonSize + 4) + 4;
+                bounds.fixedY = rowY;
+                string key = UniqueKey(compo, "itembtn-" + item.Key + "-" + b);
+                compo.AddIconButton(button.Icon, _ => button.OnClick(), bounds, key);
+                Tooltip.Add(compo, button.Tooltip, bounds, "tip-" + key);
+            }
+        }
+
         /// <summary>Shortens a caption with an ellipsis until it fits the width it was given.</summary>
-        private static string Fit(string text, CairoFont font, double maxWidth)
+        public static string Fit(string text, CairoFont font, double maxWidth)
         {
             if (string.IsNullOrEmpty(text) || font.GetTextExtents(text).Width <= maxWidth) return text;
 

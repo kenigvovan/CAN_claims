@@ -34,9 +34,9 @@ namespace claims.src.gui.playerGui.Dialogs
                 Lang.Get("claims:conflict_target_city"),
                 Lang.Get("claims:conflict_target_alliance")
             };
-            DropDown(l, prefixes, partyLabels, picked => Args.First = picked);
+            DropDown(l, prefixes, partyLabels, picked => Args.First = picked, Args.First);
 
-            TextInput(l, TargetKey, value => Args.Text = value);
+            TextInput(l, TargetKey, value => Args.Text = value, Args.Text);
 
             l.Compo.AddStaticText(Lang.Get("claims:gui_ultimatum_demand_title"), CairoFont.WhiteDetailText(), l.NextRow());
 
@@ -46,7 +46,13 @@ namespace claims.src.gui.playerGui.Dialogs
                 Lang.Get("claims:gui_ultimatum_demand_money"),
                 Lang.Get("claims:gui_ultimatum_demand_plot")
             };
-            DropDown(l, demands, demandLabels, picked => Args.Second = picked);
+            // Picking rebuilds the window: the amount field only belongs to a money demand, and it
+            // used to stay on screen under a plot demand until something else redrew the form.
+            DropDown(l, demands, demandLabels, picked =>
+            {
+                Args.Second = picked;
+                Gui.BuildUpperWindow();
+            }, Args.Second);
 
             if (Args.Second == DemandMoney)
             {

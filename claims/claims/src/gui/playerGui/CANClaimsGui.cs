@@ -55,6 +55,8 @@ namespace claims.src.gui.playerGui
                           Visible = () => !IsOwnSettlementAVillage() },
             new MainTab { Tab = EnumSelectedTab.PlotsGroup, Icon = "claims:huts-village",  TooltipLangKey = "claims:gui-maintab-plotsgroup",
                           Visible = () => !IsOwnSettlementAVillage() },
+            new MainTab { Tab = EnumSelectedTab.SubPlots,   Icon = "claims:stairs-goal",   TooltipLangKey = "claims:gui-maintab-subplots",
+                          Visible = () => !IsOwnSettlementAVillage() },
 
             // One admin entry, hidden from everyone whose role is not listed in the config. The four
             // admin pages switch between themselves with their own tab strip - four more icons here
@@ -100,8 +102,9 @@ namespace claims.src.gui.playerGui
         public CANClaimsGui(ICoreClientAPI capi) : base(capi)
         {
             // The prices tab fills two columns of cards; at 500x600 the lower one ended right at
-            // the bottom edge.
-            Width = 560;
+            // the bottom edge. 680 as in canclaimsextended: two columns of 331 each, room enough for
+            // a list row with its buttons and for the four-group rights table on a page.
+            Width = 680;
             Height = 660;
             SelectedTab = 0;
         }
@@ -127,6 +130,19 @@ namespace claims.src.gui.playerGui
             }
 
             BuildMainWindow();
+
+            // A safety net for "Loading...": should no packet ever mark the data as arrived, the
+            // window shows what it has after a few seconds instead of waiting for good.
+            if (claims.clientDataStorage?.clientPlayerInfo?.ReceivedFromServer == false)
+            {
+                capi.Event.RegisterCallback(_ =>
+                {
+                    var info = claims.clientDataStorage?.clientPlayerInfo;
+                    if (info == null || info.ReceivedFromServer) return;
+                    info.ReceivedFromServer = true;
+                    if (IsOpened()) BuildMainWindow();
+                }, 3000);
+            }
         }
         // Which plot the server was last asked about, and whether the plot tab was showing on the
         // previous frame. int.MinValue means "never asked", so no null checks on a per-frame path.
@@ -200,15 +216,7 @@ namespace claims.src.gui.playerGui
         /// <summary>Opens the secondary window on the given form, optionally filling its arguments.</summary>
         public void OpenDialog(EnumUpperWindowSelectedState dialog, Action<DialogArgs> fill = null)
         {
-            State.Dialog = dialog;
-            // A form opens empty. The input buffers are shared between dialogs and only cleared on
-            // close, so switching straight from one form to another - typing a price into "sell to
-            // cities", then pressing "put up for bids" - handed the new form the old text while its
-            // own field showed nothing. Cleared before fill, which is how a caller prefills a form.
-            State.DialogArgs.Text = "";
-            State.DialogArgs.First = "";
-            State.DialogArgs.Second = "";
-            fill?.Invoke(State.DialogArgs);
+            State.OpenDialog(dialog, fill);
             BuildUpperWindow();
         }
         public void BuildMainWindow()
@@ -309,7 +317,16 @@ namespace claims.src.gui.playerGui
                 Main = mainBounds
             };
 
-            if (pages.TryGet(SelectedTab, out var page))
+            if (claims.clientDataStorage?.clientPlayerInfo?.ReceivedFromServer != true)
+            {
+                // The first packet arrives right after login; before it every page would describe
+                // a player with no city and no friends.
+                var loading = lineBounds.BelowCopy(0, 20).WithFixedSize(lineBounds.fixedWidth, 30);
+                SingleComposer.AddStaticText(Lang.Get("claims:gui-loading"),
+                    CairoFont.WhiteSmallishText().WithColor(Widgets.ClaimsColors.Label)
+                        .WithOrientation(EnumTextOrientation.Center), loading, "gui-loading");
+            }
+            else if (pages.TryGet(SelectedTab, out var page))
             {
                 page.Build(this, ctx);
             }

@@ -51,6 +51,22 @@ namespace claims.src.gui.playerGui
             DialogArgs.First = "";
             DialogArgs.Second = "";
         }
+
+        /// <summary>
+        /// Switches the secondary window to another form. A form opens empty: the buffers are shared
+        /// between forms, so switching straight from one to another - typing a price into "sell to
+        /// cities", then pressing "put up for bids" - handed the new form the old text while its own
+        /// field showed nothing. Cleared before <paramref name="fill"/>, which is how a caller
+        /// prefills a form, and how a select step hands its pick to the confirm step after it.
+        /// </summary>
+        public void OpenDialog(EnumUpperWindowSelectedState dialog, System.Action<DialogArgs> fill = null)
+        {
+            Dialog = dialog;
+            DialogArgs.Text = "";
+            DialogArgs.First = "";
+            DialogArgs.Second = "";
+            fill?.Invoke(DialogArgs);
+        }
     }
 
     /// <summary>

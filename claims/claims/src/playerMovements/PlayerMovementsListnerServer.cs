@@ -36,7 +36,10 @@ namespace claims.src
             PlotWhichShouldBeUpdated = new Dictionary<Vec2i, HashSet<Vec2i>>();
             PlotWhichShouldBeRemoved = new Dictionary<Vec2i, HashSet<Vec2i>>();
 
-            claims.sapi.Event.Timer(checkAndSendUpdates, 10);
+            // Every second: at ten, a plot whose pvp, price or owner changed went on being shown as it
+            // was - to someone standing on it included - for up to ten seconds. A pass with nothing
+            // queued costs two Count checks; changes within the second still go out as one batch.
+            claims.sapi.Event.Timer(checkAndSendUpdates, 1);
         }
         private void Subscribe(string uid, Vec2i zone)
         {
@@ -113,7 +116,8 @@ namespace claims.src
                     
                     playerInfo.PrisonedIn = null;
                     playerInfo.PrisonHoursLeft = 0;
-                    (claims.sapi.World.PlayerByUid(playerInfo.Guid) as IServerPlayer).SetSpawnPosition(new PlayerSpawnPos((int)claims.sapi.World.DefaultSpawnPosition.X, (int)claims.sapi.World.DefaultSpawnPosition.Y, (int)claims.sapi.World.DefaultSpawnPosition.Z));
+                    if (claims.sapi.World.PlayerByUid(playerInfo.Guid) is IServerPlayer escaped)
+                        PrisonSpawn.Restore(escaped);
                     
 
                 }
@@ -249,7 +253,7 @@ namespace claims.src
                     }
                     playerInfo.PrisonedIn = null;
                     playerInfo.PrisonHoursLeft = 0;
-                    pl.SetSpawnPosition(new PlayerSpawnPos((int)claims.sapi.World.DefaultSpawnPosition.X, (int)claims.sapi.World.DefaultSpawnPosition.Y, (int)claims.sapi.World.DefaultSpawnPosition.Z));
+                    PrisonSpawn.Restore(pl);
                     
                     
                 }

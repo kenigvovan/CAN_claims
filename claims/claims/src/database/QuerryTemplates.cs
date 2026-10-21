@@ -12,8 +12,18 @@ namespace claims.src.database
 
         //VILLAGE RUINS
         public static readonly string DELETE_VILLAGE_RUIN = "DELETE FROM VILLAGERUINS WHERE x=@x AND z=@z";
-        public static readonly string INSERT_VILLAGE_RUIN = "INSERT INTO VILLAGERUINS (x, z, until) VALUES (@x, @z, @until)";
-        public static readonly string UPDATE_VILLAGE_RUIN = "UPDATE VILLAGERUINS SET until=@until WHERE x=@x AND z=@z";
+        public static readonly string INSERT_VILLAGE_RUIN = "INSERT INTO VILLAGERUINS (x, z, since, abandoned) VALUES (@x, @z, @since, @abandoned)";
+        public static readonly string UPDATE_VILLAGE_RUIN = "UPDATE VILLAGERUINS SET since=@since, abandoned=@abandoned WHERE x=@x AND z=@z";
+
+        //SUBPLOTS
+        public static readonly string DELETE_SUBPLOT = "DELETE FROM SUBPLOTS WHERE guid=@guid";
+        public static readonly string INSERT_SUBPLOT = "INSERT INTO SUBPLOTS (guid, name, city, owner, boxes, price, perms, members, timestampclaimed, lastpaidprice, tax, pendingtax, pendingtaxat, pendingtaxaccepted, plotsgroup) VALUES (@guid, @name, @city, @owner, @boxes, @price, @perms, @members, @timestampclaimed, @lastpaidprice, @tax, @pendingtax, @pendingtaxat, @pendingtaxaccepted, @plotsgroup)";
+        public static readonly string UPDATE_SUBPLOT = "UPDATE SUBPLOTS SET name=@name, city=@city, owner=@owner, boxes=@boxes, price=@price, perms=@perms, members=@members, timestampclaimed=@timestampclaimed, lastpaidprice=@lastpaidprice, tax=@tax, pendingtax=@pendingtax, pendingtaxat=@pendingtaxat, pendingtaxaccepted=@pendingtaxaccepted, plotsgroup=@plotsgroup WHERE guid=@guid";
+
+        //PENDING INVITATIONS
+        public static readonly string DELETE_INVITATION = "DELETE FROM INVITATIONS WHERE kind=@kind AND sender=@sender AND receiver=@receiver";
+        public static readonly string INSERT_INVITATION = "INSERT INTO INVITATIONS (kind, sender, receiver, expires) VALUES (@kind, @sender, @receiver, @expires)";
+        public static readonly string UPDATE_INVITATION = "UPDATE INVITATIONS SET expires=@expires WHERE kind=@kind AND sender=@sender AND receiver=@receiver";
 
         //ALLIANCE
         public static readonly string DELETE_ALLIANCE = "DELETE FROM ALLIANCIES WHERE guid=@guid";
@@ -22,8 +32,8 @@ namespace claims.src.database
 
         //PLAYER
         public static readonly string DELETE_PLAYER = "DELETE FROM PLAYERS WHERE UID=@uid";
-        public static readonly string INSERT_PLAYER = "INSERT INTO PLAYERS (NAME, UID,timestampfirstjoined, timestamplastonline, comrades, city, citytitles, title, aftername, perms, prisonguid, prisonhoursleft, bounties, villagecooldown) VALUES (@name, @uid, @timestampfirstjoined, @timestamplastonline, @comrades,@city,@citytitles,@title,@aftername,@perms,@prisonguid,@prisonhoursleft,@bounties,@villagecooldown)";
-        public static readonly string UPDATE_PLAYER = "UPDATE PLAYERS SET NAME=@name, UID=@uid, timestampfirstjoined=@timestampfirstjoined, timestamplastonline=@timestamplastonline, comrades=@comrades, city=@city, citytitles=@citytitles, title=@title, aftername=@aftername, perms=@perms,prisonguid=@prisonguid, prisonhoursleft=@prisonhoursleft, bounties=@bounties, villagecooldown=@villagecooldown  WHERE UID=@uid";
+        public static readonly string INSERT_PLAYER = "INSERT INTO PLAYERS (NAME, UID,timestampfirstjoined, timestamplastonline, comrades, city, citytitles, title, aftername, perms, prisonguid, prisonhoursleft, bounties, villagelostat, villageabandoned) VALUES (@name, @uid, @timestampfirstjoined, @timestamplastonline, @comrades,@city,@citytitles,@title,@aftername,@perms,@prisonguid,@prisonhoursleft,@bounties,@villagelostat,@villageabandoned)";
+        public static readonly string UPDATE_PLAYER = "UPDATE PLAYERS SET NAME=@name, UID=@uid, timestampfirstjoined=@timestampfirstjoined, timestamplastonline=@timestamplastonline, comrades=@comrades, city=@city, citytitles=@citytitles, title=@title, aftername=@aftername, perms=@perms,prisonguid=@prisonguid, prisonhoursleft=@prisonhoursleft, bounties=@bounties, villagelostat=@villagelostat, villageabandoned=@villageabandoned  WHERE UID=@uid";
 
         //PLOTGROUP
         public static readonly string DELETE_CITYPLOTGROUP = "DELETE FROM CITYPLOTSGROUP WHERE guid=@guid";
@@ -95,6 +105,8 @@ namespace claims.src.database
                 { "CONFLICTLETTERS", (INSERT_CONFLICTLETTER, UPDATE_CONFLICTLETTER, DELETE_CONFLICTLETTER) },
                 { "UNIONLETTERS",    (INSERT_UNIONLETTER,    UPDATE_UNIONLETTER,    DELETE_UNIONLETTER) },
                 { "VILLAGERUINS",    (INSERT_VILLAGE_RUIN,   UPDATE_VILLAGE_RUIN,   DELETE_VILLAGE_RUIN) },
+                { "INVITATIONS",     (INSERT_INVITATION,     UPDATE_INVITATION,     DELETE_INVITATION) },
+                { "SUBPLOTS",        (INSERT_SUBPLOT,        UPDATE_SUBPLOT,        DELETE_SUBPLOT) },
                 { "PLOTSALES",       (INSERT_PLOTSALE,       UPDATE_PLOTSALE,       DELETE_PLOTSALE) },
                 { "AUCTIONS",        (INSERT_AUCTION,        UPDATE_AUCTION,        DELETE_AUCTION) },
                 { "AUCTIONBIDS",     (INSERT_AUCTIONBID,     UPDATE_AUCTIONBID,     DELETE_AUCTIONBID) },

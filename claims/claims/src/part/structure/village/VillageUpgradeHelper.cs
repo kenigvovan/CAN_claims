@@ -24,9 +24,19 @@ namespace claims.src.part.structure
 
                 // The anchor also served as the respawn point; a city respawns at its temples instead.
                 village.RemoveTempleRespawnPoint(mainPlot);
-                mainPlot.Type = PlotType.MAIN_CITY_PLOT;
+                mainPlot.Type = PlotType.DEFAULT;
                 mainPlot.PlotDesc = new PlotDesc();
                 mainPlot.saveToDatabase();
+            }
+
+            // The village got this land for free; as a city it must not be refunded the claim price
+            // for it (VU5). Plots claimed before ClaimCityPlot left the stamp at 0 still carry one.
+            // An owned plot keeps its stamp: there it dates the purchase the owner's refund is for.
+            foreach (Plot plot in village.getCityPlots())
+            {
+                if (plot.hasPlotOwner() || plot.TimeStampClaimed == 0) continue;
+                plot.TimeStampClaimed = 0;
+                plot.saveToDatabase();
             }
 
             village.Tier = CityTier.CITY;

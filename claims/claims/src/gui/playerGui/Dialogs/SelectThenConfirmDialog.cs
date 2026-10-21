@@ -33,13 +33,24 @@ namespace claims.src.gui.playerGui.Dialogs
             Text(l, textArgs == null ? Lang.Get(promptLangKey) : Lang.Get(promptLangKey, textArgs()));
 
             string[] options = optionsProvider() ?? new string[0];
-            DropDown(l, options, options, picked => Args.Text = picked);
+            // An empty dropdown crashes the client - see DropDownDialog. A group with no members, or
+            // a city with no groups, reached it.
+            if (options.Length == 0)
+            {
+                TextRow(l, Lang.Get("claims:gui-dropdown-nothing-to-pick"));
+                return;
+            }
+            Args.Text = KeptPick(options, Args.Text);
+            DropDown(l, options, options, picked => Args.Text = picked, Preselect(Args.Text));
 
             ElementBounds proceed = l.SplitRow(out ElementBounds close);
 
             l.Compo.AddButton(Lang.Get(proceedLangKey), new ActionConsumable(() =>
             {
-                Gui.OpenDialog(next);
+                string picked = Args.Text;
+                if (picked.Length == 0) return true;
+                // OpenDialog clears the buffers, so the pick is handed over through fill.
+                Gui.OpenDialog(next, a => a.Text = picked);
                 return true;
             }), proceed, EnumButtonStyle.Normal);
 

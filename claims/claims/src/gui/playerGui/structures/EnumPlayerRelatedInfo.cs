@@ -102,6 +102,17 @@
 
         // Land offered to other cities: price tags and running auctions alike, as the viewing city
         // is allowed to see them.
-        CITY_PLOT_AUCTIONS
+        CITY_PLOT_AUCTIONS,
+
+        // Whether our city takes anyone who asks, and what it tells them in the city list. Both were
+        // known only to the rows of *other* cities, so our own tab could neither show nor set them.
+        CITY_OPEN, CITY_INV_MSG,
+
+        // Temples of our city a citizen may pick as their respawn point.
+        CITY_TEMPLE_POINTS,
+
+        // Every sub-plot of our city, as a full list each time: they are few, and a full list
+        // cannot drift from the server the way added/removed pairs can.
+        CITY_SUBPLOTS_ALL
     }
 }

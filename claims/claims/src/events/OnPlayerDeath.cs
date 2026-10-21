@@ -36,6 +36,10 @@ namespace claims.src.events
                     if (playerInfo.PrisonedIn.TryGetRandomCell(out PrisonCellInfo cell))
                     {
                         cell.AddPlayer(playerInfo);
+                        // HourTimer releases at 1; 0 would mean "never".
+                        playerInfo.PrisonHoursLeft = Math.Max(1, claims.config.PRISON_SENTENCE_HOURS);
+                        playerInfo.saveToDatabase();
+                        PrisonSpawn.Remember(byPlayer);
                         byPlayer.SetSpawnPosition(new PlayerSpawnPos(cell.spawnPostion.X, cell.spawnPostion.Y, cell.spawnPostion.Z));
                         UsefullPacketsSend.AddToQueueCityInfoUpdate(playerInfo.PrisonedIn.City.Guid, new Dictionary<string, object> { { "value", new PrisonCellElement(cell.spawnPostion, cell.playerNames) } },
                             EnumPlayerRelatedInfo.CITY_CELL_PRISON_UPDATE);
@@ -165,6 +169,11 @@ namespace claims.src.events
             }
             if(playerInfoAttacker != null && plotKilled.hasCity() && plotKilled.getCity().isCitizen(playerInfoAttacker))
             {
+                // A28: a city does not jail its own people - the prison is for outsiders.
+                if (plotKilled.getCity().isCitizen(playerInfoKilled))
+                {
+                    return;
+                }
                 if (playerInfoAttacker.hasCity() && playerInfoAttacker.City.hasPrison())
                 {
                     if(playerInfoAttacker.City.TryGetRandomPrisonWithCell(out Prison prison))

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using claims.src.auxialiry;
 using claims.src.gui.playerGui.structures;
+using claims.src.part;
 using Vintagestory.API.Common;
 
 namespace claims.src.part.structure.plots
@@ -25,11 +26,16 @@ namespace claims.src.part.structure.plots
         /// Callers do their own eligibility checks - this only performs the move.
         /// </summary>
         /// <param name="markCaptured">Sets WasCaptured; true for war captures and cessions.</param>
-        public static void Transfer(Plot plot, City from, City to, bool markCaptured)
+        /// <param name="deferCitySave">Leaves both cities unsaved, for a caller moving many plots
+        /// between the same two cities - it saves them once when the run is over. The plot row itself
+        /// is always written.</param>
+        public static void Transfer(Plot plot, City from, City to, bool markCaptured, bool deferCitySave = false)
         {
             if (plot == null || to == null) return;
 
             PlotLeavingCity?.Invoke(plot);
+            // Sub-plots are the city's: the chunk leaves them while the city still pays any refund.
+            subplots.SubPlotLifecycle.CutChunk(plot.getPos());
 
             // Reset the type BEFORE the plot changes hands. Camps, summon points and temple respawns
             // are unregistered by PlotDesc.OnDeactivated through plot.getCity(), so doing this after
@@ -48,6 +54,14 @@ namespace claims.src.part.structure.plots
             // and nothing on the page tells them so.
             plot.getPermsHandler().setPerm(to.getPermsHandler());
 
+            // R27: out of the former owner's list too, or their leaving the city later would strip
+            // the plot from its new city.
+            PlayerInfo formerOwner = plot.getPlotOwner();
+            if (formerOwner != null)
+            {
+                formerOwner.PlayerPlots.Remove(plot);
+                formerOwner.saveToDatabase();
+            }
             plot.setPlotOwner(null);
             plot.setCustomTax(0);
             plot.setPlotGroup(null);
@@ -72,8 +86,11 @@ namespace claims.src.part.structure.plots
             if (markCaptured) plot.WasCaptured = true;
 
             plot.UpdateBorderPlotValue();
-            from?.saveToDatabase();
-            to.saveToDatabase();
+            if (!deferCitySave)
+            {
+                from?.saveToDatabase();
+                to.saveToDatabase();
+            }
             plot.saveToDatabase();
             plot.CheckBorderPlotValue();
 

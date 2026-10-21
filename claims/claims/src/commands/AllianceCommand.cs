@@ -67,8 +67,14 @@ namespace claims.src.commands
             AgreementHandler.addNewAgreementOrReplace(new Agreement(
                 () =>
                 {
-                if (playerInfo.hasCity() && !playerInfo.City.HasAlliance())
+                if (playerInfo.hasCity() && !playerInfo.City.HasAlliance() && playerInfo.City.isMayor(playerInfo))
                 {
+                    // Checked again: another alliance may have taken the name while this one waited.
+                    if (claims.dataStorage.GetAllianceByName(name, out _))
+                    {
+                        MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:already_exists_alliance"));
+                        return;
+                    }
                     if ((claims.economyProvider.GetBalance(city.MoneyAccountName) < (decimal)claims.config.NEW_ALLIANCE_COST))
                     {
                         MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:not_enough_money"));

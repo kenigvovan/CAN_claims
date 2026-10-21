@@ -11,6 +11,7 @@ namespace claims.src.economy.bridge
         private readonly List<CoinDisplayInfo> coinDenominations = new();
 
         public bool SupportsPlayerWallet => true;
+        public bool SupportsRemoteCoinTransfer => Handler is VirtualMoneyEconomyHandler;
         public IReadOnlyList<CoinDisplayInfo> CoinDenominations => coinDenominations;
 
         private static EconomyHandler Handler => caneconomy.caneconomy.getHandler();

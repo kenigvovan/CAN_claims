@@ -63,18 +63,25 @@ namespace claims.src.commands
                 return TextCommandResult.Success("claims:not_enough_money");
             }
 
+            string renameError = null;
             if (!paysForRename
                 || claims.economyProvider.Withdraw(playerInfo.City.MoneyAccountName, (decimal)claims.config.CITY_NAME_CHANGE_COST) == MoneyOperationResult.Success)
             {
-                if (city.rename((string)args.LastArg))
+                if (city.rename((string)args.LastArg, out renameError))
                 {
                     city.saveToDatabase();
                     return SuccessWithParams("claims:city_name_changed_to", new object[] { (string)args.LastArg });
                 }
+
+                // The money is already gone at this point, and the city still has its old name.
+                if (paysForRename)
+                {
+                    claims.economyProvider.Deposit(city.MoneyAccountName, (decimal)claims.config.CITY_NAME_CHANGE_COST);
+                }
             }
 
             UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_NAME);
-            return TextCommandResult.Error("");
+            return TextCommandResult.Error(Lang.Get(renameError ?? "claims:city_rename_failed"));
         }
         public static TextCommandResult CitySetPermissions(TextCommandCallingArgs args)
         {
@@ -91,7 +98,10 @@ namespace claims.src.commands
                 return TextCommandResult.Success("claims:more_parameters_needed");
             }
 
-            city.getPermsHandler().setAccessPerm(args.RawArgs);
+            if (!city.getPermsHandler().setAccessPerm(args.RawArgs))
+            {
+                return TextCommandResult.Error("claims:wrong_value");
+            }
             city.saveToDatabase();
             UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_PERMISSIONS_UPDATED);
             return SuccessWithParams("claims:for_group_perm_set_what", new object[] { args.RawArgs[0], args.RawArgs[1], args.RawArgs[2] });
@@ -110,6 +120,7 @@ namespace claims.src.commands
             {
                 city.invMsg = "";
                 city.saveToDatabase();
+                UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_INV_MSG);
                 return TextCommandResult.Success("claims:city_inv_msg_reset");
             }
             StringBuilder sb = new();
@@ -117,19 +128,22 @@ namespace claims.src.commands
 
             string filteredName = Filter.filterNameWithSpaces((string)args.LastArg);
 
+            // Refusals, not results: sent as Success they reached the player as an ordinary message,
+            // indistinguishable from the confirmation of a message that was actually set.
             if (filteredName.Length == 0 || !Filter.checkForBlockedNames(filteredName))
             {
-                return TextCommandResult.Success("claims:invalid_string");
+                return TextCommandResult.Error(Lang.Get("claims:invalid_string"));
             }
             lenCounter += filteredName.Length;
             if (lenCounter > claims.config.MAX_LENGTH_CITY_INV_MSG)
             {
-                return TextCommandResult.Success("claims:inv_msg_too_long");
+                return TextCommandResult.Error(Lang.Get("claims:inv_msg_too_long", claims.config.MAX_LENGTH_CITY_INV_MSG));
             }
             sb.Append(" ").Append(filteredName);
 
             city.invMsg = sb.ToString();
             city.saveToDatabase();
+            UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_INV_MSG);
             //if empty reset to empty msg
             return TextCommandResult.Success("claims:city_inv_msg_set");
         }
@@ -258,6 +272,7 @@ namespace claims.src.commands
             if(city.setCityOpenCloseState((string)args.LastArg))
             {
                 city.saveToDatabase();
+                UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_OPEN);
                 return TextCommandResult.Success();
             }
             return TextCommandResult.Error("");
@@ -414,7 +429,6 @@ namespace claims.src.commands
                     return TextCommandResult.Success("claims:wrong_value");
                 }
                 playerInfo.City.trySetPlotColor(colorValue);
-                UsefullPacketsSend.AddToQueueCityInfoUpdate(playerInfo.City.Guid, EnumPlayerRelatedInfo.CITY_PLOTS_COLOR);
                 return SuccessWithParams("claims:color_was_set_to", new object[] { (string)args.LastArg });
             }
             else

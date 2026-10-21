@@ -196,10 +196,15 @@ namespace claims.src.part.structure.plots.auction
             if (bankrupt == null || winner == null) return;
             if (auction.Reason != EnumAuctionReason.BANKRUPTCY) return;
 
+            // Transfer already routes the map update through the collected-updates queue; what it
+            // does per plot and should not is write both treasuries, each a full row of serialized
+            // json. Once at the end is enough for a whole city.
             foreach (Plot plot in bankrupt.getCityPlots().ToArray())
             {
-                PlotTransferHelper.Transfer(plot, bankrupt, winner, markCaptured: false);
+                PlotTransferHelper.Transfer(plot, bankrupt, winner, markCaptured: false, deferCitySave: true);
             }
+            bankrupt.saveToDatabase();
+            winner.saveToDatabase();
 
             winner.AddLogEntry(EnumCityLogEvent.CityAbsorbed, bankrupt.GetPartName(),
                 auction.CurrentBid.ToString());

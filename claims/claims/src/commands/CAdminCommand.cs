@@ -35,7 +35,7 @@ namespace claims.src.commands
 
             claims.sapi.Event.RegisterCallback((dt =>
             {
-                new DayTimer().Run(false);
+                new DayTimer().Run();
             }), 0);
 
 
@@ -162,6 +162,23 @@ namespace claims.src.commands
 
             plot.getPermsHandler().setPvp((string)args.LastArg);
             plot.MarkNoPvp();
+            plot.saveToDatabase();
+            return tcr;
+        }
+        public static TextCommandResult plotNoMobSpawn(TextCommandCallingArgs args)
+        {
+            IServerPlayer player = args.Caller.Player as IServerPlayer;
+            TextCommandResult tcr = new TextCommandResult();
+            tcr.Status = EnumCommandStatus.Success;
+
+            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z), out Plot plot);
+            if (plot == null)
+            {
+                return tcr;
+            }
+
+            plot.getPermsHandler().setNoMobSpawn((string)args.LastArg);
+            plot.MarkNoMobSpawn();
             plot.saveToDatabase();
             return tcr;
         }
@@ -438,17 +455,26 @@ namespace claims.src.commands
                 return tcr;
             }
 
-            for(int i = -radius; i <= radius; i++)
+            int claimed = 0;
+            int skipped = 0;
+            // The whole square reaches every subscriber as one collected packet instead of one per
+            // plot per player.
+            using (PlotStateHandling.BeginBatch())
             {
-                for(int j = -radius; j <= radius; j++)
+                for (int i = -radius; i <= radius; i++)
                 {
-                    cCityClaimByChankOffset(player, null, city, tcr, i, j, true);
+                    for (int j = -radius; j <= radius; j++)
+                    {
+                        if (cCityClaimByChankOffset(player, null, city, tcr, i, j, true)) claimed++;
+                        else skipped++;
+                    }
                 }
             }
+            // One city save and one chat line for the whole square: per plot, a radius of 5 used to
+            // queue 121 city rows and push 121 chat messages through the client.
+            if (claimed > 0) city.saveToDatabase();
+            MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:radius_claim_done", claimed, skipped));
 
-
-
-            //cCityClaim(player, null, city, tcr, true);
             return tcr;
         }
         public static TextCommandResult cityUnclaim(TextCommandCallingArgs args)
@@ -1057,7 +1083,10 @@ namespace claims.src.commands
 
             claims.sapi.Event.RegisterCallback((dt =>
             {
-                claims.getModInstance().getDatabaseHandler().makeBackup(claims.config.MANUALLY_BACKUP_FILE_NAME);
+                // The result used to go nowhere: an admin could not tell a failed backup from a made one.
+                bool made = claims.getModInstance().getDatabaseHandler().makeBackup(claims.config.MANUALLY_BACKUP_FILE_NAME);
+                MessageHandler.sendMsgToPlayer(player, Lang.Get(made ? "claims:backup_done" : "claims:backup_failed",
+                    claims.config.MANUALLY_BACKUP_FILE_NAME));
             }), 0);
             return tcr;
         }
@@ -1127,33 +1156,34 @@ namespace claims.src.commands
             claims.sapi.World.Api.Event.PushEvent("plotclaimed", tree);
             return;
         }
-        public static void cCityClaimByChankOffset(IServerPlayer player, CmdArgs args, City city, TextCommandResult res, int xOffset, int yOffset, bool force = false)
+        /// <summary>Claims one plot of a radius claim. Quiet and without a city save - the caller
+        /// reports and saves once for the whole square.</summary>
+        /// <returns>false when the plot was already taken or too close to another city.</returns>
+        public static bool cCityClaimByChankOffset(IServerPlayer player, CmdArgs args, City city, TextCommandResult res, int xOffset, int yOffset, bool force = false)
         {
             PlotPosition currentPlotPosition = PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z);
             var curPos = currentPlotPosition.getPos();
-            currentPlotPosition.setX(curPos.X + xOffset); 
+            currentPlotPosition.setX(curPos.X + xOffset);
             currentPlotPosition.setY(curPos.Y + yOffset);
             claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere);
             if (plotHere != null)
             {
-                MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:plot_already_claimed"));
-                return;
+                return false;
             }
             plotHere = new Plot(currentPlotPosition);
             plotHere.setCity(city);
             if (!force && !claims.dataStorage.plotHasDistantEnoughFromOtherCities(plotHere))
             {
-                MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:too_close_to_another_city"));
-                return;
+                return false;
             }
-            MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:plot_has_been_claimed", currentPlotPosition.getPos().X, currentPlotPosition.getPos().Y, 0));
             plotHere.setCity(city);
             plotHere.getPermsHandler().setPerm(city.getPermsHandler());
             plotHere.Price = -1;
             claims.dataStorage.addClaimedPlot(currentPlotPosition, plotHere);
             city.getCityPlots().Add(plotHere);
-            city.saveToDatabase();
-            plotHere.saveToDatabase();
+            // A brand-new row: the UPDATE path would first run an UPDATE that changes nothing and
+            // only then re-queue the INSERT.
+            plotHere.saveToDatabase(false);
             // Also refreshes neighbours: inside a radiusclaim earlier plots stop being border
             // as the ring around them fills in.
             plotHere.UpdateBorderPlotValue();
@@ -1162,7 +1192,7 @@ namespace claims.src.commands
             tree.SetInt("chZ", plotHere.getPos().Y);
             tree.SetString("name", plotHere.getCity().GetPartName());
             claims.sapi.World.Api.Event.PushEvent("plotclaimed", tree);
-            return;
+            return true;
         }
         /*public static TextCommandResult onCommand(TextCommandCallingArgs args)
         {

@@ -34,12 +34,14 @@ namespace claims.src.gui.playerGui.Dialogs
             };
 
             if (string.IsNullOrEmpty(Args.First)) Args.First = prefixes[0];
-            DropDown(l, prefixes, labels, picked => Args.First = picked);
+            // Shown, not only stored: the box used to come up blank over a "city:" already chosen.
+            DropDown(l, prefixes, labels, picked => Args.First = picked, Args.First);
 
-            TextInput(l, InputKey, value => Args.Text = value);
+            TextInput(l, InputKey, value => Args.Text = value, Args.Text);
 
             Button(l, Lang.Get("claims:gui-confirm-button"), () =>
             {
+                if (string.IsNullOrWhiteSpace(Args.Text)) return true;
                 Send(baseCommand + Args.First + Args.Text);
                 Close();
                 return true;

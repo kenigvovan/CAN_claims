@@ -257,6 +257,12 @@ namespace claims.src.commands
             {
                 return tcr;
             }
+            // The prison command filter is a Harmony patch on chat input; this also covers other callers.
+            if (playerInfo.isPrisoned())
+            {
+                tcr.StatusMessage = "claims:you_are_prisoned";
+                return tcr;
+            }
 
             long stamp = CooldownHandler.hasCooldown(playerInfo, CooldownType.SUMMON);
             if (stamp != 0)
@@ -306,7 +312,10 @@ namespace claims.src.commands
             }
 
             if (TeleportationHandler.addTeleportation(new TeleportationInfo(playerInfo,
-                chosenSummonDesc.SummonPoint, true, TimeFunctions.getEpochSeconds() + claims.config.SECONDS_SUMMON_TIME)))
+                chosenSummonDesc.SummonPoint, true, TimeFunctions.getEpochSeconds() + claims.config.SECONDS_SUMMON_TIME,
+                stillAllowed: () => city.Equals(playerInfo.City) && city.summonPlots.Contains(chosenPlot)
+                    && chosenPlot.PlotDesc == chosenSummonDesc,
+                refundAccount: playerInfo.Guid, refundAmount: (decimal)claims.config.SUMMON_PAYMENT)))
             {
                 tcr.StatusMessage = "claims:you_will_be_summoned";
                 tcr.MessageParams = new object[] { claims.config.SECONDS_SUMMON_TIME };

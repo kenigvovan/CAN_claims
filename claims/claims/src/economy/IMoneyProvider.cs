@@ -16,6 +16,8 @@ namespace claims.src.economy
         MoneyOperationResult Transfer(string fromAccount, string toAccount, decimal amount);
 
         bool SupportsPlayerWallet { get; }
+        // False when accounts are physical chests: coins must be moved at the chest itself.
+        bool SupportsRemoteCoinTransfer { get; }
 
         decimal TakeCoinItemsFromActiveSlot(IServerPlayer player);
         void GiveCoinItemsToPlayer(IServerPlayer player, decimal amount);

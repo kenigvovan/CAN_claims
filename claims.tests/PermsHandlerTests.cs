@@ -1,297 +1,156 @@
 using claims.src.perms;
-using claims.src.perms.type;
 
 namespace claims.tests
 {
+    // One value of a plot's 16 must never move another. Cases: FI.
+    // PermsHandler reads static name dictionaries.
+    [Collection("ModStatics")]
     public class PermsHandlerTests
     {
+        private static readonly string[] Groups = { "citizen", "stranger", "ally", "friend" };
+        private static readonly string[] Types = { "use", "build", "attack" };
+
         public PermsHandlerTests()
         {
             PermsHandler.initDicts();
         }
 
-        // =====================================================================
-        // Default state
-        // =====================================================================
-
-        [Fact]
-        public void Constructor_AllPerms_DefaultFalse()
+        public static TheoryData<string> AllValues()
         {
-            var h = new PermsHandler();
-
-            foreach (PermGroup group in Enum.GetValues<PermGroup>())
-                foreach (PermType type in Enum.GetValues<PermType>())
-                    Assert.False(h.getPerm(group, type));
+            var data = new TheoryData<string> { "pvp", "fire", "blast", "nomobspawn" };
+            foreach (string g in Groups)
+                foreach (string t in Types)
+                    data.Add(g + ":" + t);
+            return data;
         }
 
-        [Fact]
-        public void Constructor_BlastFlag_DefaultTrue()
+        /// <summary>All 16 values by name.</summary>
+        private static Dictionary<string, bool> Snapshot(PermsHandler h)
         {
-            var h = new PermsHandler();
-            Assert.True(h.blastFlag);
-        }
-
-        [Fact]
-        public void Constructor_PvpAndFire_DefaultFalse()
-        {
-            var h = new PermsHandler();
-            Assert.False(h.pvpFlag);
-            Assert.False(h.fireFlag);
-        }
-
-        // =====================================================================
-        // setPerm / getPerm — all groups and types
-        // =====================================================================
-
-        [Theory]
-        [InlineData(PermGroup.CITIZEN,  PermType.USE_PERM)]
-        [InlineData(PermGroup.CITIZEN,  PermType.BUILD_AND_DESTROY_PERM)]
-        [InlineData(PermGroup.CITIZEN,  PermType.ATTACK_ANIMALS_PERM)]
-        [InlineData(PermGroup.STRANGER, PermType.USE_PERM)]
-        [InlineData(PermGroup.STRANGER, PermType.BUILD_AND_DESTROY_PERM)]
-        [InlineData(PermGroup.STRANGER, PermType.ATTACK_ANIMALS_PERM)]
-        [InlineData(PermGroup.ALLY,     PermType.USE_PERM)]
-        [InlineData(PermGroup.ALLY,     PermType.BUILD_AND_DESTROY_PERM)]
-        [InlineData(PermGroup.ALLY,     PermType.ATTACK_ANIMALS_PERM)]
-        [InlineData(PermGroup.COMRADE,  PermType.USE_PERM)]
-        [InlineData(PermGroup.COMRADE,  PermType.BUILD_AND_DESTROY_PERM)]
-        [InlineData(PermGroup.COMRADE,  PermType.ATTACK_ANIMALS_PERM)]
-        public void SetPerm_ThenGetPerm_ReturnsExpected(PermGroup group, PermType type)
-        {
-            var h = new PermsHandler();
-
-            h.setPerm(group, type, true);
-            Assert.True(h.getPerm(group, type));
-
-            h.setPerm(group, type, false);
-            Assert.False(h.getPerm(group, type));
-        }
-
-        [Fact]
-        public void SetPerm_OneGroup_DoesNotAffectOthers()
-        {
-            var h = new PermsHandler();
-            h.setPerm(PermGroup.CITIZEN, PermType.USE_PERM, true);
-
-            Assert.False(h.getPerm(PermGroup.STRANGER, PermType.USE_PERM));
-            Assert.False(h.getPerm(PermGroup.ALLY,     PermType.USE_PERM));
-            Assert.False(h.getPerm(PermGroup.COMRADE,  PermType.USE_PERM));
-        }
-
-        // =====================================================================
-        // setAccessPerm(string, string, string)
-        // =====================================================================
-
-        [Theory]
-        [InlineData("citizen",  "use",    "on",  PermGroup.CITIZEN,  PermType.USE_PERM)]
-        [InlineData("stranger", "build",  "on",  PermGroup.STRANGER, PermType.BUILD_AND_DESTROY_PERM)]
-        [InlineData("ally",     "attack", "on",  PermGroup.ALLY,     PermType.ATTACK_ANIMALS_PERM)]
-        [InlineData("friend",   "use",    "off", PermGroup.COMRADE,  PermType.USE_PERM)]
-        public void SetAccessPerm_ValidArgs_SetsCorrectly(
-            string group, string type, string val, PermGroup expectedGroup, PermType expectedType)
-        {
-            var h = new PermsHandler();
-            bool result = h.setAccessPerm(group, type, val);
-
-            Assert.True(result);
-            Assert.Equal(val == "on", h.getPerm(expectedGroup, expectedType));
-        }
-
-        [Fact]
-        public void SetAccessPerm_InvalidGroup_ReturnsFalse()
-        {
-            var h = new PermsHandler();
-            Assert.False(h.setAccessPerm("admin", "use", "on"));
-        }
-
-        [Fact]
-        public void SetAccessPerm_InvalidType_ReturnsFalse()
-        {
-            var h = new PermsHandler();
-            Assert.False(h.setAccessPerm("citizen", "fly", "on"));
-        }
-
-        // =====================================================================
-        // setPerm(PermsHandler copyFrom) — full copy
-        // =====================================================================
-
-        [Fact]
-        public void SetPerm_CopyFrom_CopiesAllGroupsAndFlags()
-        {
-            var src = new PermsHandler();
-            src.setPerm(PermGroup.CITIZEN,  PermType.USE_PERM,              true);
-            src.setPerm(PermGroup.STRANGER, PermType.BUILD_AND_DESTROY_PERM, true);
-            src.setPerm(PermGroup.ALLY,     PermType.ATTACK_ANIMALS_PERM,    true);
-            src.setPerm(PermGroup.COMRADE,  PermType.USE_PERM,              true);
-            src.pvpFlag  = true;
-            src.fireFlag = true;
-            src.blastFlag = false;
-
-            var dst = new PermsHandler();
-            dst.setPerm(src);
-
-            Assert.True(dst.getPerm(PermGroup.CITIZEN,  PermType.USE_PERM));
-            Assert.True(dst.getPerm(PermGroup.STRANGER, PermType.BUILD_AND_DESTROY_PERM));
-            Assert.True(dst.getPerm(PermGroup.ALLY,     PermType.ATTACK_ANIMALS_PERM));
-            Assert.True(dst.getPerm(PermGroup.COMRADE,  PermType.USE_PERM));
-            Assert.True(dst.pvpFlag);
-            Assert.True(dst.fireFlag);
-            Assert.False(dst.blastFlag);
-        }
-
-        [Fact]
-        public void SetPerm_CopyFrom_IsDeepCopy()
-        {
-            var src = new PermsHandler();
-            src.setPerm(PermGroup.CITIZEN, PermType.USE_PERM, true);
-
-            var dst = new PermsHandler();
-            dst.setPerm(src);
-
-            // mutate source — destination must not change
-            src.setPerm(PermGroup.CITIZEN, PermType.USE_PERM, false);
-
-            Assert.True(dst.getPerm(PermGroup.CITIZEN, PermType.USE_PERM));
-        }
-
-        // =====================================================================
-        // ApplyFromHandler — one group at a time
-        // =====================================================================
-
-        [Fact]
-        public void ApplyFromHandler_CopiesOnlyTargetGroup()
-        {
-            var src = new PermsHandler();
-            src.setPerm(PermGroup.ALLY, PermType.USE_PERM, true);
-            src.setPerm(PermGroup.CITIZEN, PermType.USE_PERM, true);
-
-            var dst = new PermsHandler();
-            dst.ApplyFromHandler(src, PermGroup.ALLY);
-
-            Assert.True(dst.getPerm(PermGroup.ALLY, PermType.USE_PERM));
-            Assert.False(dst.getPerm(PermGroup.CITIZEN, PermType.USE_PERM)); // not copied
-        }
-
-        // =====================================================================
-        // setPvp / setFire / setBlast (string overloads)
-        // =====================================================================
-
-        [Fact]
-        public void SetPvp_On_SetsTrueReturnsTrue()
-        {
-            var h = new PermsHandler();
-            bool result = h.setPvp("on");
-            Assert.True(result);
-            Assert.True(h.pvpFlag);
-        }
-
-        [Fact]
-        public void SetPvp_Off_SetsFalseReturnsTrue()
-        {
-            var h = new PermsHandler();
-            h.pvpFlag = true;
-            bool result = h.setPvp("off");
-            Assert.True(result);
-            Assert.False(h.pvpFlag);
-        }
-
-        [Fact]
-        public void SetPvp_SameValue_ReturnsFalse()
-        {
-            var h = new PermsHandler();
-            // pvpFlag is already false
-            bool result = h.setPvp("off");
-            Assert.False(result);
-        }
-
-        [Fact]
-        public void SetFire_On_SetsTrueReturnsTrue()
-        {
-            var h = new PermsHandler();
-            bool result = h.setFire("on");
-            Assert.True(result);
-            Assert.True(h.fireFlag);
-        }
-
-        [Fact]
-        public void SetBlast_Off_SetsFalseReturnsTrue()
-        {
-            var h = new PermsHandler();
-            // blastFlag defaults to true
-            bool result = h.setBlast("off");
-            Assert.True(result);
-            Assert.False(h.blastFlag);
-        }
-
-        // =====================================================================
-        // setValueForAll — bug: StrangerPerms and AlliancePerms not set
-        // =====================================================================
-
-        /// <summary>
-        /// Bug: setValueForAll loops over StrangerPerms and AlliancePerms indices
-        /// but writes to CitizenPerms[i] each time — Stranger and Alliance stay unchanged.
-        /// Fix: each loop body should write to its own array.
-        /// </summary>
-        [Fact]
-        public void SetValueForAll_True_SetsAllGroups()
-        {
-            var h = new PermsHandler();
-            h.setValueForAll(true);
-
-            foreach (PermType type in Enum.GetValues<PermType>())
+            var s = new Dictionary<string, bool>
             {
-                Assert.True(h.getPerm(PermGroup.CITIZEN,  type));
-                Assert.True(h.getPerm(PermGroup.STRANGER, type)); // fails due to bug
-                Assert.True(h.getPerm(PermGroup.ALLY,     type)); // fails due to bug
-                Assert.True(h.getPerm(PermGroup.COMRADE,  type));
+                ["pvp"] = h.pvpFlag,
+                ["fire"] = h.fireFlag,
+                ["blast"] = h.blastFlag,
+                ["nomobspawn"] = h.noMobSpawnFlag,
+            };
+            bool[][] byGroup = { h.CitizenPerms, h.StrangerPerms, h.AlliancePerms, h.ComradePerms };
+            for (int g = 0; g < Groups.Length; g++)
+                for (int t = 0; t < Types.Length; t++)
+                    s[Groups[g] + ":" + Types[t]] = byGroup[g][t];
+            return s;
+        }
+
+        /// <summary>Flips one value the way the game does: flags by their setters, rights by setAccessPerm.</summary>
+        private static void Flip(PermsHandler h, string value)
+        {
+            bool now = Snapshot(h)[value];
+            switch (value)
+            {
+                case "pvp": h.setPvp(!now); break;
+                case "fire": h.setFire(!now); break;
+                case "blast": h.setBlast(!now); break;
+                case "nomobspawn": h.setNoMobSpawn(!now); break;
+                default:
+                    string[] parts = value.Split(':');
+                    Assert.True(h.setAccessPerm(parts[0], parts[1], now ? "off" : "on"), "setAccessPerm refused " + value);
+                    break;
             }
         }
 
-        [Fact]
-        public void SetValueForAll_False_ClearsAllGroups()
+        // FI1, R35
+        [Theory]
+        [MemberData(nameof(AllValues))]
+        public void Values_Should_SurviveSaveAndLoad_When_OneIsChanged(string value)
         {
-            var h = new PermsHandler();
-            foreach (PermGroup group in Enum.GetValues<PermGroup>())
-                foreach (PermType type in Enum.GetValues<PermType>())
-                    h.setPerm(group, type, true);
+            var saved = new PermsHandler();
+            Flip(saved, value);
 
-            h.setValueForAll(false);
+            var loaded = new PermsHandler();
+            loaded.setPerms(saved.ToString());
 
-            foreach (PermType type in Enum.GetValues<PermType>())
-            {
-                Assert.False(h.getPerm(PermGroup.CITIZEN,  type));
-                Assert.False(h.getPerm(PermGroup.STRANGER, type));
-                Assert.False(h.getPerm(PermGroup.ALLY,     type));
-                Assert.False(h.getPerm(PermGroup.COMRADE,  type));
-            }
+            Assert.Equal(Snapshot(saved), Snapshot(loaded));
         }
 
-        // =====================================================================
-        // ToString / setPerms round-trip
-        // =====================================================================
-
-        [Fact]
-        public void ToString_SetPerms_RoundTrip_RestoresState()
+        // FI2, R35
+        [Theory]
+        [MemberData(nameof(AllValues))]
+        public void Change_Should_TouchOnlyThatValue(string value)
         {
-            var original = new PermsHandler();
-            original.setPerm(PermGroup.CITIZEN,  PermType.USE_PERM,              true);
-            original.setPerm(PermGroup.STRANGER, PermType.BUILD_AND_DESTROY_PERM, true);
-            original.setPerm(PermGroup.ALLY,     PermType.ATTACK_ANIMALS_PERM,    true);
-            original.setPerm(PermGroup.COMRADE,  PermType.USE_PERM,              true);
-            original.pvpFlag  = true;
-            original.fireFlag = true;
+            var h = new PermsHandler();
+            Dictionary<string, bool> before = Snapshot(h);
 
-            string serialized = original.ToString();
+            Flip(h, value);
 
-            var restored = new PermsHandler();
-            restored.setPerms(serialized);
+            Dictionary<string, bool> after = Snapshot(h);
+            string[] changed = before.Keys.Where(k => before[k] != after[k]).ToArray();
+            Assert.Equal(new[] { value }, changed);
+        }
 
-            Assert.True(restored.getPerm(PermGroup.CITIZEN,  PermType.USE_PERM));
-            Assert.True(restored.getPerm(PermGroup.STRANGER, PermType.BUILD_AND_DESTROY_PERM));
-            Assert.True(restored.getPerm(PermGroup.ALLY,     PermType.ATTACK_ANIMALS_PERM));
-            Assert.True(restored.getPerm(PermGroup.COMRADE,  PermType.USE_PERM));
-            Assert.True(restored.pvpFlag);
-            Assert.True(restored.fireFlag);
+        /// <summary>A handler where every one of the 16 values is the opposite of the default.</summary>
+        private static PermsHandler AllFlipped()
+        {
+            var h = new PermsHandler();
+            foreach (string value in Snapshot(h).Keys) Flip(h, value);
+            return h;
+        }
+
+        // A plot bought by a citizen takes the buyer's rights and keeps its own flags (FI5).
+        [Fact]
+        public void SetRights_Should_CopyTheRights_And_KeepTheFlags()
+        {
+            var plot = new PermsHandler();
+            Dictionary<string, bool> before = Snapshot(plot);
+            PermsHandler buyer = AllFlipped();
+
+            plot.setRights(buyer);
+
+            Dictionary<string, bool> after = Snapshot(plot), source = Snapshot(buyer);
+            foreach (string flag in new[] { "pvp", "fire", "blast", "nomobspawn" })
+                Assert.True(before[flag] == after[flag], $"setRights changed the flag {flag}");
+            foreach (string right in after.Keys.Where(k => k.Contains(':')))
+                Assert.True(source[right] == after[right], $"setRights did not copy {right}");
+        }
+
+        // setPerm, used when a city takes a plot, still copies all 16.
+        [Fact]
+        public void SetPerm_Should_CopyEverything()
+        {
+            var plot = new PermsHandler();
+            PermsHandler city = AllFlipped();
+
+            plot.setPerm(city);
+
+            Assert.Equal(Snapshot(city), Snapshot(plot));
+        }
+
+        // The saved string lists only what is on, so loading it onto a handler that held other
+        // values must turn those off - pvp, fire and the rights used to survive the load.
+        [Fact]
+        public void Load_Should_ResetEverythingTheStringLeavesOut()
+        {
+            var defaults = new PermsHandler();
+            PermsHandler loaded = AllFlipped();
+
+            loaded.setPerms(defaults.ToString());
+
+            Assert.Equal(Snapshot(defaults), Snapshot(loaded));
+        }
+
+        // An unknown right in a saved row used to throw KeyNotFoundException out of loading the plot.
+        [Theory]
+        [InlineData("citizen:fly;stanger:build")]
+        [InlineData("stanger:build;citizen:")]
+        [InlineData("stanger:build;citizen")]
+        [InlineData("stanger:build;;;garbage")]
+        public void Load_Should_SkipWhatItDoesNotKnow(string saved)
+        {
+            var h = new PermsHandler();
+
+            h.setPerms(saved);
+
+            Assert.True(h.StrangerPerms[1], "the known right next to the unknown one was lost");
+            Assert.DoesNotContain(true, h.CitizenPerms);
         }
 
         // =====================================================================
@@ -358,12 +217,54 @@ namespace claims.tests
         }
 
         [Fact]
-        public void ToString_EmptyPerms_ReturnsEmptyString()
+        public void Load_Should_TakeNull_AsNothingOn()
+        {
+            PermsHandler h = AllFlipped();
+
+            h.setPerms(null!);
+
+            Assert.DoesNotContain(true, Snapshot(h).Values);
+        }
+
+        // ToString was declared with new: through an object reference it gave the type name.
+        [Fact]
+        public void ToString_Should_BeTheSavedForm_ThroughAnyReference()
         {
             var h = new PermsHandler();
-            h.blastFlag = false; // default is true, would emit "blast;"
+            h.setAccessPerm("stranger", "build", "on");
+            object asObject = h;
 
-            Assert.Equal(string.Empty, h.ToString());
+            Assert.Equal(h.ToString(), asObject.ToString());
+            Assert.Equal(h.ToString(), $"{h}");
+            Assert.Contains("stanger:build", asObject.ToString());
+        }
+
+        // The chat line printed the blast flag inverted.
+        [Theory]
+        [InlineData(true, "blast: on")]
+        [InlineData(false, "blast: off")]
+        public void ChatString_Should_ShowBlastAsItIs(bool blast, string expected)
+        {
+            var h = new PermsHandler();
+            h.setBlast(blast);
+
+            Assert.Contains(expected, h.getStringForChat());
+        }
+
+        // FI4, R35: only "on" and "off" are states; anything else used to mean "off".
+        [Theory]
+        [InlineData("onn")]
+        [InlineData("On")]
+        [InlineData("true")]
+        [InlineData("")]
+        public void Right_Should_StayAsItWas_When_TheStateIsMistyped(string state)
+        {
+            var h = new PermsHandler();
+            Assert.True(h.setAccessPerm("stranger", "attack", "on"), "precondition: setAccessPerm refused 'on'");
+            Dictionary<string, bool> before = Snapshot(h);
+
+            Assert.False(h.setAccessPerm("stranger", "attack", state), $"'{state}' was accepted as a state");
+            Assert.Equal(before, Snapshot(h));
         }
     }
 }

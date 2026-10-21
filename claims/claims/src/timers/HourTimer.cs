@@ -22,6 +22,7 @@ namespace claims.src.timers
 
             //announced plots group fee raises whose waiting period is over
             PlotsGroupFeeHelper.SettleDueRaises();
+            subplots.SubPlotTaxHelper.SettleDueRaises(auxialiry.TimeFunctions.getEpochSeconds());
 
             //villages live off their granary, not off money, so their upkeep is hourly
             part.structure.VillageSupplyHelper.ProcessVillages();
@@ -37,7 +38,7 @@ namespace claims.src.timers
                     if (onlinePlayer != null)
                     {
                         onlinePlayer.Entity.TeleportToDouble(ep.X, ep.Y, ep.Z);
-                        onlinePlayer.SetSpawnPosition(new PlayerSpawnPos((int)ep.X, (int)ep.Y, (int)ep.Z));
+                        PrisonSpawn.Restore(onlinePlayer);
                         player.PrisonHoursLeft = 0;
                     }
                     else

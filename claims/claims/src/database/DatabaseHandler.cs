@@ -1,4 +1,7 @@
-﻿using System.Data;
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
+using claims.src.messages;
 using claims.src.part;
 using claims.src.part.structure;
 using claims.src.part.structure.conflict;
@@ -78,7 +81,7 @@ namespace claims.src.database
 
         //VILLAGE RUINS
         abstract public bool loadVillageRuins();
-        abstract public bool saveVillageRuin(int x, int z, long until, bool update = true);
+        abstract public bool saveVillageRuin(int x, int z, long since, bool abandoned, bool update = true);
         abstract public bool deleteVillageRuin(int x, int z);
 
         //INTER-CITY PLOT SALES
@@ -91,36 +94,80 @@ namespace claims.src.database
         abstract public bool deleteAuction(PlotAuction auction);
         abstract public bool saveAuctionBid(AuctionBidRecord bid, bool update = false);
 
+        //SUBPLOTS
+        abstract public bool loadSubPlots();
+        abstract public bool saveSubPlot(subplots.SubPlot subPlot, bool update = true);
+        abstract public bool deleteSubPlot(subplots.SubPlot subPlot);
+
+        //PENDING INVITATIONS (city invitations; see CityInvitation)
+        abstract public bool loadInvitations();
+        abstract public bool saveInvitation(string kind, string senderGuid, string receiverGuid, long expiresAt);
+        abstract public bool deleteInvitation(string kind, string senderGuid, string receiverGuid);
+
         //PENDING UNION LETTERS
         abstract public bool loadUnionLetters();
         abstract public bool saveUnionLetter(UnionLetter letter, bool update = true);
         abstract public bool deleteUnionLetterByGuid(string guid);
 
         //General
+        /// <summary>
+        /// Loads every table in order. A table that fails - false or an exception - is logged and
+        /// the rest still load: one bad table used to skip all the following ones in silence.
+        /// Returns false if anything failed.
+        /// </summary>
         public bool loadEveryThing()
         {
-            return loadDummyWolrdInfo()
-               && loadDummyCitis()
-               && loadDummyPlayers()
-               && loadDummyPlots()
-               && loadDummyPrisons()
-               && loadDummyCityPlotGroups()
-               && loadDummyAlliancies()
-               && loadAllPlayersInfo()
-               && loadAllPlots()
-               && loadAllCityPlotGroups()
-               && loadAllCitis()        
-               && loadAllPrisons()
-               && loadAllAlliancies()
-               && loadConflicts()
-               // after conflicts: a letter references parties that must already exist
-               && loadConflictLetters()
-               && loadUnionLetters()
-               && loadVillageRuins()
-               // after cities: a sale record is matched back to the cities that made it
-               && loadPlotSales()
-               // after plots and cities: a lot points at both
-               && loadAuctions();
+            var steps = new (string Name, Func<bool> Load)[]
+            {
+                ("world", loadDummyWolrdInfo),
+                ("cities (ids)", loadDummyCitis),
+                ("players (ids)", loadDummyPlayers),
+                ("plots (ids)", loadDummyPlots),
+                ("prisons (ids)", loadDummyPrisons),
+                ("plot groups (ids)", loadDummyCityPlotGroups),
+                ("alliances (ids)", loadDummyAlliancies),
+                ("players", loadAllPlayersInfo),
+                ("plots", loadAllPlots),
+                ("plot groups", loadAllCityPlotGroups),
+                ("cities", loadAllCitis),
+                ("prisons", loadAllPrisons),
+                ("alliances", loadAllAlliancies),
+                ("conflicts", loadConflicts),
+                // after conflicts: a letter references parties that must already exist
+                ("conflict letters", loadConflictLetters),
+                ("union letters", loadUnionLetters),
+                ("village ruins", loadVillageRuins),
+                // after cities: a sale record is matched back to the cities that made it
+                ("plot sales", loadPlotSales),
+                // after plots and cities: a lot points at both
+                ("auctions", loadAuctions),
+                // after players and cities: an invitation points at both
+                ("invitations", loadInvitations),
+                // after plots, players and cities: a sub-plot points at all three
+                ("sub-plots", loadSubPlots),
+                // after sub-plots: the old tavern rooms become sub-plots, once
+                ("tavern rooms", subplots.TavernRoomMigration.Run),
+            };
+
+            var failed = new List<string>();
+            foreach (var step in steps)
+            {
+                try
+                {
+                    if (!step.Load()) failed.Add(step.Name);
+                }
+                catch (Exception e)
+                {
+                    failed.Add(step.Name);
+                    MessageHandler.sendErrorMsg("loadEveryThing: loading " + step.Name + " threw: " + e);
+                }
+            }
+            if (failed.Count > 0)
+            {
+                claims.sapi.Logger.Error("[claims] Database loaded with errors, not loaded completely: "
+                    + string.Join(", ", failed));
+            }
+            return failed.Count == 0;
         }
         abstract public bool saveEveryThing();
 

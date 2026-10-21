@@ -9,6 +9,7 @@ using claims.src.part.structure.conflict;
 using claims.src.part.structure.union;
 using claims.src.part.structure.war;
 using Vintagestory.API.Common;
+using Vintagestory.API.Config;
 using Vintagestory.API.Server;
 using Vintagestory.API.Util;
 
@@ -47,7 +48,10 @@ namespace claims.src.events
             }
             else
             {
+                // Read before the login stamps it with now.
+                long lastSeen = playerInfo.TimeStampLasOnline;
                 processExistedPlayerInfoOnLogin(playerInfo, player);
+                TellMayorAboutEvictions(playerInfo, player, lastSeen);
             }
             
             RightsHandler.reapplyRights(playerInfo);
@@ -145,6 +149,21 @@ namespace claims.src.events
                 "claims:allianceinfocache", () => new Dictionary<string, ClientAllianceInfoCellElement>());
             UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, new Dictionary<string, object> { { "value", AllianceStatsCashe.Values.ToList() } }, EnumPlayerRelatedInfo.ALLIANCE_LIST_ALL);
         }
+        /// <summary>
+        /// Names the citizens the day cycle evicted for not paying while the mayor was away. The
+        /// city chat said so at the time, to nobody: from the mayor's side the citizens had simply
+        /// vanished, which players reported as the mod dropping them on relog.
+        /// </summary>
+        private static void TellMayorAboutEvictions(PlayerInfo playerInfo, IServerPlayer player, long lastSeen)
+        {
+            City city = playerInfo.City;
+            if (city == null || !city.isMayor(playerInfo)) return;
+            List<string> evicted = city.EvictedForUnpaidSince(lastSeen);
+            if (evicted.Count == 0) return;
+            MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:mayor_citizens_evicted_while_away",
+                string.Join(", ", evicted)));
+        }
+
         public static void processExistedPlayerInfoOnLogin(PlayerInfo playerInfo, IServerPlayer player)
         {
             playerInfo.TimeStampLasOnline = TimeFunctions.getEpochSeconds();
@@ -156,7 +175,7 @@ namespace claims.src.events
             if (playerInfo.PrisonHoursLeft == -1)
             {
                 var ep = claims.sapi.World.DefaultSpawnPosition;
-                player.SetSpawnPosition(new PlayerSpawnPos((int)ep.X, (int)ep.Y, (int)ep.Z));
+                PrisonSpawn.Restore(player);
                 if (player.Entity != null)
                     player.Entity.TeleportToDouble(ep.X, ep.Y, ep.Z);
                 playerInfo.PrisonHoursLeft = 0;

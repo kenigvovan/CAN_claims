@@ -31,7 +31,7 @@ namespace claims.src.gui.playerGui.Dialogs
         protected override void BuildContent(DialogLayout l)
         {
             Text(l, Lang.Get("claims:gui-enter-auction-start-price"));
-            TextInput(l, PriceKey, value => Args.Text = value);
+            TextInput(l, PriceKey, value => Args.Text = value, Args.Text);
 
             int min = claims.config?.AUCTION_MIN_HOURS ?? 1;
             int max = claims.config?.AUCTION_MAX_HOURS ?? 168;

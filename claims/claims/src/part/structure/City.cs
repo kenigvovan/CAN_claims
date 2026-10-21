@@ -96,7 +96,6 @@ namespace claims.src.part
         public long VassalSince { get; set; } = 0;
         public bool IsVassal() => !string.IsNullOrEmpty(OverlordGuid);
         public City GetOverlord() => claims.dataStorage.getCityByGUID(OverlordGuid, out City o) ? o : null;
-        public bool Dirty { get; set; } = false;
         /// <summary>
         /// Declared neutral: cannot declare war, cannot be declared upon, and pays
         /// NEUTRAL_CITY_PAYMENT a day on top of its upkeep. Read through <see cref="IsNeutral"/>,
@@ -121,6 +120,19 @@ namespace claims.src.part
             int maxEntries = claims.config.CITY_LOG_MAX_ENTRIES;
             if (EventLog.Count > maxEntries)
                 EventLog.RemoveRange(0, EventLog.Count - maxEntries);
+        }
+
+        /// <summary>
+        /// Who the day cycle evicted for not paying after <paramref name="since"/> (unix seconds),
+        /// oldest first. The city chat is the only other place this is said, and a mayor who was
+        /// offline found their citizens gone without a word.
+        /// </summary>
+        public List<string> EvictedForUnpaidSince(long since)
+        {
+            return EventLog
+                .Where(e => e.EventType == EnumCityLogEvent.CitizenEvictedUnpaid && e.Timestamp > since && e.Args.Count > 0)
+                .Select(e => e.Args[0])
+                .ToList();
         }
 
 
@@ -425,31 +437,28 @@ namespace claims.src.part
         }
         public void AddTempleRespawnPoint(Plot plot, BlockPos blockPos)
         {
-            if(TempleRespawnPoints.ContainsKey(plot.getPos()))
-            {
-                TempleRespawnPoints[plot.getPos()] = blockPos.ToVec3i();
-            }
-            else
-            {
-                TempleRespawnPoints[plot.getPos()] = blockPos.ToVec3i();
-            }
+            AddTempleRespawnPoint(plot.getPos(), blockPos.ToVec3i());
         }
 
         public void AddTempleRespawnPoint(Vec2i rPlotPos, Vec3i blockPos)
         {
-            if (TempleRespawnPoints.ContainsKey(rPlotPos))
-            {
-                TempleRespawnPoints[rPlotPos] = blockPos;
-            }
-            else
-            {
-                TempleRespawnPoints[rPlotPos] = blockPos;
-            }
+            TempleRespawnPoints[rPlotPos] = blockPos;
+            NotifyTempleRespawnPointsChanged();
         }
 
         public bool RemoveTempleRespawnPoint(Plot plot)
         {
-            return TempleRespawnPoints.Remove(plot.getPos());
+            bool removed = TempleRespawnPoints.Remove(plot.getPos());
+            if (removed) NotifyTempleRespawnPointsChanged();
+            return removed;
+        }
+
+        /// <summary>Citizens pick their respawn temple from this list in the GUI, so push it again
+        /// whenever a temple appears or goes.</summary>
+        private void NotifyTempleRespawnPointsChanged()
+        {
+            if (claims.sapi == null) return;
+            UsefullPacketsSend.AddToQueueCityInfoUpdate(Guid, EnumPlayerRelatedInfo.CITY_TEMPLE_POINTS);
         }
 
         public bool HasTempleRespawnPoints()
@@ -591,36 +600,56 @@ namespace claims.src.part
         /// </summary>
         /// <param name="tcr"></param>
         /// <param name="newCityName"></param>
-        public bool rename(string newCityName)
+        public bool rename(string newCityName) => rename(newCityName, out _);
+
+        /// <summary>
+        /// Renames the city, saying why not when it refuses. Every refusal used to be a bare false,
+        /// and the command turned all four into an empty error - a rename that failed said nothing
+        /// at all, so a taken name looked exactly like a working one.
+        /// </summary>
+        /// <param name="errorLangKey">Reason for a refusal; null when the rename went through.</param>
+        public bool rename(string newCityName, out string errorLangKey)
         {
+            errorLangKey = null;
             string filteredName = Filter.filterName(newCityName);
             if (filteredName.Length == 0 || !Filter.checkForBlockedNames(filteredName))
             {
+                errorLangKey = "claims:invalid_name";
                 return false;
             }
             if (filteredName.Length > claims.config.MAX_LENGTH_CITY_NAME)
             {
+                errorLangKey = "claims:city_name_too_long";
                 return false;
             }
             if (claims.dataStorage.nameForCityOrVillageIsTaken(filteredName))
             {
+                errorLangKey = "claims:city_name_taken";
                 return false;
             }
 
             if (claims.economyProvider.UpdateAccount(this.MoneyAccountName, new Dictionary<string, object> { { "lastknownname", filteredName } }))
             {
-                if (!claims.dataStorage.changeCityName(this, filteredName)) return false;
+                if (!claims.dataStorage.changeCityName(this, filteredName))
+                {
+                    errorLangKey = "claims:city_rename_failed";
+                    return false;
+                }
                 SetPartName(filteredName);
                 saveToDatabase();
                 UsefullPacketsSend.AddToQueueCityInfoUpdate(Guid, EnumPlayerRelatedInfo.CITY_NAME);
                 return true;
             }
-            return false;                   
+            errorLangKey = "claims:city_rename_failed";
+            return false;
         }
         public void trySetPlotColor(int color)
         {
             cityColor = color;
             this.saveToDatabase();
+            UsefullPacketsSend.AddToQueueCityInfoUpdate(Guid, EnumPlayerRelatedInfo.CITY_PLOTS_COLOR);
+            // Everyone, not just the citizens: the map and the border grid show every city's colour.
+            UsefullPacketsSend.BroadcastCityColors();
         }
         /// <summary>Replaces the coat of arms, normalized so that what is stored can be drawn.</summary>
         public void SetEmblem(string emblem)

@@ -42,92 +42,6 @@ namespace claims.src.playerMovements
             GamePaths.EnsurePathExists(text);
             return Path.Combine(text, claims.capi.World.SavegameIdentifier + ".db");
         }
-        public string getMsgForChunkChange(SavedPlotInfo fromPlot, SavedPlotInfo toPlot, int state)
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-            //state - 
-            //0 both empty
-            //1 from has smth
-            //2 to has smth
-            //3 both has smth
-
-            //JUST FROM ONE EMPTY TO ANOTHER
-            if (state == 0)
-            {
-                return "";
-            }
-
-            //FROM VILLAGE OR CITY TO EMPTY
-            if (state == 1)
-            {
-                stringBuilder.Append("To wild lands.");
-                return stringBuilder.ToString();
-            }
-
-            //FROM EMPTY TO VILLAGE OR CITY
-            if (state == 2)
-            {
-                if (toPlot.cityName.Length > 0)
-                {
-                    stringBuilder.Append(StringFunctions.setStringColor(toPlot.cityName, ColorsClaims.DARK_GRAY));
-                }
-
-
-                if (toPlot.groupName.Length > 0)
-                {
-                    stringBuilder.Append(" ").Append(toPlot.groupName);
-                }
-
-                if (toPlot.plotName.Length > 0)
-                {
-                    stringBuilder.Append(" ").Append("~").Append(toPlot.plotName).Append("~");
-                }
-                if (toPlot.price != -1)
-                {
-                    stringBuilder.Append(" ").Append("To sell: " + toPlot.price.ToString());
-                }
-                if (toPlot.PvPIsOn)
-                {
-                    stringBuilder.Append(" ").Append(StringFunctions.setBold(StringFunctions.setStringColor("PVP", ColorsClaims.DARK_RED)));
-                }
-                else
-                {
-                    stringBuilder.Append(" ").Append(StringFunctions.setBold(StringFunctions.setStringColor("NO-PVP", ColorsClaims.WHITE)));
-                }
-            }
-
-            //BOTH HAS VILLAGE OR CITY
-            if (state == 3)
-            {
-                if (!toPlot.cityName.Equals(fromPlot.cityName))
-                {
-                    stringBuilder.Append(StringFunctions.setStringColor(toPlot.cityName, ColorsClaims.DARK_GRAY) + " ");
-                }
-
-                if (toPlot.groupName.Length > 0)
-                {
-                    stringBuilder.Append(" ").Append(toPlot.groupName);
-                }
-
-                if (toPlot.plotName.Length > 0)
-                {
-                    stringBuilder.Append(" ").Append("~").Append(toPlot.plotName).Append("~");
-                }
-                if (toPlot.price != -1)
-                {
-                    stringBuilder.Append(" ").Append("To sell: " + toPlot.price.ToString());
-                }
-                if (toPlot.PvPIsOn)
-                {
-                    stringBuilder.Append(" ").Append(StringFunctions.setBold(StringFunctions.setStringColor("PVP", ColorsClaims.DARK_RED)));
-                }
-                else
-                {
-                    stringBuilder.Append(" ").Append(StringFunctions.setBold(StringFunctions.setStringColor("NO-PVP", ColorsClaims.WHITE)));
-                }
-            }
-            return stringBuilder.ToString();
-        }
         public void onPlayerChangePlotEvent(string eventName, ref EnumHandling handling, IAttribute data)
         {
             TreeAttribute tree = data as TreeAttribute;
@@ -145,78 +59,6 @@ namespace claims.src.playerMovements
             {
                 handleZoneChange(to, pl);
             }
-
-            claims.clientDataStorage.getSavedPlot(to, out SavedPlotInfo toPlot);
-            claims.clientDataStorage.getSavedPlot(from, out SavedPlotInfo fromPlot);
-
-            //TODO
-            /*if (playerInfo.showBorders)
-            {
-                plotPosition.makeChunkHighlight(claims.sapi.World, claims.sapi.World.PlayerByUid(playerInfo.getGuid()), toPlot);
-            }*/
-            //STILL IN THE WILD LANDS
-
-            string st;
-            if (toPlot == null && fromPlot == null)
-            {
-                /*st = getMsgForChunkChange(fromPlot, toPlot, 0, playerInfo);
-                if (st.Length != 0)
-                {
-                    if (playerInfo.showBorderMsgs)
-                        MessageHandler.sendMsgToPlayerInfo(playerInfo, st);
-                }*/
-                return;
-            }
-
-            if (claims.clientDataStorage.clientPlayerInfo != null)
-            { 
-                if (toPlot != null && fromPlot != null)
-                {
-                    st = getMsgForChunkChange(fromPlot, toPlot, 3);
-                    if (st.Length != 0)
-                    {
-                        if (claims.clientDataStorage.clientPlayerInfo.ShowPlotMovement == EnumShowPlotMovement.SHOW_MESSAGE 
-                            || claims.clientDataStorage.clientPlayerInfo.ShowPlotMovement == EnumShowPlotMovement.SHOW_MESSAGE_HUD)
-                        {
-                            claims.capi.ShowChatMessage(st);
-                        }
-
-                    }
-                    //SAME CITY
-                    if (toPlot.cityName.Equals(fromPlot.cityName))
-                    {
-                        return;
-                    }
-                    else
-                    {
-                        return;
-                    }
-                }
-                if (toPlot != null && fromPlot == null)
-                {
-                    st = getMsgForChunkChange(fromPlot, toPlot, 2);
-                    if (st.Length != 0)
-                    {
-                        if (claims.clientDataStorage.clientPlayerInfo.ShowPlotMovement == EnumShowPlotMovement.SHOW_MESSAGE
-                            || claims.clientDataStorage.clientPlayerInfo.ShowPlotMovement == EnumShowPlotMovement.SHOW_MESSAGE_HUD)
-                        {
-                            claims.capi.ShowChatMessage(st);
-                        }
-                    }
-                    //claims.sapi.World.Api.Event.PushEvent("claimsPlayerEnterCity", tree);
-                    return;
-                }
-
-                st = getMsgForChunkChange(fromPlot, toPlot, 1);
-                if (st.Length != 0)
-                {
-                    if (claims.clientDataStorage.clientPlayerInfo.ShowPlotMovement == EnumShowPlotMovement.SHOW_MESSAGE 
-                        || claims.clientDataStorage.clientPlayerInfo.ShowPlotMovement == EnumShowPlotMovement.SHOW_MESSAGE_HUD)
-                    {
-                        claims.capi.ShowChatMessage(st);
-                    }
-                }
-             }
         }
         public void checkPlayerMove(float dt)
         {
@@ -256,9 +98,26 @@ namespace claims.src.playerMovements
                 data = JsonConvert.SerializeObject(requestedZones)
             });
         }
+        /// <summary>Writes the zones that changed since the last save. Writing all of them meant
+        /// serializing every zone the session ever saw - hundreds of them, up to a thousand plots
+        /// each - on the main thread every 30 seconds.</summary>
         public void saveActiveZonesToDb()
         {
-            mapdb.SetMapPieces(claims.clientDataStorage.getClientSavedPlots());         
+            Dictionary<Vec2i, ClientSavedZone> dirty = null;
+            foreach (var pair in claims.clientDataStorage.getClientSavedPlots())
+            {
+                if (pair.Value == null || !pair.Value.Dirty) continue;
+                if (dirty == null) dirty = new Dictionary<Vec2i, ClientSavedZone>();
+                dirty[pair.Key] = pair.Value;
+            }
+            if (dirty == null) return;
+
+            mapdb.SetMapPieces(dirty);
+            // Only after the write went through - a throw leaves them marked for the next attempt.
+            foreach (var pair in dirty)
+            {
+                pair.Value.Dirty = false;
+            }
         }
 
         //on join event player should check for already saved zones and load them from db
@@ -320,6 +179,15 @@ namespace claims.src.playerMovements
 			{
 				return;
 			}
+            // Whatever changed since the last periodic save, up to 30 seconds of it.
+            try
+            {
+                saveActiveZonesToDb();
+            }
+            catch (Exception)
+            {
+                // Leaving with an unwritten zone only costs a re-fetch from the server next session.
+            }
             mapdb.Dispose();
         }
 

@@ -2,7 +2,6 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Text;
-using System.Threading.Tasks;
 using Cairo;
 using claims.src.auxialiry;
 using claims.src.clientMapHandling;
@@ -24,12 +23,26 @@ namespace claims.src.claimsext.map
         int chunksize;
         IWorldChunk[] chunksTmp;
 
-        object chunksToGenLock = new object();
-        UniqueQueue<Vec2i> chunksToGen = new UniqueQueue<Vec2i>();
+        /// <summary>Game chunks whose image is out of date, in game-chunk coordinates. A game chunk
+        /// is the unit the map is painted in - <see cref="GenerateChunkImage"/> always produces a
+        /// whole one - so marking plots here collapses the several plots of a chunk into one repaint.
+        /// </summary>
+        object dirtyChunksLock = new object();
+        UniqueQueue<Vec2i> dirtyChunks = new UniqueQueue<Vec2i>();
+
+        /// <summary>Transparent chunk, used to wipe a tile whose plots are gone. Shared and never
+        /// written to.</summary>
+        int[] emptyChunkPixels;
+
+        /// <summary>Chunks painted per tick. Each paint is a texture upload plus a slice of a
+        /// framebuffer pass, so this is what keeps a fresh zone off the frame time.</summary>
+        const int MaxChunkPaintsPerTick = 32;
+
+        /// <summary>Chunks *examined* per tick. Unclaimed chunks cost only a few dictionary lookups
+        /// and never reach the paint budget, so the scan runs well ahead of it.</summary>
+        const int MaxChunkScansPerTick = 1024;
         public ConcurrentDictionary<Vec2i, CANMultiChunkMapComponent> loadedMapData = new ConcurrentDictionary<Vec2i, CANMultiChunkMapComponent>();
         HashSet<Vec2i> curVisibleChunks = new HashSet<Vec2i>();
-        public Dictionary<Vec2i, string> chunkToCityName = new Dictionary<Vec2i, string>();
-       // public Dictionary<string, CityPlotInfo> cityNameToCityInfo = new Dictionary<string, CityPlotInfo>();
         public Dictionary<string, Vec3d> cityNameToChestCoords = new Dictionary<string, Vec3d>();
         bool shouldRender = true;
         bool shouldRenderBanks = false;
@@ -73,10 +86,7 @@ namespace claims.src.claimsext.map
             loadedMapData.Clear();
             foreach (var zone in claims.clientDataStorage.getClientSavedPlots())
             {
-                foreach (var pl in zone.Value.savedPlots)
-                {
-                    OnResChunkPixels(pl.Key.Copy(), "");
-                }
+                markZoneDirty(zone.Key);
             }
         }
 
@@ -98,28 +108,7 @@ namespace claims.src.claimsext.map
 
             if (cmd == "redraw")
             {
-                foreach (CANMultiChunkMapComponent cmp in loadedMapData.Values)
-                {
-                    cmp.ActuallyDispose();
-                }
-                loadedMapData.Clear();
-                foreach(var zone in claims.clientDataStorage.getClientSavedPlots())
-                {
-                    foreach(var pl in zone.Value.savedPlots)
-                    {
-                        OnResChunkPixels(pl.Key.Copy(), "");
-                    }
-                    
-                }
-               
-
-                /*lock (chunksToGenLock)
-                {
-                    foreach (Vec2i cord in curVisibleChunks)
-                    {
-                        chunksToGen.Enqueue(cord.Copy());
-                    }
-                }*/
+                RedrawPlots();
             }
             return tcr;
         }
@@ -134,17 +123,14 @@ namespace claims.src.claimsext.map
             chunksize = api.World.BlockAccessor.ChunkSize;
 
             chunksTmp = new IWorldChunk[api.World.BlockAccessor.MapSizeY / chunksize];
+            emptyChunkPixels = new int[chunksize * chunksize];
         }
 
 
         public override void OnMapClosedClient()
         {
-
-            lock (chunksToGenLock)
-            {
-                chunksToGen.Clear();
-            }
-
+            // Pending repaints are kept: the minimap hud keeps rendering these textures, and a
+            // dropped repaint would leave them stale until something touches the plot again.
             curVisibleChunks.Clear();
             // Otherwise the arms of whatever was last pointed at reappear the moment the map opens.
             hoveredEmblem = "";
@@ -177,71 +163,141 @@ namespace claims.src.claimsext.map
         float diskSaveAccum = 0f;
         Dictionary<Vec2i, MapPieceDB> toSaveList = new Dictionary<Vec2i, MapPieceDB>();
 
+        /// <summary>Plots per game chunk, per axis.</summary>
+        private int plotsPerChunkDim => Math.Max(1, chunksize / PlotPosition.plotSize);
+
+        /// <summary>The zone is repainted rather than thrown away: a repaint overwrites every tile it
+        /// touches (including back to transparent), and dropping the components leaked their
+        /// textures.</summary>
         public void clearZoneSavedPlotsFromMap(Vec2i zoneCord)
         {
-            int ppcd = chunksize / PlotPosition.plotSize;
-            int cl = CANMultiChunkMapComponent.ChunkLen;
-            // How many mcords (multi-chunks) a single zone spans per axis
-            int mCordsPerZone = Math.Max(1, claims.config.ZONE_PLOTS_LENGTH / (cl * ppcd));
-            int baseX = zoneCord.X * mCordsPerZone;
-            int baseY = zoneCord.Y * mCordsPerZone;
-            for (int i = 0; i < mCordsPerZone; i++)
-                for (int j = 0; j < mCordsPerZone; j++)
-                    loadedMapData.TryRemove(new Vec2i(baseX + i, baseY + j), out _);
+            markZoneDirty(zoneCord);
         }
-        public async void generateFromZoneSavedPlotsOnMap(Vec2i zoneCord)
+
+        public void generateFromZoneSavedPlotsOnMap(Vec2i zoneCord)
         {
-            try
+            markZoneDirty(zoneCord);
+        }
+
+        /// <summary>Queues the chunk holding this plot, plus the chunks of its four neighbours - a
+        /// plot draws the border it shares with them. Neighbours usually land in the same chunk, and
+        /// the queue drops the duplicates.</summary>
+        public void OnResChunkPixels(Vec2i cord, string cityName)
+        {
+            if (cord == null) return;
+
+            int ppcd = plotsPerChunkDim;
+            lock (dirtyChunksLock)
             {
-                if (claims.clientDataStorage.getClientSavedZone(zoneCord, out ClientSavedZone clientSavedZone))
+                enqueueChunkOfPlot(cord.X, cord.Y, ppcd);
+                enqueueChunkOfPlot(cord.X + 1, cord.Y, ppcd);
+                enqueueChunkOfPlot(cord.X - 1, cord.Y, ppcd);
+                enqueueChunkOfPlot(cord.X, cord.Y + 1, ppcd);
+                enqueueChunkOfPlot(cord.X, cord.Y - 1, ppcd);
+            }
+        }
+
+        /// <summary>Queues every game chunk of a zone, plus a one-chunk ring around it for the borders
+        /// the zone shares with its neighbours.</summary>
+        private void markZoneDirty(Vec2i zoneCord)
+        {
+            if (zoneCord == null) return;
+
+            int ppcd = plotsPerChunkDim;
+            int chunksPerZone = Math.Max(1, claims.config.ZONE_PLOTS_LENGTH / ppcd);
+            int baseX = zoneCord.X * chunksPerZone;
+            int baseY = zoneCord.Y * chunksPerZone;
+
+            lock (dirtyChunksLock)
+            {
+                for (int i = -1; i <= chunksPerZone; i++)
                 {
-                    var tasks = new System.Collections.Generic.List<Task>();
-                    foreach (var it in clientSavedZone.savedPlots)
-                        tasks.Add(OnResChunkPixelsAsync(it.Key, it.Value.cityName));
-                    await Task.WhenAll(tasks);
+                    for (int j = -1; j <= chunksPerZone; j++)
+                    {
+                        int gx = baseX + i;
+                        int gy = baseY + j;
+                        if (gx < 0 || gy < 0) continue;
+                        dirtyChunks.Enqueue(new Vec2i(gx, gy));
+                    }
                 }
             }
-            catch (Exception ex)
+        }
+
+        /// <summary>Caller holds <see cref="dirtyChunksLock"/>.</summary>
+        private void enqueueChunkOfPlot(int plotX, int plotY, int ppcd)
+        {
+            if (plotX < 0 || plotY < 0) return;
+            dirtyChunks.Enqueue(new Vec2i(plotX / ppcd, plotY / ppcd));
+        }
+
+        /// <summary>Repaints a slice of the dirty chunks. Runs every 20ms off the world map manager,
+        /// map open or not.</summary>
+        public override void OnTick(float dt)
+        {
+            // Not before OnLoaded: chunksize is still 0 and the marks made so far are in wrong units.
+            if (chunksize == 0) return;
+
+            lock (dirtyChunksLock)
             {
-                api.Logger.Error("[claims] generateFromZoneSavedPlotsOnMap error: " + ex);
+                if (dirtyChunks.Count == 0) return;
             }
-        }
-        public async void OnResChunkPixels(Vec2i cord, string cityName)
-        {
-            try { await OnResChunkPixelsAsync(cord, cityName); }
-            catch (Exception ex) { api.Logger.Error("[claims] OnResChunkPixels error: " + ex); }
-        }
-        private async Task OnResChunkPixelsAsync(Vec2i cord, string cityName)
-        {
-            await Task.Run(() =>
+
+            ICoreClientAPI capi = api as ICoreClientAPI;
+            if (capi == null) return;
+
+            List<CANMultiChunkMapComponent> modified = new List<CANMultiChunkMapComponent>();
+            int cl = CANMultiChunkMapComponent.ChunkLen;
+            int painted = 0;
+            int scanned = 0;
+
+            while (painted < MaxChunkPaintsPerTick && scanned < MaxChunkScansPerTick)
             {
-                // Colour is resolved per plot inside GenerateChunkImage - a chunk can hold plots of
-                // different cities.
-                int[] pixels = (int[])GenerateChunkImage(cord, true)?.Clone();
-                
+                Vec2i gc;
+                lock (dirtyChunksLock)
+                {
+                    if (dirtyChunks.Count == 0) break;
+                    gc = dirtyChunks.Dequeue();
+                }
+                scanned++;
+                if (gc.X < 0 || gc.Y < 0) continue;
+
+                Vec2i mcord = new Vec2i(gc.X / cl, gc.Y / cl);
+                int dx = gc.X - mcord.X * cl;
+                int dz = gc.Y - mcord.Y * cl;
+
+                int[] pixels = generateGameChunkImage(gc.X, gc.Y);
+                loadedMapData.TryGetValue(mcord, out CANMultiChunkMapComponent mccomp);
+
+                bool cleared = false;
                 if (pixels == null)
                 {
-                    return;
+                    // Nothing claimed here. Only worth a paint if the tile is currently showing
+                    // something - otherwise a whole zone of empty land would build textures for
+                    // nothing.
+                    if (mccomp == null || !mccomp.IsChunkSet(dx, dz)) continue;
+                    pixels = emptyChunkPixels;
+                    cleared = true;
                 }
 
-                Vec2i[] UpdateChunkImage = new Vec2i[]
+                if (mccomp == null)
                 {
-                    new Vec2i(cord.X + 1, cord.Y),
-                    new Vec2i(cord.X - 1, cord.Y),
-                    new Vec2i(cord.X, cord.Y + 1),
-                    new Vec2i(cord.X, cord.Y - 1)
-                };
-
-                loadFromChunkPixels(cord, pixels, cityName);
-
-                foreach(var it in UpdateChunkImage)
-                {
-                    pixels = (int[])GenerateChunkImage(it, false)?.Clone();
-                    loadFromChunkPixels(it, pixels, "");
+                    Vec2i baseCord = new Vec2i(mcord.X * cl, mcord.Y * cl);
+                    loadedMapData[mcord] = mccomp = new CANMultiChunkMapComponent(capi, baseCord);
                 }
-            });
+
+                mccomp.setChunk(dx, dz, pixels);
+                if (cleared) mccomp.unsetChunk(dx, dz);
+                if (!modified.Contains(mccomp)) modified.Add(mccomp);
+                painted++;
+            }
+
+            foreach (CANMultiChunkMapComponent mccomp in modified)
+            {
+                mccomp.FinishSetChunks();
+            }
         }
-         
+
+
         /// <summary>Arms of the city under the cursor, drawn inside the map's hover box as a custom
         /// icon (see <see cref="EmblemIconName"/>).</summary>
         private string hoveredEmblem = "";
@@ -290,7 +346,7 @@ namespace claims.src.claimsext.map
 
         /// <summary>Arms of a city by name - plots carry names, the emblem cache is keyed by guid,
         /// and the world city list maps one to the other.</summary>
-        private static string EmblemOfCity(string cityName)
+        public static string EmblemOfCity(string cityName)
         {
             var cities = claims.clientDataStorage?.clientPlayerInfo?.AllCitiesList;
             if (cities == null) return "";
@@ -370,55 +426,6 @@ namespace claims.src.claimsext.map
             {
                 val.Value.OnMouseUpOnElement(args, mapElem);
             }
-        }
-        void loadFromChunkPixels(Vec2i cord, int[] pixels, string structureName)
-        {
-            if (pixels == null) return;
-            int ppcd = chunksize / PlotPosition.plotSize;
-            int gameChunkX = cord.X / ppcd;
-            int gameChunkY = cord.Y / ppcd;
-            if (gameChunkX < 0 || gameChunkY < 0) return;
-            Vec2i mcord = new Vec2i(gameChunkX / CANMultiChunkMapComponent.ChunkLen, gameChunkY / CANMultiChunkMapComponent.ChunkLen);
-            Vec2i baseCord = new Vec2i(mcord.X * CANMultiChunkMapComponent.ChunkLen, mcord.Y * CANMultiChunkMapComponent.ChunkLen);
-            int dx = gameChunkX - baseCord.X;
-            int dz = gameChunkY - baseCord.Y;
-            if (dx < 0 || dx >= CANMultiChunkMapComponent.ChunkLen || dz < 0 || dz >= CANMultiChunkMapComponent.ChunkLen) return;
-            api.Event.EnqueueMainThreadTask(() =>
-            {
-                if (!loadedMapData.TryGetValue(mcord, out CANMultiChunkMapComponent mccomp))
-                {
-                    loadedMapData[mcord] = mccomp = new CANMultiChunkMapComponent(api as ICoreClientAPI, baseCord);
-                }
-                mccomp.setChunk(dx, dz, pixels);
-            }, "plotmaplayerready");
-        }
-
-        public void triggeredPlotImageUpdate(Vec2i chunkPos)
-        {
-            Vec2i mm = new Vec2i(chunkPos.X, chunkPos.Y);
-
-            chunkToCityName.TryGetValue(chunkPos, out string cityName);
-
-            if (!claims.clientDataStorage.getSavedPlot(chunkPos, out SavedPlotInfo savedPlotInfo))
-            {
-                /*Task.Factory.StartNew(() =>
-                {
-                    int[] pixels = (int[])GenerateChunkImage(chunkPos, 0, false)?.Clone();
-
-                    loadFromChunkPixels(mm, pixels, "");
-                });*/
-            }
-            else
-            {
-                Task.Factory.StartNew(() =>
-                {
-                    int[] pixels = (int[])GenerateChunkImage(chunkPos, false)?.Clone();
-
-                    loadFromChunkPixels(mm, pixels, savedPlotInfo.cityName);
-                });
-            }
-
-            
         }
         public static int ToRgba(int a, int r, int g, int b)
         {
@@ -500,23 +507,32 @@ namespace claims.src.claimsext.map
         }
 
 
+        /// <summary>Image of the game chunk holding the given plot.</summary>
         public int[] GenerateChunkImage(Vec2i chunkPos, bool informOthers = false)
         {
-            int ps = PlotPosition.plotSize;
-            int ppcd = chunksize / ps; // plots per game-chunk dimension
-            int[] texDataTmp = new int[chunksize * chunksize];
+            int ppcd = plotsPerChunkDim;
+            return generateGameChunkImage(chunkPos.X / ppcd, chunkPos.Y / ppcd);
+        }
 
-            Vec2i leftUpperCorner = new Vec2i(
-                chunkPos.X - (chunkPos.X % ppcd),
-                chunkPos.Y - (chunkPos.Y % ppcd));
+        /// <summary>Image of one game chunk, in game-chunk coordinates. Returns null when no plot of
+        /// the chunk is claimed - the caller then knows there is nothing to paint at all.</summary>
+        private int[] generateGameChunkImage(int gameChunkX, int gameChunkY)
+        {
+            int ppcd = plotsPerChunkDim;
+            int[] texDataTmp = null;
+
+            Vec2i leftUpperCorner = new Vec2i(gameChunkX * ppcd, gameChunkY * ppcd);
 
             for (int worldZOffset = 0; worldZOffset < ppcd; worldZOffset++)
             {
                 for (int worldXOffset = 0; worldXOffset < ppcd; worldXOffset++)
                 {
                     Vec2i tmpVec = new Vec2i(leftUpperCorner.X + worldXOffset, leftUpperCorner.Y + worldZOffset);
-                    if (claims.clientDataStorage.getSavedPlot(tmpVec, out SavedPlotInfo savedPlot))
-                        GenerateChunkPart(worldZOffset, worldXOffset, claims.clientDataStorage.ClientGetCityColor(savedPlot.cityName), ref texDataTmp, tmpVec, savedPlot.cityName);
+                    if (!claims.clientDataStorage.getSavedPlot(tmpVec, out SavedPlotInfo savedPlot)) continue;
+
+                    // Allocated on the first claimed plot: most chunks of a zone have none.
+                    if (texDataTmp == null) texDataTmp = new int[chunksize * chunksize];
+                    GenerateChunkPart(worldZOffset, worldXOffset, claims.clientDataStorage.ClientGetCityColor(savedPlot.cityName), ref texDataTmp, tmpVec, savedPlot.cityName);
                 }
             }
             return texDataTmp;

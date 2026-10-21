@@ -146,10 +146,9 @@ namespace claims.src.commands
             {
                 return tcr;
             }
-            if (plotHere.Prison.getPrisonCells().Count > claims.config.MAX_CELLS_PER_PRISON)
+            if (plotHere.Prison.getPrisonCells().Count >= claims.config.MAX_CELLS_PER_PRISON)
             {
                 tcr.StatusMessage = "claims:too_much_cells";
-                tcr.Status = EnumCommandStatus.Success;
                 return tcr;
             }
             var newPoint = player.Entity.Pos.AsBlockPos.AsVec3i.Clone();

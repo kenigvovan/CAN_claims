@@ -146,6 +146,7 @@ namespace claims.src.commands
                     claims.dataStorage.ClearCacheForPlayersInPlot(plot);
                 }
             }
+            subplots.SubPlotLifecycle.OnGroupDeleted(searchedGroup);
             claims.getModInstance().getDatabaseHandler().deleteFromDatabaseCityPlotGroup(searchedGroup);
             tcr.Status = EnumCommandStatus.Success;
             UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid,
@@ -526,11 +527,22 @@ namespace claims.src.commands
                 return tcr;
             }
 
+            string subPlotProblem = subplots.SubPlotLifecycle.BlockingProblem(plot);
+            if (subPlotProblem != null)
+            {
+                tcr.StatusMessage = subPlotProblem;
+                return tcr;
+            }
+
             //DELETE OWNER, RECALCULATE HIS RIGHTS AND HIS COMRADES
             if (plot.hasPlotOwner())
             {
                 PlayerInfo tmp = plot.getPlotOwner();
                 plot.setPlotOwner(null);
+                // Out of the owner's list too: left there, leaving the city later stripped the plot
+                // from whoever owned it by then (R27).
+                tmp.PlayerPlots.Remove(plot);
+                tmp.saveToDatabase();
                 RightsHandler.reapplyRights(tmp);
                 foreach (var it in tmp.Friends)
                 {
@@ -654,6 +666,8 @@ namespace claims.src.commands
             {
                 MessageHandler.sendMsgToPlayer(player, Lang.Get("claims:error_occured"));
             }
+            // The group's sub-plots follow its rules for its members.
+            subplots.SubPlotSync.MarkGroupChanged(searchedGroup);
 
             foreach(var plot in city.getCityPlots())
             {

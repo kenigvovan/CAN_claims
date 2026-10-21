@@ -136,6 +136,72 @@ namespace claims.src.harmony
             return false;
         }
 
+        /// <summary>
+        /// Every fire goes through OnFirePlaced, whatever lit it: vanilla igniters, lava, lightning,
+        /// pit kilns, charcoal pits and third-party items that place the fire block with SetBlock and
+        /// so never hit the block place events. TrySpreadTo only guards spreading - the first burning
+        /// block was still consumed inside a claim.
+        /// A fire block burns its neighbour, so it needs the fire flag or build rights of whoever lit it.
+        /// A kiln or a pile lit directly burns only itself, so use rights are enough there.
+        /// </summary>
+        public static bool Prefix_On_FirePlaced(BlockPos firePos, BlockPos fuelPos, string startedByPlayerUid,
+            Vintagestory.GameContent.BEBehaviorBurning __instance)
+        {
+            if (__instance?.Api == null || __instance.Api.Side != EnumAppSide.Server || claims.dataStorage == null)
+            {
+                return true;
+            }
+            if (claims.dataStorage.getWorldInfo().fireEverywhere)
+            {
+                return true;
+            }
+            PlayerInfo starter = null;
+            if (startedByPlayerUid != null)
+            {
+                claims.dataStorage.GetPlayerByUid(startedByPlayerUid, out starter);
+            }
+            BlockEntity be = __instance.Blockentity;
+            bool burnsItself = be is BlockEntityPitKiln || be is BlockEntityGroundStorage || be is BlockEntityItemPile;
+            if (isFireAllowedAt(firePos, starter, burnsItself) && isFireAllowedAt(fuelPos, starter, burnsItself))
+            {
+                return true;
+            }
+            // The fire block is already in the world by now; only it is removed - a kiln or a pile
+            // that failed to light stays where it is.
+            IBlockAccessor accessor = __instance.Api.World.BlockAccessor;
+            Block fireBlock = __instance.Api.World.GetBlock(new AssetLocation("fire"));
+            if (be?.Pos != null && fireBlock != null && accessor.GetBlock(be.Pos).BlockId == fireBlock.BlockId)
+            {
+                accessor.SetBlock(0, be.Pos);
+                accessor.TriggerNeighbourBlockUpdate(be.Pos);
+            }
+            return false;
+        }
+
+        private static bool isFireAllowedAt(BlockPos pos, PlayerInfo starter, bool burnsItself)
+        {
+            if (pos == null)
+            {
+                return true;
+            }
+            claims.dataStorage.GetPlot(PlotPosition.fromBlockPos(pos), out Plot plot);
+            if (plot == null)
+            {
+                return true;
+            }
+            if (!claims.dataStorage.getWorldInfo().fireForbidden && plot.getPermsHandler().fireFlag)
+            {
+                return true;
+            }
+            if (starter == null)
+            {
+                return false;
+            }
+            return burnsItself
+                ? OnBlockAction.canBlockUseWithOutCacheUpdate(starter, plot)
+                : OnBlockAction.canBlockDestroyWithOutCacheUpdate(starter, plot);
+        }
+
        public static bool Prefix_HasPermissionToUse(Vintagestory.GameContent.BlockEntityBomb __instance, ref bool __result)
         {
 
@@ -153,6 +219,7 @@ namespace claims.src.harmony
             }
 
 
+            bool anyPlot = false;
             for (int i = -1; i < 2; ++i)
             {
                 for (int j = -1; j < 2; ++j)
@@ -161,9 +228,10 @@ namespace claims.src.harmony
                      claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)(tmpX + (i * __instance.BlastRadius)),
                                                                            (int)(tmpZ + (j * __instance.BlastRadius))), out Plot tb);
                     if (tb == null)
-                    { 
+                    {
                         continue;
                     }
+                    anyPlot = true;
 
                     if (tb.getPermsHandler().blastFlag || (tb.hasCity() && tb.getCity().getPermsHandler().blastFlag))
                     {
@@ -172,7 +240,8 @@ namespace claims.src.harmony
                     }
                 }
             }
-            __result = false;
+            // No plot in reach: nothing to protect, the bomb goes off.
+            __result = !anyPlot;
             return false;
         }
         public static bool Prefix_HandleCommand(string commandName, IServerPlayer player, string args, Action<TextCommandResult> onCommandComplete)
@@ -189,12 +258,9 @@ namespace claims.src.harmony
             {
                 return true;
             }
-            Plot tmpPlot = null;
-            if (player.Entity != null)
-            {
-                claims.dataStorage.GetPlot(PlotPosition.fromEntityyPos(player.Entity.Pos), out tmpPlot);
-            }
-            if (playerInfo.isPrisoned() && tmpPlot != null && playerInfo.PrisonedIn?.Plot != null && playerInfo.PrisonedIn.Plot.Equals(tmpPlot))
+            // Anywhere, not only on the prison plot: walking to the next plot of the city is no
+            // escape (that takes leaving the city's land), so the prisoner is still serving there.
+            if (playerInfo.isPrisoned())
             {
                 // Settings are loaded on ModConfigReady, i.e. later than the patch is applied.
                 var blocked = Settings.blockedCommandsForPrison;
@@ -438,9 +504,32 @@ namespace claims.src.harmony
                     City city = playerInfo.City;
                     Vec3i ePos = plr.Entity.Pos.XYZ.AsVec3i;
                     {
+                        // With temple respawn off the points stay registered but count for nothing;
+                        // the player falls back to a camp, or to the vanilla spawn below.
                         List<Vec3i> homePoints = new List<Vec3i>();
-                        foreach (var rp in city.TempleRespawnPoints.Values)
-                            if (rp != null) homePoints.Add(rp);
+                        if (claims.config.TEMPLE_RESPAWN_ENABLED)
+                            foreach (var rp in city.TempleRespawnPoints.Values)
+                                if (rp != null) homePoints.Add(rp);
+
+                        // A picked temple replaces the whole set, so the nearest-point search below
+                        // lands exactly there. The temple can be gone (broken, plot type changed) -
+                        // then drop the choice and fall back to the nearest one.
+                        if (claims.config.TEMPLE_RESPAWN_ENABLED
+                            && claims.config.TEMPLE_RESPAWN_CHOICE_ENABLED
+                            && RespawnPreference.TryReadTemple(plr, city.Guid, out Vec2i chosenTemple))
+                        {
+                            if (city.TempleRespawnPoints.TryGetValue(chosenTemple, out Vec3i chosenPoint) && chosenPoint != null)
+                            {
+                                homePoints.Clear();
+                                homePoints.Add(chosenPoint);
+                            }
+                            else
+                            {
+                                RespawnPreference.ClearTemple(plr);
+                                MessageHandler.sendMsgToPlayer(plr, Lang.Get("claims:temple_respawn_gone"));
+                            }
+                        }
+
                         // During an active war, this city's camps are also valid respawn points.
                         List<Vec3i> campPoints = new List<Vec3i>();
                         foreach (var camp in city.campPlots)
@@ -485,11 +574,11 @@ namespace claims.src.harmony
                         cpos.Y = bestP.Y + 2.5;
                         cpos.Z = bestP.Z + 1.5;
    
-                        var inst = __instance;
                         plr.Entity.TeleportTo(cpos, (Action)(() =>
                         {
                             plr.Entity.Revive();
-                            var serv = typeof(ServerSystem).GetField("server", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(inst) as ServerMain;
+                            // sapi.World is the ServerMain itself; no need to dig it out of __instance.
+                            var serv = claims.sapi.World as ServerMain;
                             // The callback is deferred: the player may already be gone by the time it runs.
                             if (serv != null && serv.Clients.TryGetValue(plr.ClientId, out ConnectedClient client))
                             {

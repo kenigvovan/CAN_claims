@@ -203,7 +203,8 @@ namespace claims.src.config
             // camp
             { "camp_enabled", new BoolSpec(v => C.WAR_CAMP_ENABLED = v) },
             { "camp_max_per_conflict", new IntSpec(0, 50, v => C.WAR_MAX_CAMPS_PER_CONFLICT = v) },
-            { "camp_cost", new DoubleSpec(0, 1000000, v => C.CAMP_PLOT_COST = v) },
+            // founding price; the daily upkeep of a camp is CAMP_PLOT_COST
+            { "camp_cost", new DoubleSpec(0, 1000000, v => C.PLOT_TYPE_SET_COSTS["camp"] = v) },
             { "camp_min_distance", new IntSpec(0, 100, v => C.WAR_CAMP_MIN_DISTANCE_FROM_OTHER_CITY = v) },
             { "camp_anchor_breaks", new IntSpec(1, 1000, v => C.WAR_CAMP_ANCHOR_BREAKS = v) },
 
@@ -302,6 +303,11 @@ namespace claims.src.config
             { "auction_min_increment", new IntSpec(1, 1000000, v => C.AUCTION_MIN_INCREMENT = v) },
             { "auction_extend_window_seconds", new IntSpec(0, 86400, v => C.AUCTION_EXTEND_WINDOW_SECONDS = v) },
 
+            // respawn
+            { "temple_respawn", new BoolSpec(v => C.TEMPLE_RESPAWN_ENABLED = v) },
+            { "temple_respawn_choice", new BoolSpec(v => C.TEMPLE_RESPAWN_CHOICE_ENABLED = v) },
+            { "temple_respawn_choice_gui", new BoolSpec(v => C.TEMPLE_RESPAWN_CHOICE_FROM_GUI = v) },
+
             // bankruptcy
             { "city_bankruptcy_mode", new WordSpec(new[] { "off", "plots", "whole_city" }, v => C.CITY_BANKRUPTCY_MODE = v) },
             { "city_bankruptcy_grace_days", new IntSpec(1, 365, v => C.CITY_BANKRUPTCY_GRACE_DAYS = v) },
@@ -315,7 +321,49 @@ namespace claims.src.config
             { "max_plotsgroup_fee", new DoubleSpec(0, 100000, v => C.MAX_PLOTSGROUP_FEE = v) },
             // 0 lets a raise apply at once, which takes the members' say out of it
             { "plotsgroup_fee_raise_delay_hours", new IntSpec(0, 8760, v => C.PLOTSGROUP_FEE_RAISE_DELAY_HOURS = v) },
+
+            // sub-plot tax, the same protection as the group fee
+            { "max_subplot_tax", new DoubleSpec(0, 100000, v => C.MAX_SUBPLOT_TAX = v) },
+            { "subplot_tax_raise_delay_hours", new IntSpec(0, 8760, v => C.SUBPLOT_TAX_RAISE_DELAY_HOURS = v) },
+            // sub-plot limits, 0 for none
+            { "subplot_max_boxes", new IntSpec(1, 64, v => C.SUBPLOT_MAX_BOXES = v) },
+            { "subplot_max_per_city", new IntSpec(0, 10000, v => C.SUBPLOT_MAX_PER_CITY = v) },
+            { "subplot_max_owned_per_player", new IntSpec(0, 1000, v => C.SUBPLOT_MAX_OWNED_PER_PLAYER = v) },
+            { "subplot_max_volume", new IntSpec(0, 100000000, v => C.SUBPLOT_MAX_VOLUME = v) },
+            { "subplot_min_volume", new IntSpec(0, 100000, v => C.SUBPLOT_MIN_VOLUME = v) },
+
+            // day (billing cycle), real seconds
+            { "day_duration_seconds", new IntSpec(60, 2592000, v => C.MOD_DAY_DURATION_IN_SECONDS = v) },
+            { "day_start_offset_seconds", new IntSpec(0, 2592000, v => C.HOUR_NEW_DAY_START = v) },
+            { "day_max_missed_cycles", new IntSpec(0, 365, v => C.DAY_MAX_MISSED_CYCLES_TO_PROCESS = v) },
         };
+
+        // Daily upkeep per plot type, edited as plot_cost_<type>.
+        private static readonly Dictionary<string, Action<double>> dailyPlotCosts = new Dictionary<string, Action<double>>
+        {
+            { "default", v => C.DEFAULT_PLOT_COST = v }, { "temple", v => C.TEMPLE_PLOT_COST = v },
+            { "farm", v => C.FARM_PLOT_COST = v }, { "orchard", v => C.ORCHARD_PLOT_COST = v },
+            { "summon", v => C.SUMMON_PLOT_COST = v }, { "embassy", v => C.EMBASSY_PLOT_COST = v },
+            { "tavern", v => C.TAVERN_PLOT_COST = v }, { "prison", v => C.PRISON_PLOT_COST = v },
+            { "mainplot", v => C.MAIN_CITYPLOT_COST = v }, { "tournament", v => C.TOURNAMENT_PLOT_COST = v },
+            { "camp", v => C.CAMP_PLOT_COST = v }
+        };
+        // One-time price of setting a type, edited as plot_set_cost_<type>; the camp has camp_cost.
+        private static readonly string[] settablePlotTypes = { "default", "temple", "farm", "orchard", "summon", "embassy", "tavern", "prison" };
+
+        static WarConfigEditor()
+        {
+            foreach (var it in dailyPlotCosts)
+            {
+                Action<double> set = it.Value;
+                // dictPlotTypes keeps a copy of the costs, so it is rebuilt on every change.
+                fields["plot_cost_" + it.Key] = new DoubleSpec(0, 1000000, v => { set(v); part.structure.plots.PlotInfo.initDicts(); });
+            }
+            foreach (string code in settablePlotTypes)
+            {
+                fields["plot_set_cost_" + code] = new DoubleSpec(0, 1000000, v => C.PLOT_TYPE_SET_COSTS[code] = v);
+            }
+        }
 
         /// <summary>Known editable keys (for help/error messages).</summary>
         public static IEnumerable<string> Keys => fields.Keys;

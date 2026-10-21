@@ -15,6 +15,7 @@ using claims.src.part.structure.plots;
 using claims.src.part.structure.plots.auction;
 using claims.src.part.structure.war;
 using Newtonsoft.Json;
+using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.API.Util;
 using Vintagestory.Server;
@@ -31,19 +32,37 @@ namespace claims.src.auxialiry
 
         public static void sendAllCitiesColorsToPlayer(IServerPlayer player)
         {
-            Dictionary<string, int> cityColors = new Dictionary<string, int>();
-            foreach (City cityItem in claims.dataStorage.getCitiesList())
-            {
-                cityColors.Add(cityItem.GetPartName(), cityItem.cityColor);
-            }
-            string serializedPlots = JsonConvert.SerializeObject(cityColors);
-
             claims.serverChannel.SendPacket(new SavedPlotsPacket()
             {
                 type = PacketsContentEnum.ALL_CITY_COLORS,
-                data = serializedPlots
+                data = JsonConvert.SerializeObject(BuildColorDict())
             }, player);
-        }       
+        }
+
+        /// <summary>Pushes every city's colour to everyone online, so a recolour shows without a relog.</summary>
+        public static void BroadcastCityColors()
+        {
+            string data = JsonConvert.SerializeObject(BuildColorDict());
+            foreach (var p in claims.sapi.World.AllOnlinePlayers)
+            {
+                if (p is not IServerPlayer sp) continue;
+                claims.serverChannel.SendPacket(new SavedPlotsPacket()
+                {
+                    type = PacketsContentEnum.ALL_CITY_COLORS,
+                    data = data
+                }, sp);
+            }
+        }
+
+        private static Dictionary<string, int> BuildColorDict()
+        {
+            var cityColors = new Dictionary<string, int>();
+            foreach (City cityItem in claims.dataStorage.getCitiesList())
+            {
+                cityColors[cityItem.GetPartName()] = cityItem.cityColor;
+            }
+            return cityColors;
+        }
         /// <summary>Sends the coat of arms of every city and alliance, keyed by guid - what the
         /// drawers hold, and unlike a name it does not change.</summary>
         public static void sendAllCityEmblemsToPlayer(IServerPlayer player)
@@ -119,8 +138,11 @@ namespace claims.src.auxialiry
                                            EnumPlayerRelatedInfo.CITY_PERMISSIONS_UPDATED, EnumPlayerRelatedInfo.CITY_BALANCE, EnumPlayerRelatedInfo.CITY_FEE, EnumPlayerRelatedInfo.CITY_CRIMINALS_LIST,
                                            EnumPlayerRelatedInfo.CITY_PRISON_CELL_ALL, EnumPlayerRelatedInfo.CITY_SUMMON_POINT_ALL, EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_ALL,
                                            EnumPlayerRelatedInfo.CITY_LOG, EnumPlayerRelatedInfo.CITY_PLOTS_MAP,
+                                           EnumPlayerRelatedInfo.CITY_TEMPLE_POINTS,
                                            EnumPlayerRelatedInfo.CITY_EMBLEM, EnumPlayerRelatedInfo.ALLIANCE_EMBLEM,
-                                           EnumPlayerRelatedInfo.CITY_PLOT_AUCTIONS, EnumPlayerRelatedInfo.CITY_PLOT_MARKET_HISTORY]);
+                                           EnumPlayerRelatedInfo.CITY_PLOT_AUCTIONS, EnumPlayerRelatedInfo.CITY_PLOT_MARKET_HISTORY,
+                                           EnumPlayerRelatedInfo.CITY_OPEN, EnumPlayerRelatedInfo.CITY_INV_MSG,
+                                           EnumPlayerRelatedInfo.CITY_SUBPLOTS_ALL]);
             }
             infoToUpdatePlayer.AddRange([EnumPlayerRelatedInfo.SHOW_PLOT_MOVEMENT, EnumPlayerRelatedInfo.FRIENDS, EnumPlayerRelatedInfo.TO_CITY_INVITES,
                                          EnumPlayerRelatedInfo.PLAYER_PREFIX, EnumPlayerRelatedInfo.PLAYER_AFTER_NAME, EnumPlayerRelatedInfo.PLAYER_CITY_TITLES,
@@ -250,6 +272,7 @@ namespace claims.src.auxialiry
                        EXTRA_PLOT_COST = claims.config.EXTRA_PLOT_COST,
                        PLOT_NO_PVP_FLAG_COST = claims.config.PLOT_NO_PVP_FLAG_COST,
                        PLOT_NO_MOBSPAWN_FLAG_COST = claims.config.PLOT_NO_MOBSPAWN_FLAG_COST,
+                       PLOT_TYPE_SET_COSTS = claims.config.PLOT_TYPE_SET_COSTS,
 
                        RANSOM_FOR_NO_CITIZEN = claims.config.RANSOM_FOR_NO_CITIZEN,
                        RANSOM_FOR_CITIZEN = claims.config.RANSOM_FOR_CITIZEN,
@@ -300,6 +323,9 @@ namespace claims.src.auxialiry
                        WAR_SCHEDULE_UTC_OFFSET_MINUTES = WarScheduleHelper.CurrentUtcOffsetMinutes(),
                        CITY_BANKRUPTCY_MODE = claims.config.CITY_BANKRUPTCY_MODE ?? "off",
                        CITY_BANKRUPTCY_GRACE_DAYS = claims.config.CITY_BANKRUPTCY_GRACE_DAYS,
+                       TEMPLE_RESPAWN_ENABLED = claims.config.TEMPLE_RESPAWN_ENABLED,
+                       TEMPLE_RESPAWN_CHOICE_ENABLED = claims.config.TEMPLE_RESPAWN_CHOICE_ENABLED,
+                       TEMPLE_RESPAWN_CHOICE_FROM_GUI = claims.config.TEMPLE_RESPAWN_CHOICE_FROM_GUI,
                        WAR_ULTIMATUM_ENABLED = claims.config.WAR_ULTIMATUM_ENABLED,
                        WAR_ULTIMATUM_EXPIRE_HOURS = claims.config.WAR_ULTIMATUM_EXPIRE_HOURS,
                        VILLAGE_ENABLED = claims.config.VILLAGE_ENABLED,
@@ -419,6 +445,8 @@ namespace claims.src.auxialiry
         }
         public static void SendAllCollectedCityUpdatesToCitizens()
         {
+            // The timer still fires during Server.Stop, after ShutDownServer has cleared the storage.
+            if (claims.dataStorage == null) return;
             while(!cityDelayedInfoCollector.IsEmpty)
             {
                 string currentCityGuid = cityDelayedInfoCollector.ElementAt(0).Key;
@@ -647,40 +675,32 @@ namespace claims.src.auxialiry
             {
                 return;
             }
-            List<City> updatedCities = new List<City>();
-            foreach (var it in claims.dataStorage.getCitiesList())
-            {
-                if (it.Dirty)
-                {
-                    updatedCities.Add(it);
-                    it.Dirty = false;
-                }
-            }
-            if (updatedCities.Count == 0)
-            {
-                return;
-            }
             Dictionary<string, ClientCityInfoCellElement> CityStatsCashe =
                 ObjectCacheUtil.GetOrCreate<Dictionary<string, ClientCityInfoCellElement>>(claims.sapi,
                 "claims:cityinfocache", () => new Dictionary<string, ClientCityInfoCellElement>());
-            foreach (var it in updatedCities)
+
+            // The cached row is the snapshot the clients hold, so comparing the city against it says
+            // exactly what they are missing. A dirty flag would need setting at every mutation point
+            // - opening the city, renaming it, claiming a plot - and one forgotten call freezes the
+            // whole world list until a restart.
+            List<ClientCityInfoCellElement> elToSend = new List<ClientCityInfoCellElement>();
+            foreach (var it in claims.dataStorage.getCitiesList())
             {
                 if (CityStatsCashe.TryGetValue(it.Guid, out var stat))
                 {
-                    stat.UpdateFrom(it);
+                    if (stat.UpdateFrom(it)) elToSend.Add(stat);
                 }
                 else
                 {
-                    CityStatsCashe.Add(it.Guid, ClientCityInfoCellElement.FromCity(it));
+                    // Founded since the last tick: the clients have never seen this row at all.
+                    var fresh = ClientCityInfoCellElement.FromCity(it);
+                    CityStatsCashe.Add(it.Guid, fresh);
+                    elToSend.Add(fresh);
                 }
             }
-            List<ClientCityInfoCellElement> elToSend = new List<ClientCityInfoCellElement>();
-            foreach (var it in updatedCities)
+            if (elToSend.Count == 0)
             {
-                if (CityStatsCashe.TryGetValue(it.Guid, out var stat))
-                {
-                    elToSend.Add(stat);
-                }
+                return;
             }
             foreach (var player in claims.sapi.World.AllOnlinePlayers)
             {
@@ -751,6 +771,12 @@ namespace claims.src.auxialiry
                             break;
                         case EnumPlayerRelatedInfo.CITY_TIER:
                             result[pair.Key] = ((int)city.Tier).ToString();
+                            break;
+                        case EnumPlayerRelatedInfo.CITY_OPEN:
+                            result[pair.Key] = city.openCity ? "1" : "0";
+                            break;
+                        case EnumPlayerRelatedInfo.CITY_INV_MSG:
+                            result[pair.Key] = city.invMsg;
                             break;
                         case EnumPlayerRelatedInfo.CITY_RAID_WINDOW:
                             // Raw numbers, formatted client-side; empty for anything but a raidable village.
@@ -824,6 +850,22 @@ namespace claims.src.auxialiry
                         case EnumPlayerRelatedInfo.CITY_PLOTS_MAP:
                             result[pair.Key] = JsonConvert.SerializeObject(city.getCityPlots().Select(p => new CityPlotMiniInfo(p.plotPosition.X, p.plotPosition.Z, p.Type)).ToList());
                             break;
+                        case EnumPlayerRelatedInfo.CITY_TEMPLE_POINTS:
+                            {
+                                // Plot names are what the player recognises a temple by; the plot may
+                                // be gone from the city while the point is still registered, hence the lookup.
+                                var templeNames = new Dictionary<Vec2i, string>();
+                                foreach (var cityPlot in city.getCityPlots())
+                                    templeNames[cityPlot.getPos()] = cityPlot.GetPartName();
+
+                                result[pair.Key] = JsonConvert.SerializeObject(city.TempleRespawnPoints
+                                    .Where(t => t.Value != null)
+                                    .Select(t => new TempleRespawnPointInfo(t.Key.X, t.Key.Y,
+                                        t.Value.X, t.Value.Y, t.Value.Z,
+                                        templeNames.TryGetValue(t.Key, out string templeName) ? templeName : ""))
+                                    .ToList());
+                            }
+                            break;
                         case EnumPlayerRelatedInfo.CITY_PLOT_AUCTIONS:
                             result[pair.Key] = JsonConvert.SerializeObject(
                                 AuctionRules.GetLotsFor(city)
@@ -882,6 +924,11 @@ namespace claims.src.auxialiry
                                 }
                                 result[pair.Key] = JsonConvert.SerializeObject(plotsgroupCellElements);
                             }
+                            break;
+                        case EnumPlayerRelatedInfo.CITY_SUBPLOTS_ALL:
+                            // Sent empty too: the client replaces its list, and the last sub-plot
+                            // removed has to leave it.
+                            result[pair.Key] = JsonConvert.SerializeObject(subplots.SubPlotSync.Cells(city));
                             break;
                         //PLAYER_NEXT_PAYMENT
                         case EnumPlayerRelatedInfo.PLAYER_NEXT_PAYMENT:

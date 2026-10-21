@@ -40,6 +40,8 @@ namespace claims.src.part
             // Before anything else: the city's treasury must still exist to receive refunds, so its
             // auction lots are settled while its account is alive.
             AuctionHandler.OnCityRemoved(city);
+            // Refunds too, while the treasury is there.
+            subplots.SubPlotLifecycle.DissolveAllOf(city);
             foreach(var plot in city.getCityPlots())
             {
                 claims.serverPlayerMovementListener.markPlotToWasRemoved(plot.getPos());
@@ -69,7 +71,9 @@ namespace claims.src.part
                 {
                     continue;
                 }
-                UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, new Dictionary<string, object> { { "value", city.Guid } }, EnumPlayerRelatedInfo.CITY_LIST_REMOVE);
+                // A list, not the bare guid: the client handler deserialises this as List<string>
+                // and threw on a plain string, so a demolished city never left anyone's list.
+                UsefullPacketsSend.AddToQueuePlayerInfoUpdate(playerInfo.Guid, new Dictionary<string, object> { { "value", new List<string> { city.Guid } } }, EnumPlayerRelatedInfo.CITY_LIST_REMOVE);
             }
             foreach (Conflict conflict in claims.dataStorage.conflicts.ToArray())
             {
@@ -119,13 +123,21 @@ namespace claims.src.part
       
         public static void demolishCityPlots(City city)
         {
-            foreach(Plot plot in city.getCityPlots().ToArray())
+            // A whole city's land at once: collected into one packet per subscriber rather than one
+            // per plot. The plots are already marked in demolishCity - the queue is a set, so the
+            // duplicate costs nothing.
+            using (PlotStateHandling.BeginBatch())
             {
-                demolishCityPlot(plot);
+                foreach (Plot plot in city.getCityPlots().ToArray())
+                {
+                    demolishCityPlot(plot);
+                }
             }
         }
         public static void demolishCityPlot(Plot plot)
         {
+            // Commands the city chooses refuse earlier; what reaches here is forced on it.
+            subplots.SubPlotLifecycle.CutChunk(plot.getPos());
             PlayerInfo player = plot.getPlayerInfo();
             if (player != null)
             {

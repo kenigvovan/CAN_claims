@@ -57,10 +57,6 @@ namespace claims.src.commands
             // A village has no treasury of its own, so its plots are free; the plot limit is what
             // keeps it small.
             bool paysForPlots = !city.IsVillage();
-            if (paysForPlots && claims.economyProvider.GetBalance(city.MoneyAccountName) < (decimal)claims.config.PLOT_CLAIM_PRICE)
-            {
-                return TextCommandResult.Error("claims:not_enough_money");
-            }
             plotHere = new Plot(currentPlotPosition);
             plotHere.setCity(city);
             if (!claims.dataStorage.plotHasDistantEnoughFromOtherCities(plotHere))
@@ -78,6 +74,12 @@ namespace claims.src.commands
                 return TextCommandResult.Error("claims:should_be_on_the_border_with_another_claimed_plot");
             }
 
+            // Money last: a plot that can't be claimed at all should say why, not "no money".
+            if (paysForPlots && claims.economyProvider.GetBalance(city.MoneyAccountName) < (decimal)claims.config.PLOT_CLAIM_PRICE)
+            {
+                return TextCommandResult.Error("claims:not_enough_money");
+            }
+
             if (paysForPlots
                 && claims.economyProvider.Withdraw(city.MoneyAccountName, (decimal)claims.config.PLOT_CLAIM_PRICE) != MoneyOperationResult.Success)
             {
@@ -87,7 +89,10 @@ namespace claims.src.commands
             plotHere.setCity(playerInfo.City);
             plotHere.getPermsHandler().setPerm(city.getPermsHandler());
             plotHere.Price = -1;
-            plotHere.TimeStampClaimed = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            // A village claims for free, and 0 is what PlotRefundHelper reads as "nothing was paid".
+            // Checking IsVillage at unclaim time instead refunded the claim price to a village that
+            // had since been upgraded to a city (VU5).
+            plotHere.TimeStampClaimed = paysForPlots ? DateTimeOffset.UtcNow.ToUnixTimeSeconds() : 0;
             claims.dataStorage.addClaimedPlot(currentPlotPosition, plotHere);
             city.getCityPlots().Add(plotHere);
             city.saveToDatabase();
@@ -148,12 +153,26 @@ namespace claims.src.commands
             {
                 return TextCommandResult.Error("claims:plot_auction_has_bids");
             }
+            string subPlotProblem = subplots.SubPlotLifecycle.BlockingProblem(plotHere);
+            if (subPlotProblem != null)
+            {
+                return TextCommandResult.Error(subPlotProblem);
+            }
             if (plotHere.extraBought)
             {
                 city.Extrachunksbought--;
                 city.saveToDatabase();
             }
             PlotRefundHelper.RefundOnCityUnclaim(plotHere);
+            // A citizen who bought the plot loses it too: refunded the same way as /plot unclaim,
+            // capped by what the treasury holds.
+            PlayerInfo plotOwner = plotHere.getPlotOwner();
+            if (plotOwner != null)
+            {
+                long ownerRefund = PlotRefundHelper.GetMaxAffordableRefund(plotHere,
+                    PlotRefundHelper.CalculatePersonalUnclaimRefund(plotHere));
+                PlotRefundHelper.TryTransferPersonalRefund(plotHere, plotOwner, ownerRefund);
+            }
             PartDemolition.demolishCityPlot(plotHere);
 
             claims.serverPlayerMovementListener.markPlotToWasRemoved(plotHere.getPos());
@@ -255,6 +274,15 @@ namespace claims.src.commands
             if (!claims.dataStorage.plotHasDistantEnoughFromOtherCities(plotHere))
             {
                 return TextCommandResult.Error("claims:too_close_to_another_city");
+            }
+            // The same placement rules as /city claim: an extra plot only lifts the plot limit.
+            if (!claims.dataStorage.CheckClaimLimiters(playerInfo, currentPlotPosition))
+            {
+                return TextCommandResult.Error("claims:too_close_to_forbidden_area");
+            }
+            if (!CheckForAtleastOneClaimedPlotOnBorderSameCity(plotHere))
+            {
+                return TextCommandResult.Error("claims:should_be_on_the_border_with_another_claimed_plot");
             }
 
             if(claims.economyProvider.Withdraw(city.MoneyAccountName, (decimal)claims.config.EXTRA_PLOT_COST) != MoneyOperationResult.Success)

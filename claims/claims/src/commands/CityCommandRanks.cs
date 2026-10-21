@@ -88,6 +88,16 @@ namespace claims.src.commands
                 UsefullPacketsSend.AddToQueuePlayerInfoUpdate(player.PlayerUID, EnumPlayerRelatedInfo.CITY_CITIZENS_RANKS);
                 return tcr;
             }
+            // RR1, as in addperm: a rank is handed out only by someone who holds everything it grants.
+            // Otherwise CITY_SET_RANK alone was enough to take the treasurer's rank for oneself.
+            if (city.CustomCityRanks.TryGetValue(rank_name, out var grantedRank)
+                && claims.dataStorage.GetPlayerByUid(player.PlayerUID, out PlayerInfo granter)
+                && grantedRank.Permissions.Any(p => !RightsHandler.IsAlliancePermission(p)
+                                                   && !granter.PlayerPermissionsHandler.HasPermission(p)))
+            {
+                tcr.StatusMessage = "claims:you_dont_have_right_for_that_command";
+                return tcr;
+            }
             city.GrantPlayerRank(rank_name, targetPlayer);
             targetPlayer.addCityTitle(rank_name);
             RightsHandler.reapplyRights(targetPlayer);
@@ -198,10 +208,36 @@ namespace claims.src.commands
             }
 
             city.RemoveCityRank(rank_name);
+            // Holders lose the rank and its rights now. Left alone they kept the rights until the next
+            // reapply, and the stale title gave them a new rank of the same name the moment it existed.
+            foreach (PlayerInfo holder in city.getCityCitizens().Where(c => c.hasCityTitle(rank_name)).ToArray())
+            {
+                holder.removeCityTitle(rank_name);
+                RightsHandler.reapplyRights(holder);
+                holder.saveToDatabase();
+                UsefullPacketsSend.AddToQueuePlayerInfoUpdate(holder.Guid, EnumPlayerRelatedInfo.PLAYER_CITY_TITLES);
+                UsefullPacketsSend.AddToQueuePlayerInfoUpdate(holder.Guid, EnumPlayerRelatedInfo.PLAYER_PERMISSIONS);
+            }
             city.saveToDatabase();
             UsefullPacketsSend.AddToQueuePlayerInfoUpdate(player.PlayerUID, EnumPlayerRelatedInfo.CITY_CITIZENS_RANKS);
             tcr.StatusMessage = "claims:rank_removed";
             return tcr;
+        }
+        /// <summary>
+        /// Space-separated permission names; unknown words are skipped. Enum.Parse alone also takes
+        /// any number ("99999") and turns it into a value that is no permission at all.
+        /// </summary>
+        private static List<EnumPlayerPermissions> ParsePermissions(string text)
+        {
+            List<EnumPlayerPermissions> permissionList = new();
+            foreach (var it in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (Enum.TryParse(it, out EnumPlayerPermissions perm) && Enum.IsDefined(perm))
+                {
+                    permissionList.Add(perm);
+                }
+            }
+            return permissionList;
         }
         public static TextCommandResult CityRankAddPermissions(TextCommandCallingArgs args)
         {
@@ -219,20 +255,16 @@ namespace claims.src.commands
                 UsefullPacketsSend.AddToQueuePlayerInfoUpdate(player.PlayerUID, EnumPlayerRelatedInfo.CITY_CITIZENS_RANKS);
                 return TextCommandResult.Success("claims:no_such_rank");
             }
-            string[] allPermissions = args.Parsers[1].GetValue().ToString().Split(' ');
-            List<EnumPlayerPermissions> permissionList = new();
-            foreach(var it in allPermissions)
+            List<EnumPlayerPermissions> permissionList = ParsePermissions(args.Parsers[1].GetValue().ToString());
+            // RR1: a city rank carries city rights only, and no more than the editor holds - a member
+            // city's mayor took the alliance treasury through a rank given to himself, and a deputy
+            // allowed to edit ranks wrote CITY_WITHDRAW_MONEY into their own.
+            foreach (var it in permissionList)
             {
-                try
+                if (RightsHandler.IsAlliancePermission(it) || !playerInfo.PlayerPermissionsHandler.HasPermission(it))
                 {
-                    var tmpVal = (EnumPlayerPermissions)Enum.Parse(typeof(EnumPlayerPermissions), it);
-                    permissionList.Add(tmpVal);
+                    return TextCommandResult.Error(Lang.Get("claims:you_dont_have_right_for_that_command"));
                 }
-                catch(ArgumentException)
-                {
-                    continue;
-                }
-
             }
             bool newPermWasAdded = false;
             foreach(var it in permissionList)
@@ -269,21 +301,7 @@ namespace claims.src.commands
                 UsefullPacketsSend.AddToQueuePlayerInfoUpdate(player.PlayerUID, EnumPlayerRelatedInfo.CITY_CITIZENS_RANKS);
                 return TextCommandResult.Success("claims:no_such_rank");
             }
-            string[] allPermissions = args.Parsers[1].GetValue().ToString().Split(' ');
-            List<EnumPlayerPermissions> permissionList = new();
-            foreach (var it in allPermissions)
-            {
-                try
-                {
-                    var tmpVal = (EnumPlayerPermissions)Enum.Parse(typeof(EnumPlayerPermissions), it);
-                    permissionList.Add(tmpVal);
-                }
-                catch (ArgumentException)
-                {
-                    continue;
-                }
-
-            }
+            List<EnumPlayerPermissions> permissionList = ParsePermissions(args.Parsers[1].GetValue().ToString());
             bool permWasRemove = false;
             foreach (var it in permissionList)
             {

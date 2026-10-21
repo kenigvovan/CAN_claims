@@ -33,7 +33,7 @@ namespace claims.src.gui.playerGui.Dialogs
         /// <summary>Plot types the host has not switched off, code plus display name key.</summary>
         private static List<KeyValuePair<string, string>> EnabledPlotTypes()
             => PlotInfo.plotAccessableForPlayersWithCode
-                       .Where(p => claims.config?.DISABLED_PLOT_TYPES?.Contains(p.Key) != true)
+                       .Where(p => !PlotInfo.IsTypeDisabled(p.Key))
                        .ToList();
 
         private static PlotsGroupCellElement SelectedGroup()
@@ -41,6 +41,18 @@ namespace claims.src.gui.playerGui.Dialogs
                      .FirstOrDefault(g => g.Guid.Equals(claims.CANCityGui.State.DialogArgs.Selected));
 
         private static string SelectedGroupName() => SelectedGroup()?.Name;
+
+        private static SubPlotCellElement SelectedSubPlot()
+            => claims.clientDataStorage.clientPlayerInfo.CityInfo?.SubPlotCells
+                     .FirstOrDefault(s => s.Guid.Equals(claims.CANCityGui.State.DialogArgs.Selected));
+
+        private static string SelectedSubPlotName() => SelectedSubPlot()?.Name;
+
+        private static readonly string[] SubPlotPresets = { "private", "shop", "open" };
+
+        /// <summary>A number as a command argument: invariant, and null when there is none.</summary>
+        private static string Number(double? value) =>
+            value?.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
 
         /// <summary>Audiences offered in the GUI, command word plus display key. Selling to one named
         /// city stays a command-line option: it needs a city name the dropdown cannot ask for.</summary>
@@ -116,13 +128,31 @@ namespace claims.src.gui.playerGui.Dialogs
             Add(VILLAGE_UPGRADE_CONFIRM, new YesNoDialog("claims:gui-village-upgrade-confirm", "/village upgrade"));
             Add(NEED_AGREE, new AgreeDialog());
             Add(SELECT_NEW_CITY_NAME, new NeedNameDialog("claims:gui-enter-new-city-name", "/city set name ", "claims:gui-set-name-button"));
+            // Opening the city lets in anyone who presses join, with no say from the mayor - asked
+            // before it happens rather than after.
+            Add(CITY_OPEN_CONFIRM, new YesNoDialog("claims:gui-city-open-confirm", "/city set open on"));
+            Add(CITY_CLOSE_CONFIRM, new YesNoDialog("claims:gui-city-close-confirm", "/city set open off"));
+
+            // What newcomers read about the city in the world-wide list. Sending it empty clears it,
+            // which is what the command does with no argument.
+            Add(SELECT_CITY_INV_MSG, new NeedNameDialog("claims:gui-enter-city-inv-msg", "/city set invmsg ", "claims:gui-set-inv-msg-button",
+                    textArgs: _ => new object[] { claims.config.MAX_LENGTH_CITY_INV_MSG }));
             Add(INVITE_TO_CITY_NEED_NAME, new NeedNameDialog("claims:gui-enter-player-name", "/city invite ", "claims:gui-invite-button"));
             Add(UNINVITE_TO_CITY, new NeedNameDialog("claims:gui-enter-player-name", "/city uninvite ", "claims:gui-uninvite-button"));
+            // Asked from a row of a list card, so the name is already known and only confirmed.
+            Add(KICK_FROM_CITY_CONFIRM, new YesNoDialog("claims:gui-kick-citizen-confirm",
+                    args => ClientCommandText.Join("/city kick", args.Text),
+                    textArgs: args => new object[] { args.Text }));
+            Add(REMOVE_FRIEND_CONFIRM, new YesNoDialog("claims:gui-remove-friend-confirm",
+                    args => ClientCommandText.Join("/citizen friend remove", args.Text),
+                    textArgs: args => new object[] { args.Text }));
+            Add(REMOVE_CRIMINAL_CONFIRM, new YesNoDialog("claims:gui-remove-criminal-confirm",
+                    args => ClientCommandText.Join("/city criminal remove", args.Text),
+                    textArgs: args => new object[] { args.Text }));
             Add(KICK_FROM_CITY_NEED_NAME, new DropDownDialog("claims:gui-enter-player-name", () => P.Citizens, "/city kick ", "claims:gui-kick-button"));
             Add(LEAVE_CITY_CONFIRM, new YesNoDialog("claims:gui-leave-city-confirm-button", "/city leave"));
             Add(CLAIM_CITY_PLOT_CONFIRM, new YesNoDialog("claims:gui-claim-current-plot-confirm", "/city claim"));
             Add(UNCLAIM_CITY_PLOT_CONFIRM, new YesNoDialog("claims:gui-unclaim-current-plot-confirm", "/city unclaim"));
-            Add(CITY_PLOTS_PERMISSIONS, new PermissionsDialog("claims:gui-city-permissions-title", PermissionsScopes.City));
 
             // ---- friends and criminals ----
             Add(ADD_FRIEND_NEED_NAME, new NeedNameDialog("claims:gui-enter-player-name", "/citizen friend add ", "claims:gui-add-button"));
@@ -144,7 +174,14 @@ namespace claims.src.gui.playerGui.Dialogs
                     () => EnabledPlotTypes().Select(p => p.Key).ToArray(),
                     "/plot set type ", "claims:gui-set-type-button",
                     displayNamesProvider: () => EnabledPlotTypes().Select(p => Lang.Get(p.Value)).ToArray()));
-            Add(PLOT_PERMISSIONS, new PermissionsDialog("claims:gui-plot-permissions-title", PermissionsScopes.Plot));
+            // First = type lang key, Second = cost; the server holds the change until /agree.
+            Add(PLOT_SET_TYPE_CONFIRM, new YesNoDialog("claims:gui-plot-set-type-confirm",
+                    args => "/agree",
+                    textArgs: args => new object[] { Lang.Get(args.First), args.Second }));
+            // First = price; the server holds the sale until /agree.
+            Add(PLOT_CLAIM_CONFIRM, new YesNoDialog("claims:gui-plot-claim-confirm",
+                    args => "/agree",
+                    textArgs: args => new object[] { args.First }));
 
             // ---- inter-city plot market ----
             // Price and audience are one listing, so setting either resends both: entering a new
@@ -217,39 +254,84 @@ namespace claims.src.gui.playerGui.Dialogs
             // ---- plots groups ----
             Add(CITY_PLOTSGROUP_ADD_NEW_NEED_NAME, new NeedNameDialog("claims:gui-enter-plotsgroup-name", "/c plotsgroup create ", "claims:gui-add-button"));
             Add(ADD_PLOTSGROUP_MEMBER_NEED_NAME, new NeedNameDialog("claims:gui-enter-player-name", null, "claims:gui-invite-button",
-                    commandBuilder: args => string.Format("/c plotsgroup add {0} {1}", SelectedGroupName(), args.Text)));
+                    commandBuilder: args => ClientCommandText.Join("/c plotsgroup add", SelectedGroupName(), args.Text)));
             Add(REMOVE_PLOTSGROUP_MEMBER_SELECT, new SelectThenConfirmDialog("claims:gui-kick-from-plotsgroup-title",
                     () => SelectedGroup()?.PlayersNames.ToArray() ?? new string[0],
                     "claims:gui-kick-button", REMOVE_PLOTSGROUP_MEMBER_CONFIRM,
                     textArgs: () => new object[] { SelectedGroupName() }));
             Add(REMOVE_PLOTSGROUP_MEMBER_CONFIRM, new YesNoDialog("claims:gui-kick-player-from-plotsgroup",
-                    args => string.Format("/c plotsgroup kick {0} {1}", SelectedGroupName(), args.Text),
+                    args => ClientCommandText.Join("/c plotsgroup kick", SelectedGroupName(), args.Text),
                     textArgs: args => new object[] { SelectedGroupName(), args.Text }));
             Add(CITY_PLOTSGROUP_REMOVE_SELECT, new SelectThenConfirmDialog("claims:gui-select-plotsgroup-to-remove",
                     () => P.PlotsGroups, "claims:gui-remove-button", CITY_PLOTSGROUP_REMOVE_CONFIRM));
             // Unlike the other plots group dialogs this one identifies the group by the name picked
             // in the preceding select dialog, not by the guid the page put in Selected.
             Add(CITY_PLOTSGROUP_REMOVE_CONFIRM, new YesNoDialog("claims:gui-remove-plotsgroup-confirm",
-                    args => string.Format("/c plotsgroup delete {0}", args.Text),
+                    args => ClientCommandText.Join("/c plotsgroup delete", args.Text),
                     textArgs: args => new object[] { args.Text }));
             Add(CITY_PLOTSGROUP_PLOT_CLAIM_CONFIRM, new YesNoDialog("claims:gui-claim-plot-plotsgroup",
-                    args => string.Format("/c plotsgroup plotadd {0}", SelectedGroupName()),
+                    args => ClientCommandText.Join("/c plotsgroup plotadd", SelectedGroupName()),
                     textArgs: args => new object[] { SelectedGroupName() }));
             Add(CITY_PLOTSGROUP_PLOT_UNCLAIM_CONFIRM, new YesNoDialog("claims:gui-unclaim-plot-plotsgroup",
-                    args => string.Format("/c plotsgroup plotremove {0}", SelectedGroupName()),
+                    args => ClientCommandText.Join("/c plotsgroup plotremove", SelectedGroupName()),
                     textArgs: args => new object[] { SelectedGroupName() }));
-            Add(CITY_PLOTSGROUP_PERMISSIONS, new PermissionsDialog("claims:gui-plotsgroup-permissions-title",
-                    PermissionsScopes.PlotsGroup(SelectedGroupName, () => SelectedGroup()?.PermsHandler)));
             // The prompt names the current fee: a mayor typing a new one is deciding against it, and
             // a raise costs them a day of waiting, so they should not have to guess what it is now.
             Add(CITY_PLOTSGROUP_SET_FEE, new NeedNameDialog("claims:gui-enter-plotsgroup-fee", null,
                     "claims:gui-set-button",
-                    commandBuilder: args => string.Format("/c plotsgroup set fee {0} {1}", SelectedGroupName(), args.Text),
+                    commandBuilder: args => ClientCommandText.Join("/c plotsgroup set fee", SelectedGroupName(), args.Text),
                     inputKind: EnumDialogInput.Integer,
                     textArgs: args => new object[] { SelectedGroup()?.PlotsGroupFee ?? 0 }));
             Add(CITY_PLOTSGROUP_ACCEPT_FEE, new YesNoDialog("claims:gui-plotsgroup-accept-fee-confirm",
-                    args => string.Format("/c plotsgroup acceptfee {0}", SelectedGroupName()),
+                    args => ClientCommandText.Join("/c plotsgroup acceptfee", SelectedGroupName()),
                     textArgs: args => new object[] { SelectedGroupName(), SelectedGroup()?.PendingFee ?? 0 }));
+
+            // ---- sub-plots ----
+            // All but create act on the sub-plot whose page is open (Selected = its guid); its name
+            // goes last, as /subplot takes it.
+            Add(SUBPLOT_CREATE_NEED_NAME, new NeedNameDialog("claims:gui-enter-subplot-name", "/subplot create ", "claims:gui-create-button"));
+            Add(SUBPLOT_SET_OWNER_SELECT, new DropDownDialog("claims:gui-subplot-pick-owner", () => P.Citizens, null,
+                    "claims:gui-set-button",
+                    commandBuilder: args => ClientCommandText.Join("/subplot setowner", args.Text, SelectedSubPlotName())));
+            Add(SUBPLOT_CLEAR_OWNER_CONFIRM, new YesNoDialog("claims:gui-subplot-clear-owner-confirm",
+                    args => ClientCommandText.Join("/subplot clearowner", SelectedSubPlotName()),
+                    textArgs: args => new object[] { SelectedSubPlotName(), SelectedSubPlot()?.OwnerName }));
+            Add(SUBPLOT_ADD_MEMBER_NEED_NAME, new NeedNameDialog("claims:gui-enter-player-name", null, "claims:gui-add-button",
+                    commandBuilder: args => ClientCommandText.Join("/subplot addmember", args.Text, SelectedSubPlotName())));
+            Add(SUBPLOT_REMOVE_MEMBER_CONFIRM, new YesNoDialog("claims:gui-subplot-remove-member-confirm",
+                    args => ClientCommandText.Join("/subplot removemember", args.Text, SelectedSubPlotName()),
+                    textArgs: args => new object[] { args.Text, SelectedSubPlotName() }));
+            Add(SUBPLOT_SET_PRICE_NEED_NUMBER, new NeedNameDialog("claims:gui-enter-subplot-price", null, "claims:gui-set-price-button",
+                    commandBuilder: args => ClientCommandText.Join("/subplot fs", args.Text, SelectedSubPlotName()),
+                    inputKind: EnumDialogInput.Integer));
+            // The prompt names the current tax: a raise waits for the owner, so the mayor should see
+            // what they are raising from.
+            Add(SUBPLOT_SET_TAX_NEED_NUMBER, new NeedNameDialog("claims:gui-enter-subplot-tax", null, "claims:gui-set-tax-button",
+                    commandBuilder: args => ClientCommandText.Join("/subplot tax", args.Text, SelectedSubPlotName()),
+                    inputKind: EnumDialogInput.Decimal,
+                    textArgs: args => new object[] { SelectedSubPlot()?.Tax ?? 0 }));
+            Add(SUBPLOT_PRESET_SELECT, new DropDownDialog("claims:gui-subplot-pick-preset",
+                    () => SubPlotPresets, null, "claims:gui-set-button",
+                    displayNamesProvider: () => SubPlotPresets.Select(p => Lang.Get("claims:gui-subplot-preset-" + p)).ToArray(),
+                    commandBuilder: args => ClientCommandText.Join("/subplot preset", args.Text, SelectedSubPlotName())));
+            // Price and tax travel with the command: the purchase goes through only at the terms
+            // shown here, and needs no /agree after this confirmation.
+            Add(SUBPLOT_BUY_CONFIRM, new YesNoDialog("claims:gui-subplot-buy-confirm",
+                    args => ClientCommandText.Join("/subplot buy", SelectedSubPlotName(),
+                        Number(SelectedSubPlot()?.Price), Number(SelectedSubPlot()?.Tax)),
+                    textArgs: args => new object[] { SelectedSubPlotName(), Number(SelectedSubPlot()?.Price), Number(SelectedSubPlot()?.Tax) }));
+            Add(SUBPLOT_GIVE_BACK_CONFIRM, new YesNoDialog("claims:gui-subplot-give-back-confirm",
+                    args => ClientCommandText.Join("/subplot giveback", SelectedSubPlotName()),
+                    textArgs: args => new object[] { SelectedSubPlotName() }));
+            Add(SUBPLOT_ACCEPT_TAX_CONFIRM, new YesNoDialog("claims:gui-subplot-accept-tax-confirm",
+                    args => ClientCommandText.Join("/subplot accepttax", SelectedSubPlotName()),
+                    textArgs: args => new object[] { SelectedSubPlotName(), Number(SelectedSubPlot()?.PendingTax) }));
+            Add(SUBPLOT_SET_GROUP_SELECT, new DropDownDialog("claims:gui-subplot-pick-group", () => P.PlotsGroups, null,
+                    "claims:gui-set-button",
+                    commandBuilder: args => ClientCommandText.Join("/subplot group", args.Text, SelectedSubPlotName())));
+            Add(SUBPLOT_DELETE_CONFIRM, new YesNoDialog("claims:gui-subplot-delete-confirm",
+                    args => ClientCommandText.Join("/subplot delete", SelectedSubPlotName()),
+                    textArgs: args => new object[] { SelectedSubPlotName() }));
 
             // ---- alliance ----
             Add(NEW_ALLIANCE_NEED_NAME, new NeedNameDialog("claims:gui-enter-alliance-name", "/a create ", "claims:gui-create-button"));

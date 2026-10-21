@@ -16,8 +16,13 @@ using Vintagestory.API.MathTools;
 
 namespace claims.src.gui.playerGui.structures
 {
-    public class ClientPlayerInfo 
+    public class ClientPlayerInfo
     {
+        /// <summary>
+        /// Whether the server has sent anything about this player yet. Until then the window says it
+        /// is loading: an empty instance read as "no city, no friends", and offered to found a city.
+        /// </summary>
+        public bool ReceivedFromServer { get; set; }
         public CityInfo CityInfo { get; set; }
         public HashSet<string> Friends { get; set; } = new HashSet<string>();
         public List<ClientToCityInvitation> ReceivedInvitations { get; set; } = new List<ClientToCityInvitation>();
@@ -74,6 +79,7 @@ namespace claims.src.gui.playerGui.structures
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_SUMMON_POINT_REMOVE, OnCityCitySummonPointRemove);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_SUMMON_POINT_UPDATE, OnCityCitySummonPointUpdate);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_ALL, OnCityCitySummonPlotsgroupAll);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_SUBPLOTS_ALL, OnCitySubPlotsAll);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_REMOVE, OnCityCitySummonPlotsgroupRemove);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_ADD, OnCityCitySummonPlotsgroupAdd);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_PLOTS_GROUPS_UPDATE, OnCityCitySummonPlotsgroupUpdate);
@@ -113,8 +119,11 @@ namespace claims.src.gui.playerGui.structures
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_GUID, OnCityGuid);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_TIER, OnCityTier);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_RAID_WINDOW, OnCityRaidWindow);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_OPEN, OnCityOpen);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_INV_MSG, OnCityInvMsg);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_LOG, OnCityLog);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_PLOTS_MAP, OnCityPlotsMap);
+            AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_TEMPLE_POINTS, OnCityTemplePoints);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_PLOT_MARKET_HISTORY, OnCityPlotMarketHistory);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.CITY_PLOT_AUCTIONS, OnCityPlotAuctions);
             AcceptChangeHandlers.Add(EnumPlayerRelatedInfo.PLAYER_BALANCE, OnPlayerBalance);
@@ -196,6 +205,14 @@ namespace claims.src.gui.playerGui.structures
         private void OnCityGuid(string val)
         {
             this.CityInfo.Guid = val;
+        }
+        private void OnCityOpen(string val)
+        {
+            this.CityInfo.Open = val == "1";
+        }
+        private void OnCityInvMsg(string val)
+        {
+            this.CityInfo.InvMsg = val ?? "";
         }
         private void OnCityRaidWindow(string val)
         {
@@ -473,6 +490,11 @@ namespace claims.src.gui.playerGui.structures
                 }
             }
         }
+        private void OnCitySubPlotsAll(string val)
+        {
+            if (CityInfo == null) return;
+            CityInfo.SubPlotCells = JsonConvert.DeserializeObject<List<SubPlotCellElement>>(val) ?? new List<SubPlotCellElement>();
+        }
         private void OnCityCitySummonPlotsgroupAll(string val)
         {
             HashSet<PlotsGroupCellElement> pc = JsonConvert.DeserializeObject<HashSet<PlotsGroupCellElement>>(val);
@@ -574,6 +596,7 @@ namespace claims.src.gui.playerGui.structures
                     // Without this a village upgraded to a city keeps its old label in the list
                     // until the player rejoins.
                     existing.Tier = it.Tier;
+                    existing.Neutral = it.Neutral;
                 }
                 else
                 {
@@ -857,6 +880,11 @@ namespace claims.src.gui.playerGui.structures
         {
             if (CityInfo == null) return;
             CityInfo.PlotsMap = JsonConvert.DeserializeObject<List<CityPlotMiniInfo>>(val) ?? new List<CityPlotMiniInfo>();
+        }
+        private void OnCityTemplePoints(string val)
+        {
+            if (CityInfo == null) return;
+            CityInfo.TempleRespawnPoints = JsonConvert.DeserializeObject<List<TempleRespawnPointInfo>>(val) ?? new List<TempleRespawnPointInfo>();
         }
         private void OnCityPlotMarketHistory(string val)
         {

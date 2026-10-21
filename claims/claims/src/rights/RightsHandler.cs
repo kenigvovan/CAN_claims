@@ -25,7 +25,12 @@ namespace claims.src
             }
             return null;
         }
-        static Dictionary<string, HashSet<EnumPlayerPermissions>> PlayerPermissionsByGroups = new();        
+        static Dictionary<string, HashSet<EnumPlayerPermissions>> PlayerPermissionsByGroups = new();
+
+        /// <summary>Rights over an alliance - never granted through a city's own ranks.</summary>
+        public static bool IsAlliancePermission(EnumPlayerPermissions permission) =>
+            permission.ToString().StartsWith("ALLIANCE_", StringComparison.Ordinal);
+
         private static Dictionary<string, HashSet<EnumPlayerPermissions>> getDefaultRankPermsDict()
         {
             Dictionary<string, HashSet<EnumPlayerPermissions>> outDict = new()
@@ -86,7 +91,8 @@ namespace claims.src
                         EnumPlayerPermissions.CITY_SELL_PLOT_TO_CITY,
                         EnumPlayerPermissions.CITY_BUY_PLOT_FROM_CITY,
                         EnumPlayerPermissions.CITY_SET_MOBSPAWN,
-                        EnumPlayerPermissions.CITY_PLOTSGROUP_SET_MOBSPAWN
+                        EnumPlayerPermissions.CITY_PLOTSGROUP_SET_MOBSPAWN,
+                        EnumPlayerPermissions.CITY_SUBPLOT_MANAGE
                     }
                 },
                  // What a village head gets instead of MAYOR. Deliberately a whitelist: a village
@@ -171,6 +177,8 @@ namespace claims.src
                         {
                             foreach(var it in rank.Permissions)
                             {
+                                // Also for ranks saved before the check in /city rank addperm.
+                                if (IsAlliancePermission(it)) continue;
                                 playerInfo.PlayerPermissionsHandler.AddPermission(it);
                             }
                         }
@@ -226,8 +234,6 @@ namespace claims.src
         }
         public static void readOrCreateRightPerms()
         {
-            string h = Directory.GetCurrentDirectory();
-            MessageHandler.sendErrorMsg(h);
             string filePath;
             if (claims.config.PATH_TO_DB_AND_JSON_FILES.Length == 0)
             {
@@ -237,15 +243,28 @@ namespace claims.src
             {
                 filePath = @"" + Path.Combine(claims.config.PATH_TO_DB_AND_JSON_FILES, claims.config.PERMS_FILE_NAME);
             }
-            string json;
             if (File.Exists(filePath))
             {
-                using (StreamReader r = new(filePath))
+                Dictionary<string, List<string>> raw;
+                try
                 {
-                    json = r.ReadToEnd();
-                    JsonSerializerSettings settings = new();
-                    settings.Converters.Add(new StringEnumConverter());
-                    PlayerPermissionsByGroups = JsonConvert.DeserializeObject<Dictionary<string, HashSet<EnumPlayerPermissions>>>(json, settings);
+                    raw = JsonConvert.DeserializeObject<Dictionary<string, List<string>>>(File.ReadAllText(filePath));
+                }
+                catch (Exception ex)
+                {
+                    // A file the admin broke by hand used to throw out of StartServerSide. Run on the
+                    // defaults, keep a copy, and leave the file alone for them to fix.
+                    try { File.Copy(filePath, filePath + ".bak", true); } catch (Exception) { }
+                    claims.sapi?.Logger.Error("[claims] {0} cannot be read, default permissions are used until it is fixed (copy in .bak): {1}", filePath, ex);
+                    PlayerPermissionsByGroups = getDefaultRankPermsDict();
+                    return;
+                }
+                PlayerPermissionsByGroups = ParsePermissionGroups(raw, out List<string> unknown);
+                if (unknown.Count > 0)
+                {
+                    // Adding a missing group rewrites the file without them; the copy keeps what was typed.
+                    try { File.Copy(filePath, filePath + ".bak", true); } catch (Exception) { }
+                    claims.sapi?.Logger.Warning("[claims] {0}: unknown permissions skipped (copy in .bak): {1}", filePath, string.Join(", ", unknown));
                 }
                 AddMissingGroups(filePath);
             }
@@ -263,6 +282,37 @@ namespace claims.src
                 }
             }
         }
+        /// <summary>
+        /// The permissions file as written by hand: group to permission names. A name the code does
+        /// not know - a typo, or a permission removed since - is reported in <paramref name="unknown"/>
+        /// as "GROUP.NAME" and skipped; one such name used to stop the server from starting.
+        /// </summary>
+        public static Dictionary<string, HashSet<EnumPlayerPermissions>> ParsePermissionGroups(
+            Dictionary<string, List<string>> raw, out List<string> unknown)
+        {
+            unknown = new List<string>();
+            var groups = new Dictionary<string, HashSet<EnumPlayerPermissions>>();
+            if (raw == null) return groups;
+            foreach (var group in raw)
+            {
+                var perms = new HashSet<EnumPlayerPermissions>();
+                foreach (string name in group.Value ?? new List<string>())
+                {
+                    // Names only: Enum.TryParse would also take "5" or "1, 2".
+                    if (name != null && Enum.IsDefined(typeof(EnumPlayerPermissions), name))
+                    {
+                        perms.Add((EnumPlayerPermissions)Enum.Parse(typeof(EnumPlayerPermissions), name));
+                    }
+                    else
+                    {
+                        unknown.Add(group.Key + "." + name);
+                    }
+                }
+                groups[group.Key] = perms;
+            }
+            return groups;
+        }
+
         /// <summary>
         /// Permissions added to a group after that group already shipped, listed in the order they
         /// were introduced. A permissions file written before one of these existed has no idea the
@@ -284,6 +334,8 @@ namespace claims.src
             ("mayor-plotsgroup-set-mobspawn", "MAYOR", EnumPlayerPermissions.CITY_PLOTSGROUP_SET_MOBSPAWN),
             ("village-mayor-set-mobspawn", "VILLAGE_MAYOR", EnumPlayerPermissions.CITY_SET_MOBSPAWN),
             ("mayor-set-neutral", "MAYOR", EnumPlayerPermissions.CITY_SET_NEUTRAL),
+            ("leader-emblem", "LEADER", EnumPlayerPermissions.ALLIANCE_SET_EMBLEM),
+            ("mayor-subplot-manage", "MAYOR", EnumPlayerPermissions.CITY_SUBPLOT_MANAGE),
         };
 
         /// <summary>Written next to the permissions file, one applied migration name per line.</summary>

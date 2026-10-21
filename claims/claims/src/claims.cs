@@ -84,6 +84,10 @@ namespace claims.src
         public static bool DebugValSet = false;
 
         public static ClaimsPlayerMovementGUI movementClaimGui { get; set; }
+        public static ClaimsClientPrefs clientPrefs;
+        private static LocationBanner locationBanner;
+        private static PlotMarkerRenderer plotMarkers;
+        private static PlotBorderRenderer plotBorders;
         private static gui.BoatShareDialog boatShareDialog;
         public ClaimsModApi Api { get; private set; }
         /*==============================================================================================*/
@@ -141,6 +145,7 @@ namespace claims.src
             api.RegisterBlockEntityClass("VillageAnchor", typeof(BlockEntityVillageAnchor));
             api.RegisterBlockClass("CANVillageGranaryBlock", typeof(BlockVillageGranary));
             api.RegisterBlockEntityClass("VillageGranary", typeof(BlockEntityVillageGranary));
+            api.RegisterItemClass("CANSubPlotWand", typeof(items.ItemSubPlotWand));
             //Environment.SetEnvironmentVariable("CAIRO_DEBUG_DISPOSE", "1");
         }
         public override void StartClientSide(ICoreClientAPI api)
@@ -201,6 +206,14 @@ namespace claims.src
             bountyBoardHud.TryOpen();
             warHud.TryOpen();
 
+            clientPrefs = ClaimsClientPrefs.Load(capi);
+            locationBanner = new LocationBanner(capi, clientPrefs);
+            capi.Event.RegisterRenderer(locationBanner, EnumRenderStage.Ortho, "claimslocationbanner");
+            plotMarkers = new PlotMarkerRenderer(capi, clientPrefs);
+            capi.Event.RegisterRenderer(plotMarkers, EnumRenderStage.Ortho, "claimsplotmarkers");
+            plotBorders = new PlotBorderRenderer(capi, clientPrefs);
+            capi.Event.RegisterRenderer(plotBorders, EnumRenderStage.Opaque, "claimsplotborders");
+
             RegisterHudCommands(api);
         }
 
@@ -245,6 +258,26 @@ namespace claims.src
                     return TextCommandResult.Success();
                 });
 
+            api.ChatCommands.Create("claimsbanner")
+                .WithDescription(Lang.Get("claims:cmd-desc-claimsbanner"))
+                .HandleWith(args => TextCommandResult.Success(Lang.Get(
+                    ToggleLocationBanner() ? "claims:banner-turned-on" : "claims:banner-turned-off")));
+
+            api.ChatCommands.Create("claimsmarkers")
+                .WithDescription(Lang.Get("claims:cmd-desc-claimsmarkers"))
+                .HandleWith(args => TextCommandResult.Success(Lang.Get(
+                    TogglePlotMarkers() ? "claims:markers-turned-on" : "claims:markers-turned-off")));
+
+            api.ChatCommands.Create("claimsborders")
+                .WithDescription(Lang.Get("claims:cmd-desc-claimsborders"))
+                .HandleWith(args => TextCommandResult.Success(Lang.Get(
+                    TogglePlotBorders() ? "claims:borders-turned-on" : "claims:borders-turned-off")));
+
+            api.ChatCommands.Create("claimsplotpanel")
+                .WithDescription(Lang.Get("claims:cmd-desc-claimsplotpanel"))
+                .HandleWith(args => TextCommandResult.Success(Lang.Get(
+                    ToggleAutoPlotPanel() ? "claims:plotpanel-auto-on" : "claims:plotpanel-auto-off")));
+
             api.ChatCommands.Create("warhud")
                 .WithDescription("Toggle the war HUD")
                 .HandleWith(args =>
@@ -252,6 +285,41 @@ namespace claims.src
                     ClaimsHudState.ShowWarHud = !ClaimsHudState.ShowWarHud;
                     return TextCommandResult.Success("War HUD: " + (ClaimsHudState.ShowWarHud ? "on" : "off"));
                 });
+        }
+
+        /// <summary>Turns the city title and place line on or off; used by .claimsbanner and the player page.</summary>
+        public static bool ToggleLocationBanner() => locationBanner?.Toggle() ?? false;
+
+        /// <summary>Turns the flag and right squares over nearby plots on or off; .claimsmarkers and the player page.</summary>
+        public static bool TogglePlotMarkers() => plotMarkers?.Toggle() ?? false;
+
+        /// <summary>Turns the border grid on or off; .claimsborders and the plot page.</summary>
+        public static bool TogglePlotBorders()
+        {
+            bool on = plotBorders?.Toggle() ?? false;
+            // The server's world-high box from /plot borders would stand over the grid.
+            if (on) gui.ClientChat.Send("/plot borders off");
+            return on;
+        }
+
+        /// <summary>Whether the plot panel opens by itself on every plot change; .claimsplotpanel and the player page.</summary>
+        public static bool ToggleAutoPlotPanel()
+        {
+            if (clientPrefs == null) return false;
+            clientPrefs.AutoShowPlotPanel = !clientPrefs.AutoShowPlotPanel;
+            clientPrefs.Save(capi);
+            return clientPrefs.AutoShowPlotPanel;
+        }
+
+        /// <summary>
+        /// Puts what the banner just saw into the plot panel, if it is open. The panel used to change
+        /// only at the next border, so a plot whose pvp or price changed under the player stayed
+        /// described as it had been.
+        /// </summary>
+        public static void RefreshMovementPanel(SavedPlotInfo plot)
+        {
+            if (movementClaimGui == null || !movementClaimGui.IsOpened()) return;
+            updateMovementGUIInfo(plot);
         }
 
         /// <summary>
@@ -592,6 +660,25 @@ namespace claims.src
             warHud = null;
             hudLayoutEditor = null;
             ClaimsHudLayout.Current = null;
+            if (locationBanner != null)
+            {
+                capi?.Event.UnregisterRenderer(locationBanner, EnumRenderStage.Ortho);
+                locationBanner.Dispose();
+                locationBanner = null;
+            }
+            if (plotMarkers != null)
+            {
+                capi?.Event.UnregisterRenderer(plotMarkers, EnumRenderStage.Ortho);
+                plotMarkers.Dispose();
+                plotMarkers = null;
+            }
+            if (plotBorders != null)
+            {
+                capi?.Event.UnregisterRenderer(plotBorders, EnumRenderStage.Opaque);
+                plotBorders.Dispose();
+                plotBorders = null;
+            }
+            clientPrefs = null;
 
             harmonyInstance.UnpatchAll(harmonyID);
             harmonyInstance = null;
@@ -645,8 +732,17 @@ namespace claims.src
             {
                 movementClaimGui.TryClose();
             }
-            else
-                movementClaimGui.TryOpen();
+            else if (movementClaimGui.TryOpen())
+            {
+                // Filled from where the player stands now, not left as the last border painted it.
+                var entity = capi.World?.Player?.Entity;
+                if (entity != null && clientDataStorage != null && PlotPosition.plotSize > 0)
+                {
+                    clientDataStorage.getSavedPlot(new Vec2i((int)entity.Pos.X / PlotPosition.plotSize,
+                        (int)entity.Pos.Z / PlotPosition.plotSize), out SavedPlotInfo here);
+                    updateMovementGUIInfo(here);
+                }
+            }
             return true;
         }
         public void onPlayerChangePlotEvent(string eventName, ref EnumHandling handling, IAttribute data)
@@ -663,6 +759,12 @@ namespace claims.src
             if (savedPlotInfoFrom == null && savedPlotInfoTo == null)
             {
                 //from wild to wild
+                return;
+            }
+            // By default the banner says where the player is and the panel opens on its hotkey;
+            // an open panel is kept current by RefreshMovementPanel.
+            if (!(clientPrefs?.AutoShowPlotPanel ?? false))
+            {
                 return;
             }
             if (movementClaimGui == null)

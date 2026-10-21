@@ -97,9 +97,13 @@ namespace claims.src.economy.bridge
                         MessageHandler.sendMsgToPlayer(player as IServerPlayer, Lang.Get("claims:economy_chest_bank_already_set_here"));
                         return;
                     }
-                    if (eh.accountExist(city.MoneyAccountName))
+                    // The old row must go even when its chest is gone (or never existed - older builds
+                    // stored a chestless row at 0,0,0 on city creation), otherwise the insert hits the
+                    // accountname primary key.
+                    bool hadChest = eh.accountExist(city.MoneyAccountName);
+                    eh.deleteAccount(city.MoneyAccountName);
+                    if (hadChest)
                     {
-                        eh.deleteAccount(city.MoneyAccountName);
                         MessageHandler.sendMsgToPlayer(player as IServerPlayer, Lang.Get("claims:economy_city_chest_bank_removed"));
                     }
                     eh.newAccount(city.MoneyAccountName, new Dictionary<string, object> { { "chestPos", new Vec3i(chestPos.X, chestPos.Y, chestPos.Z) } });
@@ -182,10 +186,11 @@ namespace claims.src.economy.bridge
                         MessageHandler.sendMsgToPlayer(player as IServerPlayer, Lang.Get("claims:economy_chest_bank_already_set_here"));
                         return;
                     }
-                    // Move bank to new chest location
-                    if (eh.accountExist(alliance.MoneyAccountName))
+                    // Move bank to new chest location; the old row goes even without a chest, see the city branch.
+                    bool hadChest = eh.accountExist(alliance.MoneyAccountName);
+                    eh.deleteAccount(alliance.MoneyAccountName);
+                    if (hadChest)
                     {
-                        eh.deleteAccount(alliance.MoneyAccountName);
                         MessageHandler.sendMsgToPlayer(player as IServerPlayer, Lang.Get("claims:economy_alliance_chest_bank_removed"));
                     }
                     eh.newAccount(alliance.MoneyAccountName, new Dictionary<string, object> { { "chestPos", new Vec3i(chestPos.X, chestPos.Y, chestPos.Z) } });

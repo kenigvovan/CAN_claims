@@ -27,8 +27,8 @@ namespace claims.src.gui.playerGui.GuiElements
         /// <summary>Both actions are on buttons now, so the row itself is not a click target.</summary>
         protected override bool UseHoverHighlights => false;
 
-        private static readonly double[] LabelColor = new double[] { 0.70, 0.70, 0.70, 1.0 };
-        private static readonly double[] BattleColor = new double[] { 0.95, 0.25, 0.25, 1.0 };
+        private static readonly double[] LabelColor = Widgets.ClaimsColors.Label;
+        private static readonly double[] BattleColor = Widgets.ClaimsColors.Danger;
 
         /// <summary>Edge of a side's arms, and the room the column of two takes from the text.</summary>
         private const double EmblemSize = 24;

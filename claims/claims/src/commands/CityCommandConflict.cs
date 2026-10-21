@@ -650,9 +650,10 @@ namespace claims.src.commands
             if (!claims.dataStorage.CheckClaimLimiters(playerInfo, pos))
                 return TextCommandResult.Success(Lang.Get("claims:too_close_to_forbidden_area"));
 
-            if (claims.economyProvider.GetBalance(city.MoneyAccountName) < (decimal)claims.config.CAMP_PLOT_COST)
+            decimal campCost = (decimal)PlotInfo.GetSetCost("camp");
+            if (claims.economyProvider.GetBalance(city.MoneyAccountName) < campCost)
                 return TextCommandResult.Success(Lang.Get("claims:not_enough_money"));
-            if (claims.economyProvider.Withdraw(city.MoneyAccountName, (decimal)claims.config.CAMP_PLOT_COST) != MoneyOperationResult.Success)
+            if (campCost > 0 && claims.economyProvider.Withdraw(city.MoneyAccountName, campCost) != MoneyOperationResult.Success)
                 return TextCommandResult.Success(Lang.Get("claims:economy_money_transaction_error"));
 
             // Place the physical anchor block (after payment succeeded).

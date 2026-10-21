@@ -57,7 +57,8 @@
             "prisonguid TEXT," +
             "prisonhoursleft INTEGER," +
             "bounties TEXT DEFAULT \"\"," +
-            "villagecooldown INTEGER DEFAULT 0" +
+            "villagelostat INTEGER DEFAULT 0," +
+            "villageabandoned INTEGER DEFAULT 0" +
             ");";
         public static string plotTable =
             "CREATE TABLE IF NOT EXISTS PLOTS(" +
@@ -133,14 +134,47 @@
             "timestamp INTEGER DEFAULT 0" +
             ");";
 
-        // Sites where a village fell. Blocks founding anything there until the timestamp passes,
-        // so a raided village cannot be rebuilt on the spot the same evening.
+        // Sites where a village is gone. Blocks founding anything there for the configured hours
+        // from 'since', so a raided village cannot be rebuilt on the spot the same evening.
         public static string villageRuinsTable =
             "CREATE TABLE IF NOT EXISTS VILLAGERUINS(" +
             "x INTEGER DEFAULT 0," +
             "z INTEGER DEFAULT 0," +
-            "until INTEGER DEFAULT 0," +
+            "since INTEGER DEFAULT 0," +
+            "abandoned INTEGER DEFAULT 0," +
             "PRIMARY KEY(x, z)" +
+            ");";
+
+        // Sub-plots: pieces of a city cut out in boxes, see subplots.SubPlot. The boxes are one text
+        // column, "minx,miny,minz,maxx,maxy,maxz" per box joined by ';', max corner outside.
+        public static string subPlotsTable =
+            "CREATE TABLE IF NOT EXISTS SUBPLOTS(" +
+            "guid TEXT PRIMARY KEY NOT NULL," +
+            "name TEXT DEFAULT \"\"," +
+            "city TEXT DEFAULT \"\"," +
+            "owner TEXT DEFAULT \"\"," +
+            "boxes TEXT DEFAULT \"\"," +
+            "price REAL DEFAULT -1," +
+            "perms TEXT DEFAULT \"\"," +
+            "members TEXT DEFAULT \"\"," +
+            "timestampclaimed INTEGER DEFAULT 0," +
+            "lastpaidprice INTEGER DEFAULT 0," +
+            "tax REAL DEFAULT 0," +
+            "pendingtax REAL DEFAULT -1," +
+            "pendingtaxat INTEGER DEFAULT 0," +
+            "pendingtaxaccepted INTEGER DEFAULT 0," +
+            "plotsgroup TEXT DEFAULT \"\"" +
+            ");";
+
+        // Invitations waiting for an answer. Kept so that a restart between invite and accept does
+        // not drop them; rebuilt by kind on load (see CityInvitation).
+        public static string invitationsTable =
+            "CREATE TABLE IF NOT EXISTS INVITATIONS(" +
+            "kind TEXT NOT NULL," +
+            "sender TEXT NOT NULL," +
+            "receiver TEXT NOT NULL," +
+            "expires INTEGER DEFAULT 0," +
+            "PRIMARY KEY(kind, sender, receiver)" +
             ");";
 
         public static string plotGroupTable =

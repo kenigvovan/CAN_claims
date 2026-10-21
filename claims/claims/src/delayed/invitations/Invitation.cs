@@ -24,6 +24,12 @@ namespace claims.src.delayed.invitations
             this.onDissent = onDissent;
         }
 
+        /// <summary>
+        /// Set for invitations kept across restarts (see <see cref="CityInvitation"/>); the database
+        /// rebuilds them by kind. Null: lives in memory only, as every invitation used to.
+        /// </summary>
+        public string Kind { get; init; }
+
         public ISender getSender() => sender;
         public IReceiver getReceiver() => receiver;
         public long getTimeStamp() => timeoutStamp;

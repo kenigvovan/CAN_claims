@@ -99,7 +99,9 @@ namespace claims.src.commands
                 () =>
                 {
                     claims.dataStorage.GetPlot(currentPlotPosition, out Plot plotHere);
-                    if (playerInfo.hasCity() || plotHere != null)
+                    // The name is checked again: another city may have taken it while this one waited.
+                    if (playerInfo.hasCity() || plotHere != null
+                        || claims.dataStorage.GetCityByName(newCityName, out _))
                     {
                         return;
                     }
@@ -151,6 +153,11 @@ namespace claims.src.commands
             AgreementHandler.addNewAgreementOrReplace(new Agreement(
                 () =>
                 {
+                    // The mayor may have handed the city over while the request waited.
+                    if (!city.isMayor(playerInfo) || city.Alliance != null)
+                    {
+                        return;
+                    }
                     MessageHandler.sendGlobalMsg(Lang.Get("claims:city_has_been_demolished", city.getPartNameReplaceUnder(), playerInfo.getPartNameReplaceUnder()));
 
                     PartDemolition.demolishCity(city, string.Format("Deleted by player {0}", player.PlayerName));

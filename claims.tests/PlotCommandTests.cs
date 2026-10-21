@@ -15,6 +15,7 @@ using Xunit.Abstractions;
 
 namespace claims.tests
 {
+    [Collection("ModStatics")]
     public class PlotClaimTests
     {
         private readonly ITestOutputHelper _output;

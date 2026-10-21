@@ -63,7 +63,9 @@ namespace claims.src.gui.playerGui.Dialogs
         {
             Text(l, textArgs == null ? Lang.Get(promptLangKey) : Lang.Get(promptLangKey, textArgs(Args)));
 
-            TextInput(l, InputKey, value => Args.Text = value);
+            // Refilled from the buffer: a rebuild used to blank the field while the old text stayed
+            // behind it, so the button sent a value the player could no longer see.
+            TextInput(l, InputKey, value => Args.Text = value, Args.Text);
 
             Button(l, Lang.Get(buttonLangKey), () =>
             {

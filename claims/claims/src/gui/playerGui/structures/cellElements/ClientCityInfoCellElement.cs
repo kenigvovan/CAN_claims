@@ -34,18 +34,43 @@ namespace claims.src.gui.playerGui.structures.cellElements
             Guid = guid;
         }
 
-        public void UpdateFrom(City city)
+        /// <summary>
+        /// Copies the city's current state in. Returns true when anything actually changed, which is
+        /// what decides whether the row is worth sending: the city list has no dirty flag, the send
+        /// timer compares the cached row against the city instead.
+        /// </summary>
+        public bool UpdateFrom(City city)
         {
+            string allianceName = city.Alliance?.GetPartName() ?? "";
+            string mayorName = city.getMayor()?.GetPartName() ?? "";
+            string name = city.GetPartName();
+            int citizens = city.getCityCitizens().Count;
+            int plots = city.getCityPlots().Count;
+
+            bool changed = Tier != city.Tier
+                || AllianceName != allianceName
+                || MayorName != mayorName
+                || Name != name
+                || InvMsg != city.invMsg
+                || TimeStampCreated != city.TimeStampCreated
+                || CitizensAmount != citizens
+                || Open != city.openCity
+                || Neutral != city.IsNeutral
+                || ClaimedPlotsAmount != plots;
+
+            if (!changed) return false;
+
             Tier = city.Tier;
-            AllianceName = city.Alliance?.GetPartName() ?? "";
-            MayorName = city.getMayor()?.GetPartName() ?? "";
-            Name = city.GetPartName();
+            AllianceName = allianceName;
+            MayorName = mayorName;
+            Name = name;
             InvMsg = city.invMsg;
             TimeStampCreated = city.TimeStampCreated;
-            CitizensAmount = city.getCityCitizens().Count;
+            CitizensAmount = citizens;
             Open = city.openCity;
             Neutral = city.IsNeutral;
-            ClaimedPlotsAmount = city.getCityPlots().Count;
+            ClaimedPlotsAmount = plots;
+            return true;
         }
 
         public static ClientCityInfoCellElement FromCity(City city)

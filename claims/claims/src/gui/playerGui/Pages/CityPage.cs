@@ -14,6 +14,8 @@ namespace claims.src.gui.playerGui.Pages
 {
     public sealed class CityPage : CANGuiPage
     {
+        private const double InviteMinListHeight = 70;
+
         protected override void BuildContent(PageBuildContext ctx)
         {
             var gui = Gui;
@@ -32,12 +34,8 @@ namespace claims.src.gui.playerGui.Pages
 
                 // Two columns, like the prices tab: stacked, the four cards reach past the navigation
                 // row at the bottom of the window.
-                var anchor = ctx.Line.BelowCopy(0, 14);
-                anchor.Alignment = EnumDialogArea.LeftTop;
-                double columnWidth = (lineBounds.fixedWidth - Card.ColumnGap) / 2;
-
-                var column = anchor.FlatCopy();
-                column.fixedWidth = columnWidth;
+                var anchor = CardAnchor(ctx);
+                Columns(anchor, out ElementBounds column, out ElementBounds rightColumn);
                 double y = column.fixedY;
 
                 // --- the city itself ---
@@ -50,6 +48,24 @@ namespace claims.src.gui.playerGui.Pages
                         Label = Lang.Get("claims:gui-city-label-created"),
                         Value = TimeFunctions.getDateFromEpochSeconds(city.TimeStampCreated),
                         Key = "createdAt"
+                    },
+                    // Both states a newcomer judges the city by, shown to the city itself.
+                    new CardRow
+                    {
+                        Label = Lang.Get("claims:gui-city-label-open"),
+                        Value = Lang.Get(city.Open ? "claims:gui-yes" : "claims:gui-no"),
+                        Key = "cityOpen"
+                    },
+                    new CardRow
+                    {
+                        Label = Lang.Get("claims:gui-city-label-inv-msg"),
+                        // Up to 100 characters on the server: shortened to what the card column
+                        // holds, with the whole of it on hover.
+                        Value = city.InvMsg.Length > 32
+                                    ? city.InvMsg.Substring(0, 32).TrimEnd() + "…"
+                                    : city.InvMsg.Length > 0 ? city.InvMsg : Lang.Get("claims:gui-city-inv-msg-none"),
+                        Tooltip = city.InvMsg.Length > 0 ? city.InvMsg : null,
+                        Key = "cityInvMsg"
                     },
                 };
 
@@ -89,7 +105,7 @@ namespace claims.src.gui.playerGui.Pages
                 {
                     // The arms go at the right end of the action strip, where nothing else is drawn.
                     var emblemBounds = slot.FlatCopy().WithFixedSize(Card.ActionSize, Card.ActionSize);
-                    emblemBounds.fixedX = column.fixedX + columnWidth - Card.Padding - Card.ActionSize;
+                    emblemBounds.fixedX = column.fixedX + column.fixedWidth - Card.Padding - Card.ActionSize;
                     compo.AddEmblem(city.Emblem, emblemBounds, "city-emblem");
                     Tooltip.Add(compo, Lang.Get("claims:gui-emblem-city-tooltip"), emblemBounds, "tip-city-emblem");
 
@@ -103,12 +119,33 @@ namespace claims.src.gui.playerGui.Pages
                             Lang.Get("claims:gui-set-name-button"), toggleable: true);
                     }
 
-                    if (cityPerms.HasPermission(rights.EnumPlayerPermissions.CITY_SET_PLOT_ACCESS_PERMISSIONS) || canSetAll)
+                    // Whether the city takes anyone who asks. It was a command with no readout
+                    // anywhere on this tab, so a mayor could not tell the state without /city info.
+                    if (cityPerms.HasPermission(rights.EnumPlayerPermissions.CITY_SET_OPEN_STATE) || canSetAll)
                     {
-                        actions.Add("claims:open-book", "setPermissions",
-                            on => OpenDialog(on ? EnumUpperWindowSelectedState.CITY_PLOTS_PERMISSIONS : EnumUpperWindowSelectedState.NONE),
-                            Lang.Get("claims:gui-city-plots-permissions"), toggleable: true);
+                        // Asks first: an open city takes anyone who presses join, and the mayor gets
+                        // no say afterwards.
+                        actions.Add("claims:stairs-goal", "setCityOpen",
+                            on => { if (on) OpenDialog(city.Open
+                                        ? EnumUpperWindowSelectedState.CITY_CLOSE_CONFIRM
+                                        : EnumUpperWindowSelectedState.CITY_OPEN_CONFIRM); },
+                            Lang.Get(city.Open ? "claims:gui-city-close-button" : "claims:gui-city-open-button"));
                     }
+
+                    // The city's advertisement in the world-wide list. It was set by command only, so
+                    // the one thing newcomers read about a city was invisible to the mayor.
+                    if (cityPerms.HasPermission(rights.EnumPlayerPermissions.CITY_SET_INV_MSG) || canSetAll)
+                    {
+                        actions.Add("claims:info", "setInvMsg",
+                            on => OpenDialog(on ? EnumUpperWindowSelectedState.SELECT_CITY_INV_MSG : EnumUpperWindowSelectedState.NONE),
+                            Lang.Get("claims:gui-set-inv-msg-button"), toggleable: true);
+                    }
+
+                    // For every citizen: the page shows the rules to all and lets only those with
+                    // the right change them.
+                    actions.Add("claims:open-book", "cityRules",
+                        on => { if (on) GoTo(EnumSelectedTab.CityRules); },
+                        Lang.Get("claims:gui-city-plots-permissions"));
 
                     // Growing up and giving up: both are the head's calls, and both only exist while
                     // the settlement is still a village. A village grants CITY_SET_NAME to its head
@@ -182,24 +219,39 @@ namespace claims.src.gui.playerGui.Pages
                 });
 
                 // --- right column: who lives here and what the city is worth ---
-                var rightColumn = anchor.FlatCopy();
-                rightColumn.fixedWidth = columnWidth;
-                rightColumn.fixedX += columnWidth + Card.ColumnGap;
                 double rightY = rightColumn.fixedY;
 
-                var citizenRows = new List<CardRow>
+                // Every citizen by name, each with its own ✕ - it used to be a count with the names in
+                // a tooltip, and kicking meant picking the name again in a separate form.
+                bool canKick = cityPerms.HasPermission(rights.EnumPlayerPermissions.CITY_KICK);
+                string myName = claims.capi.World.Player?.PlayerName;
+                var citizenItems = new List<ItemRow>();
+                foreach (string name in city.PlayersNames.OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
                 {
-                    new CardRow
+                    bool isMayor = name == city.MayorName;
+                    var item = new ItemRow
                     {
-                        Label = Lang.Get("claims:gui-city-label-population"),
-                        Value = city.PlayersNames.Count.ToString(),
-                        Tooltip = StringFunctions.concatStringsWithDelim(city.PlayersNames, ','),
-                        Key = "population"
+                        Label = StringFunctions.replaceUnderscore(name),
+                        Value = isMayor ? Lang.Get("claims:gui-city-label-mayor") : "",
+                        Key = "citizen-" + name
+                    };
+                    if (canKick && !isMayor && name != myName)
+                    {
+                        string target = name;
+                        item.Buttons.Add(new RowButton("claims:cancel",
+                            () => OpenDialog(EnumUpperWindowSelectedState.KICK_FROM_CITY_CONFIRM, a => a.Text = target),
+                            Lang.Get("claims:gui-kick-player")));
                     }
-                };
+                    citizenItems.Add(item);
+                }
+                // The treasury card follows in this column; more rows push it onto the navigation row.
+                const int MaxCitizensShown = 6;
+                bool citizensCut = citizenItems.Count > MaxCitizensShown;
 
-                rightY = Card.RowsWithActions(compo, rightColumn, rightY,
-                    Lang.Get(city.IsVillage ? "claims:gui-village-section-citizens" : "claims:gui-city-section-citizens"), citizenRows, slot =>
+                rightY = Card.Items(compo, rightColumn, rightY,
+                    Lang.Get(city.IsVillage ? "claims:gui-village-section-citizens" : "claims:gui-city-section-citizens")
+                        + " (" + city.PlayersNames.Count + ")",
+                    Card.Limit(citizenItems, MaxCitizensShown), Lang.Get("claims:gui-list-empty"), slot =>
                 {
                     var actions = new ActionRow(compo, slot);
 
@@ -210,7 +262,9 @@ namespace claims.src.gui.playerGui.Pages
                             Lang.Get("claims:gui-invite-player"));
                     }
 
-                    if (cityPerms.HasPermission(rights.EnumPlayerPermissions.CITY_KICK))
+                    // The rows carry their own ✕; the form that asks for a name is kept only for the
+                    // citizens a cut list leaves out.
+                    if (canKick && citizensCut)
                     {
                         // The game's own minus icon, the counterpart of the "plus" that invites.
                         actions.Add("line", "kickPlayer",
@@ -379,32 +433,22 @@ namespace claims.src.gui.playerGui.Pages
                 var column = anchor.FlatCopy();
                 column.fixedWidth = lineBounds.fixedWidth;
 
-                const double hintHeight = 40;
-                double foundHeight = Card.HeaderHeight + hintHeight + Card.ActionGap + Card.ActionSize + Card.Padding * 2;
-
-                ElementBounds inner = Card.Frame(compo, column, column.fixedY, foundHeight,
-                    Lang.Get("claims:gui-city-section-found"));
-
-                var hintBounds = inner.FlatCopy().WithFixedHeight(hintHeight);
-                compo.AddStaticText(Lang.Get("claims:gui-city-found-hint"),
-                    CairoFont.WhiteSmallText().WithColor(ClaimsColors.Label), hintBounds, "found-hint");
-
-                var slot = inner.FlatCopy().WithFixedSize(Card.ActionSize, Card.ActionSize);
-                slot.fixedY = inner.fixedY + hintHeight + Card.ActionGap;
-
-                var foundActions = new ActionRow(compo, slot);
-                foundActions.Add("claims:queen-crown", "createCity",
-                    on => { if (on) OpenDialog(EnumUpperWindowSelectedState.NEED_NAME); },
-                    Lang.Get("claims:gui-new-city-button"));
-                // The cheap way in: a village costs nothing and lives off supplies instead of coin.
-                if (claims.config?.VILLAGE_ENABLED != false)
+                // Measured, not a fixed 40: a longer translation of the hint ran under the buttons.
+                double belowCard = Card.Note(compo, column, column.fixedY, Lang.Get("claims:gui-city-section-found"),
+                    Lang.Get("claims:gui-city-found-hint"), slot =>
                 {
-                    foundActions.Add("claims:huts-village", "createVillage",
-                        on => { if (on) OpenDialog(EnumUpperWindowSelectedState.NEW_VILLAGE_NEED_NAME); },
-                        Lang.Get("claims:gui-new-village-button"));
-                }
-
-                double belowCard = column.fixedY + foundHeight + Card.Gap;
+                    var foundActions = new ActionRow(compo, slot);
+                    foundActions.Add("claims:queen-crown", "createCity",
+                        on => { if (on) OpenDialog(EnumUpperWindowSelectedState.NEED_NAME); },
+                        Lang.Get("claims:gui-new-city-button"));
+                    // The cheap way in: a village costs nothing and lives off supplies instead of coin.
+                    if (claims.config?.VILLAGE_ENABLED != false)
+                    {
+                        foundActions.Add("claims:huts-village", "createVillage",
+                            on => { if (on) OpenDialog(EnumUpperWindowSelectedState.NEW_VILLAGE_NEED_NAME); },
+                            Lang.Get("claims:gui-new-village-button"));
+                    }
+                });
 
                 var invites = claims.clientDataStorage.clientPlayerInfo.ReceivedInvitations;
                 if (invites.Count > 0)
@@ -413,6 +457,14 @@ namespace claims.src.gui.playerGui.Pages
                     // under the card, not where the tab bar left off.
                     ElementBounds listAnchor = ctx.Current.FlatCopy();
                     listAnchor.fixedY = belowCard;
+
+                    // A fixed reserve does not know where the list starts, so the frame and its
+                    // scrollbar ran past the separator and under the navigation row.
+                    var listOpts = new ScrollableListOptions { Key = "city-invitations", ContainerBelowTitle = true };
+                    listOpts.HeightReserve = ScrollableList.ReserveFor(gui,
+                        Math.Max(InviteMinListHeight,
+                            gui.mainBounds.fixedHeight * NavRow.LineHeightFraction
+                                - listAnchor.fixedY - Card.Gap - ScrollableList.Overhead(listAnchor, listOpts)));
 
                     var list = ScrollableList.Add(gui, listAnchor,
                         Lang.Get("claims:gui-city-tab-invitations", invites.Count),
@@ -423,7 +475,7 @@ namespace claims.src.gui.playerGui.Pages
                             OnMouseDownOnCellMiddle = new Action<int>(OnClickCellMiddle),
                             OnMouseDownOnCellRight = new Action<int>(OnClickCellRight)
                         },
-                        new ScrollableListOptions { Key = "city-invitations", HeightReserve = 280, ContainerBelowTitle = true });
+                        listOpts);
 
                     ctx.AfterCompose(() => list.ApplyScrollbarHeights(compo));
                 }
@@ -566,6 +618,15 @@ namespace claims.src.gui.playerGui.Pages
         /// <summary>The list is never squeezed below this, however little room is left.</summary>
         private const double MinListHeight = 70;
 
+        /// <summary>What GuiElementHorizontalTabs itself pads and spaces its tabs by.</summary>
+        private const double TabPadding = 4;
+        private const double TabSpacing = 5;
+        private const double TabsHeight = 26;
+
+        /// <summary>How far under the list heading the tabs sit. The list itself starts 75 below it,
+        /// so this row is free space that would otherwise stay empty.</summary>
+        private const double TabsBelowTitle = 44;
+
         private static readonly EnumCitySort[] SortOrder =
         {
             EnumCitySort.Default, EnumCitySort.Oldest, EnumCitySort.Population, EnumCitySort.Plots
@@ -583,39 +644,12 @@ namespace claims.src.gui.playerGui.Pages
         {
             var compo = ctx.Compo;
 
-            // The sort control gets the same framed heading every other block on the city tabs has,
-            // instead of floating above the list with only a hover text to name it.
             var column = ctx.Line.BelowCopy(0, 14);
             column.Alignment = EnumDialogArea.LeftTop;
             column.fixedWidth = ctx.Line.fixedWidth;
             column.fixedHeight = HeadingHeight;
 
-            const double tabsHeight = 30;
-            double sortHeight = Card.HeaderHeight + tabsHeight + Card.Padding * 2;
-            ElementBounds sortInner = Card.Frame(compo, column, column.fixedY, sortHeight,
-                Lang.Get("claims:gui-citylist-sort-label"));
-
-            // Same control as the alliance list uses: horizontal tabs already carry "which is active".
-            GuiTab[] sortTabs = new GuiTab[SortOrder.Length];
-            for (int i = 0; i < SortOrder.Length; i++)
-            {
-                sortTabs[i] = new GuiTab { Name = Lang.Get(SortLangKeys[i]), DataInt = i };
-            }
-
-            var tabsBounds = sortInner.FlatCopy().WithFixedHeight(tabsHeight);
-            compo.AddHorizontalTabs(sortTabs, tabsBounds, (int value) =>
-            {
-                if (value < 0 || value >= SortOrder.Length) return;
-                if (State.CitySort == SortOrder[value]) return;
-
-                State.CitySort = SortOrder[value];
-                Gui.BuildMainWindow();
-            }, CairoFont.WhiteSmallText(), CairoFont.WhiteSmallText(), "citySortTabs");
-
-            compo.GetHorizontalTabs("citySortTabs").activeElement = System.Array.IndexOf(SortOrder, State.CitySort);
-
             ElementBounds listAnchor = column.FlatCopy();
-            listAnchor.fixedY = column.fixedY + sortHeight + Card.Gap;
 
             // The list fills what is left down to the navigation row. A fixed reserve (it was 340)
             // does not know where the list actually starts, so the frame and its scrollbar ran past
@@ -626,7 +660,7 @@ namespace claims.src.gui.playerGui.Pages
                     Gui.mainBounds.fixedHeight * NavRow.LineHeightFraction
                         - listAnchor.fixedY - Card.Gap - ScrollableList.Overhead(listAnchor, listOpts)));
 
-            // How many cities there are belongs in the heading: the sort tabs above it are only
+            // How many cities there are belongs in the heading: the sort tabs beside it are only
             // worth touching once the list is long, and the count says when that is.
             var cities = Sorted().ToList();
 
@@ -636,12 +670,53 @@ namespace claims.src.gui.playerGui.Pages
                 (ClientCityInfoCellElement cell, ElementBounds bounds) => new GuiElementCityStatCell(compo.Api, cell, bounds) { On = true },
                 listOpts);
 
+            AddSortTabs(compo, column, list.Title);
+
             // Reached from both the player tab and the city tab of a player with no city; either way
             // there was no way back but the top tab bar.
             NavRow.Build(Gui, column, ctx.Line, 15,
                 new NavButton("claims:fast-backward-button", () => GoTo(EnumSelectedTab.Player), Lang.Get("claims:gui-nav-back")));
 
             ctx.AfterCompose(() => list.ApplyScrollbarHeights(compo));
+        }
+
+        /// <summary>
+        /// The sort control, under the list's own heading and against its right edge. It used to be
+        /// a framed card of its own above the list, which cost 79 pixels of cities to label four
+        /// buttons that already say what they sort by; here it costs none, because the list already
+        /// leaves 75 pixels between its heading and its frame.
+        /// </summary>
+        private void AddSortTabs(GuiComposer compo, ElementBounds column, ElementBounds title)
+        {
+            GuiTab[] sortTabs = new GuiTab[SortOrder.Length];
+            CairoFont tabFont = CairoFont.WhiteSmallText();
+
+            // Horizontal tabs draw left to right from their bounds, so the width has to be known in
+            // advance to right-align them. Same arithmetic the element uses: text, two paddings, a
+            // rounding pixel, and the spacing between two tabs.
+            double tabsWidth = 0;
+            for (int i = 0; i < SortOrder.Length; i++)
+            {
+                string name = Lang.Get(SortLangKeys[i]);
+                sortTabs[i] = new GuiTab { Name = name, DataInt = i };
+                tabsWidth += tabFont.GetTextExtents(name).Width + TabPadding * 2 + 1 + TabSpacing;
+            }
+
+            var tabsBounds = column.FlatCopy().WithFixedSize(tabsWidth, TabsHeight);
+            tabsBounds.fixedX = column.fixedX + column.fixedWidth - tabsWidth;
+            tabsBounds.fixedY = title.fixedY + TabsBelowTitle;
+
+            compo.AddHorizontalTabs(sortTabs, tabsBounds, (int value) =>
+            {
+                if (value < 0 || value >= SortOrder.Length) return;
+                if (State.CitySort == SortOrder[value]) return;
+
+                State.CitySort = SortOrder[value];
+                Gui.BuildMainWindow();
+            }, tabFont, tabFont, "citySortTabs");
+
+            compo.GetHorizontalTabs("citySortTabs").activeElement = System.Array.IndexOf(SortOrder, State.CitySort);
+            Tooltip.Add(compo, Lang.Get("claims:gui-citylist-sort-label"), tabsBounds, "tip-city-sort");
         }
 
         private IEnumerable<ClientCityInfoCellElement> Sorted()

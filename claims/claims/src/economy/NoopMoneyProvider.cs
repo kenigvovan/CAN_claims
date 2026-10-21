@@ -18,6 +18,7 @@ namespace claims.src.economy
         public MoneyOperationResult Transfer(string fromAccount, string toAccount, decimal amount) => MoneyOperationResult.Success;
 
         public bool SupportsPlayerWallet => false;
+        public bool SupportsRemoteCoinTransfer => false;
 
         public decimal TakeCoinItemsFromActiveSlot(IServerPlayer player) => 0m;
         public void GiveCoinItemsToPlayer(IServerPlayer player, decimal amount) { }

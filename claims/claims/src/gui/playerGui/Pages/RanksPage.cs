@@ -64,11 +64,9 @@ namespace claims.src.gui.playerGui.Pages
             if (ranks.Count == 0)
             {
                 // A city with no ranks yet gets the explanation instead of an empty frame: the
-                // description had a lang key but was never shown anywhere.
-                var hintBounds = column.FlatCopy().WithFixedHeight(90);
-                hintBounds.fixedY = y;
-                compo.AddStaticText(Lang.Get("claims:gui-ranks-description"),
-                    CairoFont.WhiteSmallText().WithColor(ClaimsColors.Label), hintBounds, "ranks-description");
+                // description had a lang key but was never shown anywhere. A card of its own, sized
+                // to the text, rather than loose text in a fixed 90.
+                Card.Note(compo, column, y, null, Lang.Get("claims:gui-ranks-description"));
             }
             else
             {

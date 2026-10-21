@@ -81,6 +81,20 @@ namespace claims.src.gui.playerGui.Dialogs
             l.Compo.AddDropDown(values, names, selectedIndex, (code, selected) => onPicked(code), bounds);
         }
 
+        /// <summary>
+        /// The pick a dropdown comes back with after a rebuild: the current one while it is still on
+        /// offer, otherwise nothing. Any server packet rebuilds the open form, and a box that came
+        /// back blank either lost the pick or kept one the player could no longer see.
+        /// </summary>
+        public static string KeptPick(string[] options, string current)
+        {
+            if (string.IsNullOrEmpty(current) || options == null) return "";
+            return Array.IndexOf(options, current) >= 0 ? current : "";
+        }
+
+        /// <summary><see cref="DropDown"/>'s selectedValue for a pick from <see cref="KeptPick"/>.</summary>
+        protected static string Preselect(string kept) => string.IsNullOrEmpty(kept) ? null : kept;
+
         protected static void Button(DialogLayout l, string label, Func<bool> onClick, string key = null)
         {
             var bounds = l.NextRow();
@@ -107,6 +121,15 @@ namespace claims.src.gui.playerGui.Dialogs
 
         protected void Close() => Gui.CloseDialog();
 
-        protected static void Send(string command) => ClientChat.Send(command);
+        /// <summary>A null command is one <see cref="ClientCommandText.Join"/> could not complete.</summary>
+        protected static void Send(string command)
+        {
+            if (command == null)
+            {
+                claims.capi.ShowChatMessage(Lang.Get("claims:gui-dialog-target-gone"));
+                return;
+            }
+            ClientChat.Send(command);
+        }
     }
 }

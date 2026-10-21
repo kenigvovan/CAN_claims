@@ -66,9 +66,21 @@ namespace claims.src.gui.playerGui.GuiElements
         public static IReadOnlyDictionary<PlotType, double[]> Colors => PlotColors;
         public static double[] GapLegendColor => GapColor;
 
-        public GuiElementCityMap(ICoreClientAPI capi, List<CityPlotMiniInfo> plots, ElementBounds bounds)
+        // Sub-plots seen from above: name and minX, minZ, maxX, maxZ in blocks, max outside.
+        private readonly List<(string Name, int[] Rect)> subPlotRects = new List<(string, int[])>();
+        private static readonly double[] SubPlotOutline = { 1.0, 0.95, 0.75, 0.95 };
+
+        public GuiElementCityMap(ICoreClientAPI capi, List<CityPlotMiniInfo> plots, ElementBounds bounds,
+                                 List<SubPlotCellElement> subPlots = null)
             : base(capi, bounds)
         {
+            foreach (SubPlotCellElement subPlot in subPlots ?? new List<SubPlotCellElement>())
+            {
+                foreach (int[] rect in subPlot.Rects ?? new List<int[]>())
+                {
+                    if (rect?.Length == 4) subPlotRects.Add((subPlot.Name, rect));
+                }
+            }
             mapTexture = new LoadedTexture(capi);
             hoverTexture = new LoadedTexture(capi);
 
@@ -155,9 +167,70 @@ namespace claims.src.gui.playerGui.GuiElements
                 }
             }
 
+            DrawSubPlots(ctx, cell, step);
+
             generateTexture(surface, ref mapTexture);
             ctx.Dispose();
             surface.Dispose();
+        }
+
+        /// <summary>
+        /// Each sub-plot's boxes as outlines over the plots they stand on, placed inside a plot's cell
+        /// by where they lie in the plot. A box over a collapsed gap - which no sub-plot reaches, as all
+        /// of one stands on the city's own plots - is left out.
+        /// </summary>
+        private void DrawSubPlots(Context ctx, double cell, double step)
+        {
+            int size = Math.Max(1, auxialiry.PlotPosition.plotSize);
+            var colOf = new Dictionary<int, int>();
+            var rowOf = new Dictionary<int, int>();
+            for (int i = 0; i < columns.Count; i++) if (!columns[i].IsGap) colOf[columns[i].Coord] = i;
+            for (int i = 0; i < rows.Count; i++) if (!rows[i].IsGap) rowOf[rows[i].Coord] = i;
+
+            ctx.SetSourceRGBA(SubPlotOutline[0], SubPlotOutline[1], SubPlotOutline[2], SubPlotOutline[3]);
+            ctx.LineWidth = Math.Max(1, GuiElement.scaled(1.5));
+            foreach (var (_, rect) in subPlotRects)
+            {
+                if (!TryEdge(rect[0], false, colOf, size, cell, step, out double x0)
+                    || !TryEdge(rect[2] - 1, true, colOf, size, cell, step, out double x1)
+                    || !TryEdge(rect[1], false, rowOf, size, cell, step, out double y0)
+                    || !TryEdge(rect[3] - 1, true, rowOf, size, cell, step, out double y1))
+                {
+                    continue;
+                }
+                ctx.Rectangle(x0, y0, Math.Max(1, x1 - x0), Math.Max(1, y1 - y0));
+                ctx.Stroke();
+            }
+        }
+
+        /// <summary>
+        /// Where a block's edge falls on the map: the near edge of the block, or its far edge when
+        /// <paramref name="farEdge"/>. Plots are found by plain division, as the mod keys them.
+        /// </summary>
+        private static bool TryEdge(int block, bool farEdge, Dictionary<int, int> indexOf, int size,
+                                    double cell, double step, out double at)
+        {
+            at = 0;
+            if (!indexOf.TryGetValue(block / size, out int index)) return false;
+            double within = Math.Clamp((Math.Abs(block % size) + (farEdge ? 1 : 0)) / (double)size, 0, 1);
+            at = index * step + within * cell;
+            return true;
+        }
+
+        /// <summary>Names of the sub-plots reaching into one plot, for the label under the cursor.</summary>
+        private string SubPlotsAt(int plotX, int plotZ)
+        {
+            int size = Math.Max(1, auxialiry.PlotPosition.plotSize);
+            var names = new SortedSet<string>();
+            foreach (var (name, rect) in subPlotRects)
+            {
+                if (rect[0] / size <= plotX && (rect[2] - 1) / size >= plotX
+                    && rect[1] / size <= plotZ && (rect[3] - 1) / size >= plotZ)
+                {
+                    names.Add(name);
+                }
+            }
+            return string.Join(", ", names);
         }
 
         private static void Fill(Context ctx, double x, double y, double size, double[] color)
@@ -202,6 +275,8 @@ namespace claims.src.gui.playerGui.GuiElements
                     && plotAt.TryGetValue(Key(columns[col].Coord, rows[row].Coord), out PlotType type))
                 {
                     text = string.Format("{0} ({1}, {2})", TypeName(type), columns[col].Coord, rows[row].Coord);
+                    string subPlots = SubPlotsAt(columns[col].Coord, rows[row].Coord);
+                    if (subPlots.Length > 0) text += " · " + Lang.Get("claims:gui-map-subplots", subPlots);
                 }
             }
 

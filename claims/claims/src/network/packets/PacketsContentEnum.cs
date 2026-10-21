@@ -27,6 +27,16 @@
 
         // data = "<boat entity id>;<BoatShareMode>" - the owner changing how one boat is shared.
         // The entity id travels with it because the dialog is open while the player may look away.
-        CLIENT_SET_BOAT_SHARE
+        CLIENT_SET_BOAT_SHARE,
+
+        // data = "<plotX>;<plotZ>" of the temple to respawn at, empty to fall back to the nearest one.
+        // Appended, not slotted next to CLIENT_SET_RESPAWN_PREFERENCE: the values travel as numbers.
+        CLIENT_SET_RESPAWN_TEMPLE,
+
+        // data = "<type lang key>|<cost>" - the server waits for /agree before charging for a plot type.
+        AGREE_NEEDED_ON_PLOT_TYPE_SET,
+
+        // data = price - the server waits for /agree before selling the plot to the player.
+        AGREE_NEEDED_ON_PLOT_CLAIM
     }
 }
