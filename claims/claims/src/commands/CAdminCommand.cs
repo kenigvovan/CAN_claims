@@ -182,23 +182,6 @@ namespace claims.src.commands
             plot.saveToDatabase();
             return tcr;
         }
-        public static TextCommandResult plotNoMobSpawn(TextCommandCallingArgs args)
-        {
-            IServerPlayer player = args.Caller.Player as IServerPlayer;
-            TextCommandResult tcr = new TextCommandResult();
-            tcr.Status = EnumCommandStatus.Success;
-
-            claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)player.Entity.Pos.X, (int)player.Entity.Pos.Z), out Plot plot);
-            if (plot == null)
-            {
-                return tcr;
-            }
-
-            plot.getPermsHandler().setNoMobSpawn((string)args.LastArg);
-            plot.MarkNoMobSpawn();
-            plot.saveToDatabase();
-            return tcr;
-        }
         public static TextCommandResult plotFire(TextCommandCallingArgs args)
         {
             IServerPlayer player = args.Caller.Player as IServerPlayer;
