@@ -846,11 +846,12 @@ namespace claims.src
                 SetMovementLine(currentLine++, Lang.Get("claims:movementgui-group-name", plot.groupName), detailFont);
             }
 
-            var pvpFont = CairoFont.WhiteDetailText().WithFontSize(16).WithColor(plot.PvPIsOn
+            bool pvp = clientDataStorage?.ClientPvpShown(plot) ?? plot.PvPIsOn;
+            var pvpFont = CairoFont.WhiteDetailText().WithFontSize(16).WithColor(pvp
                 ? gui.playerGui.Widgets.ClaimsColors.Danger
                 : gui.playerGui.Widgets.ClaimsColors.Success);
             SetMovementLine(currentLine++,
-                Lang.Get(plot.PvPIsOn ? "claims:movementgui-pvp-on" : "claims:movementgui-pvp-off"), pvpFont);
+                Lang.Get(pvp ? "claims:movementgui-pvp-on" : "claims:movementgui-pvp-off"), pvpFont);
 
             if (plot.price > -1)
             {

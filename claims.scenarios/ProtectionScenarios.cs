@@ -36,6 +36,24 @@ public class ProtectionScenarios : ClaimsScenarioBase
             "a removed friend can still build: the old answer is cached");
     }
 
+    // A player who breaks blocks across the border has the cache pointed at the plot they reach
+    // into, not the one they stand on. Changing that plot's rights must still drop the cached answer.
+    [AtlasScenario]
+    public async Task Build_Should_BeDenied_When_RightsChangeOnThePlotReachedAcrossTheBorder()
+    {
+        CityScene s = await GivenCity();
+        await s.Mayor.ExecuteCommand("/plot set p stranger build on");
+        // JoinAt leaves the stranger on plot (0, 0), next to the one the mayor stands on
+        ITestPlayer stranger = await JoinAt("stranger" + s.Area, s.Area);
+        var block = new BlockSelection { Position = PlotCenter(s.Area, 1, 0) };
+        Assert.True(OnBlockAction.canBlockDestroy(stranger.Player, block, out _), "precondition: strangers may build");
+
+        await s.Mayor.ExecuteCommand("/plot set p stranger build off");
+
+        Assert.False(OnBlockAction.canBlockDestroy(stranger.Player, block, out _),
+            "a stranger next door can still build: the old answer is cached");
+    }
+
     /// <summary>
     /// The check the game runs for <paramref name="perm"/> (use / build / attack) on that block.
     /// Each has its own copy of the cache code in OnBlockAction, so each is tested.

@@ -120,16 +120,7 @@ namespace claims.src.network.handlers
                             Balance = hasBalance ? (double)claims.economyProvider.GetBalance(city.MoneyAccountName) : 0
                         });
                     }
-                    var wi = claims.dataStorage.getWorldInfo();
-                    var worldFlags = new AdminWorldFlags
-                    {
-                        PvpEverywhere = wi.pvpEverywhere,
-                        PvpForbidden = wi.pvpForbidden,
-                        FireEverywhere = wi.fireEverywhere,
-                        FireForbidden = wi.fireForbidden,
-                        BlastEverywhere = wi.blastEverywhere,
-                        BlastForbidden = wi.blastForbidden
-                    };
+                    var worldFlags = AdminWorldFlags.From(claims.dataStorage.getWorldInfo());
                     claims.serverChannel.SendPacket(new SavedPlotsPacket
                     {
                         type = PacketsContentEnum.ADMIN_CITY_FLAGS_ALL,

@@ -47,6 +47,12 @@ namespace claims.src.network.handlers
                             gui.playerGui.GuiElements.EmblemCache.Invalidate();
                         }
                         break;
+                    case PacketsContentEnum.WORLD_FLAGS:
+                        if (claims.clientDataStorage == null) break;
+                        // The banner and the plot panel notice the change on their next check: both
+                        // key on the pvp shown, not on the plot's own flag.
+                        claims.clientDataStorage.ClientWorldFlags = JsonConvert.DeserializeObject<AdminWorldFlags>(packet.data);
+                        break;
                     case PacketsContentEnum.ALL_CITY_COLORS:
                         Dictionary<string, int> colors = JsonConvert.DeserializeObject<Dictionary<string, int>>(packet.data);
                         if (claims.clientDataStorage == null) break;

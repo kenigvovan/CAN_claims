@@ -37,6 +37,9 @@
         AGREE_NEEDED_ON_PLOT_TYPE_SET,
 
         // data = price - the server waits for /agree before selling the plot to the player.
-        AGREE_NEEDED_ON_PLOT_CLAIM
+        AGREE_NEEDED_ON_PLOT_CLAIM,
+
+        // data = AdminWorldFlags - the world-wide overrides, to everyone: on join and on every change.
+        WORLD_FLAGS
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using claims.src.auxialiry;
+using claims.src.harmony;
 using claims.src.part.structure;
 using HarmonyLib;
 using Vintagestory.API.Common.Entities;
@@ -28,10 +29,6 @@ namespace claims.src.rustyshellfork
             {
                 return true;
             }
-            int usedRadius = Math.Max(blastRadius, injureRadius);
-            int tmpX = (int)pos.X;
-            int tmpZ = (int)pos.Z;
-
             if (worldInfo.blastEverywhere)
             {
                 return true;
@@ -40,25 +37,16 @@ namespace claims.src.rustyshellfork
             {
                 return false;
             }
-            for (int i = -1; i < 2; ++i)
+            // Every plot in reach, not nine samples exactly blastRadius away: those missed the plots
+            // that only the outer part of the blast reached.
+            foreach (Plot tb in harmonyPatches.PlotsInBlastReach((int)pos.X, (int)pos.Z, blastRadius))
             {
-                for (int j = -1; j < 2; ++j)
+                // getCity() is null for a plot outside any city - the city flag simply does not apply then.
+                bool plotAllows = tb.getPermsHandler()?.blastFlag == true;
+                bool cityAllows = !tb.hasCity() || tb.getCity()?.getPermsHandler()?.blastFlag == true;
+                if (!plotAllows || !cityAllows)
                 {
-
-                    claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)(tmpX + (i * blastRadius)),
-                                                                          (int)(tmpZ + (j * blastRadius))), out Plot tb);
-                    if (tb == null)
-                    {
-                        continue;
-                    }
-
-                    // getCity() is null for a plot outside any city - the city flag simply does not apply then.
-                    bool plotAllows = tb.getPermsHandler()?.blastFlag == true;
-                    bool cityAllows = !tb.hasCity() || tb.getCity()?.getPermsHandler()?.blastFlag == true;
-                    if (!plotAllows || !cityAllows)
-                    {
-                        return false;
-                    }
+                    return false;
                 }
             }
             return true;

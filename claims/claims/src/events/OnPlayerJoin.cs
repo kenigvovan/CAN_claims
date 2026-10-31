@@ -60,6 +60,7 @@ namespace claims.src.events
 
             UsefullPacketsSend.sendAllCitiesColorsToPlayer(player);
             UsefullPacketsSend.sendAllCityEmblemsToPlayer(player);
+            UsefullPacketsSend.SendWorldFlags(player);
             UsefullPacketsSend.SendPlayerCityRelatedInfo(player);
             UsefullPacketsSend.SendUpdatedConfigValues(player);
             BountyHelper.BroadcastBoard();

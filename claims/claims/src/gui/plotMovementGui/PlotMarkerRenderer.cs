@@ -162,7 +162,7 @@ namespace claims.src.gui.plotMovementGui
         private float DrawRow(SavedPlotInfo plot, float centerX, float y, float scale)
         {
             var row = new List<LoadedTexture>();
-            if (plot.PvPIsOn) row.Add(Square("marker-pvp", "PvP", PvpColor));
+            if (claims.clientDataStorage?.ClientPvpShown(plot) ?? plot.PvPIsOn) row.Add(Square("marker-pvp", "PvP", PvpColor));
             if (plot.FireIsOn) row.Add(Square("marker-fire", "F", FireColor));
             if (plot.BlastIsOn) row.Add(Square("marker-blast", "B", BlastColor));
             if (plot.NoMobSpawn) row.Add(Square("marker-nomobs", "M", NoMobsColor));

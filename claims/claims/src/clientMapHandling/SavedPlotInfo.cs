@@ -10,6 +10,8 @@ namespace claims.src.clientMapHandling
         //if not for sale then it is -1
         [ProtoMember(1)]
         public int price;
+        /// <summary>The plot's own rule: its flag, its city's or a tournament. Without the world
+        /// overrides - show it through DataStorage.ClientPvpShown.</summary>
         [ProtoMember(2)]
         public bool PvPIsOn;
         [ProtoMember(3)]

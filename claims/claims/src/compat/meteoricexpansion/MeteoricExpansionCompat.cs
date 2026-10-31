@@ -33,10 +33,12 @@ namespace claims.src.meteoricexpansion
         {
             if (base.ShouldLoad(api))
             {
-                // The fork keeps the original's classes and asset domain but ships under its own modid.
+                // The forks keep the original's classes and asset domain but ship under their own modids.
                 // [meteordown] needs the client side too: drop the Client check when bringing it back.
                 if (api.Side == EnumAppSide.Client
-                    || !(api.ModLoader.IsModEnabled("meteoricexpansionfork") || api.ModLoader.IsModEnabled("meteoricexpansion")))
+                    || !(api.ModLoader.IsModEnabled("meteoricexpansioncanfork")
+                        || api.ModLoader.IsModEnabled("meteoricexpansionfork")
+                        || api.ModLoader.IsModEnabled("meteoricexpansion")))
                 {
                     return false;
                 }

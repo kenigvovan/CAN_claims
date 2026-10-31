@@ -54,6 +54,39 @@ namespace claims.src.auxialiry
             }
         }
 
+        public static void SendWorldFlags(IServerPlayer player)
+        {
+            claims.serverChannel.SendPacket(new SavedPlotsPacket()
+            {
+                type = PacketsContentEnum.WORLD_FLAGS,
+                data = JsonConvert.SerializeObject(AdminWorldFlags.From(claims.dataStorage.getWorldInfo()))
+            }, player);
+        }
+
+        /// <summary>After /cadmin world set: the plots the clients hold stay as they are, only the override changes.</summary>
+        public static void BroadcastWorldFlags()
+        {
+            string data = JsonConvert.SerializeObject(AdminWorldFlags.From(claims.dataStorage.getWorldInfo()));
+            foreach (var p in claims.sapi.World.AllOnlinePlayers)
+            {
+                if (p is not IServerPlayer sp) continue;
+                claims.serverChannel.SendPacket(new SavedPlotsPacket()
+                {
+                    type = PacketsContentEnum.WORLD_FLAGS,
+                    data = data
+                }, sp);
+            }
+        }
+
+        /// <summary>Resends every plot of the city: their pvp shown on the client includes the city's flag.</summary>
+        public static void MarkCityPlotsReUpdated(City city)
+        {
+            foreach (Plot plot in city.getCityPlots())
+            {
+                claims.serverPlayerMovementListener.markPlotToWasReUpdated(plot.getPos());
+            }
+        }
+
         private static Dictionary<string, int> BuildColorDict()
         {
             var cityColors = new Dictionary<string, int>();

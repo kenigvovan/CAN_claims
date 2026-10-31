@@ -1,6 +1,10 @@
+using System.Reflection;
 using Atlas.Api;
 using Atlas.XUnit;
 using claims.scenarios.Infrastructure;
+using claims.src.auxialiry;
+using claims.src.part.structure;
+using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
 using Mod = global::claims.src.claims;
 
@@ -49,6 +53,27 @@ public class BlastScenarios : ClaimsScenarioBase
             "precondition: blast is off on the plot and the city");
 
         Assert.False(BombAt(s.Area, 1, 0).HasPermissionToUse(), "a bomb went off where blasts are switched off");
+    }
+
+    // A bomb on a blast-enabled plot by the border must not reach a neighbour that forbids blasts.
+    // It used to go off as soon as one plot in reach allowed it.
+    [AtlasScenario]
+    public async Task Bomb_Should_NotWork_When_ANeighbourInReachForbidsBlasts()
+    {
+        CityScene s = await GivenCity();
+        await s.Mayor.ExecuteCommand("/plot set blast off");
+        await s.Mayor.ExecuteCommand("/city set blast off");
+        Assert.True(Mod.dataStorage.GetPlot(PlotPosition.fromBlockPos(PlotCenter(s.Area, 0, 0)), out Plot own),
+            "precondition: the founding plot is claimed");
+        own.getPermsHandler().blastFlag = true;
+
+        // Two blocks west of the border with (1, 0), radius 4: only the outer part of the blast crosses it.
+        int size = Mod.config.PLOT_SIZE;
+        BlockPos center = PlotCenter(s.Area, 0, 0);
+        var bomb = new BlockEntityBomb { Pos = new BlockPos(center.X - size / 2 + size - 2, center.Y, center.Z) };
+        typeof(BlockEntityBomb).GetField("blastRadius", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(bomb, 4f);
+
+        Assert.False(bomb.HasPermissionToUse(), "a bomb on a blast-enabled plot blew up the neighbour that forbids blasts");
     }
 
     // The world switch beats the plot's own setting

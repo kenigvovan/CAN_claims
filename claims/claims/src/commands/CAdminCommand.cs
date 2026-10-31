@@ -608,6 +608,7 @@ namespace claims.src.commands
 
             city.getPermsHandler().setPvp((string)args.Parsers[1].GetValue());
             city.saveToDatabase();
+            UsefullPacketsSend.MarkCityPlotsReUpdated(city);
             return tcr;
         }
         public static TextCommandResult citySetFire(TextCommandCallingArgs args)
@@ -1015,6 +1016,7 @@ namespace claims.src.commands
             }
 
             wi.saveToDatabase();
+            UsefullPacketsSend.BroadcastWorldFlags();
             tcr.StatusMessage = string.Join("", wi.getStatus());
             return tcr;
         }

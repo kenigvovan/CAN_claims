@@ -2,6 +2,7 @@ using claims.src;
 using claims.src.auxialiry;
 using claims.src.economy;
 using claims.src.part;
+using claims.src.part.structure;
 using claims.src.part.structure.plots;
 using Moq;
 

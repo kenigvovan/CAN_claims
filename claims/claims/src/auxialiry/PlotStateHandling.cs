@@ -63,7 +63,11 @@ namespace claims.src.auxialiry
             // The sub-plots reaching into this chunk: the client checks them before the chunk's flags.
             var pieces = SubPlotSync.PiecesFor(plot, playerInfo, creative, canUse, canBuild, canAttack);
 
-            var info = new SavedPlotInfo((int)plot.Price, perms.pvpFlag, canBuild, canUse, canAttack,
+            // The plot's own pvp rule as OnPVP applies it to anyone; the world overrides travel apart (WORLD_FLAGS).
+            bool pvp = plot.Type == PlotType.TOURNAMENT || perms.pvpFlag
+                || (plot.hasCity() && plot.getCity().getPermsHandler().pvpFlag);
+
+            var info = new SavedPlotInfo((int)plot.Price, pvp, canBuild, canUse, canAttack,
                 plot.hasCity() ? plot.getCity().GetPartName() : "", plot.GetPartName(),
                 plot.hasCityPlotsGroup() ? plot.getPlotGroup().GetPartName() : "",
                 pieces.Count > 0 ? pieces : null,

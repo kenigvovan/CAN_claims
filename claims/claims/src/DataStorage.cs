@@ -406,6 +406,13 @@ namespace claims.src
             return changed;
         }
 
+        /// <summary>The world-wide overrides as the server last sent them; null until the first WORLD_FLAGS. Client side only.</summary>
+        public network.packets.AdminWorldFlags ClientWorldFlags;
+
+        /// <summary>Pvp on this plot as the server decides it for a stranger: the plot's rule through the world overrides.</summary>
+        public bool ClientPvpShown(SavedPlotInfo plot) =>
+            plot != null && network.packets.AdminWorldFlags.EffectivePvp(ClientWorldFlags, plot.PvPIsOn);
+
         /// <summary>Arms of a city or an alliance by guid; empty when it has none or none arrived yet.</summary>
         public string ClientGetEmblem(string partyGuid)
         {
@@ -799,6 +806,16 @@ namespace claims.src
         {
             foreach (var player in claims.sapi.World.AllOnlinePlayers)
             {
+                // The cache is keyed by the plot of the block last checked, not by the plot the
+                // player stands on: breaking a block across the border points it at the neighbour.
+                // Matching by position alone left such a player with the rights the plot had before
+                // the change, for as long as they did not step onto another plot.
+                if (this.uidToPlayerDict.TryGetValue(player.PlayerUID, out PlayerInfo playerInfo)
+                    && plot.plotPosition.Equals(playerInfo.PlayerCache.LastChunk))
+                {
+                    playerInfo.PlayerCache.Reset();
+                    continue;
+                }
                 // A player still connecting is online but has no entity yet.
                 if (player.Entity == null) continue;
                 if (((((int)player.Entity.Pos.X / PlotPosition.plotSize)) == plot.getPos().X &&

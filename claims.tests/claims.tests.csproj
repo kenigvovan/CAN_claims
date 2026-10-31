@@ -40,6 +40,9 @@
     <Reference Include="SQLitePCLRaw.provider.e_sqlite3">
       <HintPath>..\..\..\..\AppData\Roaming\Vintagestory\Lib\SQLitePCLRaw.provider.e_sqlite3.dll</HintPath>
     </Reference>
+    <Reference Include="protobuf-net">
+      <HintPath>..\..\..\..\AppData\Roaming\Vintagestory\Lib\protobuf-net.dll</HintPath>
+    </Reference>
     <None Include="..\..\..\..\AppData\Roaming\Vintagestory\Lib\e_sqlite3.dll" Link="e_sqlite3.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
   </ItemGroup>
 

@@ -202,11 +202,43 @@ namespace claims.src.harmony
                 : OnBlockAction.canBlockDestroyWithOutCacheUpdate(starter, plot);
         }
 
-       public static bool Prefix_HasPermissionToUse(Vintagestory.GameContent.BlockEntityBomb __instance, ref bool __result)
+        /// <summary>
+        /// Every plot a blast centred at (x, z) can touch. ServerMain.CreateExplosion destroys up to
+        /// 1.2 * radius away (0.8r plus a random 0.4r) and rounds the ray position, hence the extra
+        /// block. Walks plot by plot, so no plot inside the square is skipped however large the radius.
+        /// </summary>
+        public static IEnumerable<Plot> PlotsInBlastReach(int x, int z, double blastRadius)
         {
+            int reach = (int)Math.Ceiling(Math.Max(0, blastRadius) * 1.2) + 1;
+            int size = PlotPosition.plotSize;
+            int minPlotX = Math.Max(0, x - reach) / size;
+            int maxPlotX = Math.Max(0, x + reach) / size;
+            int minPlotZ = Math.Max(0, z - reach) / size;
+            int maxPlotZ = Math.Max(0, z + reach) / size;
+            for (int px = minPlotX; px <= maxPlotX; px++)
+            {
+                for (int pz = minPlotZ; pz <= maxPlotZ; pz++)
+                {
+                    if (claims.dataStorage.GetPlot(new PlotPosition(px, pz), out Plot plot) && plot != null)
+                    {
+                        yield return plot;
+                    }
+                }
+            }
+        }
 
-            int tmpX = __instance.Pos.X;
-            int tmpZ = __instance.Pos.Z;
+        /// <summary>
+        /// A bomb goes off only if every plot in its reach allows blasts. It used to go off as soon
+        /// as one plot allowed them, so a bomb on one's own blast-enabled plot next to a border took
+        /// out the neighbour's blocks too; and it sampled nine points exactly BlastRadius away, missing
+        /// a plot that only the outer 0.2r of the blast reached.
+        /// </summary>
+        public static bool Prefix_HasPermissionToUse(Vintagestory.GameContent.BlockEntityBomb __instance, ref bool __result)
+        {
+            if (claims.dataStorage == null)
+            {
+                return true;
+            }
             if (claims.dataStorage.getWorldInfo().blastEverywhere)
             {
                 __result = true;
@@ -218,30 +250,16 @@ namespace claims.src.harmony
                 return false;
             }
 
-
-            bool anyPlot = false;
-            for (int i = -1; i < 2; ++i)
+            foreach (Plot tb in PlotsInBlastReach(__instance.Pos.X, __instance.Pos.Z, __instance.BlastRadius))
             {
-                for (int j = -1; j < 2; ++j)
+                if (!(tb.getPermsHandler().blastFlag || (tb.hasCity() && tb.getCity().getPermsHandler().blastFlag)))
                 {
-
-                     claims.dataStorage.GetPlot(PlotPosition.fromXZ((int)(tmpX + (i * __instance.BlastRadius)),
-                                                                           (int)(tmpZ + (j * __instance.BlastRadius))), out Plot tb);
-                    if (tb == null)
-                    {
-                        continue;
-                    }
-                    anyPlot = true;
-
-                    if (tb.getPermsHandler().blastFlag || (tb.hasCity() && tb.getCity().getPermsHandler().blastFlag))
-                    {
-                        __result = true;
-                        return false;
-                    }
+                    __result = false;
+                    return false;
                 }
             }
-            // No plot in reach: nothing to protect, the bomb goes off.
-            __result = !anyPlot;
+            // No plot in reach, or all of them allow blasts.
+            __result = true;
             return false;
         }
         public static bool Prefix_HandleCommand(string commandName, IServerPlayer player, string args, Action<TextCommandResult> onCommandComplete)

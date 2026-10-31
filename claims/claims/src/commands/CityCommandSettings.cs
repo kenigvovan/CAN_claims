@@ -158,6 +158,7 @@ namespace claims.src.commands
             }
             city.getPermsHandler().setPvp((string)args.LastArg);
             city.saveToDatabase();
+            UsefullPacketsSend.MarkCityPlotsReUpdated(city);
             UsefullPacketsSend.AddToQueueCityInfoUpdate(city.Guid, EnumPlayerRelatedInfo.CITY_PERMISSIONS_UPDATED);
             return SuccessWithParams("claims:pvp_flag_set_to", new object[] { (string)args.LastArg });
         }

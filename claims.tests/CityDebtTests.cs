@@ -1,5 +1,6 @@
 using claims.src;
 using claims.src.economy;
+using claims.src.part;
 using claims.src.part.structure;
 using Moq;
 

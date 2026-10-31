@@ -95,7 +95,7 @@ namespace claims.src.gui.plotMovementGui
 
             string city = plot?.cityName ?? "";
             bool inCity = city.Length > 0;
-            bool pvp = plot?.PvPIsOn ?? false;
+            bool pvp = claims.clientDataStorage.ClientPvpShown(plot);
             bool firstPlace = !placed;
             bool cityChanged = city != currentCity;
             bool pvpChanged = pvp != currentPvp;
@@ -132,7 +132,7 @@ namespace claims.src.gui.plotMovementGui
         }
 
         private static string Describe(SavedPlotInfo plot) =>
-            plot.cityName + "|" + plot.plotName + "|" + plot.groupName + "|" + plot.price + "|" + plot.PvPIsOn;
+            plot.cityName + "|" + plot.plotName + "|" + plot.groupName + "|" + plot.price + "|" + claims.clientDataStorage.ClientPvpShown(plot);
 
         private static string DescribeSubPlot(ClientInnerClaim subPlot) =>
             subPlot == null ? "" : subPlot.Name + "|" + subPlot.Owner + "|" + subPlot.Price;
